@@ -26,7 +26,12 @@ const validModels = models.filter((model: any) => {
 
 // Get top models by price (lowest first) - deduplication by model family
 const topModelsByPrice = [...validModels]
-  .sort((a: any, b: any) => Number(a.price_1m_input_tokens) - Number(b.price_1m_input_tokens))
+  .sort((a: any, b: any) => {
+    // Sort by total cost (input + output) for better "cheapest" ranking
+    const totalCostA = Number(a.price_1m_input_tokens) + Number(a.price_1m_output_tokens);
+    const totalCostB = Number(b.price_1m_input_tokens) + Number(b.price_1m_output_tokens);
+    return totalCostA - totalCostB;
+  })
   .reduce((acc: any[], model: any) => {
     // Use the full model name for uniqueness, but prioritize more recent versions
     const modelKey = model.name;
@@ -65,10 +70,15 @@ const topModelsByPerformance = getTopModelsByBenchmark('mmlu_pro');
 // Prepare all benchmark data for client-side use
 const benchmarkData = {
   mmlu_pro: getTopModelsByBenchmark('mmlu_pro'),
-  humaneval: getTopModelsByBenchmark('hle'),
   gpqa: getTopModelsByBenchmark('gpqa'),
-  math: getTopModelsByBenchmark('artificial_analysis_math_index'),
-  coding: getTopModelsByBenchmark('artificial_analysis_coding_index')
+  hle: getTopModelsByBenchmark('hle'),
+  aime: getTopModelsByBenchmark('aime'),
+  scicode: getTopModelsByBenchmark('scicode'),
+  math_500: getTopModelsByBenchmark('math_500'),
+  livecodebench: getTopModelsByBenchmark('livecodebench'),
+  artificial_analysis_math_index: getTopModelsByBenchmark('artificial_analysis_math_index'),
+  artificial_analysis_coding_index: getTopModelsByBenchmark('artificial_analysis_coding_index'),
+  artificial_analysis_intelligence_index: getTopModelsByBenchmark('artificial_analysis_intelligence_index')
 };
 
 // Get fastest models (by tokens per second) - smart deduplication by brand
@@ -132,19 +142,29 @@ console.log('🔍 DEBUG: costData.cheapest length:', costData.cheapest.length);
 // Benchmark display names
 const benchmarkNames = {
   mmlu_pro: 'MMLU Pro Ranking (Top 5)',
-  humaneval: 'HumanEval Ranking (Top 5)',
   gpqa: 'GPQA Ranking (Top 5)',
-  math: 'Math Ranking (Top 5)',
-  coding: 'Coding Ranking (Top 5)'
+  hle: 'HLE Ranking (Top 5)',
+  aime: 'AIME Ranking (Top 5)',
+  scicode: 'SciCode Ranking (Top 5)',
+  math_500: 'Math 500 Ranking (Top 5)',
+  livecodebench: 'LiveCodeBench Ranking (Top 5)',
+  artificial_analysis_math_index: 'AA Math Index Ranking (Top 5)',
+  artificial_analysis_coding_index: 'AA Coding Index Ranking (Top 5)',
+  artificial_analysis_intelligence_index: 'AA Intelligence Index Ranking (Top 5)'
 };
 
 // Field mappings for client-side use
 const fieldMappings = {
   mmlu_pro: 'mmlu_pro',
-  humaneval: 'hle',
   gpqa: 'gpqa',
-  math: 'artificial_analysis_math_index',
-  coding: 'artificial_analysis_coding_index'
+  hle: 'hle',
+  aime: 'aime',
+  scicode: 'scicode',
+  math_500: 'math_500',
+  livecodebench: 'livecodebench',
+  artificial_analysis_math_index: 'artificial_analysis_math_index',
+  artificial_analysis_coding_index: 'artificial_analysis_coding_index',
+  artificial_analysis_intelligence_index: 'artificial_analysis_intelligence_index'
 };
 
 // Cost chart display names
@@ -188,44 +208,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 
     <!-- Charts Section -->
     <section class="charts-section">
-      <!-- Price Chart -->
-      <div class="chart-card">
-        <div class="chart-header">
-          <h3>Cost Distribution (Top 5)</h3>
-          <select id="cost-selector" class="cost-selector">
-            <option value="cheapest">Cheapest Models</option>
-            <option value="fastest">Fastest Models</option>
-          </select>
-        </div>
-        <div class="vertical-chart">
-          <div class="chart-container">
-            {costData.cheapest.slice(0, 5).map((model: any) => {
-              const price = Number(model.price_1m_input_tokens) || 0;
-              const prices = costData.cheapest.slice(0, 5).map(m => Number(m.price_1m_input_tokens) || 0);
-              const maxPrice = Math.max(...prices);
-              const minPrice = Math.min(...prices);
-              
-              // Better height calculation with more dramatic scaling
-              let height = 60; // minimum height
-              if (maxPrice > minPrice) {
-                const range = maxPrice - minPrice;
-                const normalizedValue = (price - minPrice) / range;
-                height = 60 + (normalizedValue * 120); // scale from 60px to 180px
-              }
-              
-              return (
-                <div class="chart-bar-container">
-                  <div class="chart-bar cheapest-bar" style={`height: ${Math.round(height)}px`}>
-                    <div class="bar-value">${price.toFixed(3)}</div>
-                    <div class="bar-units">per 1M tokens</div>
-                  </div>
-                  <div class="bar-label">{model.name.split(' ')[0]}</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+
 
       <!-- Performance Chart -->
       <div class="chart-card">
@@ -233,10 +216,15 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
           <h3 id="performance-title">MMLU Pro Ranking (Top 5)</h3>
           <select id="benchmark-selector" class="benchmark-selector">
             <option value="mmlu_pro">MMLU Pro</option>
-            <option value="humaneval">HumanEval</option>
             <option value="gpqa">GPQA</option>
-            <option value="math">Math</option>
-            <option value="coding">Coding</option>
+            <option value="hle">HLE</option>
+            <option value="aime">AIME</option>
+            <option value="scicode">SciCode</option>
+            <option value="math_500">Math 500</option>
+            <option value="livecodebench">LiveCodeBench</option>
+            <option value="artificial_analysis_math_index">AA Math Index</option>
+            <option value="artificial_analysis_coding_index">AA Coding Index</option>
+            <option value="artificial_analysis_intelligence_index">AA Intelligence Index</option>
           </select>
         </div>
         <div class="leaderboard-container" id="performance-chart-container">
@@ -286,28 +274,128 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       </div>
     </section>
 
-    <!-- Model Details Table -->
-    <section class="table-section">
-      <div class="table-card">
+    <!-- Model Details Cards -->
+    <section class="models-section">
+      <div class="section-header">
         <h3>Model Details</h3>
-        <div class="table-container">
-          <div class="table-header">
-            <div class="table-col">Model</div>
-            <div class="table-col">Input Price</div>
-            <div class="table-col">Output Price</div>
-            <div class="table-col">MMLU Pro</div>
-            <div class="table-col">GPQA</div>
+        <p class="section-subtitle">Comprehensive benchmark comparison across all models</p>
+        
+        <!-- Filter Row -->
+        <div class="filter-row">
+          <div class="filter-item">
+            <label for="model-search">Search Models</label>
+            <input type="text" id="model-search" placeholder="Search by model name..." class="filter-input">
           </div>
-          {validModels.map((model: any) => (
-            <div class="table-row">
-              <div class="table-cell">{model.name}</div>
-              <div class="table-cell">{formatPrice(model.price_1m_input_tokens)}</div>
-              <div class="table-cell">{formatPrice(model.price_1m_output_tokens)}</div>
-              <div class="table-cell">{formatScore(model.mmlu_pro)}</div>
-              <div class="table-cell">{formatScore(model.gpqa)}</div>
-            </div>
-          ))}
+          
+        
+          
+          <div class="filter-item">
+            <label for="sort-by">Sort By</label>
+            <select id="sort-by" class="filter-select">
+              <option value="price_1m_input_tokens">Input Price</option>
+              <option value="price_1m_output_tokens">Output Price</option>
+              <option value="mmlu_pro">MMLU Pro</option>
+              <option value="gpqa">GPQA</option>
+              <option value="hle">HLE</option>
+              <option value="aime">AIME</option>
+              <option value="scicode">SciCode</option>
+              <option value="math_500">Math 500</option>
+              <option value="livecodebench">LiveCodeBench</option>
+              <option value="artificial_analysis_math_index">AA Math</option>
+              <option value="artificial_analysis_coding_index">AA Coding</option>
+              <option value="artificial_analysis_intelligence_index">AA Intelligence</option>
+            </select>
+          </div>
+          
+          <div class="filter-item">
+            <label for="sort-order">Order</label>
+            <select id="sort-order" class="filter-select">
+              <option value="desc">Highest to Lowest</option>
+              <option value="asc">Lowest to Highest</option>
+            </select>
+          </div>
+          
+          <button id="clear-filters" class="clear-btn">Clear All</button>
         </div>
+      </div>
+      <div class="models-grid">
+        {validModels.map((model: any) => (
+          <div class="model-card">
+            <div class="model-header">
+              <h4 class="model-name">{model.name}</h4>
+              <div class="model-pricing">
+                <div class="price-item">
+                  <span class="price-label">Input</span>
+                  <span class="price-value">{formatPrice(model.price_1m_input_tokens)}</span>
+                </div>
+                <div class="price-item">
+                  <span class="price-label">Output</span>
+                  <span class="price-value">{formatPrice(model.price_1m_output_tokens)}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="benchmarks-container">
+              <div class="benchmark-group">
+                <h5 class="group-title">Academic</h5>
+                <div class="benchmark-grid">
+                  <div class="benchmark-item">
+                    <span class="benchmark-label">MMLU Pro</span>
+                    <span class="benchmark-score">{formatScore(model.mmlu_pro)}</span>
+                  </div>
+                  <div class="benchmark-item">
+                    <span class="benchmark-label">GPQA</span>
+                    <span class="benchmark-score">{formatScore(model.gpqa)}</span>
+                  </div>
+                  <div class="benchmark-item">
+                    <span class="benchmark-label">HLE</span>
+                    <span class="benchmark-score">{formatScore(model.hle)}</span>
+                  </div>
+                  <div class="benchmark-item">
+                    <span class="benchmark-label">AIME</span>
+                    <span class="benchmark-score">{formatScore(model.aime)}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="benchmark-group">
+                <h5 class="group-title">Coding & Math</h5>
+                <div class="benchmark-grid">
+                  <div class="benchmark-item">
+                    <span class="benchmark-label">SciCode</span>
+                    <span class="benchmark-score">{formatScore(model.scicode)}</span>
+                  </div>
+                  <div class="benchmark-item">
+                    <span class="benchmark-label">LiveCodeBench</span>
+                    <span class="benchmark-score">{formatScore(model.livecodebench)}</span>
+                  </div>
+                  <div class="benchmark-item">
+                    <span class="benchmark-label">Math 500</span>
+                    <span class="benchmark-score">{formatScore(model.math_500)}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="benchmark-group">
+                <h5 class="group-title">AI Analysis</h5>
+                <div class="benchmark-grid">
+                  <div class="benchmark-item">
+                    <span class="benchmark-label">Math Index</span>
+                    <span class="benchmark-score">{formatScore(model.artificial_analysis_math_index)}</span>
+                  </div>
+                  <div class="benchmark-item">
+                    <span class="benchmark-label">Coding Index</span>
+                    <span class="benchmark-score">{formatScore(model.artificial_analysis_coding_index)}</span>
+                  </div>
+                  <div class="benchmark-item">
+                    <span class="benchmark-label">Intelligence</span>
+                    <span class="benchmark-score">{formatScore(model.artificial_analysis_intelligence_index)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   </main>
@@ -322,15 +410,12 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
     console.log('🚀 Dashboard charts initializing...');
 
     // Get chart elements with more robust selectors
-    const costChartContainer = document.querySelector('.vertical-chart .chart-container');
+
     const performanceChartContainer = document.getElementById('performance-chart-container');
-    const costSelector = document.getElementById('cost-selector');
     const benchmarkSelector = document.getElementById('benchmark-selector');
     
     console.log('📊 Chart elements:', {
-      costChart: !!costChartContainer,
       performanceChart: !!performanceChartContainer,
-      costSelector: !!costSelector,
       benchmarkSelector: !!benchmarkSelector
     });
     
@@ -388,7 +473,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
           rankStyle = 'background: linear-gradient(135deg, #CD7F32 0%, #D2691E 30%, #CD7F32 60%, #DEB887 100%) !important; color: #FFFFFF !important; box-shadow: 0 6px 20px rgba(205, 127, 50, 0.4), 0 0 0 3px rgba(205, 127, 50, 0.3) !important; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;';
         } else {
           // Theme color for 4th and 5th place
-          rankStyle = 'background: linear-gradient(135deg, #94C5CC 0%, #B4D2E7 50%, #94C5CC 100%) !important; color: #1a1a1a !important; box-shadow: 0 4px 16px rgba(148, 197, 204, 0.4), 0 0 0 2px rgba(148, 197, 204, 0.3) !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important;';
+          rankStyle = 'background: linear-gradient(135deg, #8b5cf6 0%, #B4D2E7 50%, #8b5cf6 100%) !important; color: #1a1a1a !important; box-shadow: 0 4px 16px rgba(148, 197, 204, 0.4), 0 0 0 2px rgba(148, 197, 204, 0.3) !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important;';
         }
         
         return `
@@ -406,7 +491,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       }).join('');
       
       const leaderboardHTML = `
-        <div class="leaderboard-header" style="display: grid !important; grid-template-columns: 80px 1fr 120px !important; gap: 1.5rem !important; padding: 1.5rem 2rem !important; background: linear-gradient(135deg, #94C5CC 0%, #B4D2E7 30%, #E8F4F8 50%, #B4D2E7 70%, #94C5CC 100%) !important; font-weight: 900 !important; font-size: 0.95rem !important; color: #1a1a1a !important; text-transform: uppercase !important; letter-spacing: 1.2px !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important; border-bottom: 4px solid rgba(148, 197, 204, 0.5) !important;">
+        <div class="leaderboard-header" style="display: grid !important; grid-template-columns: 80px 1fr 120px !important; gap: 1.5rem !important; padding: 1.5rem 2rem !important; background: linear-gradient(135deg, #8b5cf6 0%, #B4D2E7 30%, #E8F4F8 50%, #B4D2E7 70%, #8b5cf6 100%) !important; font-weight: 900 !important; font-size: 0.95rem !important; color: #1a1a1a !important; text-transform: uppercase !important; letter-spacing: 1.2px !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important; border-bottom: 4px solid rgba(148, 197, 204, 0.5) !important;">
           <div class="rank-col">RANK</div>
           <div class="name-col">NAME</div>
           <div class="score-col">SCORE</div>
@@ -436,118 +521,245 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       performanceChartContainer.classList.add('premium-leaderboard');
     }
     
-    // Render cost chart (vertical bars)
-    function renderCostChart(costType = 'cheapest') {
-      if (!costChartContainer) {
-        console.error('❌ Cost chart container not found');
-        return;
-      }
-      
-      console.log(`💰 Rendering cost chart: ${costType}`);
-      
-      // Use the data passed from the server
-      const models = costData[costType] || [];
-      const topModels = models.slice(0, 5);
-      const field = costFieldMappings[costType];
-      
-      if (!field || topModels.length === 0) {
-        // Don't replace the entire container, just show a message
-        const noDataEl = document.createElement('div');
-        noDataEl.className = 'no-data';
-        noDataEl.textContent = 'No data available';
-        costChartContainer.appendChild(noDataEl);
-        return;
-      }
-      
-      const values = topModels.map(m => Number(m[field]) || 0);
-      const maxValue = Math.max(...values);
-      
-      // Update existing bars instead of replacing them
-      const barContainers = costChartContainer.querySelectorAll('.chart-bar-container');
-      barContainers.forEach((container, index) => {
-        if (index < topModels.length) {
-          const model = topModels[index];
-          const value = Number(model[field]) || 0;
-          const height = maxValue > 0 ? Math.max((value / maxValue) * 180, 20) : 20;
-          
-          const chartBar = container.querySelector('.chart-bar');
-          const barValue = container.querySelector('.bar-value');
-          const barUnits = container.querySelector('.bar-units');
-          const barLabel = container.querySelector('.bar-label');
-          
-          if (chartBar) {
-            // Update bar class based on cost type
-            chartBar.className = 'chart-bar ' + (costType === 'fastest' ? 'fastest-bar' : 'cheapest-bar');
-            chartBar.style.height = height + 'px';
-          }
-          
-          if (barValue) {
-            if (costType === 'cheapest') {
-              barValue.textContent = `$${value.toFixed(3)}`;
-            } else if (costType === 'fastest') {
-              barValue.textContent = value.toFixed(0);
-            }
-          }
-          
-          if (barUnits) {
-            if (costType === 'cheapest') {
-              barUnits.textContent = 'per 1M tokens';
-            } else if (costType === 'fastest') {
-              barUnits.textContent = 'tokens/sec';
-            }
-          }
-          
-          if (barLabel) {
-            barLabel.textContent = model.name.split(' ')[0];
-          }
-        }
-      });
-      
-      // Update chart title
-      const titleEl = document.getElementById('cost-title');
-      if (titleEl) {
-        titleEl.textContent = costNames[costType] || 'Cost Distribution (Top 5)';
-      }
-      
-      console.log(`✅ Cost chart updated with ${topModels.length} models`);
-    }
+
     
+    // Function to fetch fresh data from API
+    async function fetchFreshData() {
+      try {
+        console.log('🔄 Fetching fresh data from API...');
+        const response = await fetch('/api/models.json');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const freshModels = await response.json();
+        console.log('✅ Fresh data fetched:', freshModels.length, 'models');
+        return freshModels;
+      } catch (error) {
+        console.error('❌ Error fetching fresh data:', error);
+        return null;
+      }
+    }
+
+    // Function to update data and re-render charts
+    async function refreshDataAndCharts() {
+      const freshModels = await fetchFreshData();
+      if (!freshModels) {
+        console.warn('⚠️ Using cached data due to fetch error');
+        return false;
+      }
+
+      // Update global data with fresh models
+      const validModels = freshModels.filter((model) => {
+        const inputPrice = Number(model.price_1m_input_tokens);
+        const outputPrice = Number(model.price_1m_output_tokens);
+        return inputPrice > 0 && outputPrice > 0;
+      });
+
+      // Recalculate top models by price
+      const freshTopModelsByPrice = [...validModels]
+        .sort((a, b) => {
+          const totalCostA = Number(a.price_1m_input_tokens) + Number(a.price_1m_output_tokens);
+          const totalCostB = Number(b.price_1m_input_tokens) + Number(b.price_1m_output_tokens);
+          return totalCostA - totalCostB;
+        })
+        .reduce((acc, model) => {
+          const modelKey = model.name;
+          if (!acc.some(m => m.name === modelKey)) {
+            acc.push(model);
+          }
+          return acc;
+        }, [])
+        .slice(0, 5);
+
+      // Recalculate fastest models
+      const freshFastestModels = [...validModels]
+        .filter(model => model.tps_score && Number(model.tps_score) > 0)
+        .sort((a, b) => Number(b.tps_score) - Number(a.tps_score))
+        .reduce((acc, model) => {
+          const modelKey = model.name;
+          if (!acc.some(m => m.name === modelKey)) {
+            acc.push(model);
+          }
+          return acc;
+        }, [])
+        .slice(0, 5);
+
+      // Update global costData
+      costData.cheapest = freshTopModelsByPrice;
+      costData.fastest = freshFastestModels;
+
+      // Update benchmark data
+      Object.keys(benchmarkData).forEach(benchmark => {
+        const uniqueModels = new Map();
+        validModels
+          .filter(model => model[fieldMappings[benchmark]] && Number(model[fieldMappings[benchmark]]) > 0)
+          .forEach(model => {
+            const existing = uniqueModels.get(model.name);
+            if (!existing || Number(model[fieldMappings[benchmark]]) > Number(existing[fieldMappings[benchmark]])) {
+              uniqueModels.set(model.name, model);
+            }
+          });
+        
+        benchmarkData[benchmark] = Array.from(uniqueModels.values())
+          .sort((a, b) => Number(b[fieldMappings[benchmark]]) - Number(a[fieldMappings[benchmark]]))
+          .slice(0, 5);
+      });
+
+      console.log('✅ Data refreshed successfully');
+      return true;
+    }
+
     // Event listeners with proper type casting
     if (benchmarkSelector) {
-      benchmarkSelector.addEventListener('change', function(e) {
+      benchmarkSelector.addEventListener('change', async function(e) {
         const target = e.target;
         if (target && target.value) {
           console.log('🔄 Benchmark changed to:', target.value);
+          await refreshDataAndCharts();
           renderPerformanceChart(target.value);
         }
       });
     }
     
-    if (costSelector) {
-      costSelector.addEventListener('change', function(e) {
-        const target = e.target;
-        if (target && target.value) {
-          console.log('🔄 Cost type changed to:', target.value);
-          renderCostChart(target.value);
-        }
-      });
-    }
+
     
     // Initialize charts immediately
     setTimeout(() => {
       renderPerformanceChart('mmlu_pro');
-      renderCostChart('cheapest');
       console.log('🎉 Charts initialized successfully');
     }, 100);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initDashboard);
-  } else {
-    initDashboard();
+  // Model filtering and sorting functionality
+  function initModelFilters() {
+    const searchInput = document.getElementById('model-search');
+    const dateSortSelect = document.getElementById('date-sort');
+    const sortBySelect = document.getElementById('sort-by');
+    const sortOrderSelect = document.getElementById('sort-order');
+    const clearFiltersBtn = document.getElementById('clear-filters');
+    const modelsGrid = document.querySelector('.models-grid');
+    
+    if (!modelsGrid) {
+      console.warn('Models grid not found');
+      return;
+    }
+    
+    let allModelCards = Array.from(modelsGrid.querySelectorAll('.model-card'));
+    let originalModelsData = [];
+    
+    // Extract model data from cards for filtering/sorting
+    allModelCards.forEach(card => {
+      const modelName = card.querySelector('.model-name')?.textContent || '';
+      const inputPrice = parseFloat(card.querySelector('.price-value')?.textContent?.replace(/[$,]/g, '') || '0');
+      const outputPrice = parseFloat(card.querySelectorAll('.price-value')[1]?.textContent?.replace(/[$,]/g, '') || '0');
+      
+      // Extract benchmark scores
+      const benchmarkScores = {};
+      const benchmarkItems = card.querySelectorAll('.benchmark-item');
+      benchmarkItems.forEach(item => {
+        const label = item.querySelector('.benchmark-label')?.textContent?.trim();
+        const scoreText = item.querySelector('.benchmark-score')?.textContent?.trim();
+        const score = scoreText === '—' ? 0 : parseFloat(scoreText?.replace('%', '') || '0');
+        
+        // Map display names to database field names
+        const fieldMap = {
+          'MMLU Pro': 'mmlu_pro',
+          'GPQA': 'gpqa',
+          'HLE': 'hle',
+          'AIME': 'aime',
+          'SciCode': 'scicode',
+          'Math 500': 'math_500',
+          'LiveCodeBench': 'livecodebench',
+          'Math Index': 'artificial_analysis_math_index',
+          'Coding Index': 'artificial_analysis_coding_index',
+          'Intelligence': 'artificial_analysis_intelligence_index'
+        };
+        
+        if (label && fieldMap[label]) {
+          benchmarkScores[fieldMap[label]] = score;
+        }
+      });
+      
+      originalModelsData.push({
+        element: card,
+        name: modelName,
+        price_1m_input_tokens: inputPrice,
+        price_1m_output_tokens: outputPrice,
+        ...benchmarkScores
+      });
+    });
+    
+    function applyFilters() {
+      const searchTerm = searchInput?.value?.toLowerCase() || '';
+      const dateSort = dateSortSelect?.value || 'newest';
+      const sortBy = sortBySelect?.value || 'name';
+      const sortOrder = sortOrderSelect?.value || 'desc';
+      
+      let filteredData = [...originalModelsData];
+      
+      // Apply search filter
+      if (searchTerm) {
+        filteredData = filteredData.filter(model => 
+          model.name.toLowerCase().includes(searchTerm)
+        );
+      }
+      
+      // Apply sorting
+      filteredData.sort((a, b) => {
+        let valueA, valueB;
+        
+        if (sortBy === 'name') {
+          valueA = a.name.toLowerCase();
+          valueB = b.name.toLowerCase();
+          return sortOrder === 'asc' ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA);
+        } else {
+          valueA = a[sortBy] || 0;
+          valueB = b[sortBy] || 0;
+          
+          if (sortOrder === 'asc') {
+            return valueA - valueB;
+          } else {
+            return valueB - valueA;
+          }
+        }
+      });
+      
+      // Clear and re-populate the grid
+      modelsGrid.innerHTML = '';
+      filteredData.forEach(model => {
+        modelsGrid.appendChild(model.element);
+      });
+      
+      console.log(`🔍 Filtered ${filteredData.length} models out of ${originalModelsData.length}`);
+    }
+    
+    function clearAllFilters() {
+      if (searchInput) searchInput.value = '';
+      if (dateSortSelect) dateSortSelect.value = 'newest';
+      if (sortBySelect) sortBySelect.value = 'name';
+      if (sortOrderSelect) sortOrderSelect.value = 'desc';
+      applyFilters();
+    }
+    
+    // Add event listeners
+    searchInput?.addEventListener('input', applyFilters);
+    dateSortSelect?.addEventListener('change', applyFilters);
+    sortBySelect?.addEventListener('change', applyFilters);
+    sortOrderSelect?.addEventListener('change', applyFilters);
+    clearFiltersBtn?.addEventListener('click', clearAllFilters);
+    
+    console.log('✅ Model filters initialized with', originalModelsData.length, 'models');
   }
   
-
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      initDashboard();
+      initModelFilters();
+    });
+  } else {
+    initDashboard();
+    initModelFilters();
+  }
 </script>
 
 <style>
@@ -716,7 +928,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 
 #benchmark-selector:focus,
 #cost-selector:focus {
-  border-color: #94C5CC;
+  border-color: #8b5cf6;
   box-shadow: 0 0 0 2px rgba(148, 197, 204, 0.2);
 }
 
@@ -777,6 +989,49 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   transition: all 0.3s ease;
   overflow: hidden;
+  background: none !important; /* Remove background since we'll use split colors */
+}
+
+.chart-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.pricing-toggle {
+  display: flex;
+  background: rgba(161, 166, 180, 0.1);
+  border-radius: 6px;
+  padding: 2px;
+  border: 1px solid rgba(161, 166, 180, 0.2);
+}
+
+.toggle-btn {
+  padding: 0.4rem 0.8rem;
+  border: none;
+  background: transparent;
+  color: rgba(161, 166, 180, 0.8);
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-btn:hover {
+  background: rgba(161, 166, 180, 0.1);
+  color: rgba(161, 166, 180, 1);
+}
+
+.toggle-btn.active {
+  background: #22c55e;
+  color: white;
+  box-shadow: 0 2px 4px rgba(34, 197, 94, 0.3);
+}
+
+.toggle-btn.active.output {
+  background: #ef4444;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
 }
 
 .chart-bar::before {
@@ -804,10 +1059,38 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
+.cheapest-bar.input-mode {
+  background: #22c55e !important; /* Green for input */
+  border-color: rgba(34, 197, 94, 0.4);
+  box-shadow: 
+    0 4px 12px rgba(34, 197, 94, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.cheapest-bar.output-mode {
+  background: #ef4444 !important; /* Red for output */
+  border-color: rgba(239, 68, 68, 0.4);
+  box-shadow: 
+    0 4px 12px rgba(239, 68, 68, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
 .fastest-bar {
   background: #8b5cf6 !important; /* Solid Purple */
   border-color: rgba(139, 92, 246, 0.4);
   box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.fastest-bar.tps-mode {
+  background: #8b5cf6 !important; /* Purple for TPS */
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.fastest-bar.ttft-mode {
+  background: #f59e0b !important; /* Orange for TTFT */
+  border-color: rgba(245, 158, 11, 0.4);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .bar-value {
@@ -833,11 +1116,20 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 }
 
 .bar-label {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #F8F8F8;
   font-weight: 600;
   text-align: center;
   margin-top: 0.25rem;
+  line-height: 1.2;
+  max-width: 100px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  min-height: 2.4em; /* Ensure consistent height for 2 lines */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Leaderboard Styles - Using higher specificity to override Astro scoped styles */
@@ -880,7 +1172,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   gap: 1.5rem !important;
   padding: 1.5rem 2rem !important;
   background: 
-    linear-gradient(135deg, #94C5CC 0%, #B4D2E7 30%, #E8F4F8 50%, #B4D2E7 70%, #94C5CC 100%),
+    linear-gradient(135deg, #8b5cf6 0%, #B4D2E7 30%, #E8F4F8 50%, #B4D2E7 70%, #8b5cf6 100%),
     linear-gradient(90deg, rgba(255, 255, 255, 0.1), transparent) !important;
   font-weight: 900 !important;
   font-size: 0.95rem !important;
@@ -1022,7 +1314,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 /* Default theme color for 4th and 5th place */
 #performance-chart-container .leaderboard-row:nth-child(n+4) .rank-cell,
 .leaderboard-row:nth-child(n+4) .rank-cell {
-  background: linear-gradient(135deg, #94C5CC 0%, #B4D2E7 50%, #94C5CC 100%) !important;
+  background: linear-gradient(135deg, #8b5cf6 0%, #B4D2E7 50%, #8b5cf6 100%) !important;
   color: #1a1a1a !important;
   box-shadow: 
     0 4px 16px rgba(148, 197, 204, 0.4),
@@ -1221,7 +1513,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 .stat-value {
   font-size: 2rem;
   font-weight: 700;
-  color: #94C5CC;
+  color: #8b5cf6;
 }
 
 .stat-label {
@@ -1246,7 +1538,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 
 .leader-card h3 {
   margin-bottom: 1rem;
-  color: #94C5CC;
+  color: #8b5cf6;
   font-size: 1.2rem;
 }
 
@@ -1272,7 +1564,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 
 .leader-price,
 .leader-score {
-  color: #94C5CC;
+  color: #8b5cf6;
   font-weight: 600;
 }
 
@@ -1290,7 +1582,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 
 .table-card h3 {
   margin-bottom: 1rem;
-  color: #94C5CC;
+  color: #8b5cf6;
   font-size: 1.2rem;
 }
 
@@ -1414,8 +1706,8 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 }
 
 .perf-fill {
-  background: linear-gradient(135deg, #94C5CC 0%, #B4D2E7 50%, #94C5CC 100%) !important;
-  border: 2px solid #94C5CC !important;
+  background: linear-gradient(135deg, #8b5cf6 0%, #B4D2E7 50%, #8b5cf6 100%) !important;
+  border: 2px solid #8b5cf6 !important;
   min-width: 20px !important;
 }
 
@@ -1444,5 +1736,316 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   overflow: hidden !important;
   border: 1px solid rgba(161, 166, 180, 0.25) !important;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Model Cards Styles */
+.models-section {
+  margin: 2rem 0;
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.section-header h3 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: rgba(161, 166, 180, 0.95);
+  margin-bottom: 0.5rem;
+}
+
+.section-subtitle {
+  color: rgba(161, 166, 180, 0.7);
+  font-size: 1rem;
+  margin: 0 0 1.5rem 0;
+}
+
+/* Filter Row Styles */
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: end;
+  justify-content: center;
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: rgba(148, 197, 204, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(148, 197, 204, 0.15);
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 150px;
+}
+
+.filter-item label {
+  font-size: 0.8rem;
+  color: rgba(161, 166, 180, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.filter-input,
+.filter-select {
+  padding: 0.75rem 1rem;
+  background: rgba(15, 15, 25, 0.6);
+  border: 1px solid rgba(148, 197, 204, 0.2);
+  border-radius: 8px;
+  color: rgba(161, 166, 180, 0.9);
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+.filter-input:focus,
+.filter-select:focus {
+  outline: none;
+  border-color: rgba(148, 197, 204, 0.5);
+  box-shadow: 0 0 0 2px rgba(148, 197, 204, 0.1);
+  background: rgba(15, 15, 25, 0.8);
+}
+
+.filter-input::placeholder {
+  color: rgba(161, 166, 180, 0.5);
+}
+
+.filter-select option {
+  background: rgba(15, 15, 25, 0.95);
+  color: rgba(161, 166, 180, 0.9);
+}
+
+.clear-btn {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, rgba(148, 197, 204, 0.2), rgba(148, 197, 204, 0.1));
+  border: 1px solid rgba(148, 197, 204, 0.3);
+  border-radius: 8px;
+  color: rgba(161, 166, 180, 0.9);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.clear-btn:hover {
+  background: linear-gradient(135deg, rgba(148, 197, 204, 0.3), rgba(148, 197, 204, 0.2));
+  border-color: rgba(148, 197, 204, 0.4);
+  transform: translateY(-1px);
+}
+
+.clear-btn:active {
+  transform: translateY(0);
+}
+
+.models-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1.5rem;
+  padding: 0 1rem;
+}
+
+.model-card {
+  background: 
+    linear-gradient(145deg, rgba(15, 15, 25, 0.95), rgba(25, 25, 40, 0.9)),
+    radial-gradient(circle at 20% 80%, rgba(148, 197, 204, 0.08), transparent 50%);
+  border: 2px solid rgba(148, 197, 204, 0.2);
+  border-radius: 16px;
+  padding: 1.5rem;
+  backdrop-filter: blur(20px);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 4px 16px rgba(148, 197, 204, 0.1),
+    0 0 0 1px rgba(148, 197, 204, 0.1) inset;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.model-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(148, 197, 204, 0.4), transparent);
+  z-index: 1;
+}
+
+.model-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(148, 197, 204, 0.4);
+  box-shadow: 
+    0 12px 48px rgba(0, 0, 0, 0.4),
+    0 8px 24px rgba(148, 197, 204, 0.15),
+    0 0 0 1px rgba(148, 197, 204, 0.2) inset;
+}
+
+.model-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(148, 197, 204, 0.15);
+}
+
+.model-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: rgba(161, 166, 180, 0.95);
+  margin: 0 0 1rem 0;
+  text-align: center;
+}
+
+.model-pricing {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.price-item {
+  flex: 1;
+  text-align: center;
+  padding: 0.75rem;
+  background: rgba(148, 197, 204, 0.08);
+  border-radius: 8px;
+  border: 1px solid rgba(148, 197, 204, 0.15);
+}
+
+.price-label {
+  display: block;
+  font-size: 0.8rem;
+  color: rgba(161, 166, 180, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.25rem;
+}
+
+.price-value {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: rgba(161, 166, 180, 0.9);
+}
+
+.benchmarks-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.benchmark-group {
+  background: rgba(148, 197, 204, 0.05);
+  border-radius: 12px;
+  padding: 1rem;
+  border: 1px solid rgba(148, 197, 204, 0.1);
+}
+
+.group-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(148, 197, 204, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 0.75rem 0;
+  text-align: center;
+}
+
+.benchmark-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+
+.benchmark-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(15, 15, 25, 0.3);
+  border-radius: 8px;
+  border: 1px solid rgba(148, 197, 204, 0.1);
+  transition: all 0.2s ease;
+}
+
+.benchmark-item:hover {
+  background: rgba(148, 197, 204, 0.08);
+  border-color: rgba(148, 197, 204, 0.2);
+}
+
+.benchmark-label {
+  font-size: 0.75rem;
+  color: rgba(161, 166, 180, 0.7);
+  text-align: center;
+  margin-bottom: 0.25rem;
+  line-height: 1.2;
+}
+
+.benchmark-score {
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgba(161, 166, 180, 0.9);
+  text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .models-grid {
+    grid-template-columns: 1fr;
+    padding: 0 0.5rem;
+  }
+  
+  .model-card {
+    padding: 1.25rem;
+  }
+  
+  .benchmark-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .section-header h3 {
+    font-size: 1.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .filter-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .filter-item {
+    min-width: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .filter-row {
+    padding: 1rem;
+    gap: 0.75rem;
+  }
+  
+  .model-pricing {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .benchmark-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .model-card {
+    padding: 1rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .models-grid {
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  }
 }
 </style>
