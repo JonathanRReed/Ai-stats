@@ -605,7 +605,10 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       
       cardElement.innerHTML = `
         <div class="model-header">
-          <h4 class="model-name">${model.name}</h4>
+          <div class="model-info">
+            <h4 class="model-name">${model.name}</h4>
+            <h5 class="company-name">${model.company_name}</h5>
+          </div>
           <div class="model-pricing">
             <div class="price-item">
               <span class="price-label">Input</span>
@@ -1426,19 +1429,44 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 }
 
 .company-name {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: rgba(148, 197, 204, 0.95);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #94C5CC;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-  opacity: 0.9;
-  background: linear-gradient(90deg, rgba(148, 197, 204, 0.2), transparent);
-  padding: 0.15rem 0.5rem;
+  letter-spacing: 0.5px;
+  margin: 0;
+  background: rgba(148, 197, 204, 0.15);
+  padding: 0.2rem 0.7rem;
   border-radius: 12px;
-  border: 1px solid rgba(148, 197, 204, 0.3);
-  display: inline-block;
-  transition: all 0.3s ease;
-  text-align: left;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  line-height: 1;
+  border: 1px solid rgba(148, 197, 204, 0.2);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+  height: 20px;
+  min-width: 0;
+  max-width: fit-content;
+  box-sizing: border-box;
+}
+
+.company-name::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.1) 50%, 
+    transparent 100%);
+  opacity: 0.3;
+  pointer-events: none;
 }
 
 .leaderboard-row:hover .model-name {
@@ -1939,14 +1967,31 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid rgba(148, 197, 204, 0.15);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+  gap: 1rem;
+}
+
+.model-info {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  flex: 1;
+  min-width: 0;
 }
 
 .model-name {
   font-size: 1.5rem;
   font-weight: 700;
   color: rgba(161, 166, 180, 0.95);
-  margin: 0 0 1rem 0;
-  text-align: center;
+  margin: 0 0 0.25rem 0;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .model-pricing {
