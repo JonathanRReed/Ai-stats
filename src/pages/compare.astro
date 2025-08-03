@@ -969,7 +969,7 @@ const availableBenchmarks = {
 
         function formatScore(value) {
           const num = Number(value) || 0;
-          return num ? `${num.toFixed(1)}%` : '—';
+          return num ? `${num.toFixed(3)}%` : '—';
         }
 
         function applyFiltersAndSort() {
@@ -1116,6 +1116,23 @@ const availableBenchmarks = {
           // Get sort order and metric
           const sortOrder = sortToggle ? sortToggle.getAttribute('data-order') : 'desc';
           const metric = metricSelector ? metricSelector.value : 'mmlu_pro';
+          
+          // Update performance chart title with benchmark name
+          const perfChartHeader = document.querySelector('#performance-chart').parentElement.querySelector('.chart-header h3');
+          if (perfChartHeader) {
+            const metricDisplayNames = {
+              'mmlu_pro': 'MMLU PRO',
+              'gpqa': 'GPQA', 
+              'math': 'MATH',
+              'humaneval': 'HumanEval',
+              'drop': 'DROP'
+            };
+            const benchmarkName = metricDisplayNames[metric] || metric.toUpperCase().replace('_', ' ');
+            perfChartHeader.textContent = `${benchmarkName} Performance Comparison`;
+            console.log('Updated chart title to:', perfChartHeader.textContent);
+          } else {
+            console.log('Could not find performance chart header');
+          }
 
           // Clear containers completely and rebuild from scratch
           priceChart.innerHTML = '';
@@ -1147,27 +1164,58 @@ const availableBenchmarks = {
             const outputPrice = Number(model.price_1m_output_tokens) || 0;
             const total = totals[i];
             
-            // Calculate heights proportionally
-            const totalHeight = Math.max((total / maxTotal) * 180, 30);
-            const inputRatio = inputPrice / total;
-            const outputRatio = outputPrice / total;
+            // Calculate heights proportionally to show actual price relationships
+            const maxPrice = Math.max(...chosenByPrice.flatMap(m => [
+              Number(m.price_1m_input_tokens) || 0,
+              Number(m.price_1m_output_tokens) || 0
+            ]), 1);
             
-            // Calculate individual heights, ensuring minimum visibility
-            const inputHeight = inputPrice > 0 ? Math.max(inputRatio * totalHeight, 5) : 0;
-            const outputHeight = outputPrice > 0 ? Math.max(outputRatio * totalHeight, 5) : 0;
+            // Scale both input and output against the same maximum for accurate comparison
+            const inputHeight = inputPrice > 0 ? Math.max((inputPrice / maxPrice) * 150, 8) : 0;
+            const outputHeight = outputPrice > 0 ? Math.max((outputPrice / maxPrice) * 150, 8) : 0;
+            
+            // Container height should accommodate both bars side by side
+            const totalHeight = Math.max(inputHeight, outputHeight, 30);
             
             const chartItem = document.createElement('div');
             chartItem.className = 'chart-item';
             chartItem.style.position = 'relative';
+            chartItem.style.minWidth = `${dynamicWidth}px`;
+            chartItem.style.maxWidth = `${dynamicWidth}px`;
+            chartItem.style.flex = '0 0 auto';
+            // Simplified text display logic
+            const inputText = `$${inputPrice.toFixed(inputPrice >= 10 ? 1 : 2)}`;
+            const outputText = `$${outputPrice.toFixed(outputPrice >= 10 ? 1 : 2)}`;
+            
+            const getTextDisplay = (height, text) => {
+              if (height < 8) return ''; // Show text in almost all bars
+              
+              // Smart sizing: consider both height and text length
+              const barWidth = dynamicWidth * 0.48; // Approximate width of each price bar
+              const textLength = text.length;
+              
+              // Calculate optimal font size based on available space
+              const heightBasedSize = height / 2.5; // Height constraint
+              const widthBasedSize = (barWidth - 4) / (textLength * 0.6); // Width constraint with padding
+              
+              // Use the smaller of the two constraints, with reasonable bounds
+              const optimalSize = Math.min(heightBasedSize, widthBasedSize);
+              const fontSize = Math.max(5, Math.min(11, optimalSize));
+              
+              return `<span style="color: white; font-size: ${fontSize}px; font-weight: 600; text-shadow: 0 1px 3px rgba(0,0,0,1); line-height: 1; white-space: nowrap;">${text}</span>`;
+            };
+            
             chartItem.innerHTML = `
               <div style="display: flex; flex-direction: row; justify-content: center; align-items: flex-end; height: ${totalHeight}px; width: 100%; gap: 2px;">
                 <div class="chart-bar input-price-bar" 
-                     style="height: ${inputHeight}px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.35) 0%, rgba(34, 197, 94, 0.25) 50%, rgba(34, 197, 94, 0.15) 100%); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); border: 1px solid rgba(34, 197, 94, 0.5); border-radius: 14px; box-shadow: 0 8px 32px rgba(34, 197, 94, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1); flex: 1; max-width: 48%; cursor: pointer; position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden;" 
+                     style="height: ${inputHeight}px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.35) 0%, rgba(34, 197, 94, 0.25) 50%, rgba(34, 197, 94, 0.15) 100%); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); border: 1px solid rgba(34, 197, 94, 0.5); border-radius: 14px; box-shadow: 0 8px 32px rgba(34, 197, 94, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1); flex: 1; max-width: 48%; cursor: pointer; position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; display: flex; align-items: center; justify-content: center;" 
                      data-tooltip="${model.name} - Input: $${inputPrice.toFixed(3)} per 1M tokens">
+                  ${getTextDisplay(inputHeight, inputText)}
                 </div>
                 <div class="chart-bar output-price-bar" 
-                     style="height: ${outputHeight}px; background: linear-gradient(135deg, rgba(239, 68, 68, 0.35) 0%, rgba(239, 68, 68, 0.25) 50%, rgba(239, 68, 68, 0.15) 100%); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 14px; box-shadow: 0 8px 32px rgba(239, 68, 68, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1); flex: 1; max-width: 48%; cursor: pointer; position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden;" 
+                     style="height: ${outputHeight}px; background: linear-gradient(135deg, rgba(239, 68, 68, 0.35) 0%, rgba(239, 68, 68, 0.25) 50%, rgba(239, 68, 68, 0.15) 100%); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 14px; box-shadow: 0 8px 32px rgba(239, 68, 68, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1); flex: 1; max-width: 48%; cursor: pointer; position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; display: flex; align-items: center; justify-content: center;" 
                      data-tooltip="${model.name} - Output: $${outputPrice.toFixed(3)} per 1M tokens">
+                  ${getTextDisplay(outputHeight, outputText)}
                 </div>
               </div>
               <div class="bar-label" style="white-space: nowrap;">${model.name.split(' ')[0]}</div>
@@ -1286,17 +1334,46 @@ const availableBenchmarks = {
           
           chosenByMetric.forEach((model, i) => {
             const score = scores[i];
-            const height = Math.max((score / maxScore) * 180, 30);
+            
+            // High-precision scaling for small differences
+            let height;
+            if (score <= 0 || maxScore <= 0) {
+              height = 30; // Minimum height for zero/invalid scores
+            } else {
+              // Expanded scaling range with high precision
+              const minHeight = 50;
+              const maxHeight = 200;
+              
+              const scoreRatio = score / maxScore;
+              height = minHeight + (scoreRatio * (maxHeight - minHeight));
+              // Don't round - use precise decimal values
+            }
+            
+            console.log(`Model ${model.name}: score=${score}% (ratio=${(score/maxScore).toFixed(4)}), height=${height.toFixed(2)}px`);
             
             const chartItem = document.createElement('div');
             chartItem.className = 'chart-item';
             chartItem.style.position = 'relative';
+            chartItem.style.minWidth = `${dynamicWidth}px`;
+            chartItem.style.maxWidth = `${dynamicWidth}px`;
+            chartItem.style.flex = '0 0 auto';
+            
+            // Simplified performance text display
+            const scoreText = formatScore(score);
+            
+            const getPerformanceTextDisplay = (height, text) => {
+              if (height < 50) return ''; // Simple height check
+              const fontSize = Math.max(10, Math.min(12, height / 8));
+              return `<span style="color: white; font-size: ${fontSize}px; font-weight: 600; text-shadow: 0 1px 3px rgba(0,0,0,1);">${text}</span>`;
+            };
+            
             chartItem.innerHTML = `
               <div class="chart-bar performance-bar" 
-                   style="height: ${height}px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.35) 0%, rgba(139, 92, 246, 0.25) 50%, rgba(139, 92, 246, 0.15) 100%); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); border: 1px solid rgba(139, 92, 246, 0.5); border-radius: 14px; box-shadow: 0 8px 32px rgba(139, 92, 246, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1); cursor: pointer; position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden;" 
+                   style="height: ${height}px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.35) 0%, rgba(139, 92, 246, 0.25) 50%, rgba(139, 92, 246, 0.15) 100%); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); border: 1px solid rgba(139, 92, 246, 0.5); border-radius: 14px; box-shadow: 0 8px 32px rgba(139, 92, 246, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1); cursor: pointer; position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; display: flex; align-items: center; justify-content: center;" 
                    data-tooltip="${model.name} - ${metric.toUpperCase().replace('_', ' ')}: ${formatScore(score)}">
+                ${getPerformanceTextDisplay(height, scoreText)}
               </div>
-              <div class="bar-label" style="white-space: nowrap;">${model.name.split(' ')[0]}</div>
+              <div class="bar-label" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 132px;" title="${model.name}">${model.name.split(' ')[0]}</div>
             `;
             
             // Add hover tooltip functionality
