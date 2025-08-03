@@ -1,5 +1,8 @@
 ---
 import { getModels } from '../lib/supabase';
+import Header from '../components/Header.astro';
+
+
 
 const models = await getModels();
 
@@ -77,6 +80,7 @@ const availableBenchmarks = {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
     <title>AI Understand – Compare Models</title>
+    <link rel="stylesheet" href="/fonts/nebula sans/nebula-sans.css" />
     <style>
       :root {
         --surface-0: #000100;
@@ -92,7 +96,7 @@ const availableBenchmarks = {
       body {
         background: var(--surface-0);
         color: var(--text-primary);
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-family: 'Nebula Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         line-height: 1.6;
       }
       .glass-nav {
@@ -766,15 +770,7 @@ const availableBenchmarks = {
   </head>
   <body>
     <div class="compare-container">
-      <nav class="glass-nav">
-        <div class="nav-content">
-          <div class="logo">AI Understand</div>
-          <div class="nav-links">
-            <a href="/" class="nav-link">Dashboard</a>
-            <a href="/compare" class="nav-link active">Compare</a>
-          </div>
-        </div>
-      </nav>
+      <Header currentPage="compare" />
 
       <button class="filter-toggle" id="filter-toggle" aria-expanded="false" aria-label="Toggle filters">
         <span class="filter-label">&lt;=&gt;</span>

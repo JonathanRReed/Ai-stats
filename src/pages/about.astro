@@ -1,0 +1,634 @@
+---
+import Header from '../components/Header.astro';
+
+const title = 'About - AI Understand Dashboard';
+const description = 'Learn about Jonathan Reed and the AI Understand project';
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<meta name="description" content={description} />
+		<link rel="stylesheet" href="/fonts/nebula sans/nebula-sans.css" />
+		<title>{title}</title>
+		<style>
+			:root {
+				--surface-0: #000100;
+				--text-primary: #F8F8F8;
+				--accent: #8b5cf6;
+				--theme-primary: #94C5CC;
+			}
+
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+
+			body {
+				background: var(--surface-0);
+				color: var(--text-primary);
+				font-family: 'Nebula Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+				line-height: 1.6;
+				margin: 0;
+				padding: 0;
+				min-height: 100vh;
+				position: relative;
+				overflow-x: hidden;
+				background-image: 
+					radial-gradient(circle at 20% 80%, rgba(148, 197, 204, 0.08) 0%, transparent 60%),
+					radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.06) 0%, transparent 60%),
+					radial-gradient(circle at 40% 40%, rgba(148, 197, 204, 0.04) 0%, transparent 50%),
+					radial-gradient(circle at 90% 70%, rgba(255, 255, 255, 0.01) 0%, transparent 40%);
+				animation: backgroundShift 12s ease-in-out infinite;
+			}
+
+			@keyframes backgroundShift {
+				0%, 100% {
+					background-position: 0% 0%, 100% 100%, 50% 50%, 90% 70%;
+				}
+				50% {
+					background-position: 10% 10%, 90% 90%, 60% 40%, 80% 80%;
+				}
+			}
+
+			/* Floating background elements */
+			body::before {
+				content: '';
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				pointer-events: none;
+				z-index: -1;
+				background-image:
+					radial-gradient(1px 1px at 20px 30px, rgba(148, 197, 204, 0.15), transparent),
+					radial-gradient(1px 1px at 40px 70px, rgba(139, 92, 246, 0.1), transparent),
+					radial-gradient(1px 1px at 90px 40px, rgba(255, 255, 255, 0.05), transparent),
+					radial-gradient(1px 1px at 130px 80px, rgba(148, 197, 204, 0.1), transparent);
+				background-repeat: repeat;
+				background-size: 200px 200px;
+				animation: float 15s linear infinite;
+			}
+
+			@keyframes float {
+				0% {
+					transform: translateY(0px) rotate(0deg);
+				}
+				100% {
+					transform: translateY(-10px) rotate(360deg);
+				}
+			}
+
+			.container {
+				max-width: 1200px;
+				margin: 0 auto;
+				padding: 2rem;
+				min-height: 100vh;
+				display: flex;
+				flex-direction: column;
+				justify-content: center;
+				align-items: center;
+				animation: containerFadeIn 0.6s ease-out;
+			}
+
+			@keyframes containerFadeIn {
+				from {
+					opacity: 0;
+					transform: translateY(20px);
+				}
+				to {
+					opacity: 1;
+					transform: translateY(0);
+				}
+			}
+
+			.about-card {
+				background: linear-gradient(145deg, rgba(15, 15, 25, 0.4), rgba(25, 25, 40, 0.3));
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				border-radius: 32px;
+				padding: 3rem;
+				box-shadow: 
+					0 25px 80px rgba(0, 0, 0, 0.2),
+					0 12px 40px rgba(0, 0, 0, 0.1),
+					inset 0 1px 0 rgba(255, 255, 255, 0.2),
+					inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+				backdrop-filter: blur(25px) saturate(1.2);
+				max-width: 900px;
+				width: 100%;
+				position: relative;
+				overflow: hidden;
+				animation: cardSlideIn 0.8s ease-out 0.2s both;
+				transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+			}
+
+			@keyframes cardSlideIn {
+				from {
+					opacity: 0;
+					transform: translateY(50px) scale(0.95);
+				}
+				to {
+					opacity: 1;
+					transform: translateY(0) scale(1);
+				}
+			}
+
+			.about-card:hover {
+				transform: translateY(-5px) scale(1.01);
+				box-shadow: 
+					0 35px 100px rgba(0, 0, 0, 0.6),
+					0 15px 50px rgba(148, 197, 204, 0.25),
+					inset 0 1px 0 rgba(255, 255, 255, 0.15),
+					0 0 0 1px rgba(148, 197, 204, 0.2);
+			}
+
+
+
+			.profile-section {
+				text-align: center;
+				margin-bottom: 3rem;
+				animation: profileFadeIn 0.8s ease-out 0.3s both;
+			}
+
+			@keyframes profileFadeIn {
+				from {
+					opacity: 0;
+					transform: translateY(20px) scale(0.95);
+				}
+				to {
+					opacity: 1;
+					transform: translateY(0) scale(1);
+				}
+			}
+
+			.profile-image {
+				width: 180px;
+				height: 180px;
+				border-radius: 50%;
+				margin: 0 auto 2rem;
+				position: relative;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				overflow: hidden;
+				background: linear-gradient(135deg, rgba(148, 197, 204, 0.18), rgba(139, 92, 246, 0.18), rgba(148, 197, 204, 0.18), rgba(180, 210, 231, 0.18));
+				box-shadow: 
+					0 15px 40px rgba(148, 197, 204, 0.35),
+					0 5px 15px rgba(139, 92, 246, 0.18),
+					inset 0 1px 0 rgba(180, 210, 231, 0.18);
+				transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+				animation: profileGlow 12s ease-in-out infinite;
+			}
+
+			.profile-image img {
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+				border-radius: 50%;
+			}
+
+			.profile-image::before {
+				content: '';
+				position: absolute;
+				top: -8px;
+				left: -8px;
+				right: -8px;
+				bottom: -8px;
+				border-radius: 50%;
+				background: linear-gradient(45deg, #94C5CC, #8b5cf6, #94C5CC, #B4D2E7)	;
+				background-size: 300% 300%;
+				z-index: -1;
+				animation: gradientRotate 12s ease-in-out infinite;
+			}
+
+			.profile-image::after {
+				content: '';
+				position: absolute;
+				top: -15px;
+				left: -15px;
+				right: -15px;
+				bottom: -15px;
+				border-radius: 50%;
+				background: radial-gradient(circle, rgba(148, 197, 204, 0.2) 0%, transparent 70%);
+				z-index: -2;
+				animation: pulseGlow 12s ease-in-out infinite;
+			}
+
+			@keyframes profileGlow {
+				0%, 100% {
+					box-shadow: 
+						0 15px 40px rgba(148, 197, 204, 0.4),
+						0 5px 15px rgba(139, 92, 246, 0.25),
+						inset 0 1px 0 rgba(180, 210, 231, 0.22);
+				}
+
+				50% {
+					box-shadow: 
+						0 20px 60px rgba(148, 197, 204, 0.6),
+						0 8px 25px rgba(139, 92, 246, 0.3),
+						inset 0 1px 0 rgba(255, 255, 255, 0.3);
+				}
+			}
+
+			@keyframes gradientRotate {
+				0% {
+					background-position: 0% 50%;
+				}
+				50% {
+					background-position: 100% 50%;
+				}
+				100% {
+					background-position: 0% 50%;
+				}
+			}
+
+			@keyframes pulseGlow {
+				0%, 100% {
+					opacity: 0.3;
+					transform: scale(1);
+				}
+				50% {
+					opacity: 0.6;
+					transform: scale(1.1);
+				}
+			}
+
+			.profile-image:hover {
+				transform: scale(1.05) rotate(5deg);
+				box-shadow: 
+					0 25px 70px rgba(148, 197, 204, 0.7),
+					0 10px 30px rgba(139, 92, 246, 0.4),
+					inset 0 1px 0 rgba(255, 255, 255, 0.4);
+			}
+
+			.name {
+				font-size: 2.5rem;
+				font-weight: 900;
+				margin-bottom: 0.5rem;
+				background: linear-gradient(135deg, #F8F8F8, #94C5CC);
+				-webkit-background-clip: text;
+				-webkit-text-fill-color: transparent;
+				background-clip: text;
+			}
+
+			.tagline {
+				font-size: 1.2rem;
+				color: var(--theme-primary);
+				margin-bottom: 2rem;
+				font-weight: 500;
+			}
+
+			.bio-section {
+				margin-bottom: 3rem;
+				animation: bioFadeIn 0.8s ease-out 0.5s both;
+			}
+
+			@keyframes bioFadeIn {
+				from {
+					opacity: 0;
+					transform: translateY(20px);
+				}
+				to {
+					opacity: 1;
+					transform: translateY(0);
+				}
+			}
+
+			.bio-item {
+				display: flex;
+				align-items: flex-start;
+				margin-bottom: 1.5rem;
+				padding: 1.5rem;
+				background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+				border-radius: 20px;
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				position: relative;
+				transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+				backdrop-filter: blur(20px);
+				box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+				animation: bioItemSlide 0.5s ease-out both;
+			}
+
+			.bio-item:nth-child(1) { animation-delay: 0.7s; }
+			.bio-item:nth-child(2) { animation-delay: 0.8s; }
+			.bio-item:nth-child(3) { animation-delay: 0.9s; }
+			.bio-item:nth-child(4) { animation-delay: 1.0s; }
+
+			@keyframes bioItemSlide {
+				from {
+					opacity: 0;
+					transform: translateX(-30px) scale(0.95);
+				}
+				to {
+					opacity: 1;
+					transform: translateX(0) scale(1);
+				}
+			}
+
+			.bio-item:hover {
+				transform: translateY(-2px) scale(1.01);
+				background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+				border-color: rgba(255, 255, 255, 0.2);
+				box-shadow: 
+					0 8px 30px rgba(0, 0, 0, 0.2),
+					0 4px 15px rgba(0, 0, 0, 0.1);
+			}
+
+			.bio-icon {
+				font-size: 1.5rem;
+				margin-right: 1rem;
+				min-width: 2rem;
+			}
+
+			.bio-text {
+				flex: 1;
+				font-size: 1rem;
+				line-height: 1.6;
+			}
+
+			.project-section {
+				margin-bottom: 3rem;
+				padding-top: 2rem;
+				border-top: 1px solid rgba(148, 197, 204, 0.2);
+				animation: projectFadeIn 2s ease-out 2s both;
+			}
+
+			@keyframes projectFadeIn {
+				from {
+					opacity: 0;
+					transform: translateY(30px);
+				}
+				to {
+					opacity: 1;
+					transform: translateY(0);
+				}
+			}
+
+			.section-title {
+				font-size: 2rem;
+				font-weight: 900;
+				margin-bottom: 1.5rem;
+				color: var(--theme-primary);
+				text-align: center;
+				position: relative;
+				animation: titleGlow 3s ease-in-out infinite;
+			}
+
+			@keyframes titleGlow {
+				0%, 100% {
+					text-shadow: 0 0 20px rgba(148, 197, 204, 0.3);
+				}
+				50% {
+					text-shadow: 0 0 30px rgba(148, 197, 204, 0.6), 0 0 40px rgba(139, 92, 246, 0.3);
+				}
+			}
+
+			.section-title::after {
+				content: '';
+				position: absolute;
+				bottom: -8px;
+				left: 50%;
+				transform: translateX(-50%);
+				width: 60px;
+				height: 3px;
+				background: linear-gradient(90deg, transparent, var(--theme-primary), transparent);
+				border-radius: 2px;
+			}
+
+			.project-info {
+				background: linear-gradient(135deg, rgba(25, 25, 40, 0.9), rgba(15, 15, 25, 0.8));
+				border-radius: 20px;
+				padding: 2.5rem;
+				border: 2px solid rgba(148, 197, 204, 0.2);
+				position: relative;
+				backdrop-filter: blur(15px);
+				box-shadow: 
+					0 15px 40px rgba(0, 0, 0, 0.3),
+					0 5px 15px rgba(148, 197, 204, 0.1),
+					inset 0 1px 0 rgba(255, 255, 255, 0.1);
+				transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+			}
+
+			.project-info:hover {
+				transform: translateY(-5px);
+				box-shadow: 
+					0 25px 60px rgba(0, 0, 0, 0.4),
+					0 10px 25px rgba(148, 197, 204, 0.2),
+					inset 0 1px 0 rgba(255, 255, 255, 0.15);
+				border-color: rgba(148, 197, 204, 0.3);
+			}
+
+			.tech-stack {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 0.75rem;
+				margin-top: 1.5rem;
+				justify-content: center;
+			}
+
+			.tech-tag {
+				background: linear-gradient(135deg, rgba(148, 197, 204, 0.3), rgba(148, 197, 204, 0.15));
+				color: #F8F8F8;
+				padding: 0.75rem 1.25rem;
+				border-radius: 25px;
+				font-size: 0.9rem;
+				font-weight: 700;
+				border: 1px solid rgba(148, 197, 204, 0.4);
+				position: relative;
+				transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+				backdrop-filter: blur(10px);
+				box-shadow: 0 4px 15px rgba(148, 197, 204, 0.2);
+				animation: techTagFloat 0.6s ease-out both;
+				animation-delay: calc(var(--delay, 0) * 0.1s);
+			}
+
+			.tech-tag:nth-child(1) { --delay: 1; }
+			.tech-tag:nth-child(2) { --delay: 2; }
+			.tech-tag:nth-child(3) { --delay: 3; }
+			.tech-tag:nth-child(4) { --delay: 4; }
+			.tech-tag:nth-child(5) { --delay: 5; }
+
+			@keyframes techTagFloat {
+				from {
+					opacity: 0;
+					transform: translateY(20px) scale(0.8);
+				}
+				to {
+					opacity: 1;
+					transform: translateY(0) scale(1);
+				}
+			}
+
+			.tech-tag:hover {
+				transform: translateY(-3px) scale(1.05);
+				background: linear-gradient(135deg, rgba(148, 197, 204, 0.5), rgba(139, 92, 246, 0.3));
+				border-color: rgba(148, 197, 204, 0.6);
+				box-shadow: 0 8px 30px rgba(148, 197, 204, 0.4);
+				color: #FFFFFF;
+			}
+
+			.links-section {
+				display: flex;
+				justify-content: center;
+				gap: 1.5rem;
+				flex-wrap: wrap;
+				animation: linksFadeIn 2.5s ease-out 2.5s both;
+			}
+
+			@keyframes linksFadeIn {
+				from {
+					opacity: 0;
+					transform: translateY(30px);
+				}
+				to {
+					opacity: 1;
+					transform: translateY(0);
+				}
+			}
+
+			.link-button {
+				display: inline-flex;
+				align-items: center;
+				gap: 0.75rem;
+				padding: 1.25rem 2.5rem;
+				background: linear-gradient(135deg, rgba(148, 197, 204, 0.2), rgba(148, 197, 204, 0.1));
+				border: 2px solid rgba(148, 197, 204, 0.4);
+				border-radius: 50px;
+				color: #F8F8F8;
+				text-decoration: none;
+				font-weight: 700;
+				font-size: 1.1rem;
+				position: relative;
+				transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+				backdrop-filter: blur(15px);
+				box-shadow: 0 8px 25px rgba(148, 197, 204, 0.2);
+				overflow: hidden;
+			}
+
+			.link-button::before {
+				content: '';
+				position: absolute;
+				top: 0;
+				left: -100%;
+				width: 100%;
+				height: 100%;
+				background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+				transition: left 0.6s ease;
+			}
+
+			.link-button:hover {
+				background: linear-gradient(135deg, rgba(148, 197, 204, 0.4), rgba(139, 92, 246, 0.3));
+				transform: translateY(-5px) scale(1.05);
+				box-shadow: 0 15px 40px rgba(148, 197, 204, 0.4);
+				border-color: rgba(148, 197, 204, 0.6);
+				color: #FFFFFF;
+			}
+
+			.link-button:hover::before {
+				left: 100%;
+			}
+
+
+
+			@media (max-width: 768px) {
+				.container {
+					padding: 1rem;
+				}
+				
+				.about-card {
+					padding: 2rem;
+				}
+				
+				.name {
+					font-size: 2rem;
+				}
+				
+				.bio-item {
+					flex-direction: column;
+					text-align: center;
+				}
+				
+				.bio-icon {
+					margin-bottom: 0.5rem;
+				}
+				
+				.back-button {
+					position: static;
+					margin-bottom: 2rem;
+					align-self: flex-start;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<Header currentPage="about" />
+		<div class="container">
+			<div class="about-card">
+				<div class="profile-section">
+					<div class="profile-image">
+						<img src="/jonathan.avif" alt="Jonathan Reed" />
+					</div>
+					<h1 class="name">Hi, I'm Jonathan Reed</h1>
+					<p class="tagline">A neuroscience student focused on tech-driven applications in medicine.</p>
+				</div>
+
+				<div class="bio-section">
+					<div class="bio-item">
+						<span class="bio-icon">🧠</span>
+						<div class="bio-text">I'm studying advanced pre-medical neuroscience at UT Dallas (EMT-B certified), with a strong interest in AI & applied neurotech.</div>
+					</div>
+
+					<div class="bio-item">
+						<span class="bio-icon">💼</span>
+						<div class="bio-text">I run Hello.World Consulting, where I work on AI tools, penetration testing, & security strategy for startups and small businesses.</div>
+					</div>
+
+					<div class="bio-item">
+						<span class="bio-icon">🧬</span>
+						<div class="bio-text">My long-term goal is to bridge neuroscience & technology—to help build the future of medicine, smarter tools, & better systems.</div>
+					</div>
+
+					<div class="bio-item">
+						<span class="bio-icon">⚡</span>
+						<div class="bio-text">Fun fact: I split time between neuroscience, red-teaming new AI models, & building tools things.</div>
+					</div>
+				</div>
+
+				<div class="project-section">
+					<h2 class="section-title">About This Project</h2>
+					<div class="project-info">
+						<p style="margin-bottom: 1rem;">
+							This is a hobbyist project inspired by <a href="https://model-prices.vercel.app/" target="_blank" style="color: var(--theme-primary);">Theo Browne's model prices dashboard</a>. 
+							It provides a beautiful interface to explore AI model pricing and benchmarks with real-time data.
+						</p>
+						<p style="margin-bottom: 1rem;">
+							All data & benchmarking is sourced from <a href="https://artificialanalysis.ai/" target="_blank" style="color: var(--theme-primary);">ArtificialAnalysis.com</a> 
+							via their free API. The font used is NebulaSans, a custom font created by <a href="https://nebula.com" target="_blank" style="color: var(--theme-primary);">Nebula</a>.
+						</p>
+						<p style="font-style: italic; color: rgba(248, 248, 248, 0.8);">
+							This project is not intended for commercial use and serves as a learning exercise in modern web development and AI model analysis.
+						</p>
+						
+						<div class="tech-stack">
+							<span class="tech-tag">Astro</span>
+							<span class="tech-tag">TailwindCSS</span>
+							<span class="tech-tag">TypeScript</span>
+							<span class="tech-tag">Supabase</span>
+							<span class="tech-tag">Chart.js</span>
+						</div>
+					</div>
+				</div>
+
+				<div class="links-section">
+					<a href="https://linkedin.com/in/jonathanrayreed" target="_blank" class="link-button">
+						💼 LinkedIn
+					</a>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>

@@ -1,5 +1,8 @@
 ---
 import { getModels } from '../lib/supabase';
+import Header from './Header.astro';
+
+
 
 const models = await getModels();
 
@@ -187,17 +190,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 
 <div class="dashboard-container">
   <!-- Navigation -->
-  <nav class="glass-nav">
-    <div class="nav-content">
-      <div class="logo">
-        AI Understand
-      </div>
-      <div class="nav-links">
-        <a href="/" class="nav-link active">Dashboard</a>
-        <a href="/compare" class="nav-link">Compare</a>
-      </div>
-    </div>
-  </nav>
+  <Header currentPage="dashboard" />
 
   <!-- Main Content -->
   <main class="dashboard-main">
@@ -832,62 +825,16 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   min-height: 100vh;
   background: #000100;
   color: #F8F8F8;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Nebula Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Navigation */
-.glass-nav {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  background: rgba(10, 10, 11, 0.8);
-  backdrop-filter: blur(20px) saturate(1.8);
-  border-bottom: 1px solid rgba(161, 166, 180, 0.25);
-}
 
-.nav-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 800;
-  font-size: 1.25rem;
-}
-
-.nav-links {
-  display: flex;
-  gap: 2rem;
-}
-
-.nav-link {
-  color: rgba(161, 166, 180, 0.8);
-  text-decoration: none;
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  transition: all 0.3s ease;
-}
-
-.nav-link:hover,
-.nav-link.active {
-  color: var(--accent);
-  background: rgba(139, 92, 246, 0.15);
-}
 
 /* Main Content */
 .dashboard-main {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 100px 2rem 2rem;
+  padding: 2rem;
 }
 
 .dashboard-header {
