@@ -13,11 +13,12 @@ function formatPrice(price: string | number | null) {
   return `$${numPrice.toFixed(3)}`;
 }
 
-function formatScore(score: string | number | null) {
+function formatScore(score: string | number | null, fieldName?: string) {
   if (score === null || score === undefined || score === '0' || Number(score) === 0) return '—';
   const numScore = Number(score);
-  // Convert decimal to percentage (e.g., 0.72 -> 72%)
-  return `${(numScore * 100).toFixed(1)}%`;
+  
+  // All values are already stored as percentages in the database
+  return `${numScore.toFixed(1)}%`;
 }
 
 // Filter models with valid prices
@@ -389,7 +390,13 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       // Generate leaderboard HTML
       const leaderboardBodyHTML = topModels.map((model, index) => {
         const score = Number(model[field]) || 0;
-        const formattedScore = score > 0 ? `${Math.round(score * 100)}` : '—';
+        let formattedScore;
+        if (score > 0) {
+          // All values are already stored as percentages in the database
+          formattedScore = `${Math.round(score)}`;
+        } else {
+          formattedScore = '—';
+        }
         
         // Rank badge styles based on position
         let rankStyle = '';
@@ -589,7 +596,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
     }
     
     function formatScore(score) {
-      return score && Number(score) > 0 ? `${Math.round(Number(score) * 100)}%` : '—';
+      return score && Number(score) > 0 ? `${Math.round(Number(score))}%` : '—';
     }
     
     function formatTPS(tps) {
@@ -676,15 +683,15 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
             <div class="benchmark-grid">
               <div class="benchmark-item">
                 <span class="benchmark-label">Math Index</span>
-                <span class="benchmark-score">${formatScore(model.artificial_analysis_math_index)}</span>
+                <span class="benchmark-score">${formatScore(model.artificial_analysis_math_index, 'artificial_analysis_math_index')}</span>
               </div>
               <div class="benchmark-item">
                 <span class="benchmark-label">Coding Index</span>
-                <span class="benchmark-score">${formatScore(model.artificial_analysis_coding_index)}</span>
+                <span class="benchmark-score">${formatScore(model.artificial_analysis_coding_index, 'artificial_analysis_coding_index')}</span>
               </div>
               <div class="benchmark-item">
                 <span class="benchmark-label">Intelligence</span>
-                <span class="benchmark-score">${formatScore(model.artificial_analysis_intelligence_index)}</span>
+                <span class="benchmark-score">${formatScore(model.artificial_analysis_intelligence_index, 'artificial_analysis_intelligence_index')}</span>
               </div>
             </div>
           </div>
