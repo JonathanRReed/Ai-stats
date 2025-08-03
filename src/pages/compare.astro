@@ -310,14 +310,14 @@ const bestValue = getBestValue();
         flex-direction: row;
         align-items: flex-end;
         justify-content: center;
-        gap: 2rem;
+        gap: 1rem;
         width: 100%;
         min-height: 280px;
         overflow-x: auto;
-        overflow-y: hidden;
+        overflow-y: visible;
         background: linear-gradient(180deg, rgba(10, 10, 11, 0.4) 0%, rgba(10, 10, 11, 0.8) 100%);
         border-radius: 8px;
-        padding: 2rem 1rem 1rem 1rem;
+        padding: 3rem 1rem 1rem 1rem;
         border: 1px solid rgba(161, 166, 180, 0.1);
         position: relative;
         margin: 0 auto;
@@ -977,6 +977,16 @@ const bestValue = getBestValue();
           const totals = chosenByPrice.map((m) => (Number(m.price_1m_input_tokens) || 0) + (Number(m.price_1m_output_tokens) || 0));
           const maxTotal = Math.max(...totals, 1);
           
+          // Calculate dynamic width based on number of models
+          const numModels = chosenByPrice.length;
+          const dynamicWidth = Math.max(60, Math.min(120, 800 / numModels));
+          const dynamicGap = numModels > 6 ? '0.5rem' : '1rem';
+          
+          // Update container gap for this render
+          if (priceChart.parentElement) {
+            priceChart.parentElement.style.gap = dynamicGap;
+          }
+          
           // Build price chart
           chosenByPrice.forEach((model, i) => {
             const inputPrice = Number(model.price_1m_input_tokens) || 0;
@@ -994,14 +1004,118 @@ const bestValue = getBestValue();
             
             const chartItem = document.createElement('div');
             chartItem.className = 'chart-item';
+            chartItem.style.position = 'relative';
             chartItem.innerHTML = `
-              <div class="bar-value">$${total.toFixed(3)}</div>
               <div style="display: flex; flex-direction: row; justify-content: center; align-items: flex-end; height: ${totalHeight}px; width: 100%; gap: 2px;">
-                <div class="chart-bar input-price-bar" style="height: ${inputHeight}px; background-color: #ef4444; flex: 1; max-width: 48%;"></div>
-                <div class="chart-bar output-price-bar" style="height: ${outputHeight}px; background-color: #22c55e; flex: 1; max-width: 48%;"></div>
+                <div class="chart-bar input-price-bar" 
+                     style="height: ${inputHeight}px; background-color: #22c55e; flex: 1; max-width: 48%; cursor: pointer; position: relative;" 
+                     data-tooltip="${model.name} - Input: $${inputPrice.toFixed(3)} per 1M tokens">
+                </div>
+                <div class="chart-bar output-price-bar" 
+                     style="height: ${outputHeight}px; background-color: #ef4444; flex: 1; max-width: 48%; cursor: pointer; position: relative;" 
+                     data-tooltip="${model.name} - Output: $${outputPrice.toFixed(3)} per 1M tokens">
+                </div>
               </div>
               <div class="bar-label" style="white-space: nowrap;">${model.name.split(' ')[0]}</div>
             `;
+            
+            // Add hover tooltip functionality
+            const inputBar = chartItem.querySelector('.input-price-bar');
+            const outputBar = chartItem.querySelector('.output-price-bar');
+            
+            [inputBar, outputBar].forEach(bar => {
+              if (!bar) return;
+              
+              // Function to show tooltip (shared by mouse and touch events)
+              const showTooltip = (target) => {
+                // Remove any existing tooltips first
+                document.querySelectorAll('.price-tooltip, .perf-tooltip').forEach(t => t.remove());
+                
+                const tooltip = document.createElement('div');
+                tooltip.className = 'price-tooltip';
+                tooltip.textContent = target.dataset.tooltip;
+                tooltip.style.cssText = `
+                  position: fixed;
+                  background: rgba(0, 0, 0, 0.9);
+                  color: white;
+                  padding: 8px 12px;
+                  border-radius: 6px;
+                  font-size: 12px;
+                  white-space: nowrap;
+                  z-index: 1001;
+                  pointer-events: none;
+                  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                  max-width: 250px;
+                `;
+                
+                document.body.appendChild(tooltip);
+                
+                // Smart positioning
+                const rect = target.getBoundingClientRect();
+                const tooltipRect = tooltip.getBoundingClientRect();
+                
+                // Calculate preferred position (centered above)
+                let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+                let top = rect.top - tooltipRect.height - 10;
+                
+                // Adjust if tooltip would go off-screen horizontally
+                if (left < 10) left = 10;
+                if (left + tooltipRect.width > window.innerWidth - 10) {
+                  left = window.innerWidth - tooltipRect.width - 10;
+                }
+                
+                // If tooltip would go off-screen vertically, show below instead
+                if (top < 10) {
+                  top = rect.bottom + 10;
+                }
+                
+                tooltip.style.left = left + 'px';
+                tooltip.style.top = top + 'px';
+                tooltip.style.transform = 'none';
+                
+                // Auto-hide tooltip on mobile after 3 seconds
+                if ('ontouchstart' in window) {
+                  setTimeout(() => {
+                    if (tooltip && tooltip.parentNode) {
+                      tooltip.remove();
+                    }
+                  }, 3000);
+                }
+              };
+              
+              // Mouse events for desktop
+              bar.addEventListener('mouseenter', (e) => {
+                showTooltip(e.target);
+              });
+              
+              bar.addEventListener('mouseleave', (e) => {
+                // Only hide on mouseleave for desktop (not touch devices)
+                if (!('ontouchstart' in window)) {
+                  document.querySelectorAll('.price-tooltip, .perf-tooltip').forEach(t => t.remove());
+                }
+              });
+              
+              // Touch events for mobile
+              bar.addEventListener('touchstart', (e) => {
+                e.preventDefault(); // Prevent default touch behavior
+                showTooltip(e.target);
+              });
+              
+              // Hide tooltip when touching elsewhere on mobile
+              bar.addEventListener('touchend', (e) => {
+                // Small delay to allow tooltip to show first
+                setTimeout(() => {
+                  if ('ontouchstart' in window) {
+                    // Only hide if user touches outside the tooltip area
+                    const touch = e.changedTouches[0];
+                    const elementAtTouch = document.elementFromPoint(touch.clientX, touch.clientY);
+                    if (!elementAtTouch || !elementAtTouch.classList.contains('price-tooltip')) {
+                      // Don't hide immediately, let auto-hide handle it
+                    }
+                  }
+                }, 100);
+              });
+            });
             priceChart.appendChild(chartItem);
           });
 
@@ -1022,11 +1136,109 @@ const bestValue = getBestValue();
             
             const chartItem = document.createElement('div');
             chartItem.className = 'chart-item';
+            chartItem.style.position = 'relative';
             chartItem.innerHTML = `
-              <div class="bar-value">${formatScore(score)}</div>
-              <div class="chart-bar performance-bar" style="height: ${height}px; background-color: #8b5cf6;"></div>
+              <div class="chart-bar performance-bar" 
+                   style="height: ${height}px; background-color: #8b5cf6; cursor: pointer; position: relative;" 
+                   data-tooltip="${model.name} - ${metric.toUpperCase().replace('_', ' ')}: ${formatScore(score)}">
+              </div>
               <div class="bar-label" style="white-space: nowrap;">${model.name.split(' ')[0]}</div>
             `;
+            
+            // Add hover tooltip functionality
+            const perfBar = chartItem.querySelector('.performance-bar');
+            
+            if (perfBar) {
+              // Function to show tooltip (shared by mouse and touch events)
+              const showPerfTooltip = (target) => {
+                // Remove any existing tooltips first
+                document.querySelectorAll('.price-tooltip, .perf-tooltip').forEach(t => t.remove());
+                
+                const tooltip = document.createElement('div');
+                tooltip.className = 'perf-tooltip';
+                tooltip.textContent = target.dataset.tooltip;
+                tooltip.style.cssText = `
+                  position: fixed;
+                  background: rgba(0, 0, 0, 0.9);
+                  color: white;
+                  padding: 8px 12px;
+                  border-radius: 6px;
+                  font-size: 12px;
+                  white-space: nowrap;
+                  z-index: 1001;
+                  pointer-events: none;
+                  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                  max-width: 250px;
+                `;
+                
+                document.body.appendChild(tooltip);
+                
+                // Smart positioning
+                const rect = target.getBoundingClientRect();
+                const tooltipRect = tooltip.getBoundingClientRect();
+                
+                // Calculate preferred position (centered above)
+                let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+                let top = rect.top - tooltipRect.height - 10;
+                
+                // Adjust if tooltip would go off-screen horizontally
+                if (left < 10) left = 10;
+                if (left + tooltipRect.width > window.innerWidth - 10) {
+                  left = window.innerWidth - tooltipRect.width - 10;
+                }
+                
+                // If tooltip would go off-screen vertically, show below instead
+                if (top < 10) {
+                  top = rect.bottom + 10;
+                }
+                
+                tooltip.style.left = left + 'px';
+                tooltip.style.top = top + 'px';
+                tooltip.style.transform = 'none';
+                
+                // Auto-hide tooltip on mobile after 3 seconds
+                if ('ontouchstart' in window) {
+                  setTimeout(() => {
+                    if (tooltip && tooltip.parentNode) {
+                      tooltip.remove();
+                    }
+                  }, 3000);
+                }
+              };
+              
+              // Mouse events for desktop
+              perfBar.addEventListener('mouseenter', (e) => {
+                showPerfTooltip(e.target);
+              });
+              
+              perfBar.addEventListener('mouseleave', (e) => {
+                // Only hide on mouseleave for desktop (not touch devices)
+                if (!('ontouchstart' in window)) {
+                  document.querySelectorAll('.price-tooltip, .perf-tooltip').forEach(t => t.remove());
+                }
+              });
+              
+              // Touch events for mobile
+              perfBar.addEventListener('touchstart', (e) => {
+                e.preventDefault(); // Prevent default touch behavior
+                showPerfTooltip(e.target);
+              });
+              
+              // Hide tooltip when touching elsewhere on mobile
+              perfBar.addEventListener('touchend', (e) => {
+                // Small delay to allow tooltip to show first
+                setTimeout(() => {
+                  if ('ontouchstart' in window) {
+                    // Only hide if user touches outside the tooltip area
+                    const touch = e.changedTouches[0];
+                    const elementAtTouch = document.elementFromPoint(touch.clientX, touch.clientY);
+                    if (!elementAtTouch || !elementAtTouch.classList.contains('perf-tooltip')) {
+                      // Don't hide immediately, let auto-hide handle it
+                    }
+                  }
+                }, 100);
+              });
+            }
             perfChart.appendChild(chartItem);
           });
 
