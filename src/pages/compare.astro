@@ -79,7 +79,7 @@ const availableBenchmarks = {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
-    <title>AI Understand – Compare Models</title>
+    <title>AI Stats – Compare Models</title>
     <link rel="stylesheet" href="/fonts/nebula sans/nebula-sans.css" />
     <style>
       :root {
@@ -134,7 +134,7 @@ const availableBenchmarks = {
       .layout {
         display: flex;
         gap: 0;
-        max-width: 100vw;
+        max-width: 100%;
         margin: 0;
         padding: 0;
         align-items: flex-start;
@@ -142,6 +142,7 @@ const availableBenchmarks = {
         width: 100%;
         min-height: 100vh;
         position: relative;
+        overflow-x: hidden; /* Prevent horizontal overflow */
       }
       .smart-filter-rail {
         width: 280px;
@@ -151,8 +152,8 @@ const availableBenchmarks = {
         backdrop-filter: blur(20px);
         border-right: 1px solid rgba(255, 255, 255, 0.1);
         padding: 2rem 1.5rem;
-        height: calc(100vh - 70px);
-        margin-top: 70px;
+        padding-top: 1.5rem; /* Increased padding to push content below header */
+        height: 100vh; /* Full viewport height */
         overflow-y: auto;
         position: fixed;
         top: 0;
@@ -160,6 +161,11 @@ const availableBenchmarks = {
         z-index: 40;
         transform: translateX(0);
         transition: transform 0.3s ease;
+      }
+      
+      /* Add more space for the first element in the sidebar */
+      .smart-filter-rail > *:first-child {
+        margin-top: 1.5rem;
       }
       
       .smart-filter-rail.closed {
@@ -185,6 +191,8 @@ const availableBenchmarks = {
           border-right: 1px solid rgba(255, 255, 255, 0.1);
           box-shadow: 0 4px 32px rgba(0,0,0,0.6);
           height: 100vh;
+          padding: 1rem 1.5rem;
+          padding-top: 5rem; /* Adjusted padding for mobile */
           transition: transform 0.3s ease;
         }
         .smart-filter-rail.open {
@@ -277,6 +285,8 @@ const availableBenchmarks = {
         margin-left: 280px;
         padding: 2rem;
         box-sizing: border-box;
+        max-width: 100%;
+        overflow-x: hidden; /* Prevent horizontal overflow */
       }
       .chart-grid {
         display: grid;
@@ -769,7 +779,7 @@ const availableBenchmarks = {
     </style>
   </head>
   <body>
-    <div class="compare-container">
+    <div class="compare-container" style="overflow-x: hidden; width: 100%; max-width: 100vw;">
       <Header currentPage="compare" />
 
       <button class="filter-toggle" id="filter-toggle" aria-expanded="false" aria-label="Toggle filters">
