@@ -1,0 +1,1164 @@
+---
+import { getModels } from '../lib/supabase';
+
+const models = await getModels();
+
+function formatScore(score: string | number | null) {
+  if (score === null || score === undefined || score === '0' || Number(score) === 0) return '—';
+  const numScore = Number(score);
+  return `${numScore.toFixed(1)}%`;
+}
+
+const validModels = models.filter((model: any) => {
+  const inputPrice = Number(model.price_1m_input_tokens);
+  const outputPrice = Number(model.price_1m_output_tokens);
+  return inputPrice > 0 && outputPrice > 0;
+});
+
+const selectedModels = validModels.slice(0, 3);
+
+const getWinner = (items: any[], key: string, isLowerBetter = false) => {
+  const usable = items.filter(m => Number(m[key]) > 0);
+  if (usable.length === 0) return null;
+  return usable.sort((a, b) => {
+    const valA = Number(a[key]);
+    const valB = Number(b[key]);
+    return isLowerBetter ? valA - valB : valB - valA;
+  })[0];
+};
+
+const inputPriceWinner = getWinner(selectedModels, 'price_1m_input_tokens', true);
+const outputPriceWinner = getWinner(selectedModels, 'price_1m_output_tokens', true);
+const performanceWinner = getWinner(selectedModels, 'mmlu_pro');
+
+const getBestValue = () => {
+  if (selectedModels.length === 0) return null;
+  const ranked = selectedModels.map(model => {
+    const totalCost = Number(model.price_1m_input_tokens) + Number(model.price_1m_output_tokens);
+    const performance = Number(model.mmlu_pro) || 0;
+    const ratio = performance > 0 ? performance / totalCost : 0;
+    return { model, ratio };
+  }).sort((a, b) => b.ratio - a.ratio);
+  return ranked[0]?.model || null;
+};
+
+const bestValue = getBestValue();
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>AI Understand – Compare Models</title>
+    <style>
+      :root {
+        --surface-0: #000100;
+        --text-primary: #F8F8F8;
+        --glass: rgba(255, 255, 255, 0.05);
+        --accent: #8b5cf6;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: var(--surface-0);
+        color: var(--text-primary);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        line-height: 1.6;
+      }
+      .glass-nav {
+        background: var(--glass);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        position: sticky;
+        top: 0;
+        z-index: 50;
+      }
+      .nav-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .nav-links {
+        display: flex;
+        gap: 1rem;
+      }
+      .nav-link {
+        color: rgba(161, 166, 180, 0.8);
+        text-decoration: none;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+      }
+      .nav-link:hover,
+      .nav-link.active {
+        color: var(--accent);
+        background: rgba(139, 92, 246, 0.15);
+      }
+      .layout {
+        display: flex;
+        gap: 0;
+        max-width: 100vw;
+        margin: 0;
+        padding: 0;
+        align-items: flex-start;
+        box-sizing: border-box;
+        width: 100%;
+        min-height: 100vh;
+        position: relative;
+      }
+      .smart-filter-rail {
+        width: 280px;
+        min-width: 280px;
+        flex-shrink: 0;
+        background: rgba(0, 1, 0, 0.95);
+        backdrop-filter: blur(20px);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 2rem 1.5rem;
+        height: calc(100vh - 70px);
+        margin-top: 70px;
+        overflow-y: auto;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 40;
+        transform: translateX(0);
+        transition: transform 0.3s ease;
+      }
+      
+      .smart-filter-rail.closed {
+        transform: translateX(-100%);
+      }
+      @media (max-width: 800px) {
+        .layout {
+          flex-direction: column;
+          padding: 0;
+        }
+        .smart-filter-rail {
+          position: fixed;
+          top: 0;
+          left: 0;
+          bottom: 0;
+          width: 85%;
+          max-width: 320px;
+          transform: translateX(-100%);
+          z-index: 55;
+          overflow-y: auto;
+          background: rgba(0, 1, 0, 0.95);
+          backdrop-filter: blur(20px);
+          border-right: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 4px 32px rgba(0,0,0,0.6);
+          height: 100vh;
+          transition: transform 0.3s ease;
+        }
+        .smart-filter-rail.open {
+          transform: translateX(0);
+        }
+        .compare-main {
+          margin: 0;
+          padding: 1rem;
+          max-width: 100%;
+          width: 100%;
+        }
+        .chart-grid {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 1.5rem;
+          width: 100%;
+        }
+        .chart-section {
+          width: 100%;
+          max-width: 500px;
+          margin: 0 auto 1.5rem auto;
+          padding: 1rem;
+        }
+        .chart-container {
+          display: flex;
+          flex-direction: row;
+          align-items: flex-end;
+          justify-content: flex-start;
+          gap: 0.75rem;
+          padding: 1.5rem 0.5rem 1rem 0.5rem;
+          min-height: 200px;
+          width: 100%;
+          overflow-x: auto;
+          scrollbar-width: thin;
+          scrollbar-color: var(--accent) rgba(0, 0, 0, 0.2);
+        }
+        
+        .chart-container::-webkit-scrollbar {
+          height: 6px;
+        }
+        
+        .chart-container::-webkit-scrollbar-track {
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 3px;
+        }
+        
+        .chart-container::-webkit-scrollbar-thumb {
+          background-color: var(--accent);
+          border-radius: 3px;
+        }
+        .chart-item {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          flex: 1;
+          min-width: 50px;
+          max-width: 70px;
+        }
+        .filter-toggle {
+          display: block;
+        }
+      }
+      .filter-section {
+        margin-bottom: 1.5rem;
+      }
+      .filter-section h3 {
+        margin-bottom: 0.5rem;
+        font-size: 1rem;
+      }
+      .model-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+      .model-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .compare-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+        min-width: 0;
+        width: calc(100% - 280px);
+        margin-left: 280px;
+        padding: 2rem;
+        box-sizing: border-box;
+      }
+      .chart-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 2rem;
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .chart-card {
+        background: var(--glass);
+        border-radius: 8px;
+        padding: 1rem;
+      }
+      .chart-section {
+        background: var(--glass);
+        border-radius: 12px;
+        padding: 2rem;
+        border: 1px solid rgba(161, 166, 180, 0.1);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        width: 100%;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .chart-section:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      }
+      .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+      }
+      .chart-header h3 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #F8F8F8;
+      }
+      
+      .zoom-button {
+        background: var(--glass);
+        color: var(--accent);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 4px;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      
+      .zoom-button:hover {
+        background: rgba(139, 92, 246, 0.15);
+        border-color: var(--accent);
+      }
+      
+      .zoom-button.active {
+        background: rgba(139, 92, 246, 0.25);
+        border-color: var(--accent);
+      }
+      .chart-container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 2rem;
+        width: 100%;
+        min-height: 280px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        background: linear-gradient(180deg, rgba(10, 10, 11, 0.4) 0%, rgba(10, 10, 11, 0.8) 100%);
+        border-radius: 8px;
+        padding: 2rem 1rem 1rem 1rem;
+        border: 1px solid rgba(161, 166, 180, 0.1);
+        position: relative;
+        margin: 0 auto;
+        scrollbar-width: thin;
+      }
+      .chart-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 72px;
+        position: relative;
+        flex: none;
+      }
+      .chart-bar {
+        width: 100%;
+        min-width: 40px;
+        border-radius: 4px 4px 0 0;
+        transition: all 0.3s ease;
+        position: relative;
+        margin-top: auto;
+        background-color: #4B7BEC;
+        display: block;
+        opacity: 1;
+        visibility: visible;
+      }
+      .chart-bar:hover {
+        transform: translateY(-2px);
+        box-shadow: 
+          0 8px 24px rgba(75, 123, 236, 0.3),
+          inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      }
+      .price-bar {
+        background-color: #22c55e; /* Green for price */
+      }
+      .performance-bar {
+        background-color: #8b5cf6; /* Purple for performance */
+      }
+      .bar-value {
+        position: absolute;
+        top: -2rem;
+        width: 100%;
+        font-size: 0.8rem;
+        font-weight: 900;
+        color: #000000;
+        text-align: center;
+        padding: 0.4rem;
+        text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+        line-height: 1.2;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 4px;
+        margin-bottom: 0.5rem;
+        z-index: 20;
+        box-sizing: border-box;
+      }
+      .bar-label {
+        margin-top: 0.75rem;
+        font-size: 0.75rem;
+        color: #F8F8F8;
+        font-weight: 600;
+        text-align: center;
+        word-wrap: break-word;
+        max-width: 100%;
+      }
+      .insights-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+        max-width: 1200px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .insight-card {
+        background: var(--glass);
+        border-radius: 8px;
+        padding: 1.5rem;
+        border: 1px solid rgba(161, 166, 180, 0.1);
+        transition: transform 0.2s ease;
+      }
+      .insight-card:hover {
+        transform: translateY(-1px);
+      }
+      .insight-card h4 {
+        margin: 0 0 0.5rem 0;
+        font-size: 0.9rem;
+        color: rgba(248, 248, 248, 0.7);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .insight-card p {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      
+      .no-data {
+        text-align: center;
+        color: #666;
+        padding: 2rem;
+        font-style: italic;
+      }
+      .search-container {
+        margin-bottom: 1rem;
+      }
+      .model-search {
+        background: rgba(161, 166, 180, 0.1);
+        border: 1px solid rgba(161, 166, 180, 0.3);
+        border-radius: 0.5rem;
+        color: var(--text-primary);
+        padding: 0.5rem 0.75rem;
+        width: 100%;
+        font-size: 0.875rem;
+        backdrop-filter: blur(8px);
+        transition: all 0.3s ease;
+        outline: none;
+      }
+      .model-search:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+      }
+      .model-search::placeholder {
+        color: rgba(161, 166, 180, 0.6);
+      }
+      .filter-toggle {
+        position: fixed;
+        left: 1rem;
+        bottom: 1rem;
+        z-index: 60;
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        transition: all 0.3s ease;
+      }
+      
+      .filter-toggle:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
+        background: #7c4deb;
+      }
+      
+      .filter-toggle:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+      }
+      
+      .filter-label {
+        font-size: 1.2rem;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+      }
+      
+      .filter-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+        z-index: 40;
+      }
+      @media (max-width: 800px) {
+        .layout {
+          flex-direction: column;
+          padding: 0;
+          max-width: 100%;
+        }
+        .smart-filter-rail {
+          position: fixed;
+          top: 0;
+          left: 0;
+          bottom: 0;
+          width: 85%;
+          max-width: 320px;
+          transform: translateX(-100%);
+          z-index: 55;
+          overflow-y: auto;
+          background: rgba(0, 1, 0, 0.95);
+          backdrop-filter: blur(20px);
+          border-right: 1px solid rgba(255, 255, 255, 0.1);
+          height: 100vh;
+          margin-top: 0;
+          padding: 1.5rem;
+          transition: transform 0.3s ease;
+        }
+        .smart-filter-rail.open {
+          transform: translateX(0);
+          box-shadow: 0 4px 32px rgba(0,0,0,0.6);
+        }
+        .compare-main {
+          width: 100%;
+          margin-left: 0;
+          padding: 1rem;
+        }
+        .filter-toggle {
+          display: block;
+        }
+        .filter-overlay.active {
+          opacity: 1;
+          pointer-events: auto;
+        }
+        .chart-grid {
+          grid-template-columns: 1fr;
+          gap: 1rem;
+        }
+        .insights-grid {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 0.75rem;
+        }
+        .nav-content {
+          padding: 1rem;
+        }
+        .chart-container {
+          display: flex;
+          flex-direction: row;
+          align-items: flex-end;
+          justify-content: center;
+          gap: 0.75rem;
+          padding: 1rem 0.25rem 0.75rem 0.25rem;
+          min-height: 180px;
+          width: 100%;
+        }
+        .chart-item {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          flex: 1;
+          min-width: 50px;
+          max-width: 70px;
+        }
+      }
+      
+      @media (max-width: 500px) {
+        .insights-grid {
+          grid-template-columns: 1fr;
+        }
+        .layout {
+          margin: 1rem auto;
+        }
+        .filter-toggle {
+          bottom: 5rem;
+          left: 1rem;
+          width: 42px;
+          height: 42px;
+          font-size: 0.9rem;
+        }
+        .chart-container {
+          gap: 0.5rem;
+          padding: 1rem 0.1rem 0.75rem 0.1rem;
+          min-height: 160px;
+        }
+        .chart-item {
+          min-width: 45px;
+          max-width: 60px;
+        }
+      }
+      .sort-toggle {
+        background: var(--glass);
+        border: 1px solid rgba(161, 166, 180, 0.3);
+        border-radius: 0.5rem;
+        color: var(--text-primary);
+        padding: 0.5rem 0.75rem;
+        width: 100%;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: left;
+        backdrop-filter: blur(8px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      }
+      .sort-toggle:hover {
+        border-color: var(--accent);
+        background: rgba(139, 92, 246, 0.15);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+        transform: translateY(-1px);
+      }
+      
+      .metric-dropdown {
+        background: var(--glass);
+        border: 1px solid rgba(161, 166, 180, 0.3);
+        border-radius: 0.5rem;
+        color: var(--text-primary);
+        padding: 0.5rem 0.75rem;
+        width: 100%;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: left;
+        backdrop-filter: blur(8px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgba(161, 166, 180, 0.8)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 1rem;
+        padding-right: 2.5rem;
+      }
+      
+      .metric-dropdown:hover {
+        border-color: var(--accent);
+        background-color: rgba(139, 92, 246, 0.15);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+        transform: translateY(-1px);
+      }
+      
+      .metric-dropdown:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
+      }
+      
+      .metric-dropdown option {
+        background-color: #121212;
+        color: var(--text-primary);
+        padding: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="compare-container">
+      <nav class="glass-nav">
+        <div class="nav-content">
+          <div class="logo">AI Understand</div>
+          <div class="nav-links">
+            <a href="/" class="nav-link">Dashboard</a>
+            <a href="/compare" class="nav-link active">Compare</a>
+          </div>
+        </div>
+      </nav>
+
+      <button class="filter-toggle" id="filter-toggle" aria-expanded="false" aria-label="Toggle filters">
+        <span class="filter-label">&lt;=&gt;</span>
+      </button>
+      <div class="filter-overlay" id="filter-overlay"></div>
+
+      <div class="layout">
+        <aside class="smart-filter-rail" id="smart-filter-rail">
+          <div class="filter-section">
+            <h3>Performance Metric</h3>
+            <select id="metric-selector" class="metric-dropdown">
+              <option value="mmlu_pro">MMLU Pro</option>
+              <option value="gpqa">GPQA</option>
+              <option value="hle">HumanEval</option>
+              <option value="artificial_analysis_math_index">Math</option>
+              <option value="artificial_analysis_coding_index">Coding</option>
+            </select>
+          </div>
+          <div class="filter-section">
+            <h3>Sort Order</h3>
+            <button id="sort-toggle" class="sort-toggle" data-order="desc">
+              <span class="sort-text">High to Low</span>
+            </button>
+          </div>
+          <div class="filter-section">
+            <h3>Model Selection</h3>
+            <div class="search-container">
+              <input type="text" id="model-search" placeholder="Search models..." class="model-search">
+            </div>
+            <div class="selected-count"></div>
+            <div class="model-list"></div>
+          </div>
+        </aside>
+
+        <main class="compare-main">
+          <section class="charts-section">
+            <div class="chart-grid">
+              <div class="chart-section">
+                <div class="chart-header">
+                  <h3>Price Comparison</h3>
+                </div>
+                <div class="chart-container" id="price-chart"></div>
+              </div>
+
+              <div class="chart-section">
+                <div class="chart-header">
+                  <h3>Performance Comparison</h3>
+                </div>
+                <div class="chart-container" id="performance-chart"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="insights-section">
+            <div class="insights-grid">
+              <div class="insight-card">
+                <h4>Best Value</h4>
+                <p>{bestValue ? bestValue.name : '—'}</p>
+              </div>
+              <div class="insight-card">
+                <h4>Cheapest Input</h4>
+                <p>{inputPriceWinner ? inputPriceWinner.name : '—'}</p>
+              </div>
+              <div class="insight-card">
+                <h4>Cheapest Output</h4>
+                <p>{outputPriceWinner ? outputPriceWinner.name : '—'}</p>
+              </div>
+              <div class="insight-card">
+                <h4>Top MMLU Pro</h4>
+                <p>{performanceWinner ? performanceWinner.name : '—'}</p>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script define:vars={{ validModels }}>
+      function initCompare() {
+        // Initialize sidebar state based on screen size
+        const initializeLayout = () => {
+          const isMobile = window.innerWidth <= 800;
+          const rail = document.getElementById('smart-filter-rail');
+          const main = document.querySelector('.compare-main');
+          const toggle = document.getElementById('filter-toggle');
+          const label = toggle?.querySelector('.filter-label');
+          
+          if (isMobile) {
+            rail?.classList.remove('closed');
+            rail?.classList.remove('open');
+            if (label) label.innerHTML = '&lt;=&gt;';
+          } else {
+            // Default to showing sidebar on desktop
+            rail?.classList.remove('closed');
+            if (main) {
+              main.style.marginLeft = '280px';
+              main.style.width = 'calc(100% - 280px)';
+            }
+            if (label) label.innerHTML = '&times;';
+          }
+        };
+        
+        // Call initially and on resize
+        initializeLayout();
+        window.addEventListener('resize', initializeLayout);
+
+        const toggle = document.getElementById('filter-toggle');
+        const rail = document.getElementById('smart-filter-rail');
+        const overlay = document.getElementById('filter-overlay');
+
+        function closeFilters() {
+          const isMobile = window.innerWidth <= 800;
+          
+          if (isMobile) {
+            rail.classList.remove('open');
+            overlay.classList.remove('active');
+            toggle.setAttribute('aria-expanded', 'false');
+            const label = toggle.querySelector('.filter-label');
+            if (label) label.innerHTML = '&lt;=&gt;';
+          } else {
+            rail.classList.add('closed');
+            toggle.setAttribute('aria-expanded', 'false');
+            const label = toggle.querySelector('.filter-label');
+            if (label) label.innerHTML = '&lt;=&gt;';
+            
+            // Adjust main content area
+            const main = document.querySelector('.compare-main');
+            if (main) {
+              main.style.marginLeft = '0';
+              main.style.width = '100%';
+            }
+          }
+        }
+
+        toggle?.addEventListener('click', () => {
+          // For mobile, we use 'open' class to show the sidebar
+          // For desktop, we use 'closed' class to hide the sidebar
+          const isMobile = window.innerWidth <= 800;
+          
+          if (isMobile) {
+            const isOpen = rail.classList.toggle('open');
+            overlay.classList.toggle('active', isOpen);
+            toggle.setAttribute('aria-expanded', isOpen.toString());
+            const label = toggle.querySelector('.filter-label');
+            if (label) label.innerHTML = isOpen ? '&times;' : '&lt;=&gt;';
+          } else {
+            const isClosed = rail.classList.toggle('closed');
+            toggle.setAttribute('aria-expanded', (!isClosed).toString());
+            const label = toggle.querySelector('.filter-label');
+            if (label) label.innerHTML = isClosed ? '&lt;=&gt;' : '&times;';
+            
+            // Also adjust the main content area when sidebar is toggled
+            const main = document.querySelector('.compare-main');
+            if (main) {
+              main.style.marginLeft = isClosed ? '0' : '280px';
+              main.style.width = isClosed ? '100%' : 'calc(100% - 280px)';
+            }
+          }
+        });
+
+        overlay?.addEventListener('click', closeFilters);
+
+        // Dynamic model selection and charts
+        const models = validModels;
+        let filteredModels = [...models]; // For search filtering
+        const selected = new Set(models.slice(0, 3).map((m) => m.id));
+        const list = document.querySelector('.model-list');
+        const countEl = document.querySelector('.selected-count');
+        const priceChart = document.getElementById('price-chart');
+        const perfChart = document.getElementById('performance-chart');
+        const metricSelector = document.getElementById('metric-selector');
+        const sortToggle = document.getElementById('sort-toggle');
+        const searchInput = document.getElementById('model-search');
+
+        function formatScore(value) {
+          const num = Number(value) || 0;
+          return num ? `${num.toFixed(1)}%` : '—';
+        }
+
+        function applyFiltersAndSort() {
+          const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+
+          // Filter by search term only
+          filteredModels = models.filter(model => 
+            model.name.toLowerCase().includes(searchTerm)
+          );
+        }
+
+        function renderModelList() {
+          if (!list) return;
+          applyFiltersAndSort();
+          
+          list.innerHTML = filteredModels.map((m) => `
+            <div class="model-item">
+              <input type="checkbox" id="model-${m.id}" data-id="${m.id}" ${selected.has(m.id) ? 'checked' : ''} />
+              <label for="model-${m.id}">${m.name}</label>
+            </div>
+          `).join('');
+        }
+
+        function updateCount() {
+          if (countEl) countEl.textContent = `${selected.size} of ${filteredModels.length} models selected`;
+        }
+
+        function getSelected() {
+          return models.filter((m) => selected.has(m.id));
+        }
+
+        function updateInsights(models) {
+          if (models.length === 0) return;
+          
+          // Find best value (highest performance per dollar)
+          let bestValueModel = models[0];
+          let bestValueRatio = 0;
+          
+          // Find cheapest input, output, and top performer for current metric
+          let cheapestInputModel = models[0];
+          let cheapestOutputModel = models[0];
+          let topPerformerModel = models[0];
+          
+          const currentMetric = metricSelector.value;
+          
+          models.forEach(model => {
+            // Calculate value ratio (performance per dollar)
+            const inputPrice = Number(model.price_1m_input_tokens) || 0;
+            const outputPrice = Number(model.price_1m_output_tokens) || 0;
+            const performance = Number(model[currentMetric]) || 0;
+            const avgPrice = (inputPrice + outputPrice) / 2;
+            const valueRatio = avgPrice > 0 ? performance / avgPrice : 0;
+            
+            if (valueRatio > bestValueRatio) {
+              bestValueRatio = valueRatio;
+              bestValueModel = model;
+            }
+            
+            if ((Number(model.price_1m_input_tokens) || Infinity) < (Number(cheapestInputModel.price_1m_input_tokens) || Infinity)) {
+              cheapestInputModel = model;
+            }
+            
+            if ((Number(model.price_1m_output_tokens) || Infinity) < (Number(cheapestOutputModel.price_1m_output_tokens) || Infinity)) {
+              cheapestOutputModel = model;
+            }
+            
+            if ((Number(model[currentMetric]) || 0) > (Number(topPerformerModel[currentMetric]) || 0)) {
+              topPerformerModel = model;
+            }
+          });
+          
+          // Update the insight cards
+          const insightCards = document.querySelectorAll('.insight-card p');
+          if (insightCards.length >= 4) {
+            insightCards[0].textContent = bestValueModel.name;
+            insightCards[1].textContent = cheapestInputModel.name;
+            insightCards[2].textContent = cheapestOutputModel.name;
+            insightCards[3].textContent = topPerformerModel.name;
+          }
+        }
+        
+        function renderCharts() {
+          let chosen = getSelected();
+          console.log('Rendering charts for models:', chosen.length);
+
+          // Price chart
+          if (!priceChart || !perfChart || !metricSelector) {
+            console.error('Chart elements not found');
+            console.log('Price chart element:', priceChart);
+            console.log('Performance chart element:', perfChart);
+            console.log('Metric selector element:', metricSelector);
+            return;
+          }
+          
+          // Update insights section
+          updateInsights(chosen);
+
+          // Clear any existing "no data" messages but preserve the container structure
+          const existingNoData = priceChart.querySelector('.no-data');
+          if (existingNoData) existingNoData.remove();
+          
+          if (chosen.length === 0) {
+            // Add "no data" message without clearing the container
+            if (!priceChart.querySelector('.no-data')) {
+              const noDataEl = document.createElement('div');
+              noDataEl.className = 'no-data';
+              noDataEl.style.cssText = 'text-align: center; color: #666; padding: 2rem;';
+              noDataEl.textContent = 'Select models to compare';
+              priceChart.appendChild(noDataEl);
+            }
+            
+            if (!perfChart.querySelector('.no-data')) {
+              const noDataEl = document.createElement('div');
+              noDataEl.className = 'no-data';
+              noDataEl.style.cssText = 'text-align: center; color: #666; padding: 2rem;';
+              noDataEl.textContent = 'Select models to compare';
+              perfChart.appendChild(noDataEl);
+            }
+            return;
+          }
+
+          // Get sort order and metric
+          const sortOrder = sortToggle ? sortToggle.getAttribute('data-order') : 'desc';
+          const metric = metricSelector ? metricSelector.value : 'mmlu_pro';
+
+          // Clear containers completely and rebuild from scratch
+          priceChart.innerHTML = '';
+          perfChart.innerHTML = '';
+
+          // Sort chosen models by price for price chart
+          const chosenByPrice = [...chosen].sort((a, b) => {
+            const totalA = (Number(a.price_1m_input_tokens) || 0) + (Number(a.price_1m_output_tokens) || 0);
+            const totalB = (Number(b.price_1m_input_tokens) || 0) + (Number(b.price_1m_output_tokens) || 0);
+            return sortOrder === 'desc' ? totalB - totalA : totalA - totalB;
+          });
+          
+          const totals = chosenByPrice.map((m) => (Number(m.price_1m_input_tokens) || 0) + (Number(m.price_1m_output_tokens) || 0));
+          const maxTotal = Math.max(...totals, 1);
+          
+          // Build price chart
+          chosenByPrice.forEach((model, i) => {
+            const inputPrice = Number(model.price_1m_input_tokens) || 0;
+            const outputPrice = Number(model.price_1m_output_tokens) || 0;
+            const total = totals[i];
+            
+            // Calculate heights proportionally
+            const totalHeight = Math.max((total / maxTotal) * 180, 30);
+            const inputRatio = inputPrice / total;
+            const outputRatio = outputPrice / total;
+            
+            // Calculate individual heights, ensuring minimum visibility
+            const inputHeight = inputPrice > 0 ? Math.max(inputRatio * totalHeight, 5) : 0;
+            const outputHeight = outputPrice > 0 ? Math.max(outputRatio * totalHeight, 5) : 0;
+            
+            const chartItem = document.createElement('div');
+            chartItem.className = 'chart-item';
+            chartItem.innerHTML = `
+              <div class="bar-value">$${total.toFixed(3)}</div>
+              <div style="display: flex; flex-direction: row; justify-content: center; align-items: flex-end; height: ${totalHeight}px; width: 100%; gap: 2px;">
+                <div class="chart-bar input-price-bar" style="height: ${inputHeight}px; background-color: #ef4444; flex: 1; max-width: 48%;"></div>
+                <div class="chart-bar output-price-bar" style="height: ${outputHeight}px; background-color: #22c55e; flex: 1; max-width: 48%;"></div>
+              </div>
+              <div class="bar-label" style="white-space: nowrap;">${model.name.split(' ')[0]}</div>
+            `;
+            priceChart.appendChild(chartItem);
+          });
+
+          // Sort chosen models by selected metric for performance chart
+          const chosenByMetric = [...chosen].sort((a, b) => {
+            const scoreA = Number(a[metric]) || 0;
+            const scoreB = Number(b[metric]) || 0;
+            return sortOrder === 'desc' ? scoreB - scoreA : scoreA - scoreB;
+          });
+          
+          // Build performance chart
+          const scores = chosenByMetric.map((m) => Number(m[metric]) || 0);
+          const maxScore = Math.max(...scores, 1);
+          
+          chosenByMetric.forEach((model, i) => {
+            const score = scores[i];
+            const height = Math.max((score / maxScore) * 180, 30);
+            
+            const chartItem = document.createElement('div');
+            chartItem.className = 'chart-item';
+            chartItem.innerHTML = `
+              <div class="bar-value">${formatScore(score)}</div>
+              <div class="chart-bar performance-bar" style="height: ${height}px; background-color: #8b5cf6;"></div>
+              <div class="bar-label" style="white-space: nowrap;">${model.name.split(' ')[0]}</div>
+            `;
+            perfChart.appendChild(chartItem);
+          });
+
+          console.log('Charts rendered successfully with', chosen.length, 'models');
+        }
+
+        list?.addEventListener('change', (e) => {
+          const target = e.target;
+          if (target instanceof HTMLInputElement && target.dataset.id) {
+            target.checked ? selected.add(target.dataset.id) : selected.delete(target.dataset.id);
+            updateCount();
+            renderCharts();
+          }
+        });
+
+        metricSelector?.addEventListener('change', renderCharts);
+
+        // Add event listeners for new features
+        searchInput?.addEventListener('input', () => {
+          renderModelList();
+          updateCount();
+        });
+
+        // Sort toggle functionality
+        sortToggle?.addEventListener('click', () => {
+          if (sortToggle) {
+            const currentOrder = sortToggle.getAttribute('data-order');
+            const newOrder = currentOrder === 'desc' ? 'asc' : 'desc';
+            sortToggle.setAttribute('data-order', newOrder);
+            const textEl = sortToggle.querySelector('.sort-text');
+            if (textEl) {
+              textEl.textContent = newOrder === 'desc' ? 'High to Low' : 'Low to High';
+            }
+            renderCharts(); // Only re-render charts, not model list
+          }
+        });
+
+        renderModelList();
+        updateCount();
+        renderCharts();
+      }
+
+      // Auto-fit functionality for charts
+      function initAutoFit() {
+        const priceChart = document.getElementById('price-chart');
+        const perfChart = document.getElementById('performance-chart');
+        
+        function fitModelsToChart(chart) {
+          if (!chart) return;
+          
+          const chartItems = chart.querySelectorAll('.chart-item');
+          if (!chartItems.length) return;
+          
+          // Calculate the minimum width needed to fit all items
+          const totalItems = chartItems.length;
+          const containerWidth = chart.clientWidth;
+          // Account for gap between items (0.75rem = ~12px) and ensure all fit
+          const totalGapWidth = (totalItems - 1) * 12;
+          const availableWidth = containerWidth - totalGapWidth - 10; // 10px buffer
+          const minItemWidth = Math.max(20, Math.floor(availableWidth / totalItems));
+          
+          // Apply the calculated width to all items
+          chartItems.forEach(item => {
+            item.style.minWidth = minItemWidth + 'px';
+            item.style.maxWidth = minItemWidth + 'px';
+            item.style.flex = '0 0 auto';
+            
+            // Fix overlapping names by truncating and adding ellipsis
+            const label = item.querySelector('.bar-label');
+            if (label) {
+              label.style.overflow = 'hidden';
+              label.style.textOverflow = 'ellipsis';
+              label.style.maxWidth = minItemWidth + 'px';
+              label.style.whiteSpace = 'nowrap';
+              
+              // Get the model name and truncate if needed
+              const fullName = label.textContent;
+              const words = fullName.split('-');
+              if (words.length > 0) {
+                // Take just the first part of the name if it contains dashes
+                label.setAttribute('title', fullName); // Show full name on hover
+                if (minItemWidth < 40 && words.length > 1) {
+                  label.textContent = words[0];
+                }
+              }
+            }
+          });
+          
+          // Center items in the container
+          chart.style.justifyContent = 'center';
+        }
+        
+        // Apply auto-fit when charts are rendered
+        const observer = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+              if (mutation.target === priceChart || mutation.target === perfChart) {
+                fitModelsToChart(mutation.target);
+              }
+            }
+          });
+        });
+        
+        // Observe both charts for changes
+        if (priceChart) {
+          observer.observe(priceChart, { childList: true });
+          // Initial fit if chart already has content
+          fitModelsToChart(priceChart);
+        }
+        
+        if (perfChart) {
+          observer.observe(perfChart, { childList: true });
+          // Initial fit if chart already has content
+          fitModelsToChart(perfChart);
+        }
+        
+        // Re-fit on window resize
+        window.addEventListener('resize', () => {
+          fitModelsToChart(priceChart);
+          fitModelsToChart(perfChart);
+        });
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          initCompare();
+          initAutoFit();
+        });
+      } else {
+        initCompare();
+        initAutoFit();
+      }
+    </script>
+  </body>
+</html>

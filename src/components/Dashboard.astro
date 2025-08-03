@@ -1,0 +1,1186 @@
+---
+import { getModels } from '../lib/supabase';
+
+const models = await getModels();
+
+// Helper function to format prices
+function formatPrice(price: string | number | null) {
+  if (price === null || price === undefined || price === '0' || Number(price) === 0) return '—';
+  const numPrice = Number(price);
+  return `$${numPrice.toFixed(3)}`;
+}
+
+function formatScore(score: string | number | null) {
+  if (score === null || score === undefined || score === '0' || Number(score) === 0) return '—';
+  const numScore = Number(score);
+  // Convert decimal to percentage (e.g., 0.72 -> 72%)
+  return `${(numScore * 100).toFixed(1)}%`;
+}
+
+// Filter models with valid prices
+const validModels = models.filter((model: any) => {
+  const inputPrice = Number(model.price_1m_input_tokens);
+  const outputPrice = Number(model.price_1m_output_tokens);
+  return inputPrice > 0 && outputPrice > 0;
+});
+
+// Get top models by price (lowest first) - deduplication by model family
+const topModelsByPrice = [...validModels]
+  .sort((a: any, b: any) => Number(a.price_1m_input_tokens) - Number(b.price_1m_input_tokens))
+  .reduce((acc: any[], model: any) => {
+    // Use the full model name for uniqueness, but prioritize more recent versions
+    const modelKey = model.name;
+    if (!acc.some(m => m.name === modelKey)) {
+      acc.push(model);
+    }
+    return acc;
+  }, [])
+  .slice(0, 5);
+
+// Get top models by performance for different benchmarks - deduplication by model family
+function getTopModelsByBenchmark(benchmark: string) {
+  return [...validModels]
+    .filter((model: any) => model[benchmark] && Number(model[benchmark]) > 0)
+    .sort((a: any, b: any) => Number(b[benchmark]) - Number(a[benchmark]))
+    .reduce((acc: any[], model: any) => {
+      // Use full model name for uniqueness to show specific versions
+      const modelKey = model.name;
+      if (!acc.some(m => m.name === modelKey)) {
+        acc.push(model);
+      }
+      return acc;
+    }, [])
+    .slice(0, 5);
+}
+
+// Default to MMLU Pro
+const topModelsByPerformance = getTopModelsByBenchmark('mmlu_pro');
+
+// Prepare all benchmark data for client-side use
+const benchmarkData = {
+  mmlu_pro: getTopModelsByBenchmark('mmlu_pro'),
+  humaneval: getTopModelsByBenchmark('hle'),
+  gpqa: getTopModelsByBenchmark('gpqa'),
+  math: getTopModelsByBenchmark('artificial_analysis_math_index'),
+  coding: getTopModelsByBenchmark('artificial_analysis_coding_index')
+};
+
+// Get fastest models (by tokens per second) - smart deduplication by brand
+const getFastestModels = (models: any[], count = 5) => {
+  return models
+    .filter((m: any) => m.median_output_tokens_per_second && Number(m.median_output_tokens_per_second) > 0)
+    .sort((a: any, b: any) => Number(b.median_output_tokens_per_second) - Number(a.median_output_tokens_per_second))
+    .reduce((acc: any[], model: any) => {
+      const brand = model.name.split(' ')[0];
+      if (!acc.some(m => m.name.split(' ')[0] === brand)) {
+        acc.push(model);
+      }
+      return acc;
+    }, [])
+    .slice(0, count);
+};
+
+const fastestModels = getFastestModels(validModels);
+
+// Get cheapest models - smart deduplication by brand
+const getCheapestModels = (models: any[], count = 5) => {
+  return models
+    .filter((m: any) => {
+      const inputPrice = Number(m.price_1m_input_tokens);
+      return inputPrice > 0;
+    })
+    .sort((a: any, b: any) => Number(a.price_1m_input_tokens) - Number(b.price_1m_input_tokens))
+    .reduce((acc: any[], model: any) => {
+      const brand = model.name.split(' ')[0];
+      if (!acc.some(m => m.name.split(' ')[0] === brand)) {
+        acc.push(model);
+      }
+      return acc;
+    }, [])
+    .slice(0, count);
+};
+
+const cheapestModels = getCheapestModels(validModels);
+
+// Cost data for charts
+const costData = {
+  cheapest: cheapestModels,
+  fastest: fastestModels
+};
+
+// DEBUG: Check server-side data
+console.log('🔍 SERVER: topModelsByPrice:', topModelsByPrice.map(m => m.name));
+console.log('🔍 SERVER: fastestModels:', fastestModels.map(m => m.name));
+console.log('🔍 SERVER: benchmarkData mmlu_pro:', benchmarkData.mmlu_pro?.map(m => m.name));
+
+// Data will be serialized using Astro's define:vars
+
+// Debug: Log the data to see what we're actually getting
+console.log('🔍 DEBUG: Models data:', models.slice(0, 3));
+console.log('🔍 DEBUG: MMLU Pro data:', benchmarkData.mmlu_pro);
+console.log('🔍 DEBUG: Available fields in first model:', Object.keys(models[0] || {}));
+console.log('🔍 DEBUG: topModelsByPrice:', topModelsByPrice);
+console.log('🔍 DEBUG: fastestModels:', fastestModels);
+console.log('🔍 DEBUG: costData.cheapest length:', costData.cheapest.length);
+
+// Benchmark display names
+const benchmarkNames = {
+  mmlu_pro: 'MMLU Pro Ranking (Top 5)',
+  humaneval: 'HumanEval Ranking (Top 5)',
+  gpqa: 'GPQA Ranking (Top 5)',
+  math: 'Math Ranking (Top 5)',
+  coding: 'Coding Ranking (Top 5)'
+};
+
+// Field mappings for client-side use
+const fieldMappings = {
+  mmlu_pro: 'mmlu_pro',
+  humaneval: 'hle',
+  gpqa: 'gpqa',
+  math: 'artificial_analysis_math_index',
+  coding: 'artificial_analysis_coding_index'
+};
+
+// Cost chart display names
+const costNames = {
+  cheapest: 'Price Distribution (Top 5 Cheapest)',
+  fastest: 'Speed Distribution (Top 5 Fastest)'
+};
+
+// Cost chart field mappings
+const costFieldMappings = {
+  cheapest: 'price_1m_input_tokens',
+  fastest: 'median_output_tokens_per_second'
+};
+
+// Stats
+const totalModels = validModels.length;
+const avgInputPrice = validModels.reduce((sum: number, model: any) => sum + Number(model.price_1m_input_tokens), 0) / totalModels;
+const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Number(model.price_1m_output_tokens), 0) / totalModels;
+---
+
+<div class="dashboard-container">
+  <!-- Navigation -->
+  <nav class="glass-nav">
+    <div class="nav-content">
+      <div class="logo">
+        AI Understand
+      </div>
+      <div class="nav-links">
+        <a href="/" class="nav-link active">Dashboard</a>
+        <a href="/compare" class="nav-link">Compare</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="dashboard-main">
+    <div class="dashboard-header">
+      <h1>AI Model Dashboard</h1>
+      <p>{totalModels} LLM models with pricing data</p>
+    </div>
+
+    <!-- Charts Section -->
+    <section class="charts-section">
+      <!-- Price Chart -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3>Cost Distribution (Top 5)</h3>
+          <select id="cost-selector" class="cost-selector">
+            <option value="cheapest">Cheapest Models</option>
+            <option value="fastest">Fastest Models</option>
+          </select>
+        </div>
+        <div class="vertical-chart">
+          <div class="chart-container">
+            {costData.cheapest.slice(0, 5).map((model: any) => {
+              const price = Number(model.price_1m_input_tokens) || 0;
+              const prices = costData.cheapest.slice(0, 5).map(m => Number(m.price_1m_input_tokens) || 0);
+              const maxPrice = Math.max(...prices);
+              const minPrice = Math.min(...prices);
+              
+              // Better height calculation with more dramatic scaling
+              let height = 60; // minimum height
+              if (maxPrice > minPrice) {
+                const range = maxPrice - minPrice;
+                const normalizedValue = (price - minPrice) / range;
+                height = 60 + (normalizedValue * 120); // scale from 60px to 180px
+              }
+              
+              return (
+                <div class="chart-bar-container">
+                  <div class="chart-bar cheapest-bar" style={`height: ${Math.round(height)}px`}>
+                    <div class="bar-value">${price.toFixed(3)}</div>
+                    <div class="bar-units">per 1M tokens</div>
+                  </div>
+                  <div class="bar-label">{model.name.split(' ')[0]}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <!-- Performance Chart -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3 id="performance-title">MMLU Pro Ranking (Top 5)</h3>
+          <select id="benchmark-selector" class="benchmark-selector">
+            <option value="mmlu_pro">MMLU Pro</option>
+            <option value="humaneval">HumanEval</option>
+            <option value="gpqa">GPQA</option>
+            <option value="math">Math</option>
+            <option value="coding">Coding</option>
+          </select>
+        </div>
+        <div class="chart-container" id="performance-chart-container">
+          {
+            benchmarkData.mmlu_pro.slice(0, 5).map((model: any) => {
+              const score = Number(model.mmlu_pro) || 0;
+              const scores = benchmarkData.mmlu_pro.slice(0, 5).map(m => Number(m.mmlu_pro) || 0);
+              const maxScore = Math.max(...scores);
+              const minScore = Math.min(...scores);
+              
+              // Better width calculation with more dramatic scaling
+              let width = 30; // minimum width
+              if (maxScore > minScore) {
+                const range = maxScore - minScore;
+                const normalizedValue = (score - minScore) / range;
+                width = 30 + (normalizedValue * 70); // scale from 30% to 100%
+              }
+              
+              const formattedScore = score > 0 ? `${score.toFixed(3)}` : '—';
+              
+              return (
+                <div class="perf-item">
+                  <span class="perf-label">{model.name.split(' ')[0]}</span>
+                  <div class="perf-bar">
+                    <div class="perf-fill" style={`width: ${Math.round(width)}%; min-width: 30px; background: linear-gradient(135deg, #94C5CC, #B4D2E7, #94C5CC);`}>
+                      <span class="perf-score">{formattedScore}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- Stats Overview -->
+    <section class="stats-section">
+      <div class="stat-card">
+        <div class="stat-value">{totalModels}</div>
+        <div class="stat-label">Total Models</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${avgInputPrice.toFixed(3)}</div>
+        <div class="stat-label">Avg Input Price</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${avgOutputPrice.toFixed(3)}</div>
+        <div class="stat-label">Avg Output Price</div>
+      </div>
+    </section>
+
+    <!-- Model Details Table -->
+    <section class="table-section">
+      <div class="table-card">
+        <h3>Model Details</h3>
+        <div class="table-container">
+          <div class="table-header">
+            <div class="table-col">Model</div>
+            <div class="table-col">Input Price</div>
+            <div class="table-col">Output Price</div>
+            <div class="table-col">MMLU Pro</div>
+            <div class="table-col">GPQA</div>
+          </div>
+          {validModels.map((model: any) => (
+            <div class="table-row">
+              <div class="table-cell">{model.name}</div>
+              <div class="table-cell">{formatPrice(model.price_1m_input_tokens)}</div>
+              <div class="table-cell">{formatPrice(model.price_1m_output_tokens)}</div>
+              <div class="table-cell">{formatScore(model.mmlu_pro)}</div>
+              <div class="table-cell">{formatScore(model.gpqa)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script define:vars={{ benchmarkData, costData, fieldMappings, costFieldMappings, benchmarkNames }}>
+  // @ts-nocheck
+  // Wait for DOM to be fully loaded
+  const chartsSection = document.querySelector('.charts-section');
+
+  function initDashboard() {
+    console.log('🚀 Dashboard charts initializing...');
+
+    // Get chart elements with more robust selectors
+    const costChartContainer = document.querySelector('.vertical-chart .chart-container');
+    const performanceChartContainer = document.getElementById('performance-chart-container');
+    const costSelector = document.getElementById('cost-selector');
+    const benchmarkSelector = document.getElementById('benchmark-selector');
+    
+    console.log('📊 Chart elements:', {
+      costChart: !!costChartContainer,
+      performanceChart: !!performanceChartContainer,
+      costSelector: !!costSelector,
+      benchmarkSelector: !!benchmarkSelector
+    });
+    
+    // --- FORCE CHARTS VISIBLE (hotfix for CSS/JS bugs) ---
+    if (chartsSection) {
+      chartsSection.classList.add('ready');
+      chartsSection.style.opacity = '1';
+      chartsSection.style.display = 'grid';
+    }
+    // -----------------------------------------------------
+    
+    // Helper: Get top 5 unique models by brand
+    function getTopModels(models, count = 5) {
+      const seen = new Set();
+      return models.filter(m => {
+        const brand = m.name.split(' ')[0];
+        if (seen.has(brand)) return false;
+        seen.add(brand);
+        return true;
+      }).slice(0, count);
+    }
+    
+    // Render performance chart (horizontal bars)
+    function renderPerformanceChart(benchmark = 'mmlu_pro') {
+      if (!performanceChartContainer) {
+        console.error('❌ Performance chart container not found');
+        return;
+      }
+
+      const titleEl = document.getElementById('performance-title');
+      if (titleEl) {
+        titleEl.textContent = benchmarkNames[benchmark] || 'Performance Ranking (Top 5)';
+      }
+
+      const models = benchmarkData[benchmark] || [];
+      const topModels = getTopModels(models, 5);
+      const field = fieldMappings[benchmark];
+
+      if (!field || topModels.length === 0) {
+        // Don't replace the entire container, just show a message
+        const noDataEl = document.createElement('div');
+        noDataEl.className = 'no-data';
+        noDataEl.textContent = 'No data available';
+        performanceChartContainer.appendChild(noDataEl);
+        return;
+      }
+
+      const scores = topModels.map(m => Number(m[field]) || 0);
+      const maxScore = Math.max(...scores);
+      const minScore = Math.min(...scores);
+
+      // Update existing perf items instead of replacing them
+      const perfItems = performanceChartContainer.querySelectorAll('.perf-item');
+      perfItems.forEach((item, index) => {
+        if (index < topModels.length) {
+          const model = topModels[index];
+          const score = Number(model[field]) || 0;
+          const scoreRange = maxScore - minScore;
+          const normalizedScore = scoreRange > 0 ? (score - minScore) / scoreRange : 1;
+          const width = Math.max(normalizedScore * 70 + 30, 30); // 30-100% range with minimum visibility
+          const formattedScore = score > 0 ? `${score.toFixed(3)}` : '—';
+
+          const perfLabel = item.querySelector('.perf-label');
+          const perfFill = item.querySelector('.perf-fill');
+          const perfScore = item.querySelector('.perf-score');
+
+          if (perfLabel) {
+            perfLabel.textContent = model.name.split(' ')[0];
+          }
+
+          if (perfFill) {
+            perfFill.style.width = Math.round(width) + '%';
+          }
+
+          if (perfScore) {
+            perfScore.textContent = formattedScore;
+          }
+        }
+      });
+    }
+    
+    // Render cost chart (vertical bars)
+    function renderCostChart(costType = 'cheapest') {
+      if (!costChartContainer) {
+        console.error('❌ Cost chart container not found');
+        return;
+      }
+      
+      console.log(`💰 Rendering cost chart: ${costType}`);
+      
+      // Use the data passed from the server
+      const models = costData[costType] || [];
+      const topModels = models.slice(0, 5);
+      const field = costFieldMappings[costType];
+      
+      if (!field || topModels.length === 0) {
+        // Don't replace the entire container, just show a message
+        const noDataEl = document.createElement('div');
+        noDataEl.className = 'no-data';
+        noDataEl.textContent = 'No data available';
+        costChartContainer.appendChild(noDataEl);
+        return;
+      }
+      
+      const values = topModels.map(m => Number(m[field]) || 0);
+      const maxValue = Math.max(...values);
+      
+      // Update existing bars instead of replacing them
+      const barContainers = costChartContainer.querySelectorAll('.chart-bar-container');
+      barContainers.forEach((container, index) => {
+        if (index < topModels.length) {
+          const model = topModels[index];
+          const value = Number(model[field]) || 0;
+          const height = maxValue > 0 ? Math.max((value / maxValue) * 180, 20) : 20;
+          
+          const chartBar = container.querySelector('.chart-bar');
+          const barValue = container.querySelector('.bar-value');
+          const barUnits = container.querySelector('.bar-units');
+          const barLabel = container.querySelector('.bar-label');
+          
+          if (chartBar) {
+            // Update bar class based on cost type
+            chartBar.className = 'chart-bar ' + (costType === 'fastest' ? 'fastest-bar' : 'cheapest-bar');
+            chartBar.style.height = height + 'px';
+          }
+          
+          if (barValue) {
+            if (costType === 'cheapest') {
+              barValue.textContent = `$${value.toFixed(3)}`;
+            } else if (costType === 'fastest') {
+              barValue.textContent = value.toFixed(0);
+            }
+          }
+          
+          if (barUnits) {
+            if (costType === 'cheapest') {
+              barUnits.textContent = 'per 1M tokens';
+            } else if (costType === 'fastest') {
+              barUnits.textContent = 'tokens/sec';
+            }
+          }
+          
+          if (barLabel) {
+            barLabel.textContent = model.name.split(' ')[0];
+          }
+        }
+      });
+      
+      // Update chart title
+      const titleEl = document.getElementById('cost-title');
+      if (titleEl) {
+        titleEl.textContent = costNames[costType] || 'Cost Distribution (Top 5)';
+      }
+      
+      console.log(`✅ Cost chart updated with ${topModels.length} models`);
+    }
+    
+    // Event listeners with proper type casting
+    if (benchmarkSelector) {
+      benchmarkSelector.addEventListener('change', function(e) {
+        const target = e.target;
+        if (target && target.value) {
+          console.log('🔄 Benchmark changed to:', target.value);
+          renderPerformanceChart(target.value);
+        }
+      });
+    }
+    
+    if (costSelector) {
+      costSelector.addEventListener('change', function(e) {
+        const target = e.target;
+        if (target && target.value) {
+          console.log('🔄 Cost type changed to:', target.value);
+          renderCostChart(target.value);
+        }
+      });
+    }
+    
+    // Initialize charts immediately
+    setTimeout(() => {
+      renderPerformanceChart('mmlu_pro');
+      renderCostChart('cheapest');
+      console.log('🎉 Charts initialized successfully');
+    }, 100);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDashboard);
+  } else {
+    initDashboard();
+  }
+  
+
+</script>
+
+<style>
+.dashboard-container {
+  min-height: 100vh;
+  background: #000100;
+  color: #F8F8F8;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Navigation */
+.glass-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: rgba(10, 10, 11, 0.8);
+  backdrop-filter: blur(20px) saturate(1.8);
+  border-bottom: 1px solid rgba(161, 166, 180, 0.25);
+}
+
+.nav-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 800;
+  font-size: 1.25rem;
+}
+
+.nav-links {
+  display: flex;
+  gap: 2rem;
+}
+
+.nav-link {
+  color: rgba(161, 166, 180, 0.8);
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  color: var(--accent);
+  background: rgba(139, 92, 246, 0.15);
+}
+
+/* Main Content */
+.dashboard-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 100px 2rem 2rem;
+}
+
+.dashboard-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.dashboard-header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.dashboard-header p {
+  font-size: 1.2rem;
+  color: rgba(161, 166, 180, 0.8);
+}
+
+/* Charts Section */
+.charts-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 2rem;
+  margin-bottom: 3rem;
+  opacity: 0;
+  transition: opacity 0.4s ease-in-out;
+}
+
+.charts-section.ready {
+  opacity: 1;
+}
+
+.chart-card {
+  background: rgba(10, 10, 11, 0.8);
+  border-radius: 1rem;
+  border: 1px solid rgba(161, 166, 180, 0.25);
+  padding: 1.5rem;
+  backdrop-filter: blur(20px);
+  transition: all 0.3s ease;
+}
+
+/* Performance chart specific styling */
+.chart-card .chart-container {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.chart-card:hover {
+  border-color: rgba(148, 197, 204, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Chart Header */
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.chart-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #F8F8F8;
+}
+
+/* Selectors */
+.benchmark-selector,
+.cost-selector {
+  position: relative;
+}
+
+#benchmark-selector,
+#cost-selector {
+  background: rgba(161, 166, 180, 0.1);
+  border: 1px solid rgba(161, 166, 180, 0.3);
+  border-radius: 0.5rem;
+  color: #F8F8F8;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+  outline: none;
+  min-width: 120px;
+}
+
+#benchmark-selector:hover,
+#cost-selector:hover {
+  border-color: rgba(148, 197, 204, 0.5);
+  background: rgba(148, 197, 204, 0.1);
+}
+
+#benchmark-selector:focus,
+#cost-selector:focus {
+  border-color: #94C5CC;
+  box-shadow: 0 0 0 2px rgba(148, 197, 204, 0.2);
+}
+
+#benchmark-selector option,
+#cost-selector option {
+  background: #0A0A0B;
+  color: #F8F8F8;
+  padding: 0.5rem;
+}
+
+/* Vertical Chart (Cost) */
+.vertical-chart {
+  height: 250px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(10, 10, 11, 0.4) 0%, rgba(10, 10, 11, 0.8) 100%);
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid rgba(161, 166, 180, 0.1);
+}
+
+.vertical-chart .chart-container {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: space-evenly;
+  gap: 0.25rem;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.chart-bar-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 60px;
+  max-width: 100px;
+}
+
+.chart-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  padding: 0.5rem 0.25rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 4px 12px rgba(148, 197, 204, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.chart-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+}
+
+.chart-bar:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 8px 24px rgba(148, 197, 204, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.cheapest-bar {
+  background: #22c55e !important; /* Solid Green */
+  border-color: rgba(34, 197, 94, 0.4);
+  box-shadow: 
+    0 4px 12px rgba(34, 197, 94, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.fastest-bar {
+  background: #8b5cf6 !important; /* Solid Purple */
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.bar-value {
+  font-size: 1rem;
+  color: #000;
+  font-weight: 900;
+  text-align: center;
+  padding: 0.5rem;
+  text-shadow: 0 2px 4px rgba(255, 255, 255, 0.5);
+  line-height: 1.2;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.bar-units {
+  font-size: 0.6rem;
+  color: rgba(0, 0, 0, 0.7);
+  font-weight: 500;
+  text-align: center;
+  margin-top: 0.25rem;
+  opacity: 0.8;
+}
+
+.bar-label {
+  font-size: 0.8rem;
+  color: #F8F8F8;
+  font-weight: 600;
+  text-align: center;
+  margin-top: 0.25rem;
+}
+
+.performance-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.perf-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+}
+
+.perf-label {
+  min-width: 80px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #F8F8F8;
+}
+
+.perf-bar {
+  flex: 1;
+  height: 24px;
+  background: rgba(161, 166, 180, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(161, 166, 180, 0.2);
+}
+
+.perf-fill {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 12px;
+  border-radius: 12px;
+  transition: width 0.5s ease;
+  position: relative;
+}
+
+.perf-score {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #000;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.5);
+  z-index: 2;
+  min-width: 30px;
+  text-align: right;
+}
+
+.perf-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.perf-item:hover {
+  background: rgba(161, 166, 180, 0.05);
+}
+
+.perf-label {
+  width: 80px;
+  font-size: 0.85rem;
+  color: #F8F8F8;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.perf-bar {
+  flex: 1;
+  height: 28px;
+  background: rgba(161, 166, 180, 0.15);
+  border-radius: 14px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(161, 166, 180, 0.25);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.perf-fill {
+  height: 100%;
+  background: linear-gradient(135deg, 
+    #94C5CC 0%, 
+    #B4D2E7 50%, 
+    #94C5CC 100%) !important;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 0.75rem;
+  transition: all 0.3s ease;
+  box-shadow: 
+    0 2px 8px rgba(148, 197, 204, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  position: relative;
+  min-width: 20px !important;
+  border: 2px solid #94C5CC;
+}
+
+.perf-fill::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+}
+
+.perf-score {
+  font-size: 0.75rem;
+  color: rgba(0, 0, 0, 0.9);
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+}
+
+.no-data {
+  text-align: center;
+  padding: 2rem;
+  color: rgba(161, 166, 180, 0.6);
+  font-style: italic;
+}
+
+/* Stats Section */
+.stats-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+.stat-card {
+  background: rgba(10, 10, 11, 0.8);
+  border-radius: 1rem;
+  border: 1px solid rgba(161, 166, 180, 0.25);
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #94C5CC;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: rgba(161, 166, 180, 0.8);
+}
+
+/* Leaders Section */
+.leaders-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+.leader-card {
+  background: rgba(10, 10, 11, 0.8);
+  border-radius: 1rem;
+  border: 1px solid rgba(161, 166, 180, 0.25);
+  padding: 1.5rem;
+}
+
+.leader-card h3 {
+  margin-bottom: 1rem;
+  color: #94C5CC;
+  font-size: 1.2rem;
+}
+
+.leader-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.leader-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(161, 166, 180, 0.08);
+  border-radius: 0.5rem;
+}
+
+.leader-name {
+  font-weight: 500;
+  color: #F8F8F8;
+}
+
+.leader-price,
+.leader-score {
+  color: #94C5CC;
+  font-weight: 600;
+}
+
+/* Table Section */
+.table-section {
+  margin-bottom: 3rem;
+}
+
+.table-card {
+  background: rgba(10, 10, 11, 0.8);
+  border-radius: 1rem;
+  border: 1px solid rgba(161, 166, 180, 0.25);
+  padding: 1.5rem;
+}
+
+.table-card h3 {
+  margin-bottom: 1rem;
+  color: #94C5CC;
+  font-size: 1.2rem;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+.table-header,
+.table-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
+  gap: 1rem;
+  align-items: center;
+}
+
+.table-header {
+  padding: 1rem;
+  background: rgba(148, 197, 204, 0.08);
+  font-weight: 600;
+  color: rgba(161, 166, 180, 0.9);
+}
+
+.table-row {
+  padding: 1rem;
+  border-bottom: 1px solid rgba(161, 166, 180, 0.12);
+}
+
+.table-row:last-child {
+  border-bottom: none;
+}
+
+.table-row:nth-child(even) {
+  background: rgba(161, 166, 180, 0.04);
+}
+
+.table-cell {
+  color: rgba(161, 166, 180, 0.9);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .nav-content {
+    padding: 1rem;
+  }
+  
+  .nav-links {
+    gap: 1rem;
+  }
+  
+  .dashboard-main {
+    padding: 90px 1rem 1rem;
+  }
+  
+  .dashboard-header h1 {
+    font-size: 2rem;
+  }
+  
+  .charts-section {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .models-table {
+    font-size: 0.875rem;
+  }
+  
+  .table-cell {
+    padding: 0.75rem 0.5rem;
+  }
+  
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+</div>
+
+<!-- Global styles for dynamically created chart elements -->
+<style is:global>
+/* Responsive scaling for dashboard */
+@media (max-width: 900px) {
+  .dashboard-container, .dashboard-main, .charts-section, .table-section, .stats-section {
+    width: 100%;
+    min-width: 0;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    box-sizing: border-box;
+  }
+  .dashboard-header, .stat-card, .chart-card, .table-card {
+    width: 100%;
+    min-width: 0;
+    margin: 0 auto 1rem auto;
+  }
+  .table-header, .table-row {
+    flex-wrap: wrap;
+    font-size: 0.95rem;
+  }
+}
+@media (max-width: 600px) {
+  .dashboard-header, .stat-card, .chart-card, .table-card {
+    padding: 0.75rem;
+    font-size: 0.95rem;
+  }
+  .table-header, .table-row {
+    font-size: 0.85rem;
+  }
+}
+
+/* Global chart bar styles to bypass Astro CSS scoping */
+.chart-bar.cheapest-bar {
+  background: #22c55e !important;
+  border-color: rgba(34, 197, 94, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.chart-bar.fastest-bar {
+  background: #8b5cf6 !important;
+  border-color: rgba(139, 92, 246, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.perf-fill {
+  background: linear-gradient(135deg, #94C5CC 0%, #B4D2E7 50%, #94C5CC 100%) !important;
+  border: 2px solid #94C5CC !important;
+  min-width: 20px !important;
+}
+
+/* Ensure chart bars are visible */
+.chart-bar {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  width: 100% !important;
+  padding: 0.5rem 0.25rem !important;
+  border-radius: 8px !important;
+  transition: all 0.3s ease !important;
+  cursor: pointer !important;
+  position: relative !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  overflow: hidden !important;
+}
+
+  .perf-bar {
+    flex: 1 !important;
+    height: 28px !important;
+    background: rgba(161, 166, 180, 0.15) !important;
+    border-radius: 14px !important;
+  position: relative !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(161, 166, 180, 0.25) !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+}
+</style>
