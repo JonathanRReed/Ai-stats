@@ -17,8 +17,16 @@ function formatScore(score: string | number | null, fieldName?: string) {
   if (score === null || score === undefined || score === '0' || Number(score) === 0) return '—';
   const numScore = Number(score);
   
-  // All values are already stored as percentages in the database
-  return `${numScore.toFixed(1)}%`;
+  // Fields that need *100 conversion (stored as decimals 0-1)
+  const decimalFields = ['mmlu_pro', 'gpqa', 'hle', 'aime', 'scicode', 'math_500', 'livecodebench'];
+  
+  if (fieldName && decimalFields.includes(fieldName)) {
+    // Convert decimal to percentage
+    return `${(numScore * 100).toFixed(1)}%`;
+  } else {
+    // Already stored as percentage
+    return `${numScore.toFixed(1)}%`;
+  }
 }
 
 // Filter models with valid prices
@@ -395,8 +403,16 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
         const score = Number(model[field]) || 0;
         let formattedScore;
         if (score > 0) {
-          // All values are already stored as percentages in the database
-          formattedScore = `${Math.round(score)}`;
+          // Fields that need *100 conversion (stored as decimals 0-1)
+          const decimalFields = ['mmlu_pro', 'gpqa', 'hle', 'aime', 'scicode', 'math_500', 'livecodebench'];
+          
+          if (decimalFields.includes(field)) {
+            // Convert decimal to percentage
+            formattedScore = `${Math.round(score * 100)}`;
+          } else {
+            // Already stored as percentage
+            formattedScore = `${Math.round(score)}`;
+          }
         } else {
           formattedScore = '—';
         }
@@ -643,8 +659,21 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       return price ? `$${Number(price).toFixed(3)}` : '—';
     }
     
-    function formatScore(score) {
-      return score && Number(score) > 0 ? `${Math.round(Number(score))}%` : '—';
+    function formatScore(score, fieldName) {
+      if (!score || Number(score) === 0) return '—';
+      
+      const numScore = Number(score);
+      
+      // Fields that need *100 conversion (stored as decimals 0-1)
+      const decimalFields = ['mmlu_pro', 'gpqa', 'hle', 'aime', 'scicode', 'math_500', 'livecodebench'];
+      
+      if (fieldName && decimalFields.includes(fieldName)) {
+        // Convert decimal to percentage
+        return `${Math.round(numScore * 100)}%`;
+      } else {
+        // Already stored as percentage
+        return `${Math.round(numScore)}%`;
+      }
     }
     
     function formatTPS(tps) {
@@ -699,19 +728,19 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
             <div class="benchmark-grid">
               <div class="benchmark-item">
                 <span class="benchmark-label">MMLU Pro</span>
-                <span class="benchmark-score">${formatScore(model.mmlu_pro)}</span>
+                <span class="benchmark-score">${formatScore(model.mmlu_pro, 'mmlu_pro')}</span>
               </div>
               <div class="benchmark-item">
                 <span class="benchmark-label">GPQA</span>
-                <span class="benchmark-score">${formatScore(model.gpqa)}</span>
+                <span class="benchmark-score">${formatScore(model.gpqa, 'gpqa')}</span>
               </div>
               <div class="benchmark-item">
                 <span class="benchmark-label">HLE</span>
-                <span class="benchmark-score">${formatScore(model.hle)}</span>
+                <span class="benchmark-score">${formatScore(model.hle, 'hle')}</span>
               </div>
               <div class="benchmark-item">
                 <span class="benchmark-label">AIME</span>
-                <span class="benchmark-score">${formatScore(model.aime)}</span>
+                <span class="benchmark-score">${formatScore(model.aime, 'aime')}</span>
               </div>
             </div>
           </div>
@@ -721,15 +750,15 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
             <div class="benchmark-grid">
               <div class="benchmark-item">
                 <span class="benchmark-label">SciCode</span>
-                <span class="benchmark-score">${formatScore(model.scicode)}</span>
+                <span class="benchmark-score">${formatScore(model.scicode, 'scicode')}</span>
               </div>
               <div class="benchmark-item">
                 <span class="benchmark-label">LiveCodeBench</span>
-                <span class="benchmark-score">${formatScore(model.livecodebench)}</span>
+                <span class="benchmark-score">${formatScore(model.livecodebench, 'livecodebench')}</span>
               </div>
               <div class="benchmark-item">
                 <span class="benchmark-label">Math 500</span>
-                <span class="benchmark-score">${formatScore(model.math_500)}</span>
+                <span class="benchmark-score">${formatScore(model.math_500, 'math_500')}</span>
               </div>
             </div>
           </div>
@@ -922,11 +951,12 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 /* Charts Section */
 .charts-section {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 2rem;
   margin-bottom: 3rem;
   opacity: 0;
   transition: opacity 0.4s ease-in-out;
+  justify-items: center;
 }
 
 .charts-section.ready {
@@ -2113,13 +2143,32 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 
 /* Responsive Design */
 @media (max-width: 768px) {
+  .dashboard-main {
+    padding: 1rem;
+  }
+  
+  .charts-section {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    justify-items: center;
+  }
+  
+  .chart-card {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+  }
+  
   .models-grid {
     grid-template-columns: 1fr;
-    padding: 0 0.5rem;
+    padding: 0;
+    justify-items: center;
   }
   
   .model-card {
     padding: 1.25rem;
+    width: 100%;
+    max-width: 100%;
   }
   
   .benchmark-grid {
@@ -2128,6 +2177,11 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   
   .section-header h3 {
     font-size: 1.75rem;
+    text-align: center;
+  }
+  
+  .section-header {
+    text-align: center;
   }
 }
 
@@ -2143,9 +2197,25 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 }
 
 @media (max-width: 480px) {
+  .dashboard-main {
+    padding: 0.75rem;
+  }
+  
+  .charts-section {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  
+  .chart-card {
+    padding: 1rem;
+    width: 100%;
+  }
+  
   .filter-row {
     padding: 1rem;
     gap: 0.75rem;
+    justify-content: center;
   }
   
   .model-pricing {
@@ -2159,6 +2229,11 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   
   .model-card {
     padding: 1rem;
+    width: 100%;
+  }
+  
+  .models-section {
+    text-align: center;
   }
 }
 
