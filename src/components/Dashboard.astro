@@ -37,19 +37,25 @@ const topModelsByPrice = [...validModels]
   }, [])
   .slice(0, 5);
 
-// Get top models by performance for different benchmarks - deduplication by model family
+// Get top models by performance for different benchmarks - proper deduplication
 function getTopModelsByBenchmark(benchmark: string) {
-  return [...validModels]
+  // First, deduplicate by model name and keep the one with the highest score
+  const uniqueModels = new Map();
+  
+  validModels
     .filter((model: any) => model[benchmark] && Number(model[benchmark]) > 0)
-    .sort((a: any, b: any) => Number(b[benchmark]) - Number(a[benchmark]))
-    .reduce((acc: any[], model: any) => {
-      // Use full model name for uniqueness to show specific versions
-      const modelKey = model.name;
-      if (!acc.some(m => m.name === modelKey)) {
-        acc.push(model);
+    .forEach((model: any) => {
+      const modelName = model.name.trim();
+      const score = Number(model[benchmark]);
+      
+      if (!uniqueModels.has(modelName) || uniqueModels.get(modelName).score < score) {
+        uniqueModels.set(modelName, { ...model, score });
       }
-      return acc;
-    }, [])
+    });
+  
+  // Convert back to array and sort by score
+  return Array.from(uniqueModels.values())
+    .sort((a: any, b: any) => Number(b[benchmark]) - Number(a[benchmark]))
     .slice(0, 5);
 }
 
@@ -233,36 +239,33 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
             <option value="coding">Coding</option>
           </select>
         </div>
-        <div class="chart-container" id="performance-chart-container">
-          {
-            benchmarkData.mmlu_pro.slice(0, 5).map((model: any) => {
-              const score = Number(model.mmlu_pro) || 0;
-              const scores = benchmarkData.mmlu_pro.slice(0, 5).map(m => Number(m.mmlu_pro) || 0);
-              const maxScore = Math.max(...scores);
-              const minScore = Math.min(...scores);
-              
-              // Better width calculation with more dramatic scaling
-              let width = 30; // minimum width
-              if (maxScore > minScore) {
-                const range = maxScore - minScore;
-                const normalizedValue = (score - minScore) / range;
-                width = 30 + (normalizedValue * 70); // scale from 30% to 100%
-              }
-              
-              const formattedScore = score > 0 ? `${score.toFixed(3)}` : '—';
-              
-              return (
-                <div class="perf-item">
-                  <span class="perf-label">{model.name.split(' ')[0]}</span>
-                  <div class="perf-bar">
-                    <div class="perf-fill" style={`width: ${Math.round(width)}%; min-width: 30px; background: linear-gradient(135deg, #94C5CC, #B4D2E7, #94C5CC);`}>
-                      <span class="perf-score">{formattedScore}</span>
+        <div class="leaderboard-container" id="performance-chart-container">
+          <div class="leaderboard-header">
+            <div class="rank-col">RANK</div>
+            <div class="name-col">NAME</div>
+            <div class="score-col">SCORE</div>
+          </div>
+          <div class="leaderboard-body">
+            {
+              benchmarkData.mmlu_pro.slice(0, 5).map((model: any, index: number) => {
+                const score = Number(model.mmlu_pro) || 0;
+                const formattedScore = score > 0 ? `${Math.round(score * 100)}` : '—';
+                
+                return (
+                  <div class="leaderboard-row">
+                    <div class="rank-cell">{index + 1}</div>
+                    <div class="name-cell">
+                      <div class="model-info">
+                        <div class="model-name">{model.name}</div>
+                        <div class="company-name">{model.company_name || 'Unknown'}</div>
+                      </div>
                     </div>
+                    <div class="score-cell">{formattedScore}</div>
                   </div>
-                </div>
-              );
-            })
-          }
+                );
+              })
+            }
+          </div>
         </div>
       </div>
     </section>
@@ -339,15 +342,11 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
     }
     // -----------------------------------------------------
     
-    // Helper: Get top 5 unique models by brand
+    // Helper: Get top 5 models (already sorted and deduplicated from server)
     function getTopModels(models, count = 5) {
-      const seen = new Set();
-      return models.filter(m => {
-        const brand = m.name.split(' ')[0];
-        if (seen.has(brand)) return false;
-        seen.add(brand);
-        return true;
-      }).slice(0, count);
+      // Models are already sorted by score and deduplicated on the server side
+      // Just return the top count models
+      return models.slice(0, count);
     }
     
     // Render performance chart (horizontal bars)
@@ -367,46 +366,74 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       const field = fieldMappings[benchmark];
 
       if (!field || topModels.length === 0) {
-        // Don't replace the entire container, just show a message
-        const noDataEl = document.createElement('div');
-        noDataEl.className = 'no-data';
-        noDataEl.textContent = 'No data available';
-        performanceChartContainer.appendChild(noDataEl);
+        performanceChartContainer.innerHTML = '<div class="no-data">No data available</div>';
         return;
       }
 
-      const scores = topModels.map(m => Number(m[field]) || 0);
-      const maxScore = Math.max(...scores);
-      const minScore = Math.min(...scores);
-
-      // Update existing perf items instead of replacing them
-      const perfItems = performanceChartContainer.querySelectorAll('.perf-item');
-      perfItems.forEach((item, index) => {
-        if (index < topModels.length) {
-          const model = topModels[index];
-          const score = Number(model[field]) || 0;
-          const scoreRange = maxScore - minScore;
-          const normalizedScore = scoreRange > 0 ? (score - minScore) / scoreRange : 1;
-          const width = Math.max(normalizedScore * 70 + 30, 30); // 30-100% range with minimum visibility
-          const formattedScore = score > 0 ? `${score.toFixed(3)}` : '—';
-
-          const perfLabel = item.querySelector('.perf-label');
-          const perfFill = item.querySelector('.perf-fill');
-          const perfScore = item.querySelector('.perf-score');
-
-          if (perfLabel) {
-            perfLabel.textContent = model.name.split(' ')[0];
-          }
-
-          if (perfFill) {
-            perfFill.style.width = Math.round(width) + '%';
-          }
-
-          if (perfScore) {
-            perfScore.textContent = formattedScore;
-          }
+      // Generate leaderboard HTML
+      const leaderboardBodyHTML = topModels.map((model, index) => {
+        const score = Number(model[field]) || 0;
+        const formattedScore = score > 0 ? `${Math.round(score * 100)}` : '—';
+        
+        // Rank badge styles based on position
+        let rankStyle = '';
+        if (index === 0) {
+          // Gold for 1st place
+          rankStyle = 'background: linear-gradient(135deg, #FFD700 0%, #FFA500 30%, #FFD700 60%, #FFED4E 100%) !important; color: #8B4513 !important; box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4), 0 0 0 3px rgba(255, 215, 0, 0.3) !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important;';
+        } else if (index === 1) {
+          // Silver for 2nd place
+          rankStyle = 'background: linear-gradient(135deg, #C0C0C0 0%, #E8E8E8 30%, #C0C0C0 60%, #F5F5F5 100%) !important; color: #2C2C2C !important; box-shadow: 0 6px 20px rgba(192, 192, 192, 0.4), 0 0 0 3px rgba(192, 192, 192, 0.3) !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5) !important;';
+        } else if (index === 2) {
+          // Bronze for 3rd place
+          rankStyle = 'background: linear-gradient(135deg, #CD7F32 0%, #D2691E 30%, #CD7F32 60%, #DEB887 100%) !important; color: #FFFFFF !important; box-shadow: 0 6px 20px rgba(205, 127, 50, 0.4), 0 0 0 3px rgba(205, 127, 50, 0.3) !important; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;';
+        } else {
+          // Theme color for 4th and 5th place
+          rankStyle = 'background: linear-gradient(135deg, #94C5CC 0%, #B4D2E7 50%, #94C5CC 100%) !important; color: #1a1a1a !important; box-shadow: 0 4px 16px rgba(148, 197, 204, 0.4), 0 0 0 2px rgba(148, 197, 204, 0.3) !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important;';
         }
-      });
+        
+        return `
+          <div class="leaderboard-row" style="display: grid !important; grid-template-columns: 80px 1fr 120px !important; gap: 1.5rem !important; padding: 1.75rem 2rem !important; border-bottom: 1px solid rgba(148, 197, 204, 0.12) !important; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important; background: linear-gradient(90deg, rgba(25, 25, 40, 0.8), rgba(30, 30, 50, 0.6)) !important; position: relative !important; backdrop-filter: blur(5px) !important;">
+            <div class="rank-cell" style="display: flex !important; align-items: center !important; justify-content: center !important; font-weight: 900 !important; font-size: 1.4rem !important; border-radius: 50% !important; width: 56px !important; height: 56px !important; margin: auto !important; position: relative !important; transition: all 0.3s ease !important; overflow: hidden !important; ${rankStyle}">${index + 1}</div>
+            <div class="name-cell" style="display: flex !important; flex-direction: column !important; justify-content: center !important;">
+              <div class="model-info">
+                <div class="model-name" style="font-size: 1.1rem !important; font-weight: 800 !important; color: #F8F8F8 !important; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6) !important; line-height: 1.3 !important; margin-bottom: 0.2rem !important;">${model.name}</div>
+                <div class="company-name" style="font-size: 0.85rem !important; font-weight: 600 !important; color: rgba(148, 197, 204, 0.95) !important; text-transform: uppercase !important; letter-spacing: 0.8px !important; background: linear-gradient(90deg, rgba(148, 197, 204, 0.2), transparent) !important; padding: 0.15rem 0.5rem !important; border-radius: 12px !important; border: 1px solid rgba(148, 197, 204, 0.3) !important; display: inline-block !important;">${model.company_name || 'Unknown'}</div>
+              </div>
+            </div>
+            <div class="score-cell" style="display: flex !important; align-items: center !important; justify-content: center !important; font-size: 1.6rem !important; font-weight: 900 !important; color: #F8F8F8 !important; background: linear-gradient(135deg, rgba(148, 197, 204, 0.3), rgba(148, 197, 204, 0.15)) !important; border-radius: 16px !important; padding: 1rem 1.25rem !important; border: 2px solid rgba(148, 197, 204, 0.5) !important; box-shadow: 0 4px 16px rgba(148, 197, 204, 0.3) !important; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6) !important; backdrop-filter: blur(5px) !important;">${formattedScore}</div>
+          </div>
+        `;
+      }).join('');
+      
+      const leaderboardHTML = `
+        <div class="leaderboard-header" style="display: grid !important; grid-template-columns: 80px 1fr 120px !important; gap: 1.5rem !important; padding: 1.5rem 2rem !important; background: linear-gradient(135deg, #94C5CC 0%, #B4D2E7 30%, #E8F4F8 50%, #B4D2E7 70%, #94C5CC 100%) !important; font-weight: 900 !important; font-size: 0.95rem !important; color: #1a1a1a !important; text-transform: uppercase !important; letter-spacing: 1.2px !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important; border-bottom: 4px solid rgba(148, 197, 204, 0.5) !important;">
+          <div class="rank-col">RANK</div>
+          <div class="name-col">NAME</div>
+          <div class="score-col">SCORE</div>
+        </div>
+        <div class="leaderboard-body" style="display: flex !important; flex-direction: column !important;">
+          ${leaderboardBodyHTML}
+        </div>
+      `;
+      
+      performanceChartContainer.innerHTML = leaderboardHTML;
+      
+      // Apply premium container styling directly
+      performanceChartContainer.style.cssText = `
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0 !important;
+        border-radius: 20px !important;
+        overflow: hidden !important;
+        background: linear-gradient(145deg, rgba(15, 15, 25, 0.98), rgba(25, 25, 40, 0.95)) !important;
+        border: 3px solid rgba(148, 197, 204, 0.3) !important;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 8px 32px rgba(148, 197, 204, 0.1) !important;
+        backdrop-filter: blur(20px) !important;
+        position: relative !important;
+      `;
+      
+      // Add premium styling class to trigger CSS
+      performanceChartContainer.classList.add('premium-leaderboard');
     }
     
     // Render cost chart (vertical bars)
@@ -813,124 +840,359 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   margin-top: 0.25rem;
 }
 
-.performance-chart {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.perf-item {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.5rem 0;
-}
-
-.perf-label {
-  min-width: 80px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #F8F8F8;
-}
-
-.perf-bar {
-  flex: 1;
-  height: 24px;
-  background: rgba(161, 166, 180, 0.1);
-  border-radius: 12px;
-  overflow: hidden;
-  position: relative;
-  border: 1px solid rgba(161, 166, 180, 0.2);
-}
-
-.perf-fill {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding-right: 12px;
-  border-radius: 12px;
-  transition: width 0.5s ease;
-  position: relative;
-}
-
-.perf-score {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #000;
-  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.5);
-  z-index: 2;
-  min-width: 30px;
-  text-align: right;
-}
-
-.perf-item {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.5rem;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-}
-
-.perf-item:hover {
-  background: rgba(161, 166, 180, 0.05);
-}
-
-.perf-label {
-  width: 80px;
-  font-size: 0.85rem;
-  color: #F8F8F8;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.perf-bar {
-  flex: 1;
-  height: 28px;
-  background: rgba(161, 166, 180, 0.15);
-  border-radius: 14px;
-  position: relative;
-  overflow: hidden;
-  border: 1px solid rgba(161, 166, 180, 0.25);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-.perf-fill {
-  height: 100%;
-  background: linear-gradient(135deg, 
-    #94C5CC 0%, 
-    #B4D2E7 50%, 
-    #94C5CC 100%) !important;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 0 0.75rem;
-  transition: all 0.3s ease;
+/* Leaderboard Styles - Using higher specificity to override Astro scoped styles */
+#performance-chart-container.leaderboard-container,
+.leaderboard-container {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  border-radius: 20px !important;
+  overflow: hidden !important;
+  background: 
+    linear-gradient(145deg, rgba(15, 15, 25, 0.98), rgba(25, 25, 40, 0.95)),
+    radial-gradient(circle at 20% 80%, rgba(148, 197, 204, 0.1), transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(180, 210, 231, 0.08), transparent 50%) !important;
+  border: 3px solid rgba(148, 197, 204, 0.3) !important;
   box-shadow: 
-    0 2px 8px rgba(148, 197, 204, 0.8),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
-  position: relative;
-  min-width: 20px !important;
-  border: 2px solid #94C5CC;
+    0 20px 60px rgba(0, 0, 0, 0.4),
+    0 8px 32px rgba(148, 197, 204, 0.1),
+    0 0 0 1px rgba(148, 197, 204, 0.15) inset,
+    0 2px 0 rgba(255, 255, 255, 0.05) inset !important;
+  backdrop-filter: blur(20px) !important;
+  position: relative !important;
 }
 
-.perf-fill::before {
+.leaderboard-container::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  background: linear-gradient(90deg, transparent, rgba(148, 197, 204, 0.6), transparent);
+  z-index: 1;
 }
 
-.perf-score {
-  font-size: 0.75rem;
-  color: rgba(0, 0, 0, 0.9);
-  font-weight: 700;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+#performance-chart-container .leaderboard-header,
+.leaderboard-header {
+  display: grid !important;
+  grid-template-columns: 80px 1fr 120px !important;
+  gap: 1.5rem !important;
+  padding: 1.5rem 2rem !important;
+  background: 
+    linear-gradient(135deg, #94C5CC 0%, #B4D2E7 30%, #E8F4F8 50%, #B4D2E7 70%, #94C5CC 100%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.1), transparent) !important;
+  font-weight: 900 !important;
+  font-size: 0.95rem !important;
+  color: #1a1a1a !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1.2px !important;
+  text-shadow: 
+    0 1px 2px rgba(255, 255, 255, 0.4),
+    0 1px 4px rgba(148, 197, 204, 0.3) !important;
+  border-bottom: 4px solid rgba(148, 197, 204, 0.5) !important;
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+.leaderboard-header::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(148, 197, 204, 0.8), transparent);
+}
+
+.leaderboard-body {
+  display: flex;
+  flex-direction: column;
+  background: rgba(15, 15, 25, 0.8);
+}
+
+#performance-chart-container .leaderboard-row,
+.leaderboard-row {
+  display: grid !important;
+  grid-template-columns: 80px 1fr 120px !important;
+  gap: 1.5rem !important;
+  padding: 1.75rem 2rem !important;
+  border-bottom: 1px solid rgba(148, 197, 204, 0.12) !important;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  background: 
+    linear-gradient(90deg, rgba(25, 25, 40, 0.8), rgba(30, 30, 50, 0.6)),
+    radial-gradient(circle at 100% 50%, rgba(148, 197, 204, 0.03), transparent 70%) !important;
+  position: relative !important;
+  backdrop-filter: blur(5px) !important;
+}
+
+.leaderboard-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, transparent, rgba(148, 197, 204, 0.4), transparent);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.leaderboard-row:last-child {
+  border-bottom: none;
+  border-radius: 0 0 20px 20px;
+}
+
+.leaderboard-row:hover {
+  background: 
+    linear-gradient(90deg, rgba(148, 197, 204, 0.12), rgba(148, 197, 204, 0.06)),
+    radial-gradient(circle at 100% 50%, rgba(148, 197, 204, 0.08), transparent 70%);
+  transform: translateX(6px) scale(1.01);
+  box-shadow: 
+    6px 0 0 rgba(148, 197, 204, 0.6),
+    0 8px 32px rgba(148, 197, 204, 0.15),
+    0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.leaderboard-row:hover::before {
+  opacity: 1;
+}
+
+#performance-chart-container .rank-cell,
+.rank-cell {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: 900 !important;
+  font-size: 1.4rem !important;
+  border-radius: 50% !important;
+  width: 56px !important;
+  height: 56px !important;
+  margin: auto !important;
+  position: relative !important;
+  transition: all 0.3s ease !important;
+  overflow: hidden !important;
+}
+
+/* Gold for 1st place */
+#performance-chart-container .leaderboard-row:nth-child(1) .rank-cell,
+.leaderboard-row:nth-child(1) .rank-cell {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 30%, #FFD700 60%, #FFED4E 100%) !important;
+  color: #8B4513 !important;
+  box-shadow: 
+    0 6px 20px rgba(255, 215, 0, 0.4),
+    0 0 0 3px rgba(255, 215, 0, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -2px 0 rgba(255, 165, 0, 0.3) !important;
+  text-shadow: 
+    0 1px 2px rgba(255, 255, 255, 0.4),
+    0 1px 4px rgba(255, 215, 0, 0.3) !important;
+}
+
+/* Silver for 2nd place */
+#performance-chart-container .leaderboard-row:nth-child(2) .rank-cell,
+.leaderboard-row:nth-child(2) .rank-cell {
+  background: linear-gradient(135deg, #C0C0C0 0%, #E8E8E8 30%, #C0C0C0 60%, #F5F5F5 100%) !important;
+  color: #2C2C2C !important;
+  box-shadow: 
+    0 6px 20px rgba(192, 192, 192, 0.4),
+    0 0 0 3px rgba(192, 192, 192, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -2px 0 rgba(169, 169, 169, 0.3) !important;
+  text-shadow: 
+    0 1px 2px rgba(255, 255, 255, 0.5),
+    0 1px 4px rgba(192, 192, 192, 0.3) !important;
+}
+
+/* Bronze for 3rd place */
+#performance-chart-container .leaderboard-row:nth-child(3) .rank-cell,
+.leaderboard-row:nth-child(3) .rank-cell {
+  background: linear-gradient(135deg, #CD7F32 0%, #D2691E 30%, #CD7F32 60%, #DEB887 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 
+    0 6px 20px rgba(205, 127, 50, 0.4),
+    0 0 0 3px rgba(205, 127, 50, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 0 rgba(160, 82, 45, 0.3) !important;
+  text-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    0 1px 4px rgba(205, 127, 50, 0.3) !important;
+}
+
+/* Default theme color for 4th and 5th place */
+#performance-chart-container .leaderboard-row:nth-child(n+4) .rank-cell,
+.leaderboard-row:nth-child(n+4) .rank-cell {
+  background: linear-gradient(135deg, #94C5CC 0%, #B4D2E7 50%, #94C5CC 100%) !important;
+  color: #1a1a1a !important;
+  box-shadow: 
+    0 4px 16px rgba(148, 197, 204, 0.4),
+    0 0 0 2px rgba(148, 197, 204, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 0 rgba(148, 197, 204, 0.3) !important;
+  text-shadow: 
+    0 1px 2px rgba(255, 255, 255, 0.4),
+    0 1px 4px rgba(148, 197, 204, 0.3) !important;
+}
+
+.rank-cell::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  right: 3px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+  border-radius: 50%;
+}
+
+.rank-cell::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3), transparent 60%);
+  pointer-events: none;
+}
+
+.leaderboard-row:hover .rank-cell {
+  transform: scale(1.1) rotate(5deg);
+  filter: brightness(1.1);
+}
+
+.name-cell {
+  display: flex;
+  align-items: center;
+  padding-left: 1rem;
+}
+
+.model-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.model-name {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #F8F8F8;
+  text-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.6),
+    0 0 8px rgba(148, 197, 204, 0.2);
+  line-height: 1.3;
+  margin-bottom: 0.2rem;
+  transition: all 0.3s ease;
+}
+
+.company-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(148, 197, 204, 0.95);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  opacity: 0.9;
+  background: linear-gradient(90deg, rgba(148, 197, 204, 0.2), transparent);
+  padding: 0.15rem 0.5rem;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 197, 204, 0.3);
+  display: inline-block;
+  transition: all 0.3s ease;
+}
+
+.leaderboard-row:hover .model-name {
+  color: #FFFFFF;
+  text-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.8),
+    0 0 12px rgba(148, 197, 204, 0.4);
+}
+
+.leaderboard-row:hover .company-name {
+  background: linear-gradient(90deg, rgba(148, 197, 204, 0.3), rgba(148, 197, 204, 0.1));
+  border-color: rgba(148, 197, 204, 0.5);
+  transform: translateX(2px);
+}
+
+.score-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #F8F8F8;
+  background: 
+    linear-gradient(135deg, rgba(148, 197, 204, 0.3), rgba(148, 197, 204, 0.15)),
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1), transparent 60%);
+  border-radius: 16px;
+  padding: 1rem 1.25rem;
+  border: 2px solid rgba(148, 197, 204, 0.5);
+  box-shadow: 
+    0 4px 16px rgba(148, 197, 204, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 2px 0 rgba(148, 197, 204, 0.3),
+    inset 0 -2px 0 rgba(148, 197, 204, 0.1);
+  text-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.6),
+    0 0 8px rgba(148, 197, 204, 0.4);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+}
+
+.score-cell::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  right: 2px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  border-radius: 14px;
+}
+
+.score-cell::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+  transition: left 0.6s ease;
+}
+
+.leaderboard-row:hover .score-cell {
+  transform: scale(1.05);
+  box-shadow: 
+    0 6px 24px rgba(148, 197, 204, 0.4),
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    inset 0 2px 0 rgba(148, 197, 204, 0.4),
+    inset 0 -2px 0 rgba(148, 197, 204, 0.2);
+  border-color: rgba(148, 197, 204, 0.7);
+}
+
+.leaderboard-row:hover .score-cell::after {
+  left: 100%;
+}
+
+/* Column headers */
+.rank-col, .name-col, .score-col {
+  display: flex;
+  align-items: center;
+}
+
+.rank-col {
+  justify-content: center;
+}
+
+.name-col {
+  padding-left: 1rem;
+}
+
+.score-col {
+  justify-content: center;
 }
 
 .no-data {
