@@ -30,19 +30,47 @@ const getWinner = (items: any[], key: string, isLowerBetter = false) => {
 const inputPriceWinner = getWinner(selectedModels, 'price_1m_input_tokens', true);
 const outputPriceWinner = getWinner(selectedModels, 'price_1m_output_tokens', true);
 const performanceWinner = getWinner(selectedModels, 'mmlu_pro');
+const tpsWinner = getWinner(selectedModels, 'median_output_tokens_per_second');
+const ttftWinner = getWinner(selectedModels, 'median_time_to_first_answer_token', true);
 
-const getBestValue = () => {
+const getCheapestTokensModel = () => {
   if (selectedModels.length === 0) return null;
-  const ranked = selectedModels.map(model => {
-    const totalCost = Number(model.price_1m_input_tokens) + Number(model.price_1m_output_tokens);
-    const performance = Number(model.mmlu_pro) || 0;
-    const ratio = performance > 0 ? performance / totalCost : 0;
-    return { model, ratio };
-  }).sort((a, b) => b.ratio - a.ratio);
-  return ranked[0]?.model || null;
+  const modelsWithBlendedPrice = selectedModels.filter(model => {
+    const blendedPrice = model.price_1m_blended_3_to_1;
+    const priceNum = parseFloat(blendedPrice);
+    return blendedPrice !== null && blendedPrice !== undefined && !isNaN(priceNum) && priceNum > 0;
+  });
+  if (modelsWithBlendedPrice.length === 0) return null;
+  
+  console.log('Models with blended price:', modelsWithBlendedPrice.map(m => ({ name: m.name, price: m.price_1m_blended_3_to_1 })));
+  
+  const sorted = modelsWithBlendedPrice.sort((a, b) => {
+    const priceA = parseFloat(a.price_1m_blended_3_to_1);
+    const priceB = parseFloat(b.price_1m_blended_3_to_1);
+    console.log(`Comparing ${a.name} ($${priceA}) vs ${b.name} ($${priceB})`);
+    return priceA - priceB; // Lower price is better
+  });
+  
+  console.log('Cheapest tokens model:', sorted[0].name, 'with blended price:', sorted[0].price_1m_blended_3_to_1);
+  return sorted[0];
 };
 
-const bestValue = getBestValue();
+const cheapestTokensModel = getCheapestTokensModel();
+
+// Dynamic benchmark mapping from database fields
+const availableBenchmarks = {
+  'mmlu_pro': 'MMLU Pro',
+  'gpqa': 'GPQA',
+  'hle': 'HumanEval',
+  'artificial_analysis_math_index': 'Math Index',
+  'artificial_analysis_coding_index': 'Coding Index',
+  'artificial_analysis_intelligence_index': 'Intelligence Index',
+  'livecodebench': 'LiveCodeBench',
+  'scicode': 'SciCode',
+  'math_500': 'Math 500',
+  'aime': 'AIME',
+  'elo': 'ELO Rating'
+};
 ---
 <html lang="en">
   <head>
@@ -334,26 +362,112 @@ const bestValue = getBestValue();
       .chart-bar {
         width: 100%;
         min-width: 40px;
-        border-radius: 4px 4px 0 0;
-        transition: all 0.3s ease;
+        border-radius: 12px;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         position: relative;
         margin-top: auto;
-        background-color: #4B7BEC;
+        background: rgba(75, 123, 236, 0.25);
+        backdrop-filter: blur(20px) saturate(1.2);
+        -webkit-backdrop-filter: blur(20px) saturate(1.2);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 
+          0 8px 32px rgba(0, 0, 0, 0.15),
+          0 2px 8px rgba(0, 0, 0, 0.1),
+          inset 0 1px 0 rgba(255, 255, 255, 0.3),
+          inset 0 -1px 0 rgba(0, 0, 0, 0.1);
         display: block;
         opacity: 1;
         visibility: visible;
+        overflow: hidden;
+      }
+      
+      .chart-bar::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, 
+          rgba(255, 255, 255, 0.2) 0%, 
+          rgba(255, 255, 255, 0.1) 30%, 
+          rgba(255, 255, 255, 0.02) 70%, 
+          rgba(0, 0, 0, 0.05) 100%);
+        border-radius: inherit;
+        pointer-events: none;
+        opacity: 0.8;
+      }
+      
+      .chart-bar::after {
+        content: '';
+        position: absolute;
+        top: 1px;
+        left: 1px;
+        right: 1px;
+        height: 30%;
+        background: linear-gradient(180deg, 
+          rgba(255, 255, 255, 0.15) 0%, 
+          rgba(255, 255, 255, 0.05) 50%, 
+          transparent 100%);
+        border-radius: 10px 10px 0 0;
+        pointer-events: none;
       }
       .chart-bar:hover {
-        transform: translateY(-2px);
+        transform: translateY(-4px) scale(1.03);
+        background: rgba(75, 123, 236, 0.15);
+        border-color: rgba(255, 255, 255, 0.25);
+        backdrop-filter: blur(24px) saturate(1.4);
+        -webkit-backdrop-filter: blur(24px) saturate(1.4);
         box-shadow: 
-          0 8px 24px rgba(75, 123, 236, 0.3),
-          inset 0 1px 0 rgba(255, 255, 255, 0.2);
+          0 16px 48px rgba(75, 123, 236, 0.3),
+          0 8px 24px rgba(0, 0, 0, 0.15),
+          0 0 0 1px rgba(255, 255, 255, 0.1),
+          inset 0 1px 0 rgba(255, 255, 255, 0.35),
+          inset 0 -1px 0 rgba(0, 0, 0, 0.05);
       }
-      .price-bar {
-        background-color: #22c55e; /* Green for price */
+      .input-price-bar {
+        background: rgba(34, 197, 94, 0.25);
+        border-color: rgba(34, 197, 94, 0.4);
       }
+      .input-price-bar:hover {
+        background: rgba(34, 197, 94, 0.35);
+        border-color: rgba(34, 197, 94, 0.5);
+        box-shadow: 
+          0 16px 48px rgba(34, 197, 94, 0.3),
+          0 8px 24px rgba(0, 0, 0, 0.15),
+          0 0 0 1px rgba(34, 197, 94, 0.2),
+          inset 0 1px 0 rgba(255, 255, 255, 0.35),
+          inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+      }
+      
+      .output-price-bar {
+        background: rgba(239, 68, 68, 0.25);
+        border-color: rgba(239, 68, 68, 0.4);
+      }
+      .output-price-bar:hover {
+        background: rgba(239, 68, 68, 0.35);
+        border-color: rgba(239, 68, 68, 0.5);
+        box-shadow: 
+          0 16px 48px rgba(239, 68, 68, 0.3),
+          0 8px 24px rgba(0, 0, 0, 0.15),
+          0 0 0 1px rgba(239, 68, 68, 0.2),
+          inset 0 1px 0 rgba(255, 255, 255, 0.35),
+          inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+      }
+      
       .performance-bar {
-        background-color: #8b5cf6; /* Purple for performance */
+        background: rgba(139, 92, 246, 0.25);
+        border-color: rgba(139, 92, 246, 0.4);
+      }
+      .performance-bar:hover {
+        background: rgba(139, 92, 246, 0.35);
+        border-color: rgba(139, 92, 246, 0.5);
+        box-shadow: 
+          0 16px 48px rgba(139, 92, 246, 0.3),
+          0 8px 24px rgba(0, 0, 0, 0.15),
+          0 0 0 1px rgba(139, 92, 246, 0.2),
+          inset 0 1px 0 rgba(255, 255, 255, 0.35),
+          inset 0 -1px 0 rgba(0, 0, 0, 0.05);
       }
       .bar-value {
         position: absolute;
@@ -672,11 +786,9 @@ const bestValue = getBestValue();
           <div class="filter-section">
             <h3>Performance Metric</h3>
             <select id="metric-selector" class="metric-dropdown">
-              <option value="mmlu_pro">MMLU Pro</option>
-              <option value="gpqa">GPQA</option>
-              <option value="hle">HumanEval</option>
-              <option value="artificial_analysis_math_index">Math</option>
-              <option value="artificial_analysis_coding_index">Coding</option>
+              {Object.entries(availableBenchmarks).map(([value, label]) => (
+                <option value={value} selected={value === 'mmlu_pro'}>{label}</option>
+              ))}
             </select>
           </div>
           <div class="filter-section">
@@ -717,8 +829,8 @@ const bestValue = getBestValue();
           <section class="insights-section">
             <div class="insights-grid">
               <div class="insight-card">
-                <h4>Best Value</h4>
-                <p>{bestValue ? bestValue.name : '—'}</p>
+                <h4>Cheapest Tokens</h4>
+                <p>{cheapestTokensModel ? cheapestTokensModel.name : '—'}</p>
               </div>
               <div class="insight-card">
                 <h4>Cheapest Input</h4>
@@ -729,7 +841,15 @@ const bestValue = getBestValue();
                 <p>{outputPriceWinner ? outputPriceWinner.name : '—'}</p>
               </div>
               <div class="insight-card">
-                <h4>Top MMLU Pro</h4>
+                <h4>Highest TPS</h4>
+                <p>{tpsWinner ? tpsWinner.name : '—'}</p>
+              </div>
+              <div class="insight-card">
+                <h4>Fastest TTFT</h4>
+                <p>{ttftWinner ? ttftWinner.name : '—'}</p>
+              </div>
+              <div class="insight-card">
+                <h4 id="performance-metric-title">Top MMLU Pro</h4>
                 <p>{performanceWinner ? performanceWinner.name : '—'}</p>
               </div>
             </div>
@@ -832,6 +952,22 @@ const bestValue = getBestValue();
         const priceChart = document.getElementById('price-chart');
         const perfChart = document.getElementById('performance-chart');
         const metricSelector = document.getElementById('metric-selector');
+        const performanceMetricTitle = document.getElementById('performance-metric-title');
+        
+        // Benchmark display names mapping (client-side)
+        const benchmarkNames = {
+          'mmlu_pro': 'MMLU Pro',
+          'gpqa': 'GPQA',
+          'hle': 'HumanEval',
+          'artificial_analysis_math_index': 'Math Index',
+          'artificial_analysis_coding_index': 'Coding Index',
+          'artificial_analysis_intelligence_index': 'Intelligence Index',
+          'livecodebench': 'LiveCodeBench',
+          'scicode': 'SciCode',
+          'math_500': 'Math 500',
+          'aime': 'AIME',
+          'elo': 'ELO Rating'
+        };
         const sortToggle = document.getElementById('sort-toggle');
         const searchInput = document.getElementById('model-search');
 
@@ -872,28 +1008,32 @@ const bestValue = getBestValue();
         function updateInsights(models) {
           if (models.length === 0) return;
           
-          // Find best value (highest performance per dollar)
-          let bestValueModel = models[0];
-          let bestValueRatio = 0;
+          // Find cheapest tokens model (lowest blended price)
+          let cheapestTokensModel = null;
+          let lowestBlendedPrice = Infinity;
           
-          // Find cheapest input, output, and top performer for current metric
+          // Find cheapest input, output, top performer, TPS winner, and TTFT winner for current metric
           let cheapestInputModel = models[0];
           let cheapestOutputModel = models[0];
           let topPerformerModel = models[0];
+          let tpsWinnerModel = null;
+          let ttftWinnerModel = null;
+          let highestTPS = 0;
+          let fastestTTFT = Infinity;
           
           const currentMetric = metricSelector.value;
           
           models.forEach(model => {
-            // Calculate value ratio (performance per dollar)
-            const inputPrice = Number(model.price_1m_input_tokens) || 0;
-            const outputPrice = Number(model.price_1m_output_tokens) || 0;
-            const performance = Number(model[currentMetric]) || 0;
-            const avgPrice = (inputPrice + outputPrice) / 2;
-            const valueRatio = avgPrice > 0 ? performance / avgPrice : 0;
+            // Find model with lowest blended price
+            const blendedPrice = model.price_1m_blended_3_to_1;
+            const priceNum = parseFloat(blendedPrice);
             
-            if (valueRatio > bestValueRatio) {
-              bestValueRatio = valueRatio;
-              bestValueModel = model;
+            console.log(`Checking ${model.name}: Blended Price=${blendedPrice}, parsed=${priceNum}, current lowest=${lowestBlendedPrice}`);
+            
+            if (blendedPrice !== null && blendedPrice !== undefined && !isNaN(priceNum) && priceNum > 0 && priceNum < lowestBlendedPrice) {
+              console.log(`New cheapest tokens: ${model.name} with $${priceNum}`);
+              lowestBlendedPrice = priceNum;
+              cheapestTokensModel = model;
             }
             
             if ((Number(model.price_1m_input_tokens) || Infinity) < (Number(cheapestInputModel.price_1m_input_tokens) || Infinity)) {
@@ -907,15 +1047,33 @@ const bestValue = getBestValue();
             if ((Number(model[currentMetric]) || 0) > (Number(topPerformerModel[currentMetric]) || 0)) {
               topPerformerModel = model;
             }
+            
+            // Find TPS winner (highest tokens per second)
+            const modelTPS = model.median_output_tokens_per_second;
+            const winnerTpsNum = parseFloat(modelTPS);
+            if (modelTPS !== null && modelTPS !== undefined && !isNaN(winnerTpsNum) && winnerTpsNum > 0 && winnerTpsNum > highestTPS) {
+              highestTPS = winnerTpsNum;
+              tpsWinnerModel = model;
+            }
+            
+            // Find TTFT winner (fastest time to first token - lower is better)
+            const modelTTFT = model.median_time_to_first_answer_token;
+            const ttftNum = parseFloat(modelTTFT);
+            if (modelTTFT !== null && modelTTFT !== undefined && !isNaN(ttftNum) && ttftNum > 0 && ttftNum < fastestTTFT) {
+              fastestTTFT = ttftNum;
+              ttftWinnerModel = model;
+            }
           });
           
           // Update the insight cards
           const insightCards = document.querySelectorAll('.insight-card p');
-          if (insightCards.length >= 4) {
-            insightCards[0].textContent = bestValueModel.name;
+          if (insightCards.length >= 6) {
+            insightCards[0].textContent = cheapestTokensModel ? cheapestTokensModel.name : '—';
             insightCards[1].textContent = cheapestInputModel.name;
             insightCards[2].textContent = cheapestOutputModel.name;
-            insightCards[3].textContent = topPerformerModel.name;
+            insightCards[3].textContent = tpsWinnerModel ? tpsWinnerModel.name : '—';
+            insightCards[4].textContent = ttftWinnerModel ? ttftWinnerModel.name : '—';
+            insightCards[5].textContent = topPerformerModel.name;
           }
         }
         
@@ -1008,11 +1166,11 @@ const bestValue = getBestValue();
             chartItem.innerHTML = `
               <div style="display: flex; flex-direction: row; justify-content: center; align-items: flex-end; height: ${totalHeight}px; width: 100%; gap: 2px;">
                 <div class="chart-bar input-price-bar" 
-                     style="height: ${inputHeight}px; background-color: #22c55e; flex: 1; max-width: 48%; cursor: pointer; position: relative;" 
+                     style="height: ${inputHeight}px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.35) 0%, rgba(34, 197, 94, 0.25) 50%, rgba(34, 197, 94, 0.15) 100%); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); border: 1px solid rgba(34, 197, 94, 0.5); border-radius: 14px; box-shadow: 0 8px 32px rgba(34, 197, 94, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1); flex: 1; max-width: 48%; cursor: pointer; position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden;" 
                      data-tooltip="${model.name} - Input: $${inputPrice.toFixed(3)} per 1M tokens">
                 </div>
                 <div class="chart-bar output-price-bar" 
-                     style="height: ${outputHeight}px; background-color: #ef4444; flex: 1; max-width: 48%; cursor: pointer; position: relative;" 
+                     style="height: ${outputHeight}px; background: linear-gradient(135deg, rgba(239, 68, 68, 0.35) 0%, rgba(239, 68, 68, 0.25) 50%, rgba(239, 68, 68, 0.15) 100%); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 14px; box-shadow: 0 8px 32px rgba(239, 68, 68, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1); flex: 1; max-width: 48%; cursor: pointer; position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden;" 
                      data-tooltip="${model.name} - Output: $${outputPrice.toFixed(3)} per 1M tokens">
                 </div>
               </div>
@@ -1139,7 +1297,7 @@ const bestValue = getBestValue();
             chartItem.style.position = 'relative';
             chartItem.innerHTML = `
               <div class="chart-bar performance-bar" 
-                   style="height: ${height}px; background-color: #8b5cf6; cursor: pointer; position: relative;" 
+                   style="height: ${height}px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.35) 0%, rgba(139, 92, 246, 0.25) 50%, rgba(139, 92, 246, 0.15) 100%); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); border: 1px solid rgba(139, 92, 246, 0.5); border-radius: 14px; box-shadow: 0 8px 32px rgba(139, 92, 246, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1); cursor: pointer; position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden;" 
                    data-tooltip="${model.name} - ${metric.toUpperCase().replace('_', ' ')}: ${formatScore(score)}">
               </div>
               <div class="bar-label" style="white-space: nowrap;">${model.name.split(' ')[0]}</div>
@@ -1254,7 +1412,19 @@ const bestValue = getBestValue();
           }
         });
 
-        metricSelector?.addEventListener('change', renderCharts);
+        // Metric selector change handler (consolidated)
+        metricSelector?.addEventListener('change', async () => {
+          // Update the performance metric title
+          const selectedMetric = metricSelector.value;
+          const displayName = benchmarkNames[selectedMetric] || selectedMetric;
+          if (performanceMetricTitle) {
+            performanceMetricTitle.textContent = `Top ${displayName}`;
+          }
+          
+          // Render charts and refresh data
+          renderCharts();
+          await refreshDataAndCharts();
+        });
 
         // Add event listeners for new features
         searchInput?.addEventListener('input', () => {
@@ -1360,6 +1530,7 @@ const bestValue = getBestValue();
           fitModelsToChart(priceChart);
           fitModelsToChart(perfChart);
         });
+
       }
 
       if (document.readyState === 'loading') {

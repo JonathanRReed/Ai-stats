@@ -599,6 +599,14 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       return score && Number(score) > 0 ? `${Math.round(Number(score) * 100)}%` : '—';
     }
     
+    function formatTPS(tps) {
+      return tps && Number(tps) > 0 ? `${Number(tps).toFixed(1)}` : '—';
+    }
+    
+    function formatTTFT(ttft) {
+      return ttft && Number(ttft) > 0 ? `${Number(ttft).toFixed(2)}s` : '—';
+    }
+    
     function createModelCard(model) {
       const cardElement = document.createElement('div');
       cardElement.className = 'model-card';
@@ -617,6 +625,14 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
             <div class="price-item">
               <span class="price-label">Output</span>
               <span class="price-value">${formatPrice(model.price_1m_output_tokens)}</span>
+            </div>
+            <div class="price-item">
+              <span class="price-label">TPS</span>
+              <span class="price-value">${formatTPS(model.median_output_tokens_per_second)}</span>
+            </div>
+            <div class="price-item">
+              <span class="price-label">TTFT</span>
+              <span class="price-value">${formatTTFT(model.median_time_to_first_answer_token)}</span>
             </div>
           </div>
         </div>
