@@ -258,15 +258,15 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
     <!-- Stats Overview -->
     <section class="stats-section">
       <div class="stat-card">
-        <div class="stat-value">{totalModels}</div>
+        <div class="stat-value" id="total-models-stat">{totalModels}</div>
         <div class="stat-label">Total Models</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">${avgInputPrice.toFixed(3)}</div>
+        <div class="stat-value" id="avg-input-price-stat">${avgInputPrice.toFixed(3)}</div>
         <div class="stat-label">Avg Input Price</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">${avgOutputPrice.toFixed(3)}</div>
+        <div class="stat-value" id="avg-output-price-stat">${avgOutputPrice.toFixed(3)}</div>
         <div class="stat-label">Avg Output Price</div>
       </div>
     </section>
@@ -478,6 +478,48 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       }
     }
 
+    // Function to calculate and update live stats from fresh data
+    function updateStatsSection(freshModels) {
+      if (!freshModels || freshModels.length === 0) {
+        console.warn('⚠️ No fresh models data for stats update');
+        return;
+      }
+
+      // Filter valid models (same logic as server-side)
+      const validModels = freshModels.filter((model) => {
+        const inputPrice = Number(model.price_1m_input_tokens);
+        const outputPrice = Number(model.price_1m_output_tokens);
+        return inputPrice > 0 && outputPrice > 0;
+      });
+
+      // Calculate fresh stats
+      const totalModels = validModels.length;
+      const avgInputPrice = validModels.reduce((sum, model) => sum + Number(model.price_1m_input_tokens), 0) / totalModels;
+      const avgOutputPrice = validModels.reduce((sum, model) => sum + Number(model.price_1m_output_tokens), 0) / totalModels;
+
+      // Update DOM elements
+      const totalModelsElement = document.getElementById('total-models-stat');
+      const avgInputPriceElement = document.getElementById('avg-input-price-stat');
+      const avgOutputPriceElement = document.getElementById('avg-output-price-stat');
+
+      if (totalModelsElement) {
+        totalModelsElement.textContent = totalModels.toString();
+        console.log('📊 Updated total models:', totalModels);
+      }
+
+      if (avgInputPriceElement) {
+        avgInputPriceElement.textContent = `$${avgInputPrice.toFixed(3)}`;
+        console.log('📊 Updated avg input price:', avgInputPrice.toFixed(3));
+      }
+
+      if (avgOutputPriceElement) {
+        avgOutputPriceElement.textContent = `$${avgOutputPrice.toFixed(3)}`;
+        console.log('📊 Updated avg output price:', avgOutputPrice.toFixed(3));
+      }
+
+      console.log('✅ Stats section updated with live Supabase data');
+    }
+
     // Function to update data and re-render charts
     async function refreshDataAndCharts() {
       const freshModels = await fetchFreshData();
@@ -542,6 +584,9 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
           .sort((a, b) => Number(b[fieldMappings[benchmark]]) - Number(a[fieldMappings[benchmark]]))
           .slice(0, 5);
       });
+
+      // Update stats section with fresh data
+      updateStatsSection(freshModels);
 
       console.log('✅ Data refreshed successfully');
       return true;
