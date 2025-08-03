@@ -196,7 +196,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   <!-- Main Content -->
   <main class="dashboard-main">
     <div class="dashboard-header">
-      <h1>AI Model Dashboard</h1>
+      <h1>AI Stats</h1>
       <p>{totalModels} LLM models & counting 
         <br />
        Data provided by Artificial Analysis.com
@@ -655,15 +655,23 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       return ttft && Number(ttft) > 0 ? `${Number(ttft).toFixed(2)}s` : '—';
     }
     
+    // Security: HTML sanitization function to prevent XSS attacks
+    function sanitizeHTML(str) {
+      const div = document.createElement('div');
+      div.textContent = str || '';
+      return div.innerHTML;
+    }
+
     function createModelCard(model) {
       const cardElement = document.createElement('div');
       cardElement.className = 'model-card';
       
+      // Use sanitized HTML to prevent XSS injection
       cardElement.innerHTML = `
         <div class="model-header">
           <div class="model-info">
-            <h4 class="model-name">${model.name}</h4>
-            <h5 class="company-name">${model.company_name}</h5>
+            <h4 class="model-name">${sanitizeHTML(model.name)}</h4>
+            <h5 class="company-name">${sanitizeHTML(model.company_name)}</h5>
           </div>
           <div class="model-pricing">
             <div class="price-item">

@@ -855,6 +855,13 @@ const availableBenchmarks = {
     </div>
 
     <script define:vars={{ validModels }}>
+      // Security: HTML sanitization function to prevent XSS attacks
+      function sanitizeHTML(str) {
+        const div = document.createElement('div');
+        div.textContent = str || '';
+        return div.innerHTML;
+      }
+
       function initCompare() {
         // Initialize sidebar state based on screen size
         const initializeLayout = () => {
@@ -988,7 +995,7 @@ const availableBenchmarks = {
           list.innerHTML = filteredModels.map((m) => `
             <div class="model-item">
               <input type="checkbox" id="model-${m.id}" data-id="${m.id}" ${selected.has(m.id) ? 'checked' : ''} />
-              <label for="model-${m.id}">${m.name}</label>
+              <label for="model-${m.id}">${sanitizeHTML(m.name)}</label>
             </div>
           `).join('');
         }
@@ -1209,12 +1216,12 @@ const availableBenchmarks = {
               <div style="display: flex; flex-direction: row; justify-content: center; align-items: flex-end; height: ${totalHeight}px; width: 100%; gap: 2px;">
                 <div class="chart-bar input-price-bar" 
                      style="height: ${inputHeight}px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.35) 0%, rgba(34, 197, 94, 0.25) 50%, rgba(34, 197, 94, 0.15) 100%); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); border: 1px solid rgba(34, 197, 94, 0.5); border-radius: 14px; box-shadow: 0 8px 32px rgba(34, 197, 94, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1); flex: 1; max-width: 48%; cursor: pointer; position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; display: flex; align-items: center; justify-content: center;" 
-                     data-tooltip="${model.name} - Input: $${inputPrice.toFixed(3)} per 1M tokens">
+                     data-tooltip="${sanitizeHTML(model.name)} - Input: $${inputPrice.toFixed(3)} per 1M tokens">
                   ${getTextDisplay(inputHeight, inputText)}
                 </div>
                 <div class="chart-bar output-price-bar" 
                      style="height: ${outputHeight}px; background: linear-gradient(135deg, rgba(239, 68, 68, 0.35) 0%, rgba(239, 68, 68, 0.25) 50%, rgba(239, 68, 68, 0.15) 100%); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 14px; box-shadow: 0 8px 32px rgba(239, 68, 68, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1); flex: 1; max-width: 48%; cursor: pointer; position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; display: flex; align-items: center; justify-content: center;" 
-                     data-tooltip="${model.name} - Output: $${outputPrice.toFixed(3)} per 1M tokens">
+                     data-tooltip="${sanitizeHTML(model.name)} - Output: $${outputPrice.toFixed(3)} per 1M tokens">
                   ${getTextDisplay(outputHeight, outputText)}
                 </div>
               </div>
@@ -1370,10 +1377,10 @@ const availableBenchmarks = {
             chartItem.innerHTML = `
               <div class="chart-bar performance-bar" 
                    style="height: ${height}px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.35) 0%, rgba(139, 92, 246, 0.25) 50%, rgba(139, 92, 246, 0.15) 100%); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); border: 1px solid rgba(139, 92, 246, 0.5); border-radius: 14px; box-shadow: 0 8px 32px rgba(139, 92, 246, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1); cursor: pointer; position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; display: flex; align-items: center; justify-content: center;" 
-                   data-tooltip="${model.name} - ${metric.toUpperCase().replace('_', ' ')}: ${formatScore(score)}">
+                   data-tooltip="${sanitizeHTML(model.name)} - ${metric.toUpperCase().replace('_', ' ')}: ${formatScore(score)}">
                 ${getPerformanceTextDisplay(height, scoreText)}
               </div>
-              <div class="bar-label" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 132px;" title="${model.name}">${model.name.split(' ')[0]}</div>
+              <div class="bar-label" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 132px;" title="${sanitizeHTML(model.name)}">${sanitizeHTML(model.name.split(' ')[0])}</div>
             `;
             
             // Add hover tooltip functionality
