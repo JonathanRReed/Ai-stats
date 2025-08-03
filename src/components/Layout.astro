@@ -1,0 +1,19 @@
+---
+// Layout.astro: Shared layout for all pages
+const { title = 'AI Understand Dashboard', description = '' } = Astro.props;
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/avif" href="/favicon.avif" />
+    <link rel="stylesheet" href="/fonts/nebula sans/nebula-sans.css" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    {description && <meta name="description" content={description} />}
+    <title>{title}</title>
+    <slot name="head" />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

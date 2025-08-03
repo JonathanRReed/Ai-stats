@@ -1,20 +1,13 @@
 ---
+import Layout from '../components/Layout.astro';
 import Header from '../components/Header.astro';
 
 const title = 'About - AI Understand Dashboard';
 const description = 'Learn about Jonathan Reed and the AI Understand project';
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<meta name="description" content={description} />
-		<link rel="stylesheet" href="/fonts/nebula sans/nebula-sans.css" />
-		<title>{title}</title>
-		<style>
+<Layout title={title} description={description}>
+  <style>
 			:root {
 				--surface-0: #000100;
 				--text-primary: #F8F8F8;
@@ -563,11 +556,9 @@ const description = 'Learn about Jonathan Reed and the AI Understand project';
 				}
 			}
 		</style>
-	</head>
-	<body>
-		<Header currentPage="about" />
-		<div class="container">
-			<div class="about-card">
+  <Header currentPage="about" />
+  <div class="container">
+    <div class="about-card">
 				<div class="profile-section">
 					<div class="profile-image">
 						<img src="/jonathan.avif" alt="Jonathan Reed" />
@@ -616,7 +607,6 @@ const description = 'Learn about Jonathan Reed and the AI Understand project';
 						🌐 Jonathanrreed.com
 					</a>
 				</div>
-			</div>
-		</div>
-	</body>
-</html>
+      </div>
+    </div>
+</Layout>

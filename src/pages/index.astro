@@ -1,4 +1,5 @@
 ---
+import Layout from '../components/Layout.astro';
 import Dashboard from '../components/Dashboard.astro';
 
 
@@ -7,16 +8,8 @@ const title = 'AI Understand - AI Model Pricing Dashboard';
 const description = 'Explore AI model pricing and benchmarks with beautiful glassmorphism design';
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="stylesheet" href="/fonts/nebula sans/nebula-sans.css" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<meta name="description" content={description} />
-		<title>{title}</title>
-		<style>
+<Layout title={title} description={description}>
+  <style>
                         :root {
                                 --surface-0: #000100;
                                 --text-primary: #F8F8F8;
@@ -195,8 +188,5 @@ const description = 'Explore AI model pricing and benchmarks with beautiful glas
 				backdrop-filter: blur(5px) !important;
 			}
 		</style>
-	</head>
-	<body>
-		<Dashboard />
-	</body>
-</html>
+  <Dashboard />
+</Layout>

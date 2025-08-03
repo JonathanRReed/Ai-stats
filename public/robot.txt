@@ -1,5 +1,5 @@
-# robots.txt – https://api-test.helloworldfirm.com/
-# Generated 2025‑05‑07 · SEO‑optimised, AI‑scraper‑aware
+# robots.txt – https://aistats.jonathanrreed.com
+# Generated 2025‑08‑03 · SEO‑optimised, AI‑scraper‑aware
 # ------------------------------------------------------------------
 # ███ 1. MAJOR SEARCH ENGINES (full access) ███
 User-agent: Googlebot
@@ -8,7 +8,7 @@ Allow: /*.css$
 Disallow: /search/
 Disallow: /*?s=
 Disallow: /*?q=
-Sitemap: https://api-test.helloworldfirm.com/sitemap.xml
+Sitemap: https://aistats.jonathanrreed.com/sitemap.xml
 
 User-agent: Bingbot
 Allow: /*.js$
