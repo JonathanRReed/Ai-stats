@@ -203,7 +203,10 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   <main class="dashboard-main">
     <div class="dashboard-header">
       <h1>AI Model Dashboard</h1>
-      <p>{totalModels} LLM models with pricing data</p>
+      <p>{totalModels} LLM models & counting 
+        <br />
+       Data provided by Artificial Analysis.com
+      </p>
     </div>
 
     <!-- Charts Section -->
@@ -318,90 +321,25 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
           <button id="clear-filters" class="clear-btn">Clear All</button>
         </div>
       </div>
-      <div class="models-grid">
-        {validModels.map((model: any) => (
-          <div class="model-card">
-            <div class="model-header">
-              <h4 class="model-name">{model.name}</h4>
-              <div class="model-pricing">
-                <div class="price-item">
-                  <span class="price-label">Input</span>
-                  <span class="price-value">{formatPrice(model.price_1m_input_tokens)}</span>
-                </div>
-                <div class="price-item">
-                  <span class="price-label">Output</span>
-                  <span class="price-value">{formatPrice(model.price_1m_output_tokens)}</span>
-                </div>
-              </div>
-            </div>
-            
-            <div class="benchmarks-container">
-              <div class="benchmark-group">
-                <h5 class="group-title">Academic</h5>
-                <div class="benchmark-grid">
-                  <div class="benchmark-item">
-                    <span class="benchmark-label">MMLU Pro</span>
-                    <span class="benchmark-score">{formatScore(model.mmlu_pro)}</span>
-                  </div>
-                  <div class="benchmark-item">
-                    <span class="benchmark-label">GPQA</span>
-                    <span class="benchmark-score">{formatScore(model.gpqa)}</span>
-                  </div>
-                  <div class="benchmark-item">
-                    <span class="benchmark-label">HLE</span>
-                    <span class="benchmark-score">{formatScore(model.hle)}</span>
-                  </div>
-                  <div class="benchmark-item">
-                    <span class="benchmark-label">AIME</span>
-                    <span class="benchmark-score">{formatScore(model.aime)}</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="benchmark-group">
-                <h5 class="group-title">Coding & Math</h5>
-                <div class="benchmark-grid">
-                  <div class="benchmark-item">
-                    <span class="benchmark-label">SciCode</span>
-                    <span class="benchmark-score">{formatScore(model.scicode)}</span>
-                  </div>
-                  <div class="benchmark-item">
-                    <span class="benchmark-label">LiveCodeBench</span>
-                    <span class="benchmark-score">{formatScore(model.livecodebench)}</span>
-                  </div>
-                  <div class="benchmark-item">
-                    <span class="benchmark-label">Math 500</span>
-                    <span class="benchmark-score">{formatScore(model.math_500)}</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="benchmark-group">
-                <h5 class="group-title">AI Analysis</h5>
-                <div class="benchmark-grid">
-                  <div class="benchmark-item">
-                    <span class="benchmark-label">Math Index</span>
-                    <span class="benchmark-score">{formatScore(model.artificial_analysis_math_index)}</span>
-                  </div>
-                  <div class="benchmark-item">
-                    <span class="benchmark-label">Coding Index</span>
-                    <span class="benchmark-score">{formatScore(model.artificial_analysis_coding_index)}</span>
-                  </div>
-                  <div class="benchmark-item">
-                    <span class="benchmark-label">Intelligence</span>
-                    <span class="benchmark-score">{formatScore(model.artificial_analysis_intelligence_index)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
+      <div class="models-grid" id="models-grid">
+        <!-- Models will be loaded dynamically via JavaScript -->
+      </div>
+      
+      <!-- Loading indicator -->
+      <div class="loading-indicator" id="loading-indicator" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p>Loading more models...</p>
+      </div>
+      
+      <!-- End of results indicator -->
+      <div class="end-indicator" id="end-indicator" style="display: none;">
+        <p>You've reached the end of all models</p>
       </div>
     </section>
   </main>
 </div>
 
-<script define:vars={{ benchmarkData, costData, fieldMappings, costFieldMappings, benchmarkNames }}>
+<script define:vars={{ benchmarkData, costData, fieldMappings, costFieldMappings, benchmarkNames, validModels }}>
   // @ts-nocheck
   // Wait for DOM to be fully loaded
   const chartsSection = document.querySelector('.charts-section');
@@ -630,82 +568,177 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
     }, 100);
   }
 
-  // Model filtering and sorting functionality
-  function initModelFilters() {
+  // Infinite scroll pagination functionality
+  function initModelPagination() {
+    const modelsGrid = document.getElementById('models-grid');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const endIndicator = document.getElementById('end-indicator');
     const searchInput = document.getElementById('model-search');
-    const dateSortSelect = document.getElementById('date-sort');
     const sortBySelect = document.getElementById('sort-by');
     const sortOrderSelect = document.getElementById('sort-order');
     const clearFiltersBtn = document.getElementById('clear-filters');
-    const modelsGrid = document.querySelector('.models-grid');
     
     if (!modelsGrid) {
       console.warn('Models grid not found');
       return;
     }
     
-    let allModelCards = Array.from(modelsGrid.querySelectorAll('.model-card'));
-    let originalModelsData = [];
+    // Pagination state
+    let currentPage = 0;
+    const itemsPerPage = 8;
+    let filteredModels = [...validModels];
+    let isLoading = false;
+    let hasMoreItems = true;
     
-    // Extract model data from cards for filtering/sorting
-    allModelCards.forEach(card => {
-      const modelName = card.querySelector('.model-name')?.textContent || '';
-      const inputPrice = parseFloat(card.querySelector('.price-value')?.textContent?.replace(/[$,]/g, '') || '0');
-      const outputPrice = parseFloat(card.querySelectorAll('.price-value')[1]?.textContent?.replace(/[$,]/g, '') || '0');
+    // Helper functions
+    function formatPrice(price) {
+      return price ? `$${Number(price).toFixed(3)}` : '—';
+    }
+    
+    function formatScore(score) {
+      return score && Number(score) > 0 ? `${Math.round(Number(score) * 100)}%` : '—';
+    }
+    
+    function createModelCard(model) {
+      const cardElement = document.createElement('div');
+      cardElement.className = 'model-card';
       
-      // Extract benchmark scores
-      const benchmarkScores = {};
-      const benchmarkItems = card.querySelectorAll('.benchmark-item');
-      benchmarkItems.forEach(item => {
-        const label = item.querySelector('.benchmark-label')?.textContent?.trim();
-        const scoreText = item.querySelector('.benchmark-score')?.textContent?.trim();
-        const score = scoreText === '—' ? 0 : parseFloat(scoreText?.replace('%', '') || '0');
+      cardElement.innerHTML = `
+        <div class="model-header">
+          <h4 class="model-name">${model.name}</h4>
+          <div class="model-pricing">
+            <div class="price-item">
+              <span class="price-label">Input</span>
+              <span class="price-value">${formatPrice(model.price_1m_input_tokens)}</span>
+            </div>
+            <div class="price-item">
+              <span class="price-label">Output</span>
+              <span class="price-value">${formatPrice(model.price_1m_output_tokens)}</span>
+            </div>
+          </div>
+        </div>
         
-        // Map display names to database field names
-        const fieldMap = {
-          'MMLU Pro': 'mmlu_pro',
-          'GPQA': 'gpqa',
-          'HLE': 'hle',
-          'AIME': 'aime',
-          'SciCode': 'scicode',
-          'Math 500': 'math_500',
-          'LiveCodeBench': 'livecodebench',
-          'Math Index': 'artificial_analysis_math_index',
-          'Coding Index': 'artificial_analysis_coding_index',
-          'Intelligence': 'artificial_analysis_intelligence_index'
-        };
+        <div class="benchmarks-container">
+          <div class="benchmark-group">
+            <h5 class="group-title">Academic</h5>
+            <div class="benchmark-grid">
+              <div class="benchmark-item">
+                <span class="benchmark-label">MMLU Pro</span>
+                <span class="benchmark-score">${formatScore(model.mmlu_pro)}</span>
+              </div>
+              <div class="benchmark-item">
+                <span class="benchmark-label">GPQA</span>
+                <span class="benchmark-score">${formatScore(model.gpqa)}</span>
+              </div>
+              <div class="benchmark-item">
+                <span class="benchmark-label">HLE</span>
+                <span class="benchmark-score">${formatScore(model.hle)}</span>
+              </div>
+              <div class="benchmark-item">
+                <span class="benchmark-label">AIME</span>
+                <span class="benchmark-score">${formatScore(model.aime)}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="benchmark-group">
+            <h5 class="group-title">Coding & Math</h5>
+            <div class="benchmark-grid">
+              <div class="benchmark-item">
+                <span class="benchmark-label">SciCode</span>
+                <span class="benchmark-score">${formatScore(model.scicode)}</span>
+              </div>
+              <div class="benchmark-item">
+                <span class="benchmark-label">LiveCodeBench</span>
+                <span class="benchmark-score">${formatScore(model.livecodebench)}</span>
+              </div>
+              <div class="benchmark-item">
+                <span class="benchmark-label">Math 500</span>
+                <span class="benchmark-score">${formatScore(model.math_500)}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="benchmark-group">
+            <h5 class="group-title">AI Analysis</h5>
+            <div class="benchmark-grid">
+              <div class="benchmark-item">
+                <span class="benchmark-label">Math Index</span>
+                <span class="benchmark-score">${formatScore(model.artificial_analysis_math_index)}</span>
+              </div>
+              <div class="benchmark-item">
+                <span class="benchmark-label">Coding Index</span>
+                <span class="benchmark-score">${formatScore(model.artificial_analysis_coding_index)}</span>
+              </div>
+              <div class="benchmark-item">
+                <span class="benchmark-label">Intelligence</span>
+                <span class="benchmark-score">${formatScore(model.artificial_analysis_intelligence_index)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      return cardElement;
+    }
+    
+    function loadMoreModels() {
+      if (isLoading || !hasMoreItems) return;
+      
+      isLoading = true;
+      loadingIndicator.style.display = 'flex';
+      
+      // Simulate loading delay for better UX
+      setTimeout(() => {
+        const startIndex = currentPage * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const modelsToLoad = filteredModels.slice(startIndex, endIndex);
         
-        if (label && fieldMap[label]) {
-          benchmarkScores[fieldMap[label]] = score;
+        if (modelsToLoad.length === 0) {
+          hasMoreItems = false;
+          loadingIndicator.style.display = 'none';
+          endIndicator.style.display = 'block';
+          return;
         }
-      });
-      
-      originalModelsData.push({
-        element: card,
-        name: modelName,
-        price_1m_input_tokens: inputPrice,
-        price_1m_output_tokens: outputPrice,
-        ...benchmarkScores
-      });
-    });
+        
+        // Add new model cards
+        modelsToLoad.forEach(model => {
+          const cardElement = createModelCard(model);
+          modelsGrid.appendChild(cardElement);
+        });
+        
+        currentPage++;
+        isLoading = false;
+        loadingIndicator.style.display = 'none';
+        
+        // Check if we've loaded all models
+        if (endIndex >= filteredModels.length) {
+          hasMoreItems = false;
+          endIndicator.style.display = 'block';
+        }
+        
+        console.log(`📄 Loaded page ${currentPage}, showing ${modelsGrid.children.length} of ${filteredModels.length} models`);
+      }, 300);
+    }
     
     function applyFilters() {
       const searchTerm = searchInput?.value?.toLowerCase() || '';
-      const dateSort = dateSortSelect?.value || 'newest';
       const sortBy = sortBySelect?.value || 'name';
       const sortOrder = sortOrderSelect?.value || 'desc';
       
-      let filteredData = [...originalModelsData];
+      // Reset pagination
+      currentPage = 0;
+      hasMoreItems = true;
+      modelsGrid.innerHTML = '';
+      endIndicator.style.display = 'none';
       
       // Apply search filter
-      if (searchTerm) {
-        filteredData = filteredData.filter(model => 
-          model.name.toLowerCase().includes(searchTerm)
-        );
-      }
+      filteredModels = validModels.filter(model => 
+        !searchTerm || model.name.toLowerCase().includes(searchTerm)
+      );
       
       // Apply sorting
-      filteredData.sort((a, b) => {
+      filteredModels.sort((a, b) => {
         let valueA, valueB;
         
         if (sortBy === 'name') {
@@ -713,8 +746,8 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
           valueB = b.name.toLowerCase();
           return sortOrder === 'asc' ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA);
         } else {
-          valueA = a[sortBy] || 0;
-          valueB = b[sortBy] || 0;
+          valueA = Number(a[sortBy]) || 0;
+          valueB = Number(b[sortBy]) || 0;
           
           if (sortOrder === 'asc') {
             return valueA - valueB;
@@ -724,45 +757,58 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
         }
       });
       
-      // Clear and re-populate the grid
-      modelsGrid.innerHTML = '';
-      filteredData.forEach(model => {
-        modelsGrid.appendChild(model.element);
-      });
+      console.log(`🔍 Filtered ${filteredModels.length} models out of ${validModels.length}`);
       
-      console.log(`🔍 Filtered ${filteredData.length} models out of ${originalModelsData.length}`);
+      // Load first page
+      loadMoreModels();
     }
     
     function clearAllFilters() {
       if (searchInput) searchInput.value = '';
-      if (dateSortSelect) dateSortSelect.value = 'newest';
       if (sortBySelect) sortBySelect.value = 'name';
       if (sortOrderSelect) sortOrderSelect.value = 'desc';
       applyFilters();
     }
     
+    // Infinite scroll detection
+    function handleScroll() {
+      if (isLoading || !hasMoreItems) return;
+      
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      
+      // Load more when user is 200px from bottom
+      if (scrollTop + windowHeight >= documentHeight - 200) {
+        loadMoreModels();
+      }
+    }
+    
     // Add event listeners
     searchInput?.addEventListener('input', applyFilters);
-    dateSortSelect?.addEventListener('change', applyFilters);
     sortBySelect?.addEventListener('change', applyFilters);
     sortOrderSelect?.addEventListener('change', applyFilters);
     clearFiltersBtn?.addEventListener('click', clearAllFilters);
+    window.addEventListener('scroll', handleScroll);
     
-    console.log('✅ Model filters initialized with', originalModelsData.length, 'models');
+    // Initial load
+    applyFilters();
+    
+    console.log('✅ Model pagination initialized with', validModels.length, 'models');
   }
   
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       initDashboard();
-      initModelFilters();
+      initModelPagination();
     });
   } else {
     initDashboard();
-    initModelFilters();
+    initModelPagination();
   }
 </script>
 
-<style>
+<style is:global>
 .dashboard-container {
   min-height: 100vh;
   background: #000100;
@@ -2047,5 +2093,51 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   .models-grid {
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   }
+}
+
+/* Loading and End Indicators */
+.loading-indicator,
+.end-indicator {
+  text-align: center;
+  padding: 2rem;
+  margin: 2rem 0;
+}
+
+.loading-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(148, 197, 204, 0.2);
+  border-top: 3px solid rgba(148, 197, 204, 0.8);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-indicator p,
+.end-indicator p {
+  color: rgba(161, 166, 180, 0.7);
+  font-size: 1rem;
+  margin: 0;
+}
+
+.end-indicator {
+  border-top: 1px solid rgba(148, 197, 204, 0.2);
+  background: rgba(148, 197, 204, 0.05);
+  border-radius: 12px;
+}
+
+.end-indicator p {
+  font-style: italic;
 }
 </style>
