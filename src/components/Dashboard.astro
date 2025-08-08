@@ -342,6 +342,19 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   // Wait for DOM to be fully loaded
   const chartsSection = document.querySelector('.charts-section');
 
+  // Numeric helpers: truncate without rounding (top-level so all modules can use)
+  function truncateTo(num, decimals = 3) {
+    const n = Number(num);
+    if (!isFinite(n)) return 0;
+    const factor = Math.pow(10, decimals);
+    return Math.trunc(n * factor) / factor;
+  }
+
+  function formatMoneyTrunc(num, decimals = 3) {
+    const t = truncateTo(num, decimals);
+    return `$${t.toFixed(decimals)}`;
+  }
+
   async function initDashboard() {
     console.log('🚀 Dashboard charts initializing...');
 
@@ -488,18 +501,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       }
     }
 
-    // Numeric helpers: truncate without rounding
-    function truncateTo(num, decimals = 3) {
-      const n = Number(num);
-      if (!isFinite(n)) return 0;
-      const factor = Math.pow(10, decimals);
-      return Math.trunc(n * factor) / factor;
-    }
-
-    function formatMoneyTrunc(num, decimals = 3) {
-      const t = truncateTo(num, decimals);
-      return `$${t.toFixed(decimals)}`;
-    }
+    
 
     // Function to calculate and update live stats from fresh data
     function updateStatsSection(freshModels) {
