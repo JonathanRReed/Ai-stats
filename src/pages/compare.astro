@@ -7,9 +7,11 @@ import Header from '../components/Header.astro';
 const models = await getModels();
 
 function formatScore(score: string | number | null) {
-  if (score === null || score === undefined || score === '0' || Number(score) === 0) return '—';
-  const numScore = Number(score);
-  return `${numScore.toFixed(1)}%`;
+  if (score === null || score === undefined) return '—';
+  const num = Number(score);
+  if (!isFinite(num) || num <= 0) return '—';
+  const pct = num <= 1 ? num * 100 : num;
+  return `${pct.toFixed(1)}%`;
 }
 
 const validModels = models.filter((model: any) => {
@@ -40,7 +42,7 @@ const getCheapestTokensModel = () => {
   if (selectedModels.length === 0) return null;
   const modelsWithBlendedPrice = selectedModels.filter(model => {
     const blendedPrice = model.price_1m_blended_3_to_1;
-    const priceNum = parseFloat(blendedPrice);
+    const priceNum = Number(blendedPrice);
     return blendedPrice !== null && blendedPrice !== undefined && !isNaN(priceNum) && priceNum > 0;
   });
   if (modelsWithBlendedPrice.length === 0) return null;
@@ -48,8 +50,8 @@ const getCheapestTokensModel = () => {
   console.log('Models with blended price:', modelsWithBlendedPrice.map(m => ({ name: m.name, price: m.price_1m_blended_3_to_1 })));
   
   const sorted = modelsWithBlendedPrice.sort((a, b) => {
-    const priceA = parseFloat(a.price_1m_blended_3_to_1);
-    const priceB = parseFloat(b.price_1m_blended_3_to_1);
+    const priceA = Number(a.price_1m_blended_3_to_1);
+    const priceB = Number(b.price_1m_blended_3_to_1);
     console.log(`Comparing ${a.name} ($${priceA}) vs ${b.name} ($${priceB})`);
     return priceA - priceB; // Lower price is better
   });
@@ -65,9 +67,9 @@ const availableBenchmarks = {
   'mmlu_pro': 'MMLU Pro',
   'gpqa': 'GPQA',
   'hle': 'HumanEval',
-  'artificial_analysis_math_index': 'Math Index',
-  'artificial_analysis_coding_index': 'Coding Index',
-  'artificial_analysis_intelligence_index': 'Intelligence Index',
+  'aa_math_index': 'Math Index',
+  'aa_coding_index': 'Coding Index',
+  'aa_intelligence_index': 'Intelligence Index',
   'livecodebench': 'LiveCodeBench',
   'scicode': 'SciCode',
   'math_500': 'Math 500',
@@ -88,6 +90,8 @@ const availableBenchmarks = {
         --glass: rgba(255, 255, 255, 0.05);
         --accent: #8b5cf6;
       }
+      .bar-stack-duo { height: 170px; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
+      .bar-stack { height: 200px; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
       * {
         margin: 0;
         padding: 0;
@@ -218,17 +222,21 @@ const availableBenchmarks = {
           padding: 1rem;
         }
         .chart-container {
-          display: flex;
-          flex-direction: row;
-          align-items: flex-end;
-          justify-content: flex-start;
-          gap: 0.75rem;
+          /* For Chart.js canvas, use block layout */
+          display: block;
           padding: 1.5rem 0.5rem 1rem 0.5rem;
-          min-height: 200px;
+          height: 360px; /* explicit height so canvas can size */
           width: 100%;
-          overflow-x: auto;
+          overflow: hidden;
           scrollbar-width: thin;
           scrollbar-color: var(--accent) rgba(0, 0, 0, 0.2);
+          position: relative;
+        }
+        /* Make canvases fill container */
+        #price-canvas, #perf-canvas {
+          display: block;
+          width: 100% !important;
+          height: 100% !important;
         }
         
         .chart-container::-webkit-scrollbar {
@@ -348,18 +356,13 @@ const availableBenchmarks = {
         border-color: var(--accent);
       }
       .chart-container {
-        display: flex;
-        flex-direction: row;
-        align-items: flex-end;
-        justify-content: center;
-        gap: 1rem;
+        display: block;
         width: 100%;
-        min-height: 280px;
-        overflow-x: auto;
-        overflow-y: visible;
+        height: 360px;
+        overflow: hidden;
         background: linear-gradient(180deg, rgba(10, 10, 11, 0.4) 0%, rgba(10, 10, 11, 0.8) 100%);
         border-radius: 8px;
-        padding: 3rem 1rem 1rem 1rem;
+        padding: 1rem;
         border: 1px solid rgba(161, 166, 180, 0.1);
         position: relative;
         margin: 0 auto;
@@ -501,14 +504,19 @@ const availableBenchmarks = {
         box-sizing: border-box;
       }
       .bar-label {
-        margin-top: 0.75rem;
-        font-size: 0.75rem;
-        color: #F8F8F8;
-        font-weight: 600;
+        margin-top: 0.5rem;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.92);
+        font-weight: 800;
         text-align: center;
         word-wrap: break-word;
+        white-space: normal;
+        line-height: 1.15;
         max-width: 100%;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.8);
       }
+      .bar-label .bar-name { display: block; }
+      .bar-label .bar-variant { display: block; font-weight: 600; opacity: 0.85; font-size: 0.8rem; }
       .insights-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -671,13 +679,9 @@ const availableBenchmarks = {
           padding: 1rem;
         }
         .chart-container {
-          display: flex;
-          flex-direction: row;
-          align-items: flex-end;
-          justify-content: center;
-          gap: 0.75rem;
-          padding: 1rem 0.25rem 0.75rem 0.25rem;
-          min-height: 180px;
+          display: block;
+          padding: 0.5rem;
+          height: 320px;
           width: 100%;
         }
         .chart-item {
@@ -705,9 +709,8 @@ const availableBenchmarks = {
           font-size: 0.9rem;
         }
         .chart-container {
-          gap: 0.5rem;
-          padding: 1rem 0.1rem 0.75rem 0.1rem;
-          min-height: 160px;
+          padding: 0.5rem;
+          height: 300px;
         }
         .chart-item {
           min-width: 45px;
@@ -820,14 +823,14 @@ const availableBenchmarks = {
                 <div class="chart-header">
                   <h3>Price Comparison</h3>
                 </div>
-                <div class="chart-container" id="price-chart"></div>
+                <div class="chart-container" id="price-chart"><canvas id="price-canvas"></canvas></div>
               </div>
 
               <div class="chart-section">
                 <div class="chart-header">
                   <h3>Performance Comparison</h3>
                 </div>
-                <div class="chart-container" id="performance-chart"></div>
+                <div class="chart-container" id="performance-chart"><canvas id="perf-canvas"></canvas></div>
               </div>
             </div>
           </section>
@@ -864,6 +867,10 @@ const availableBenchmarks = {
       </div>
     </div>
 
+    <!-- Chart.js (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+
     <script define:vars={{ validModels }}>
       // Security: HTML sanitization function to prevent XSS attacks
       function sanitizeHTML(str) {
@@ -872,7 +879,35 @@ const availableBenchmarks = {
         return div.innerHTML;
       }
 
-      function initCompare() {
+      // Dynamically ensure Chart.js is available (in case CDN is blocked)
+      let __chartLibLoading = null;
+      function loadScript(src) {
+        return new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = src;
+          s.async = true;
+          s.onload = resolve;
+          s.onerror = reject;
+          document.head.appendChild(s);
+        });
+      }
+      async function ensureChartLibs() {
+        if (window.Chart && (window.ChartDataLabels || window['ChartDataLabels'])) return true;
+        if (!__chartLibLoading) {
+          __chartLibLoading = (async () => {
+            if (!window.Chart) {
+              await loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js');
+            }
+            if (!(window.ChartDataLabels || window['ChartDataLabels'])) {
+              await loadScript('https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js');
+            }
+            return true;
+          })();
+        }
+        return __chartLibLoading;
+      }
+
+      async function initCompare() {
         // Initialize sidebar state based on screen size
         const initializeLayout = () => {
           const isMobile = window.innerWidth <= 800;
@@ -964,6 +999,10 @@ const availableBenchmarks = {
         const countEl = document.querySelector('.selected-count');
         const priceChart = document.getElementById('price-chart');
         const perfChart = document.getElementById('performance-chart');
+        const priceCanvas = document.getElementById('price-canvas');
+        const perfCanvas = document.getElementById('perf-canvas');
+        let priceChartInstance = null;
+        let perfChartInstance = null;
         const metricSelector = document.getElementById('metric-selector');
         const performanceMetricTitle = document.getElementById('performance-metric-title');
         
@@ -972,9 +1011,9 @@ const availableBenchmarks = {
           'mmlu_pro': 'MMLU Pro',
           'gpqa': 'GPQA',
           'hle': 'HumanEval',
-          'artificial_analysis_math_index': 'Math Index',
-          'artificial_analysis_coding_index': 'Coding Index',
-          'artificial_analysis_intelligence_index': 'Intelligence Index',
+          'aa_math_index': 'Math Index',
+          'aa_coding_index': 'Coding Index',
+          'aa_intelligence_index': 'Intelligence Index',
           'livecodebench': 'LiveCodeBench',
           'scicode': 'SciCode',
           'math_500': 'Math 500',
@@ -985,8 +1024,11 @@ const availableBenchmarks = {
         const searchInput = document.getElementById('model-search');
 
         function formatScore(value) {
-          const num = Number(value) || 0;
-          return num ? `${num.toFixed(3)}%` : '—';
+          if (value === null || value === undefined) return '—';
+          const num = Number(value);
+          if (!isFinite(num) || num <= 0) return '—';
+          const pct = num <= 1 ? num * 100 : num;
+          return `${pct.toFixed(1)}%`;
         }
 
         function applyFiltersAndSort() {
@@ -1094,12 +1136,11 @@ const availableBenchmarks = {
           let chosen = getSelected();
           console.log('Rendering charts for models:', chosen.length);
 
-          // Price chart
-          if (!priceChart || !perfChart || !metricSelector) {
+          // Ensure chart containers exist (metric selector is optional)
+          if (!priceChart || !perfChart) {
             console.error('Chart elements not found');
             console.log('Price chart element:', priceChart);
             console.log('Performance chart element:', perfChart);
-            console.log('Metric selector element:', metricSelector);
             return;
           }
           
@@ -1151,9 +1192,9 @@ const availableBenchmarks = {
             console.log('Could not find performance chart header');
           }
 
-          // Clear containers completely and rebuild from scratch
-          priceChart.innerHTML = '';
-          perfChart.innerHTML = '';
+          // Do not clear containers; destroy existing chart instances instead
+          if (priceChartInstance) { priceChartInstance.destroy(); priceChartInstance = null; }
+          if (perfChartInstance) { perfChartInstance.destroy(); perfChartInstance = null; }
 
           // Sort chosen models by price for price chart
           const chosenByPrice = [...chosen].sort((a, b) => {
@@ -1175,168 +1216,75 @@ const availableBenchmarks = {
             priceChart.parentElement.style.gap = dynamicGap;
           }
           
-          // Build price chart
-          chosenByPrice.forEach((model, i) => {
-            const inputPrice = Number(model.price_1m_input_tokens) || 0;
-            const outputPrice = Number(model.price_1m_output_tokens) || 0;
-            const total = totals[i];
-            
-            // Calculate heights proportionally to show actual price relationships
-            const maxPrice = Math.max(...chosenByPrice.flatMap(m => [
-              Number(m.price_1m_input_tokens) || 0,
-              Number(m.price_1m_output_tokens) || 0
-            ]), 1);
-            
-            // Scale both input and output against the same maximum for accurate comparison
-            const inputHeight = inputPrice > 0 ? Math.max((inputPrice / maxPrice) * 150, 8) : 0;
-            const outputHeight = outputPrice > 0 ? Math.max((outputPrice / maxPrice) * 150, 8) : 0;
-            
-            // Container height should accommodate both bars side by side
-            const totalHeight = Math.max(inputHeight, outputHeight, 30);
-            
-            const chartItem = document.createElement('div');
-            chartItem.className = 'chart-item';
-            chartItem.style.position = 'relative';
-            chartItem.style.minWidth = `${dynamicWidth}px`;
-            chartItem.style.maxWidth = `${dynamicWidth}px`;
-            chartItem.style.flex = '0 0 auto';
-            // Simplified text display logic
-            const inputText = `$${inputPrice.toFixed(inputPrice >= 10 ? 1 : 2)}`;
-            const outputText = `$${outputPrice.toFixed(outputPrice >= 10 ? 1 : 2)}`;
-            
-            const getTextDisplay = (height, text) => {
-              if (height < 8) return ''; // Show text in almost all bars
-              
-              // Smart sizing: consider both height and text length
-              const barWidth = dynamicWidth * 0.48; // Approximate width of each price bar
-              const textLength = text.length;
-              
-              // Calculate optimal font size based on available space
-              const heightBasedSize = height / 2.5; // Height constraint
-              const widthBasedSize = (barWidth - 4) / (textLength * 0.6); // Width constraint with padding
-              
-              // Use the smaller of the two constraints, with reasonable bounds
-              const optimalSize = Math.min(heightBasedSize, widthBasedSize);
-              const fontSize = Math.max(5, Math.min(11, optimalSize));
-              
-              return `<span style="color: white; font-size: ${fontSize}px; font-weight: 600; text-shadow: 0 1px 3px rgba(0,0,0,1); line-height: 1; white-space: nowrap;">${text}</span>`;
-            };
-            
-            chartItem.innerHTML = `
-              <div style="display: flex; flex-direction: row; justify-content: center; align-items: flex-end; height: ${totalHeight}px; width: 100%; gap: 2px;">
-                <div class="chart-bar input-price-bar" 
-                     style="height: ${inputHeight}px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.35) 0%, rgba(34, 197, 94, 0.25) 50%, rgba(34, 197, 94, 0.15) 100%); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); border: 1px solid rgba(34, 197, 94, 0.5); border-radius: 14px; box-shadow: 0 8px 32px rgba(34, 197, 94, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1); flex: 1; max-width: 48%; cursor: pointer; position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; display: flex; align-items: center; justify-content: center;" 
-                     data-tooltip="${sanitizeHTML(model.name)} - Input: $${inputPrice.toFixed(3)} per 1M tokens">
-                  ${getTextDisplay(inputHeight, inputText)}
-                </div>
-                <div class="chart-bar output-price-bar" 
-                     style="height: ${outputHeight}px; background: linear-gradient(135deg, rgba(239, 68, 68, 0.35) 0%, rgba(239, 68, 68, 0.25) 50%, rgba(239, 68, 68, 0.15) 100%); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 14px; box-shadow: 0 8px 32px rgba(239, 68, 68, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1); flex: 1; max-width: 48%; cursor: pointer; position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; display: flex; align-items: center; justify-content: center;" 
-                     data-tooltip="${sanitizeHTML(model.name)} - Output: $${outputPrice.toFixed(3)} per 1M tokens">
-                  ${getTextDisplay(outputHeight, outputText)}
-                </div>
-              </div>
-              <div class="bar-label" style="white-space: nowrap;">${model.name.split(' ')[0]}</div>
-            `;
-            
-            // Add hover tooltip functionality
-            const inputBar = chartItem.querySelector('.input-price-bar');
-            const outputBar = chartItem.querySelector('.output-price-bar');
-            
-            [inputBar, outputBar].forEach(bar => {
-              if (!bar) return;
-              
-              // Function to show tooltip (shared by mouse and touch events)
-              const showTooltip = (target) => {
-                // Remove any existing tooltips first
-                document.querySelectorAll('.price-tooltip, .perf-tooltip').forEach(t => t.remove());
-                
-                const tooltip = document.createElement('div');
-                tooltip.className = 'price-tooltip';
-                tooltip.textContent = target.dataset.tooltip;
-                tooltip.style.cssText = `
-                  position: fixed;
-                  background: rgba(0, 0, 0, 0.9);
-                  color: white;
-                  padding: 8px 12px;
-                  border-radius: 6px;
-                  font-size: 12px;
-                  white-space: nowrap;
-                  z-index: 1001;
-                  pointer-events: none;
-                  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-                  max-width: 250px;
-                `;
-                
-                document.body.appendChild(tooltip);
-                
-                // Smart positioning
-                const rect = target.getBoundingClientRect();
-                const tooltipRect = tooltip.getBoundingClientRect();
-                
-                // Calculate preferred position (centered above)
-                let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
-                let top = rect.top - tooltipRect.height - 10;
-                
-                // Adjust if tooltip would go off-screen horizontally
-                if (left < 10) left = 10;
-                if (left + tooltipRect.width > window.innerWidth - 10) {
-                  left = window.innerWidth - tooltipRect.width - 10;
-                }
-                
-                // If tooltip would go off-screen vertically, show below instead
-                if (top < 10) {
-                  top = rect.bottom + 10;
-                }
-                
-                tooltip.style.left = left + 'px';
-                tooltip.style.top = top + 'px';
-                tooltip.style.transform = 'none';
-                
-                // Auto-hide tooltip on mobile after 3 seconds
-                if ('ontouchstart' in window) {
-                  setTimeout(() => {
-                    if (tooltip && tooltip.parentNode) {
-                      tooltip.remove();
-                    }
-                  }, 3000);
-                }
-              };
-              
-              // Mouse events for desktop
-              bar.addEventListener('mouseenter', (e) => {
-                showTooltip(e.target);
-              });
-              
-              bar.addEventListener('mouseleave', (e) => {
-                // Only hide on mouseleave for desktop (not touch devices)
-                if (!('ontouchstart' in window)) {
-                  document.querySelectorAll('.price-tooltip, .perf-tooltip').forEach(t => t.remove());
-                }
-              });
-              
-              // Touch events for mobile
-              bar.addEventListener('touchstart', (e) => {
-                e.preventDefault(); // Prevent default touch behavior
-                showTooltip(e.target);
-              });
-              
-              // Hide tooltip when touching elsewhere on mobile
-              bar.addEventListener('touchend', (e) => {
-                // Small delay to allow tooltip to show first
-                setTimeout(() => {
-                  if ('ontouchstart' in window) {
-                    // Only hide if user touches outside the tooltip area
-                    const touch = e.changedTouches[0];
-                    const elementAtTouch = document.elementFromPoint(touch.clientX, touch.clientY);
-                    if (!elementAtTouch || !elementAtTouch.classList.contains('price-tooltip')) {
-                      // Don't hide immediately, let auto-hide handle it
-                    }
-                  }
-                }, 100);
-              });
+          // Ensure canvases have concrete pixel sizes
+          if (priceCanvas) {
+            const pr = priceChart.getBoundingClientRect();
+            priceCanvas.width = Math.max(300, priceChart.clientWidth || pr.width || 600);
+            priceCanvas.height = Math.max(200, priceChart.clientHeight || pr.height || 360);
+          }
+          if (perfCanvas) {
+            const rr = perfChart.getBoundingClientRect();
+            perfCanvas.width = Math.max(300, perfChart.clientWidth || rr.width || 600);
+            perfCanvas.height = Math.max(200, perfChart.clientHeight || rr.height || 360);
+          }
+
+          // Build price chart using Chart.js
+          const labelParts = (name) => {
+            const m = name.match(/^(.*?)(\s*\(([^)]*)\))?$/);
+            const base = m ? m[1] : name;
+            const variant = m && m[3] ? m[3] : '';
+            return variant ? [base, `(${variant})`] : [base];
+          };
+          const priceLabels = chosenByPrice.map(m => labelParts(m.name));
+          const inputData = chosenByPrice.map(m => Number(m.price_1m_input_tokens) || 0);
+          const outputData = chosenByPrice.map(m => Number(m.price_1m_output_tokens) || 0);
+          if (priceCanvas && window.Chart) {
+            window.Chart.register(window.ChartDataLabels || window['ChartDataLabels']);
+            priceChartInstance = new window.Chart(priceCanvas.getContext('2d'), {
+              type: 'bar',
+              data: {
+                labels: priceLabels,
+                datasets: [
+                  {
+                    label: 'Input',
+                    data: inputData,
+                    backgroundColor: 'rgba(34,197,94,0.35)',
+                    borderColor: 'rgba(34,197,94,0.6)',
+                    borderWidth: 1,
+                    borderRadius: 10,
+                  },
+                  {
+                    label: 'Output',
+                    data: outputData,
+                    backgroundColor: 'rgba(239,68,68,0.35)',
+                    borderColor: 'rgba(239,68,68,0.6)',
+                    borderWidth: 1,
+                    borderRadius: 10,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                  legend: { position: 'bottom', labels: { color: '#eae9f0' } },
+                  tooltip: { callbacks: { label: (ctx) => `$${(ctx.parsed.y ?? 0).toFixed(3)} per 1M` } },
+                  datalabels: {
+                    anchor: 'end', align: 'end', color: '#111', backgroundColor: 'rgba(255,255,255,0.9)',
+                    borderRadius: 4, padding: 4, font: { weight: '900' },
+                    formatter: (v) => `$${(v >= 10 ? v.toFixed(1) : v.toFixed(2))}`,
+                  },
+                },
+                scales: {
+                  x: { ticks: { color: '#eae9f0', maxRotation: 45, minRotation: 45 }, grid: { display: false } },
+                  y: { beginAtZero: true, ticks: { color: '#eae9f0', callback: (v) => `$${Number(v).toFixed(0)}` },
+                       grid: { color: 'rgba(255,255,255,0.08)', drawBorder: false } },
+                },
+              },
+              plugins: [window.ChartDataLabels || window['ChartDataLabels']],
             });
-            priceChart.appendChild(chartItem);
-          });
+          }
 
           // Sort chosen models by selected metric for performance chart
           const chosenByMetric = [...chosen].sort((a, b) => {
@@ -1345,150 +1293,57 @@ const availableBenchmarks = {
             return sortOrder === 'desc' ? scoreB - scoreA : scoreA - scoreB;
           });
           
-          // Build performance chart
-          const scores = chosenByMetric.map((m) => Number(m[metric]) || 0);
-          const maxScore = Math.max(...scores, 1);
-          
-          chosenByMetric.forEach((model, i) => {
-            const score = scores[i];
-            
-            // High-precision scaling for small differences
-            let height;
-            if (score <= 0 || maxScore <= 0) {
-              height = 30; // Minimum height for zero/invalid scores
-            } else {
-              // Expanded scaling range with high precision
-              const minHeight = 50;
-              const maxHeight = 200;
-              
-              const scoreRatio = score / maxScore;
-              height = minHeight + (scoreRatio * (maxHeight - minHeight));
-              // Don't round - use precise decimal values
-            }
-            
-            console.log(`Model ${model.name}: score=${score}% (ratio=${(score/maxScore).toFixed(4)}), height=${height.toFixed(2)}px`);
-            
-            const chartItem = document.createElement('div');
-            chartItem.className = 'chart-item';
-            chartItem.style.position = 'relative';
-            chartItem.style.minWidth = `${dynamicWidth}px`;
-            chartItem.style.maxWidth = `${dynamicWidth}px`;
-            chartItem.style.flex = '0 0 auto';
-            
-            // Simplified performance text display
-            const scoreText = formatScore(score);
-            
-            const getPerformanceTextDisplay = (height, text) => {
-              if (height < 50) return ''; // Simple height check
-              const fontSize = Math.max(10, Math.min(12, height / 8));
-              return `<span style="color: white; font-size: ${fontSize}px; font-weight: 600; text-shadow: 0 1px 3px rgba(0,0,0,1);">${text}</span>`;
-            };
-            
-            chartItem.innerHTML = `
-              <div class="chart-bar performance-bar" 
-                   style="height: ${height}px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.35) 0%, rgba(139, 92, 246, 0.25) 50%, rgba(139, 92, 246, 0.15) 100%); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); border: 1px solid rgba(139, 92, 246, 0.5); border-radius: 14px; box-shadow: 0 8px 32px rgba(139, 92, 246, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1); cursor: pointer; position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; display: flex; align-items: center; justify-content: center;" 
-                   data-tooltip="${sanitizeHTML(model.name)} - ${metric.toUpperCase().replace('_', ' ')}: ${formatScore(score)}">
-                ${getPerformanceTextDisplay(height, scoreText)}
-              </div>
-              <div class="bar-label" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 132px;" title="${sanitizeHTML(model.name)}">${sanitizeHTML(model.name.split(' ')[0])}</div>
-            `;
-            
-            // Add hover tooltip functionality
-            const perfBar = chartItem.querySelector('.performance-bar');
-            
-            if (perfBar) {
-              // Function to show tooltip (shared by mouse and touch events)
-              const showPerfTooltip = (target) => {
-                // Remove any existing tooltips first
-                document.querySelectorAll('.price-tooltip, .perf-tooltip').forEach(t => t.remove());
-                
-                const tooltip = document.createElement('div');
-                tooltip.className = 'perf-tooltip';
-                tooltip.textContent = target.dataset.tooltip;
-                tooltip.style.cssText = `
-                  position: fixed;
-                  background: rgba(0, 0, 0, 0.9);
-                  color: white;
-                  padding: 8px 12px;
-                  border-radius: 6px;
-                  font-size: 12px;
-                  white-space: nowrap;
-                  z-index: 1001;
-                  pointer-events: none;
-                  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-                  max-width: 250px;
-                `;
-                
-                document.body.appendChild(tooltip);
-                
-                // Smart positioning
-                const rect = target.getBoundingClientRect();
-                const tooltipRect = tooltip.getBoundingClientRect();
-                
-                // Calculate preferred position (centered above)
-                let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
-                let top = rect.top - tooltipRect.height - 10;
-                
-                // Adjust if tooltip would go off-screen horizontally
-                if (left < 10) left = 10;
-                if (left + tooltipRect.width > window.innerWidth - 10) {
-                  left = window.innerWidth - tooltipRect.width - 10;
-                }
-                
-                // If tooltip would go off-screen vertically, show below instead
-                if (top < 10) {
-                  top = rect.bottom + 10;
-                }
-                
-                tooltip.style.left = left + 'px';
-                tooltip.style.top = top + 'px';
-                tooltip.style.transform = 'none';
-                
-                // Auto-hide tooltip on mobile after 3 seconds
-                if ('ontouchstart' in window) {
-                  setTimeout(() => {
-                    if (tooltip && tooltip.parentNode) {
-                      tooltip.remove();
-                    }
-                  }, 3000);
-                }
-              };
-              
-              // Mouse events for desktop
-              perfBar.addEventListener('mouseenter', (e) => {
-                showPerfTooltip(e.target);
-              });
-              
-              perfBar.addEventListener('mouseleave', (e) => {
-                // Only hide on mouseleave for desktop (not touch devices)
-                if (!('ontouchstart' in window)) {
-                  document.querySelectorAll('.price-tooltip, .perf-tooltip').forEach(t => t.remove());
-                }
-              });
-              
-              // Touch events for mobile
-              perfBar.addEventListener('touchstart', (e) => {
-                e.preventDefault(); // Prevent default touch behavior
-                showPerfTooltip(e.target);
-              });
-              
-              // Hide tooltip when touching elsewhere on mobile
-              perfBar.addEventListener('touchend', (e) => {
-                // Small delay to allow tooltip to show first
-                setTimeout(() => {
-                  if ('ontouchstart' in window) {
-                    // Only hide if user touches outside the tooltip area
-                    const touch = e.changedTouches[0];
-                    const elementAtTouch = document.elementFromPoint(touch.clientX, touch.clientY);
-                    if (!elementAtTouch || !elementAtTouch.classList.contains('perf-tooltip')) {
-                      // Don't hide immediately, let auto-hide handle it
-                    }
-                  }
-                }, 100);
-              });
-            }
-            perfChart.appendChild(chartItem);
-          });
+          // Build performance chart using Chart.js
+          const perfLabels = chosenByMetric.map(m => labelParts(m.name));
+          const scores = chosenByMetric.map(m => Number(m[metric]) || 0);
+          if (perfCanvas && window.Chart) {
+            window.Chart.register(window.ChartDataLabels || window['ChartDataLabels']);
+            const maxScore = scores.length ? Math.max(...scores) : 0;
+            perfChartInstance = new window.Chart(perfCanvas.getContext('2d'), {
+              type: 'bar',
+              data: {
+                labels: perfLabels,
+                datasets: [
+                  {
+                    label: 'Score',
+                    data: scores,
+                    backgroundColor: 'rgba(139,92,246,0.35)',
+                    borderColor: 'rgba(139,92,246,0.6)',
+                    borderWidth: 1,
+                    borderRadius: 10,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { display: false },
+                  tooltip: { callbacks: { label: (ctx) => {
+                    const y = ctx.parsed.y ?? 0;
+                    const t = Math.trunc(y * 1000) / 1000; // truncate, no rounding
+                    return `${t.toFixed(3)}%`;
+                  } } },
+                  datalabels: {
+                    anchor: 'end', align: 'end', color: '#111', backgroundColor: 'rgba(255,255,255,0.9)',
+                    borderRadius: 4, padding: 4, font: { weight: '900' }, clip: false,
+                    formatter: (v) => {
+                      const t = Math.trunc(Number(v) * 1000) / 1000; // truncate
+                      return `${t.toFixed(3)}%`;
+                    },
+                  },
+                },
+                scales: {
+                  x: { ticks: { color: '#eae9f0', maxRotation: 45, minRotation: 45 }, grid: { display: false } },
+                  y: { beginAtZero: true, suggestedMax: maxScore * 1.05,
+                       ticks: { color: '#eae9f0', callback: (v) => `${Number(v).toFixed(3)}%` },
+                       grid: { color: 'rgba(255,255,255,0.08)', drawBorder: false } },
+                },
+                layout: { padding: { top: 28 } },
+              },
+              plugins: [window.ChartDataLabels || window['ChartDataLabels']],
+            });
+          }
 
           console.log('Charts rendered successfully with', chosen.length, 'models');
         }
@@ -1538,6 +1393,11 @@ const availableBenchmarks = {
 
         renderModelList();
         updateCount();
+        try {
+          await ensureChartLibs();
+        } catch (e) {
+          console.error('Failed to load chart libraries', e);
+        }
         renderCharts();
       }
 
@@ -1566,24 +1426,15 @@ const availableBenchmarks = {
             item.style.maxWidth = minItemWidth + 'px';
             item.style.flex = '0 0 auto';
             
-            // Fix overlapping names by truncating and adding ellipsis
+            // Improve overlapping names: allow up to 2 lines with ellipsis
             const label = item.querySelector('.bar-label');
             if (label) {
-              label.style.overflow = 'hidden';
-              label.style.textOverflow = 'ellipsis';
               label.style.maxWidth = minItemWidth + 'px';
-              label.style.whiteSpace = 'nowrap';
-              
-              // Get the model name and truncate if needed
-              const fullName = label.textContent;
-              const words = fullName.split('-');
-              if (words.length > 0) {
-                // Take just the first part of the name if it contains dashes
-                label.setAttribute('title', fullName); // Show full name on hover
-                if (minItemWidth < 40 && words.length > 1) {
-                  label.textContent = words[0];
-                }
-              }
+              label.style.overflow = 'hidden';
+              label.style.display = '-webkit-box';
+              label.style.webkitBoxOrient = 'vertical';
+              label.style.webkitLineClamp = '2';
+              label.setAttribute('title', label.textContent || '');
             }
           });
           

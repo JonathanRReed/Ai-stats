@@ -11,6 +11,91 @@ const { title = 'AI Stats Dashboard', description = '' } = Astro.props;
     <meta name="generator" content={Astro.generator} />
     {description && <meta name="description" content={description} />}
     <title>{title}</title>
+    <style is:global>
+      :root {
+        /* Colors */
+        --surface-0: #000100;
+        --surface-1: #0e1016;
+        --surface-2: #151826;
+        --text-1: #F8F8F8;
+        --text-2: rgba(248, 248, 248, 0.72);
+        --muted: rgba(161, 166, 180, 0.75);
+        --accent: #94C5CC; /* matches header accent */
+        --accent-2: #8b5cf6; /* secondary accent used in charts */
+
+        /* Sizing & spacing */
+        --radius-s: 8px;
+        --radius-m: 12px;
+        --radius-l: 16px;
+        --space-1: 0.25rem;
+        --space-2: 0.5rem;
+        --space-3: 0.75rem;
+        --space-4: 1rem;
+        --space-5: 1.5rem;
+        --space-6: 2rem;
+        --space-7: 3rem;
+
+        /* Layout */
+        --container-max: 1200px;
+        --container-pad: 1rem;
+      }
+
+      /* Modern CSS reset (minimal) */
+      *, *::before, *::after { box-sizing: border-box; }
+      * { margin: 0; }
+      html:focus-within { scroll-behavior: smooth; }
+      html, body { height: 100%; }
+      body { line-height: 1.6; -webkit-font-smoothing: antialiased; }
+      img, picture, video, canvas, svg { display: block; max-width: 100%; height: auto; }
+      input, button, textarea, select { font: inherit; }
+      a { color: inherit; text-decoration-color: rgba(148, 197, 204, 0.35); text-underline-offset: 2px; }
+      a:hover { text-decoration-color: var(--accent); }
+
+      /* Global base */
+      body {
+        background: radial-gradient(1200px 800px at 10% -10%, rgba(148, 197, 204, 0.06), transparent 60%),
+                    radial-gradient(800px 600px at 90% -10%, rgba(139, 92, 246, 0.05), transparent 60%),
+                    var(--surface-0);
+        color: var(--text-1);
+        font-family: 'Nebula Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, system-ui, sans-serif;
+        font-size: clamp(15px, 1.2vw, 16px);
+        min-height: 100vh;
+        color-scheme: dark;
+      }
+
+      /* Typography rhythm */
+      h1 { font-size: clamp(1.75rem, 3vw, 2.25rem); line-height: 1.2; letter-spacing: -0.01em; }
+      h2 { font-size: clamp(1.4rem, 2.4vw, 1.75rem); line-height: 1.25; }
+      h3 { font-size: clamp(1.1rem, 1.8vw, 1.25rem); line-height: 1.3; }
+      p  { color: var(--text-2); }
+
+      /* Utility containers */
+      .container {
+        max-width: var(--container-max);
+        margin-inline: auto;
+        padding-inline: var(--container-pad);
+        width: 100%;
+      }
+
+      @media (min-width: 768px) {
+        :root { --container-pad: 1.25rem; }
+      }
+
+      @media (min-width: 1200px) {
+        :root { --container-pad: 1.5rem; }
+      }
+
+      /* Focus styles for accessibility */
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+        border-radius: 6px;
+      }
+
+      /* Prevent overflow bugs on small screens */
+      #root, main, section { min-width: 0; }
+      .no-overflow-x { overflow-x: hidden; }
+    </style>
     <slot name="head" />
   </head>
   <body>

@@ -14,19 +14,12 @@ function formatPrice(price: string | number | null) {
 }
 
 function formatScore(score: string | number | null, fieldName?: string) {
-  if (score === null || score === undefined || score === '0' || Number(score) === 0) return '—';
-  const numScore = Number(score);
-  
-  // Fields that need *100 conversion (stored as decimals 0-1)
-  const decimalFields = ['mmlu_pro', 'gpqa', 'hle', 'aime', 'scicode', 'math_500', 'livecodebench'];
-  
-  if (fieldName && decimalFields.includes(fieldName)) {
-    // Convert decimal to percentage
-    return `${(numScore * 100).toFixed(1)}%`;
-  } else {
-    // Already stored as percentage
-    return `${numScore.toFixed(1)}%`;
-  }
+  if (score === null || score === undefined) return '—';
+  const num = Number(score);
+  if (!isFinite(num) || num <= 0) return '—';
+  // If value looks like a fraction (0-1), convert to percent
+  const pct = num <= 1 ? num * 100 : num;
+  return `${pct.toFixed(1)}%`;
 }
 
 // Filter models with valid prices
@@ -88,9 +81,9 @@ const benchmarkData = {
   scicode: getTopModelsByBenchmark('scicode'),
   math_500: getTopModelsByBenchmark('math_500'),
   livecodebench: getTopModelsByBenchmark('livecodebench'),
-  artificial_analysis_math_index: getTopModelsByBenchmark('artificial_analysis_math_index'),
-  artificial_analysis_coding_index: getTopModelsByBenchmark('artificial_analysis_coding_index'),
-  artificial_analysis_intelligence_index: getTopModelsByBenchmark('artificial_analysis_intelligence_index')
+  aa_math_index: getTopModelsByBenchmark('aa_math_index'),
+  aa_coding_index: getTopModelsByBenchmark('aa_coding_index'),
+  aa_intelligence_index: getTopModelsByBenchmark('aa_intelligence_index')
 };
 
 // Get fastest models (by tokens per second) - smart deduplication by brand
@@ -160,9 +153,9 @@ const benchmarkNames = {
   scicode: 'SciCode Ranking (Top 5)',
   math_500: 'Math 500 Ranking (Top 5)',
   livecodebench: 'LiveCodeBench Ranking (Top 5)',
-  artificial_analysis_math_index: 'AA Math Index Ranking (Top 5)',
-  artificial_analysis_coding_index: 'AA Coding Index Ranking (Top 5)',
-  artificial_analysis_intelligence_index: 'AA Intelligence Index Ranking (Top 5)'
+  aa_math_index: 'AA Math Index Ranking (Top 5)',
+  aa_coding_index: 'AA Coding Index Ranking (Top 5)',
+  aa_intelligence_index: 'AA Intelligence Index Ranking (Top 5)'
 };
 
 // Field mappings for client-side use
@@ -174,9 +167,9 @@ const fieldMappings = {
   scicode: 'scicode',
   math_500: 'math_500',
   livecodebench: 'livecodebench',
-  artificial_analysis_math_index: 'artificial_analysis_math_index',
-  artificial_analysis_coding_index: 'artificial_analysis_coding_index',
-  artificial_analysis_intelligence_index: 'artificial_analysis_intelligence_index'
+  aa_math_index: 'aa_math_index',
+  aa_coding_index: 'aa_coding_index',
+  aa_intelligence_index: 'aa_intelligence_index'
 };
 
 // Cost chart display names
@@ -210,7 +203,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
        Data provided by Artificial Analysis.com
       </p>
       <div style="margin-top: 10px; margin-bottom: 20px;">
-        <img src="/icons/Icon + Artificial Analysis - Horizontal SVG.svg" alt="Artificial Analysis" style="height: 30px; width: auto;" />
+        <img class="aa-logo" src="/icons/Icon + Artificial Analysis - Horizontal SVG.svg" alt="Artificial Analysis" />
       </div>
     </div>
 
@@ -230,9 +223,9 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
             <option value="scicode">SciCode</option>
             <option value="math_500">Math 500</option>
             <option value="livecodebench">LiveCodeBench</option>
-            <option value="artificial_analysis_math_index">AA Math Index</option>
-            <option value="artificial_analysis_coding_index">AA Coding Index</option>
-            <option value="artificial_analysis_intelligence_index">AA Intelligence Index</option>
+            <option value="aa_math_index">AA Math</option>
+            <option value="aa_coding_index">AA Coding</option>
+            <option value="aa_intelligence_index">AA Intelligence</option>
           </select>
         </div>
         <div class="leaderboard-container" id="performance-chart-container">
@@ -245,8 +238,8 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
             {
               benchmarkData.mmlu_pro.slice(0, 5).map((model: any, index: number) => {
                 const score = Number(model.mmlu_pro) || 0;
-                const formattedScore = score > 0 ? `${Math.round(score * 100)}` : '—';
-                
+                const formattedScore = formatScore(score);
+
                 return (
                   <div class="leaderboard-row">
                     <div class="rank-cell">{index + 1}</div>
@@ -349,7 +342,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   // Wait for DOM to be fully loaded
   const chartsSection = document.querySelector('.charts-section');
 
-  function initDashboard() {
+  async function initDashboard() {
     console.log('🚀 Dashboard charts initializing...');
 
     // Get chart elements with more robust selectors
@@ -404,15 +397,10 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
         let formattedScore;
         if (score > 0) {
           // Fields that need *100 conversion (stored as decimals 0-1)
-          const decimalFields = ['mmlu_pro', 'gpqa', 'hle', 'aime', 'scicode', 'math_500', 'livecodebench'];
-          
-          if (decimalFields.includes(field)) {
-            // Convert decimal to percentage
-            formattedScore = `${Math.round(score * 100)}`;
-          } else {
-            // Already stored as percentage
-            formattedScore = `${Math.round(score)}`;
-          }
+          const decimalFields = ['mmlu_pro', 'gpqa', 'hle', 'aime', 'scicode', 'math_500', 'livecodebench', 'aa_math_index', 'aa_coding_index', 'aa_intelligence_index'];
+          const needsPercent = decimalFields.includes(field);
+          const pctValue = needsPercent ? (score <= 1 ? score * 100 : score) : score;
+          formattedScore = needsPercent ? `${pctValue.toFixed(1)}%` : `${Math.round(pctValue)}`;
         } else {
           formattedScore = '—';
         }
@@ -500,6 +488,19 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       }
     }
 
+    // Numeric helpers: truncate without rounding
+    function truncateTo(num, decimals = 3) {
+      const n = Number(num);
+      if (!isFinite(n)) return 0;
+      const factor = Math.pow(10, decimals);
+      return Math.trunc(n * factor) / factor;
+    }
+
+    function formatMoneyTrunc(num, decimals = 3) {
+      const t = truncateTo(num, decimals);
+      return `$${t.toFixed(decimals)}`;
+    }
+
     // Function to calculate and update live stats from fresh data
     function updateStatsSection(freshModels) {
       if (!freshModels || freshModels.length === 0) {
@@ -530,13 +531,15 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       }
 
       if (avgInputPriceElement) {
-        avgInputPriceElement.textContent = `$${avgInputPrice.toFixed(3)}`;
-        console.log('📊 Updated avg input price:', avgInputPrice.toFixed(3));
+        const val = formatMoneyTrunc(avgInputPrice, 3);
+        avgInputPriceElement.textContent = val;
+        console.log('📊 Updated avg input price:', val);
       }
 
       if (avgOutputPriceElement) {
-        avgOutputPriceElement.textContent = `$${avgOutputPrice.toFixed(3)}`;
-        console.log('📊 Updated avg output price:', avgOutputPrice.toFixed(3));
+        const val = formatMoneyTrunc(avgOutputPrice, 3);
+        avgOutputPriceElement.textContent = val;
+        console.log('📊 Updated avg output price:', val);
       }
 
       console.log('✅ Stats section updated with live Supabase data');
@@ -628,11 +631,16 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
     
 
     
-    // Initialize charts immediately
-    setTimeout(() => {
+    // Fetch fresh data on load so stats and leaderboard are current
+    try {
+      const refreshed = await refreshDataAndCharts();
+      const selector = (benchmarkSelector && benchmarkSelector.value) || 'mmlu_pro';
+      renderPerformanceChart(selector);
+      console.log('🎉 Charts initialized with', refreshed ? 'fresh' : 'cached', 'data');
+    } catch (e) {
+      console.warn('⚠️ Falling back to initial render due to refresh error', e);
       renderPerformanceChart('mmlu_pro');
-      console.log('🎉 Charts initialized successfully');
-    }, 100);
+    }
   }
 
   // Infinite scroll pagination functionality
@@ -659,24 +667,16 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
     
     // Helper functions
     function formatPrice(price) {
-      return price ? `$${Number(price).toFixed(3)}` : '—';
+      if (!price && price !== 0) return '—';
+      return formatMoneyTrunc(price, 3);
     }
     
     function formatScore(score, fieldName) {
-      if (!score || Number(score) === 0) return '—';
-      
-      const numScore = Number(score);
-      
-      // Fields that need *100 conversion (stored as decimals 0-1)
-      const decimalFields = ['mmlu_pro', 'gpqa', 'hle', 'aime', 'scicode', 'math_500', 'livecodebench'];
-      
-      if (fieldName && decimalFields.includes(fieldName)) {
-        // Convert decimal to percentage
-        return `${Math.round(numScore * 100)}%`;
-      } else {
-        // Already stored as percentage
-        return `${Math.round(numScore)}%`;
-      }
+      if (score === null || score === undefined) return '—';
+      const num = Number(score);
+      if (!isFinite(num) || num <= 0) return '—';
+      const pct = num <= 1 ? num * 100 : num;
+      return `${pct.toFixed(1)}%`;
     }
     
     function formatTPS(tps) {
@@ -778,15 +778,15 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
             <div class="benchmark-grid">
               <div class="benchmark-item">
                 <span class="benchmark-label">Math Index</span>
-                <span class="benchmark-score">${formatScore(model.artificial_analysis_math_index, 'artificial_analysis_math_index')}</span>
+                <span class="benchmark-score">${formatScore(model.aa_math_index, 'aa_math_index')}</span>
               </div>
               <div class="benchmark-item">
                 <span class="benchmark-label">Coding Index</span>
-                <span class="benchmark-score">${formatScore(model.artificial_analysis_coding_index, 'artificial_analysis_coding_index')}</span>
+                <span class="benchmark-score">${formatScore(model.aa_coding_index, 'aa_coding_index')}</span>
               </div>
               <div class="benchmark-item">
                 <span class="benchmark-label">Intelligence</span>
-                <span class="benchmark-score">${formatScore(model.artificial_analysis_intelligence_index, 'artificial_analysis_intelligence_index')}</span>
+                <span class="benchmark-score">${formatScore(model.aa_intelligence_index, 'aa_intelligence_index')}</span>
               </div>
             </div>
           </div>
@@ -1092,6 +1092,12 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 </script>
 
 <style is:global>
+.aa-logo {
+  display: block;
+  margin: 0 auto;
+  height: 30px;
+  width: auto;
+}
 .dashboard-container {
   min-height: 100vh;
   background: #000100;
