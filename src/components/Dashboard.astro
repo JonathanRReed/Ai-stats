@@ -6,18 +6,10 @@ import Header from './Header.astro';
 
 const models = await getModels();
 
-// Helper function to format prices
-function formatPrice(price: string | number | null) {
-  if (price === null || price === undefined || price === '0' || Number(price) === 0) return '—';
-  const numPrice = Number(price);
-  return `$${numPrice.toFixed(3)}`;
-}
-
-function formatScore(score: string | number | null, fieldName?: string) {
+function formatScore(score: string | number | null) {
   if (score === null || score === undefined) return '—';
   const num = Number(score);
   if (!isFinite(num) || num <= 0) return '—';
-  // If value looks like a fraction (0-1), convert to percent
   const pct = num <= 1 ? num * 100 : num;
   return `${pct.toFixed(1)}%`;
 }
@@ -68,9 +60,6 @@ function getTopModelsByBenchmark(benchmark: string) {
     .sort((a: any, b: any) => Number(b[benchmark]) - Number(a[benchmark]))
     .slice(0, 5);
 }
-
-// Default to MMLU Pro
-const topModelsByPerformance = getTopModelsByBenchmark('mmlu_pro');
 
 // Prepare all benchmark data for client-side use
 const benchmarkData = {
@@ -172,17 +161,7 @@ const fieldMappings = {
   aa_intelligence_index: 'aa_intelligence_index'
 };
 
-// Cost chart display names
-const costNames = {
-  cheapest: 'Price Distribution (Top 5 Cheapest)',
-  fastest: 'Speed Distribution (Top 5 Fastest)'
-};
-
-// Cost chart field mappings
-const costFieldMappings = {
-  cheapest: 'price_1m_input_tokens',
-  fastest: 'median_output_tokens_per_second'
-};
+// (Removed unused costFieldMappings)
 
 // Stats
 const totalModels = validModels.length;
@@ -337,7 +316,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   </main>
 </div>
 
-<script define:vars={{ benchmarkData, costData, fieldMappings, costFieldMappings, benchmarkNames, validModels }}>
+<script define:vars={{ benchmarkData, costData, fieldMappings, benchmarkNames, validModels }}>
   // @ts-nocheck
   // Wait for DOM to be fully loaded
   const chartsSection = document.querySelector('.charts-section');
@@ -431,7 +410,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
           rankStyle = 'background: linear-gradient(135deg, #CD7F32 0%, #D2691E 30%, #CD7F32 60%, #DEB887 100%) !important; color: #FFFFFF !important; box-shadow: 0 6px 20px rgba(205, 127, 50, 0.4), 0 0 0 3px rgba(205, 127, 50, 0.3) !important; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;';
         } else {
           // Theme color for 4th and 5th place
-          rankStyle = 'background: linear-gradient(135deg, #8b5cf6 0%, #B4D2E7 50%, #8b5cf6 100%) !important; color: #1a1a1a !important; box-shadow: 0 4px 16px rgba(148, 197, 204, 0.4), 0 0 0 2px rgba(148, 197, 204, 0.3) !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important;';
+          rankStyle = 'background: linear-gradient(135deg, #94C5CC 0%, #B4D2E7 50%, #94C5CC 100%) !important; color: #1a1a1a !important; box-shadow: 0 4px 16px rgba(148, 197, 204, 0.4), 0 0 0 2px rgba(148, 197, 204, 0.3) !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important;';
         }
         
         return `
@@ -452,7 +431,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       }).join('');  
       
       const leaderboardHTML = `
-        <div class="leaderboard-header" style="display: grid !important; grid-template-columns: 60px 1fr 100px !important; gap: 0.75rem !important; padding: 1.25rem 1rem !important; background: linear-gradient(135deg, #8b5cf6 0%, #B4D2E7 30%, #E8F4F8 50%, #B4D2E7 70%, #8b5cf6 100%) !important; font-weight: 900 !important; font-size: 0.9rem !important; color: #1a1a1a !important; text-transform: uppercase !important; letter-spacing: 1px !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important; border-bottom: 4px solid rgba(148, 197, 204, 0.5) !important;">
+        <div class="leaderboard-header" style="display: grid !important; grid-template-columns: 60px 1fr 100px !important; gap: 0.75rem !important; padding: 1.25rem 1rem !important; background: linear-gradient(135deg, #94C5CC 0%, #B4D2E7 30%, #E8F4F8 50%, #B4D2E7 70%, #94C5CC 100%) !important; font-weight: 900 !important; font-size: 0.9rem !important; color: #1a1a1a !important; text-transform: uppercase !important; letter-spacing: 1px !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important; border-bottom: 4px solid rgba(148, 197, 204, 0.5) !important;">
           <div class="rank-col">RANK</div>  
           <div class="name-col">NAME</div>
           <div class="score-col">SCORE</div>
@@ -674,6 +653,8 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
     }
     
     function formatScore(score, fieldName) {
+      // mark optional arg as used for linters
+      void fieldName;
       if (score === null || score === undefined) return '—';
       const num = Number(score);
       if (!isFinite(num) || num <= 0) return '—';
@@ -700,12 +681,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       const cardElement = document.createElement('div');
       cardElement.className = 'model-card';
       
-      // Create comprehensive tooltip with full details
-      const tooltipContent = [
-        `📋 Model: ${model.name}`,
-        `🏢 Company: ${model.company_name || 'Unknown'}`,
-        model.model_version ? `📊 Version: ${model.model_version}` : null
-      ].filter(Boolean).join('\n');
+      // Create comprehensive tooltip with full details (removed unused local var)
       
       // Use sanitized HTML to prevent XSS injection
       cardElement.innerHTML = `
@@ -1024,7 +1000,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
         showTooltip(e.target);
       });
       
-      element.addEventListener('mouseleave', (e) => {
+      element.addEventListener('mouseleave', () => {
         // Only hide on mouseleave for desktop (not touch devices)
         if (!('ontouchstart' in window)) {
           document.querySelectorAll('.dashboard-tooltip').forEach(t => t.remove());
@@ -1231,7 +1207,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 
 #benchmark-selector:focus,
 #cost-selector:focus {
-  border-color: #8b5cf6;
+  border-color: #94C5CC;
   box-shadow: 0 0 0 2px rgba(148, 197, 204, 0.2);
 }
 
@@ -1379,15 +1355,15 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 }
 
 .fastest-bar {
-  background: #8b5cf6 !important; /* Solid Purple */
-  border-color: rgba(139, 92, 246, 0.4);
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: #7AA2C2 !important; /* Muted Blue */
+  border-color: rgba(122, 162, 194, 0.4);
+  box-shadow: 0 4px 12px rgba(122, 162, 194, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .fastest-bar.tps-mode {
-  background: #8b5cf6 !important; /* Purple for TPS */
-  border-color: rgba(139, 92, 246, 0.4);
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: #7AA2C2 !important; /* Muted Blue for TPS */
+  border-color: rgba(122, 162, 194, 0.4);
+  box-shadow: 0 4px 12px rgba(122, 162, 194, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .fastest-bar.ttft-mode {
@@ -1477,7 +1453,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   gap: 1.5rem !important;
   padding: 1.5rem 2rem !important;
   background: 
-    linear-gradient(135deg, #8b5cf6 0%, #B4D2E7 30%, #E8F4F8 50%, #B4D2E7 70%, #8b5cf6 100%),
+    linear-gradient(135deg, #94C5CC 0%, #B4D2E7 30%, #E8F4F8 50%, #B4D2E7 70%, #94C5CC 100%),
     linear-gradient(90deg, rgba(255, 255, 255, 0.1), transparent) !important;
   font-weight: 900 !important;
   font-size: 0.95rem !important;
@@ -1619,7 +1595,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 /* Default theme color for 4th and 5th place */
 #performance-chart-container .leaderboard-row:nth-child(n+4) .rank-cell,
 .leaderboard-row:nth-child(n+4) .rank-cell {
-  background: linear-gradient(135deg, #8b5cf6 0%, #B4D2E7 50%, #8b5cf6 100%) !important;
+  background: linear-gradient(135deg, #94C5CC 0%, #B4D2E7 50%, #94C5CC 100%) !important;
   color: #1a1a1a !important;
   box-shadow: 
     0 4px 16px rgba(148, 197, 204, 0.4),
@@ -1828,7 +1804,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 .stat-value {
   font-size: 2rem;
   font-weight: 700;
-  color: #8b5cf6;
+  color: #94C5CC;
 }
 
 .stat-label {
@@ -1853,7 +1829,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 
 .leader-card h3 {
   margin-bottom: 1rem;
-  color: #8b5cf6;
+  color: #94C5CC;
   font-size: 1.2rem;
 }
 
@@ -1879,7 +1855,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 
 .leader-price,
 .leader-score {
-  color: #8b5cf6;
+  color: #94C5CC;
   font-weight: 600;
 }
 
@@ -1897,7 +1873,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 
 .table-card h3 {
   margin-bottom: 1rem;
-  color: #8b5cf6;
+  color: #94C5CC;
   font-size: 1.2rem;
 }
 
@@ -2155,14 +2131,14 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 }
 
 .chart-bar.fastest-bar {
-  background: #8b5cf6 !important;
-  border-color: rgba(139, 92, 246, 0.4) !important;
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  background: #7AA2C2 !important;
+  border-color: rgba(122, 162, 194, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(122, 162, 194, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
 }
 
 .perf-fill {
-  background: linear-gradient(135deg, #8b5cf6 0%, #B4D2E7 50%, #8b5cf6 100%) !important;
-  border: 2px solid #8b5cf6 !important;
+  background: linear-gradient(135deg, #94C5CC 0%, #B4D2E7 50%, #94C5CC 100%) !important;
+  border: 2px solid #94C5CC !important;
   min-width: 20px !important;
 }
 
