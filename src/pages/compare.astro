@@ -6,14 +6,6 @@ import Header from '../components/Header.astro';
 
 const models = await getModels();
 
-function formatScore(score: string | number | null) {
-  if (score === null || score === undefined) return '—';
-  const num = Number(score);
-  if (!isFinite(num) || num <= 0) return '—';
-  const pct = num <= 1 ? num * 100 : num;
-  return `${pct.toFixed(1)}%`;
-}
-
 const validModels = models.filter((model: any) => {
   const inputPrice = Number(model.price_1m_input_tokens);
   const outputPrice = Number(model.price_1m_output_tokens);
@@ -88,7 +80,7 @@ const availableBenchmarks = {
         --surface-0: #000100;
         --text-primary: #F8F8F8;
         --glass: rgba(255, 255, 255, 0.05);
-        --accent: #8b5cf6;
+        --accent: #94C5CC;
       }
       .bar-stack-duo { height: 170px; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
       .bar-stack { height: 200px; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
@@ -133,7 +125,7 @@ const availableBenchmarks = {
       .nav-link:hover,
       .nav-link.active {
         color: var(--accent);
-        background: rgba(139, 92, 246, 0.15);
+        background: rgba(122, 162, 194, 0.15);
       }
       .layout {
         display: flex;
@@ -338,7 +330,7 @@ const availableBenchmarks = {
       .zoom-button {
         background: var(--glass);
         color: var(--accent);
-        border: 1px solid rgba(139, 92, 246, 0.3);
+        border: 1px solid rgba(122, 162, 194, 0.3);
         border-radius: 4px;
         padding: 0.25rem 0.75rem;
         font-size: 0.8rem;
@@ -347,12 +339,12 @@ const availableBenchmarks = {
       }
       
       .zoom-button:hover {
-        background: rgba(139, 92, 246, 0.15);
+        background: rgba(122, 162, 194, 0.15);
         border-color: var(--accent);
       }
       
       .zoom-button.active {
-        background: rgba(139, 92, 246, 0.25);
+        background: rgba(122, 162, 194, 0.25);
         border-color: var(--accent);
       }
       .chart-container {
@@ -383,7 +375,7 @@ const availableBenchmarks = {
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         position: relative;
         margin-top: auto;
-        background: rgba(75, 123, 236, 0.25);
+        background: rgba(122, 162, 194, 0.22);
         backdrop-filter: blur(20px) saturate(1.2);
         -webkit-backdrop-filter: blur(20px) saturate(1.2);
         border: 1px solid rgba(255, 255, 255, 0.2);
@@ -431,12 +423,12 @@ const availableBenchmarks = {
       }
       .chart-bar:hover {
         transform: translateY(-4px) scale(1.03);
-        background: rgba(75, 123, 236, 0.15);
+        background: rgba(122, 162, 194, 0.18);
         border-color: rgba(255, 255, 255, 0.25);
         backdrop-filter: blur(24px) saturate(1.4);
         -webkit-backdrop-filter: blur(24px) saturate(1.4);
         box-shadow: 
-          0 16px 48px rgba(75, 123, 236, 0.3),
+          0 16px 48px rgba(122, 162, 194, 0.28),
           0 8px 24px rgba(0, 0, 0, 0.15),
           0 0 0 1px rgba(255, 255, 255, 0.1),
           inset 0 1px 0 rgba(255, 255, 255, 0.35),
@@ -473,16 +465,16 @@ const availableBenchmarks = {
       }
       
       .performance-bar {
-        background: rgba(139, 92, 246, 0.25);
-        border-color: rgba(139, 92, 246, 0.4);
+        background: rgba(122, 162, 194, 0.22);
+        border-color: rgba(122, 162, 194, 0.38);
       }
       .performance-bar:hover {
-        background: rgba(139, 92, 246, 0.35);
-        border-color: rgba(139, 92, 246, 0.5);
+        background: rgba(122, 162, 194, 0.3);
+        border-color: rgba(122, 162, 194, 0.5);
         box-shadow: 
-          0 16px 48px rgba(139, 92, 246, 0.3),
+          0 16px 48px rgba(122, 162, 194, 0.28),
           0 8px 24px rgba(0, 0, 0, 0.15),
-          0 0 0 1px rgba(139, 92, 246, 0.2),
+          0 0 0 1px rgba(122, 162, 194, 0.2),
           inset 0 1px 0 rgba(255, 255, 255, 0.35),
           inset 0 -1px 0 rgba(0, 0, 0, 0.05);
       }
@@ -573,7 +565,7 @@ const availableBenchmarks = {
       }
       .model-search:focus {
         border-color: var(--accent);
-        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+        box-shadow: 0 0 0 2px rgba(122, 162, 194, 0.2);
       }
       .model-search::placeholder {
         color: rgba(161, 166, 180, 0.6);
@@ -599,8 +591,8 @@ const availableBenchmarks = {
       
       .filter-toggle:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
-        background: #7c4deb;
+        box-shadow: 0 6px 16px rgba(122, 162, 194, 0.35);
+        background: #6b85a3;
       }
       
       .filter-toggle:active {
@@ -733,8 +725,8 @@ const availableBenchmarks = {
       }
       .sort-toggle:hover {
         border-color: var(--accent);
-        background: rgba(139, 92, 246, 0.15);
-        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+        background: rgba(122, 162, 194, 0.15);
+        box-shadow: 0 4px 12px rgba(122, 162, 194, 0.2);
         transform: translateY(-1px);
       }
       
@@ -763,15 +755,15 @@ const availableBenchmarks = {
       
       .metric-dropdown:hover {
         border-color: var(--accent);
-        background-color: rgba(139, 92, 246, 0.15);
-        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+        background-color: rgba(122, 162, 194, 0.15);
+        box-shadow: 0 4px 12px rgba(122, 162, 194, 0.2);
         transform: translateY(-1px);
       }
       
       .metric-dropdown:focus {
         outline: none;
         border-color: var(--accent);
-        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
+        box-shadow: 0 0 0 2px rgba(122, 162, 194, 0.28);
       }
       
       .metric-dropdown option {
@@ -1307,8 +1299,8 @@ const availableBenchmarks = {
                   {
                     label: 'Score',
                     data: scores,
-                    backgroundColor: 'rgba(139,92,246,0.35)',
-                    borderColor: 'rgba(139,92,246,0.6)',
+                    backgroundColor: 'rgba(122,162,194,0.35)',
+                    borderColor: 'rgba(122,162,194,0.6)',
                     borderWidth: 1,
                     borderRadius: 10,
                   },

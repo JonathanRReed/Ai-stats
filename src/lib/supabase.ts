@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 // Public client for server-side fetching (Astro on the server).
 // Uses anon key; RLS allows read on public.aa_models.
 const SUPABASE_URL = import.meta.env.PUBLIC_SUPABASE_URL as string;
-const SUPABASE_ANON_KEY = (import.meta as any).env.PUBLIC_SUPABASE_ANON_KEY as string;
+const SUPABASE_ANON_KEY = import.meta.env.PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.warn('[supabase] Missing PUBLIC_SUPABASE_URL or PUBLIC_SUPABASE_ANON_KEY');
@@ -80,7 +80,7 @@ export async function getModels(): Promise<AaModel[]> {
   ].join(',');
 
   const { data, error } = await supabase
-    .from('aa_models')
+    .from<AaModel>('aa_models')
     .select(select)
     .order('aa_intelligence_index', { ascending: false, nullsFirst: false });
 
@@ -89,10 +89,10 @@ export async function getModels(): Promise<AaModel[]> {
     throw error;
   }
 
-  const models = (data ?? []).map((m: any) => ({
-    ...m,
-    company_name: m.creator_name ?? null,
-  })) as AaModel[];
+  const models = (data ?? []).map((model) => ({
+    ...model,
+    company_name: model.creator_name ?? null,
+  })) satisfies AaModel[];
 
   return models;
 }
