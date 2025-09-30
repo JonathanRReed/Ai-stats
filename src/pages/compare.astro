@@ -1,8 +1,7 @@
 ---
 import { getModels } from '../lib/supabase';
 import Header from '../components/Header.astro';
-
-
+import { ViewTransitions } from 'astro:transitions';
 
 const models = await getModels();
 
@@ -39,16 +38,12 @@ const getCheapestTokensModel = () => {
   });
   if (modelsWithBlendedPrice.length === 0) return null;
   
-  console.log('Models with blended price:', modelsWithBlendedPrice.map(m => ({ name: m.name, price: m.price_1m_blended_3_to_1 })));
-  
   const sorted = modelsWithBlendedPrice.sort((a, b) => {
     const priceA = Number(a.price_1m_blended_3_to_1);
     const priceB = Number(b.price_1m_blended_3_to_1);
-    console.log(`Comparing ${a.name} ($${priceA}) vs ${b.name} ($${priceB})`);
     return priceA - priceB; // Lower price is better
   });
   
-  console.log('Cheapest tokens model:', sorted[0].name, 'with blended price:', sorted[0].price_1m_blended_3_to_1);
   return sorted[0];
 };
 
@@ -69,18 +64,19 @@ const availableBenchmarks = {
   'elo': 'ELO Rating'
 };
 ---
-<html lang="en">
+<html lang="en" transition:animate="none">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
     <title>AI Stats – Compare Models</title>
     <link rel="stylesheet" href="/fonts/nebula sans/nebula-sans.css" />
+    <ViewTransitions />
     <style>
       :root {
-        --surface-0: #000100;
-        --text-primary: #F8F8F8;
-        --glass: rgba(255, 255, 255, 0.05);
-        --accent: #94C5CC;
+        --surface-0: var(--base, #191724);
+        --text-primary: var(--text, #e0def4);
+        --glass: rgba(156, 207, 216, 0.05);
+        --accent: var(--foam, #9ccfd8);
       }
       .bar-stack-duo { height: 170px; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
       .bar-stack { height: 200px; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
@@ -116,7 +112,7 @@ const availableBenchmarks = {
         gap: 1rem;
       }
       .nav-link {
-        color: rgba(161, 166, 180, 0.8);
+        color: var(--subtle, #908caa);
         text-decoration: none;
         padding: 0.25rem 0.5rem;
         border-radius: 4px;
@@ -125,7 +121,7 @@ const availableBenchmarks = {
       .nav-link:hover,
       .nav-link.active {
         color: var(--accent);
-        background: rgba(122, 162, 194, 0.15);
+        background: rgba(156, 207, 216, 0.15);
       }
       .layout {
         display: flex;
@@ -144,9 +140,9 @@ const availableBenchmarks = {
         width: 280px;
         min-width: 280px;
         flex-shrink: 0;
-        background: rgba(0, 1, 0, 0.95);
+        background: rgba(31, 29, 46, 0.95);
         backdrop-filter: blur(20px);
-        border-right: 1px solid rgba(255, 255, 255, 0.1);
+        border-right: 1px solid rgba(156, 207, 216, 0.1);
         padding: 2rem 1.5rem;
         padding-top: 1.5rem; /* Increased padding to push content below header */
         height: 100vh; /* Full viewport height */
@@ -216,13 +212,13 @@ const availableBenchmarks = {
         .chart-container {
           /* For Chart.js canvas, use block layout */
           display: block;
-          padding: 1.5rem 0.5rem 1rem 0.5rem;
-          height: 360px; /* explicit height so canvas can size */
+          padding: 2rem 0.5rem 1rem 0.5rem;
+          height: 420px;
           width: 100%;
-          overflow: hidden;
-          scrollbar-width: thin;
-          scrollbar-color: var(--accent) rgba(0, 0, 0, 0.2);
+          overflow: visible;
           position: relative;
+          box-sizing: border-box;
+          scrollbar-color: var(--accent) rgba(0, 0, 0, 0.2);
         }
         /* Make canvases fill container */
         #price-canvas, #perf-canvas {
@@ -308,11 +304,18 @@ const availableBenchmarks = {
         border: 1px solid rgba(161, 166, 180, 0.1);
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
         width: 100%;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
       }
-      .chart-section:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      @media (prefers-reduced-motion: no-preference) {
+        .chart-section:hover {
+          box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+          border-color: rgba(161, 166, 180, 0.2);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .chart-section:hover {
+          border-color: rgba(161, 166, 180, 0.2);
+        }
       }
       .chart-header {
         display: flex;
@@ -351,7 +354,11 @@ const availableBenchmarks = {
         display: block;
         width: 100%;
         height: 360px;
-        overflow: hidden;
+        min-height: 300px;
+        position: relative;
+        box-sizing: border-box;
+        overflow: visible;
+        padding-top: 2rem;
         background: linear-gradient(180deg, rgba(10, 10, 11, 0.4) 0%, rgba(10, 10, 11, 0.8) 100%);
         border-radius: 8px;
         padding: 1rem;
@@ -372,7 +379,7 @@ const availableBenchmarks = {
         width: 100%;
         min-width: 40px;
         border-radius: 12px;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         position: relative;
         margin-top: auto;
         background: rgba(122, 162, 194, 0.22);
@@ -421,62 +428,83 @@ const availableBenchmarks = {
         border-radius: 10px 10px 0 0;
         pointer-events: none;
       }
-      .chart-bar:hover {
-        transform: translateY(-4px) scale(1.03);
-        background: rgba(122, 162, 194, 0.18);
-        border-color: rgba(255, 255, 255, 0.25);
-        backdrop-filter: blur(24px) saturate(1.4);
-        -webkit-backdrop-filter: blur(24px) saturate(1.4);
-        box-shadow: 
-          0 16px 48px rgba(122, 162, 194, 0.28),
-          0 8px 24px rgba(0, 0, 0, 0.15),
-          0 0 0 1px rgba(255, 255, 255, 0.1),
-          inset 0 1px 0 rgba(255, 255, 255, 0.35),
-          inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+      @media (prefers-reduced-motion: no-preference) {
+        .chart-bar:hover {
+          background: rgba(122, 162, 194, 0.28);
+          border-color: rgba(255, 255, 255, 0.25);
+          box-shadow: 
+            0 12px 36px rgba(122, 162, 194, 0.25),
+            0 4px 12px rgba(0, 0, 0, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.35);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .chart-bar:hover {
+          background: rgba(122, 162, 194, 0.28);
+          border-color: rgba(255, 255, 255, 0.25);
+        }
       }
       .input-price-bar {
         background: rgba(34, 197, 94, 0.25);
         border-color: rgba(34, 197, 94, 0.4);
       }
-      .input-price-bar:hover {
-        background: rgba(34, 197, 94, 0.35);
-        border-color: rgba(34, 197, 94, 0.5);
-        box-shadow: 
-          0 16px 48px rgba(34, 197, 94, 0.3),
-          0 8px 24px rgba(0, 0, 0, 0.15),
-          0 0 0 1px rgba(34, 197, 94, 0.2),
-          inset 0 1px 0 rgba(255, 255, 255, 0.35),
-          inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+      @media (prefers-reduced-motion: no-preference) {
+        .input-price-bar:hover {
+          background: rgba(34, 197, 94, 0.35);
+          border-color: rgba(34, 197, 94, 0.5);
+          box-shadow: 
+            0 12px 36px rgba(34, 197, 94, 0.25),
+            0 4px 12px rgba(0, 0, 0, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.35);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .input-price-bar:hover {
+          background: rgba(34, 197, 94, 0.35);
+          border-color: rgba(34, 197, 94, 0.5);
+        }
       }
       
       .output-price-bar {
         background: rgba(239, 68, 68, 0.25);
         border-color: rgba(239, 68, 68, 0.4);
       }
-      .output-price-bar:hover {
-        background: rgba(239, 68, 68, 0.35);
-        border-color: rgba(239, 68, 68, 0.5);
-        box-shadow: 
-          0 16px 48px rgba(239, 68, 68, 0.3),
-          0 8px 24px rgba(0, 0, 0, 0.15),
-          0 0 0 1px rgba(239, 68, 68, 0.2),
-          inset 0 1px 0 rgba(255, 255, 255, 0.35),
-          inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+      @media (prefers-reduced-motion: no-preference) {
+        .output-price-bar:hover {
+          background: rgba(239, 68, 68, 0.35);
+          border-color: rgba(239, 68, 68, 0.5);
+          box-shadow: 
+            0 12px 36px rgba(239, 68, 68, 0.25),
+            0 4px 12px rgba(0, 0, 0, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.35);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .output-price-bar:hover {
+          background: rgba(239, 68, 68, 0.35);
+          border-color: rgba(239, 68, 68, 0.5);
+        }
       }
       
       .performance-bar {
         background: rgba(122, 162, 194, 0.22);
         border-color: rgba(122, 162, 194, 0.38);
       }
-      .performance-bar:hover {
-        background: rgba(122, 162, 194, 0.3);
-        border-color: rgba(122, 162, 194, 0.5);
-        box-shadow: 
-          0 16px 48px rgba(122, 162, 194, 0.28),
-          0 8px 24px rgba(0, 0, 0, 0.15),
-          0 0 0 1px rgba(122, 162, 194, 0.2),
-          inset 0 1px 0 rgba(255, 255, 255, 0.35),
-          inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+      @media (prefers-reduced-motion: no-preference) {
+        .performance-bar:hover {
+          background: rgba(122, 162, 194, 0.3);
+          border-color: rgba(122, 162, 194, 0.5);
+          box-shadow: 
+            0 12px 36px rgba(122, 162, 194, 0.25),
+            0 4px 12px rgba(0, 0, 0, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.35);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .performance-bar:hover {
+          background: rgba(122, 162, 194, 0.3);
+          border-color: rgba(122, 162, 194, 0.5);
+        }
       }
       .bar-value {
         position: absolute;
@@ -523,10 +551,18 @@ const availableBenchmarks = {
         border-radius: 8px;
         padding: 1.5rem;
         border: 1px solid rgba(161, 166, 180, 0.1);
-        transition: transform 0.2s ease;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
       }
-      .insight-card:hover {
-        transform: translateY(-1px);
+      @media (prefers-reduced-motion: no-preference) {
+        .insight-card:hover {
+          border-color: rgba(161, 166, 180, 0.2);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .insight-card:hover {
+          border-color: rgba(161, 166, 180, 0.2);
+        }
       }
       .insight-card h4 {
         margin: 0 0 0.5rem 0;
@@ -725,8 +761,8 @@ const availableBenchmarks = {
       }
       .sort-toggle:hover {
         border-color: var(--accent);
-        background: rgba(122, 162, 194, 0.15);
-        box-shadow: 0 4px 12px rgba(122, 162, 194, 0.2);
+        background: rgba(156, 207, 216, 0.15);
+        box-shadow: 0 4px 12px rgba(156, 207, 216, 0.2);
         transform: translateY(-1px);
       }
       
@@ -770,6 +806,22 @@ const availableBenchmarks = {
         background-color: #121212;
         color: var(--text-primary);
         padding: 8px;
+      }
+
+      /* View Transitions - Smooth page navigation */
+      @media (prefers-reduced-motion: no-preference) {
+        ::view-transition-old(root),
+        ::view-transition-new(root) {
+          animation-duration: 0.3s;
+        }
+      }
+
+      /* Disable transitions for users who prefer reduced motion */
+      @media (prefers-reduced-motion: reduce) {
+        ::view-transition-old(root),
+        ::view-transition-new(root) {
+          animation: none;
+        }
       }
     </style>
   </head>
@@ -1015,14 +1067,6 @@ const availableBenchmarks = {
         const sortToggle = document.getElementById('sort-toggle');
         const searchInput = document.getElementById('model-search');
 
-        function formatScore(value) {
-          if (value === null || value === undefined) return '—';
-          const num = Number(value);
-          if (!isFinite(num) || num <= 0) return '—';
-          const pct = num <= 1 ? num * 100 : num;
-          return `${pct.toFixed(1)}%`;
-        }
-
         function applyFiltersAndSort() {
           const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
 
@@ -1075,10 +1119,7 @@ const availableBenchmarks = {
             const blendedPrice = model.price_1m_blended_3_to_1;
             const priceNum = parseFloat(blendedPrice);
             
-            console.log(`Checking ${model.name}: Blended Price=${blendedPrice}, parsed=${priceNum}, current lowest=${lowestBlendedPrice}`);
-            
             if (blendedPrice !== null && blendedPrice !== undefined && !isNaN(priceNum) && priceNum > 0 && priceNum < lowestBlendedPrice) {
-              console.log(`New cheapest tokens: ${model.name} with $${priceNum}`);
               lowestBlendedPrice = priceNum;
               cheapestTokensModel = model;
             }
@@ -1126,13 +1167,10 @@ const availableBenchmarks = {
         
         function renderCharts() {
           let chosen = getSelected();
-          console.log('Rendering charts for models:', chosen.length);
 
           // Ensure chart containers exist (metric selector is optional)
           if (!priceChart || !perfChart) {
             console.error('Chart elements not found');
-            console.log('Price chart element:', priceChart);
-            console.log('Performance chart element:', perfChart);
             return;
           }
           
@@ -1179,9 +1217,6 @@ const availableBenchmarks = {
             };
             const benchmarkName = metricDisplayNames[metric] || metric.toUpperCase().replace('_', ' ');
             perfChartHeader.textContent = `${benchmarkName} Performance Comparison`;
-            console.log('Updated chart title to:', perfChartHeader.textContent);
-          } else {
-            console.log('Could not find performance chart header');
           }
 
           // Do not clear containers; destroy existing chart instances instead
@@ -1195,12 +1230,8 @@ const availableBenchmarks = {
             return sortOrder === 'desc' ? totalB - totalA : totalA - totalB;
           });
           
-          const totals = chosenByPrice.map((m) => (Number(m.price_1m_input_tokens) || 0) + (Number(m.price_1m_output_tokens) || 0));
-          const maxTotal = Math.max(...totals, 1);
-          
-          // Calculate dynamic width based on number of models
+          // Calculate dynamic gap based on number of models
           const numModels = chosenByPrice.length;
-          const dynamicWidth = Math.max(60, Math.min(120, 800 / numModels));
           const dynamicGap = numModels > 6 ? '0.5rem' : '1rem';
           
           // Update container gap for this render
@@ -1270,9 +1301,12 @@ const availableBenchmarks = {
                 },
                 scales: {
                   x: { ticks: { color: '#eae9f0', maxRotation: 45, minRotation: 45 }, grid: { display: false } },
-                  y: { beginAtZero: true, ticks: { color: '#eae9f0', callback: (v) => `$${Number(v).toFixed(0)}` },
+                  y: { beginAtZero: true, 
+                       suggestedMax: Math.max(...inputData, ...outputData) * 1.2,
+                       ticks: { color: '#eae9f0', callback: (v) => `$${Number(v).toFixed(0)}` },
                        grid: { color: 'rgba(255,255,255,0.08)', drawBorder: false } },
                 },
+                layout: { padding: { top: 32 } },
               },
               plugins: [window.ChartDataLabels || window['ChartDataLabels']],
             });
@@ -1327,17 +1361,16 @@ const availableBenchmarks = {
                 },
                 scales: {
                   x: { ticks: { color: '#eae9f0', maxRotation: 45, minRotation: 45 }, grid: { display: false } },
-                  y: { beginAtZero: true, suggestedMax: maxScore * 1.05,
+                  y: { beginAtZero: true, suggestedMax: maxScore * 1.2,
                        ticks: { color: '#eae9f0', callback: (v) => `${Number(v).toFixed(3)}%` },
                        grid: { color: 'rgba(255,255,255,0.08)', drawBorder: false } },
                 },
-                layout: { padding: { top: 28 } },
+                layout: { padding: { top: 32 } },
               },
               plugins: [window.ChartDataLabels || window['ChartDataLabels']],
             });
           }
 
-          console.log('Charts rendered successfully with', chosen.length, 'models');
         }
 
         list?.addEventListener('change', (e) => {
@@ -1358,9 +1391,8 @@ const availableBenchmarks = {
             performanceMetricTitle.textContent = `Top ${displayName}`;
           }
           
-          // Render charts and refresh data
+          // Re-render charts with new metric
           renderCharts();
-          await refreshDataAndCharts();
         });
 
         // Add event listeners for new features
@@ -1466,15 +1498,21 @@ const availableBenchmarks = {
 
       }
 
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-          initCompare();
-          initAutoFit();
-        });
-      } else {
+      // Initialize on both initial load and after view transitions
+      function initialize() {
         initCompare();
         initAutoFit();
       }
+
+      // Handle initial page load
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initialize);
+      } else {
+        initialize();
+      }
+
+      // Handle Astro View Transitions - re-initialize after navigation
+      document.addEventListener('astro:page-load', initialize);
     </script>
   </body>
 </html>

@@ -14,8 +14,7 @@
     "@supabase/supabase-js": "^2.53.0",
     "astro": "5.13.8",
     "chart.js": "^4.5.0",
-    "chartjs-plugin-datalabels": "^2.2.0",
-    "echarts": "^6.0.0"
+    "chartjs-plugin-datalabels": "^2.2.0"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.44.0",

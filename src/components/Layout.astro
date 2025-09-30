@@ -1,27 +1,47 @@
 ---
 // Layout.astro: Shared layout for all pages
+import { ViewTransitions } from 'astro:transitions';
 const { title = 'AI Stats Dashboard', description = '' } = Astro.props;
 ---
-<html lang="en">
+<html lang="en" transition:animate="none">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" type="image/avif" href="/favicon.avif" />
+    <link rel="icon" type="image/webp" href="/favicon.webp" />
+    <!-- Preload critical font to improve LCP -->
+    <link rel="preload" href="/fonts/nebula sans/NebulaSans-Book.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/fonts/nebula sans/nebula-sans.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="generator" content={Astro.generator} />
     {description && <meta name="description" content={description} />}
     <title>{title}</title>
+    <ViewTransitions />
     <style is:global>
       :root {
-        /* Colors */
-        --surface-0: #000100;
-        --surface-1: #0e1016;
-        --surface-2: #151826;
-        --text-1: #F8F8F8;
-        --text-2: rgba(248, 248, 248, 0.72);
-        --muted: rgba(161, 166, 180, 0.75);
-        --accent: #94C5CC; /* matches header accent */
-        --accent-2: #7AA2C2; /* secondary accent (muted blue-grey) used in charts */
+        /* Rose Pine Theme Colors */
+        --base: #191724;
+        --surface: #1f1d2e;
+        --overlay: #26233a;
+        --muted: #6e6a86;
+        --subtle: #908caa;
+        --text: #e0def4;
+        --love: #eb6f92;
+        --gold: #f6c177;
+        --rose: #ebbcba;
+        --pine: #31748f;
+        --foam: #9ccfd8;
+        --iris: #c4a7e7;
+        --highlight-low: #21202e;
+        --highlight-med: #403d52;
+        --highlight-high: #524f67;
+        
+        /* Legacy aliases for compatibility */
+        --surface-0: var(--base);
+        --surface-1: var(--surface);
+        --surface-2: var(--overlay);
+        --text-1: var(--text);
+        --text-2: var(--subtle);
+        --accent: var(--foam);
+        --accent-2: var(--pine);
 
         /* Sizing & spacing */
         --radius-s: 8px;
@@ -53,10 +73,10 @@ const { title = 'AI Stats Dashboard', description = '' } = Astro.props;
 
       /* Global base */
       body {
-        background: radial-gradient(1200px 800px at 10% -10%, rgba(148, 197, 204, 0.06), transparent 60%),
-                    radial-gradient(800px 600px at 90% -10%, rgba(122, 162, 194, 0.05), transparent 60%),
-                    var(--surface-0);
-        color: var(--text-1);
+        background: radial-gradient(1200px 800px at 10% -10%, rgba(156, 207, 216, 0.06), transparent 60%),
+                    radial-gradient(800px 600px at 90% -10%, rgba(196, 167, 231, 0.05), transparent 60%),
+                    var(--base);
+        color: var(--text);
         font-family: 'Nebula Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, system-ui, sans-serif;
         font-size: clamp(15px, 1.2vw, 16px);
         min-height: 100vh;
@@ -95,6 +115,22 @@ const { title = 'AI Stats Dashboard', description = '' } = Astro.props;
       /* Prevent overflow bugs on small screens */
       #root, main, section { min-width: 0; }
       .no-overflow-x { overflow-x: hidden; }
+
+      /* View Transitions - Smooth page navigation */
+      @media (prefers-reduced-motion: no-preference) {
+        ::view-transition-old(root),
+        ::view-transition-new(root) {
+          animation-duration: 0.3s;
+        }
+      }
+
+      /* Disable transitions for users who prefer reduced motion */
+      @media (prefers-reduced-motion: reduce) {
+        ::view-transition-old(root),
+        ::view-transition-new(root) {
+          animation: none;
+        }
+      }
     </style>
     <slot name="head" />
   </head>

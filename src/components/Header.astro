@@ -22,9 +22,9 @@ const { currentPage = 'dashboard' } = Astro.props;
   position: sticky;
   top: 0;
   z-index: 1000;
-  background: rgba(15, 15, 25, 0.95);
+  background: rgba(25, 23, 36, 0.95);
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(148, 197, 204, 0.2);
+  border-bottom: 1px solid rgba(156, 207, 216, 0.2);
   height: 40px;
   box-sizing: border-box;
 }
@@ -43,7 +43,7 @@ const { currentPage = 'dashboard' } = Astro.props;
 .logo {
   font-size: 1rem;
   font-weight: 900;
-  background: linear-gradient(135deg, #F8F8F8, #94C5CC);
+  background: linear-gradient(135deg, #e0def4, #9ccfd8);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -56,7 +56,7 @@ const { currentPage = 'dashboard' } = Astro.props;
 }
 
 .nav-item {
-  color: rgba(248, 248, 248, 0.8);
+  color: rgba(224, 222, 244, 0.8);
   text-decoration: none;
   font-weight: 600;
   padding: 0.15rem 0.5rem;
@@ -70,21 +70,21 @@ const { currentPage = 'dashboard' } = Astro.props;
 }
 
 .nav-item:hover {
-  color: #F8F8F8;
-  background: rgba(148, 197, 204, 0.1);
+  color: #e0def4;
+  background: rgba(156, 207, 216, 0.1);
   transform: translateY(-1px);
 }
 
 .nav-item.active {
-  color: #F8F8F8;
-  background: linear-gradient(135deg, rgba(148, 197, 204, 0.3), rgba(148, 197, 204, 0.15));
-  border: 1px solid rgba(148, 197, 204, 0.4);
-  box-shadow: 0 4px 16px rgba(148, 197, 204, 0.2);
+  color: #e0def4;
+  background: linear-gradient(135deg, rgba(156, 207, 216, 0.3), rgba(156, 207, 216, 0.15));
+  border: 1px solid rgba(156, 207, 216, 0.4);
+  box-shadow: 0 4px 16px rgba(156, 207, 216, 0.2);
 }
 
 /* Legacy .nav-link support (mirror .nav-item styles) */
 .nav-link {
-  color: rgba(248, 248, 248, 0.8);
+  color: rgba(224, 222, 244, 0.8);
   text-decoration: none;
   font-weight: 600;
   padding: 0.15rem 0.5rem;
@@ -96,8 +96,8 @@ const { currentPage = 'dashboard' } = Astro.props;
   height: 24px;
   box-sizing: border-box;
 }
-.nav-link:hover { color: #F8F8F8; background: rgba(148, 197, 204, 0.1); transform: translateY(-1px); }
-.nav-link.active { color: #F8F8F8; background: linear-gradient(135deg, rgba(148, 197, 204, 0.3), rgba(148, 197, 204, 0.15)); border: 1px solid rgba(148, 197, 204, 0.4); box-shadow: 0 4px 16px rgba(148, 197, 204, 0.2); }
+.nav-link:hover { color: #e0def4; background: rgba(156, 207, 216, 0.1); transform: translateY(-1px); }
+.nav-link.active { color: #e0def4; background: linear-gradient(135deg, rgba(156, 207, 216, 0.3), rgba(156, 207, 216, 0.15)); border: 1px solid rgba(156, 207, 216, 0.4); box-shadow: 0 4px 16px rgba(156, 207, 216, 0.2); }
 
 
 

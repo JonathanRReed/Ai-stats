@@ -1,18 +1,9 @@
 ---
 import { getModels } from '../lib/supabase';
+import { formatScore } from '../lib/utils';
 import Header from './Header.astro';
 
-
-
 const models = await getModels();
-
-function formatScore(score: string | number | null) {
-  if (score === null || score === undefined) return '—';
-  const num = Number(score);
-  if (!isFinite(num) || num <= 0) return '—';
-  const pct = num <= 1 ? num * 100 : num;
-  return `${pct.toFixed(1)}%`;
-}
 
 // Filter models with valid prices
 const validModels = models.filter((model: any) => {
@@ -20,24 +11,6 @@ const validModels = models.filter((model: any) => {
   const outputPrice = Number(model.price_1m_output_tokens);
   return inputPrice > 0 && outputPrice > 0;
 });
-
-// Get top models by price (lowest first) - deduplication by model family
-const topModelsByPrice = [...validModels]
-  .sort((a: any, b: any) => {
-    // Sort by total cost (input + output) for better "cheapest" ranking
-    const totalCostA = Number(a.price_1m_input_tokens) + Number(a.price_1m_output_tokens);
-    const totalCostB = Number(b.price_1m_input_tokens) + Number(b.price_1m_output_tokens);
-    return totalCostA - totalCostB;
-  })
-  .reduce((acc: any[], model: any) => {
-    // Use the full model name for uniqueness, but prioritize more recent versions
-    const modelKey = model.name;
-    if (!acc.some(m => m.name === modelKey)) {
-      acc.push(model);
-    }
-    return acc;
-  }, [])
-  .slice(0, 5);
 
 // Get top models by performance for different benchmarks - proper deduplication
 function getTopModelsByBenchmark(benchmark: string) {
@@ -118,20 +91,7 @@ const costData = {
   fastest: fastestModels
 };
 
-// DEBUG: Check server-side data
-console.log('🔍 SERVER: topModelsByPrice:', topModelsByPrice.map(m => m.name));
-console.log('🔍 SERVER: fastestModels:', fastestModels.map(m => m.name));
-console.log('🔍 SERVER: benchmarkData mmlu_pro:', benchmarkData.mmlu_pro?.map(m => m.name));
-
 // Data will be serialized using Astro's define:vars
-
-// Debug: Log the data to see what we're actually getting
-console.log('🔍 DEBUG: Models data:', models.slice(0, 3));
-console.log('🔍 DEBUG: MMLU Pro data:', benchmarkData.mmlu_pro);
-console.log('🔍 DEBUG: Available fields in first model:', Object.keys(models[0] || {}));
-console.log('🔍 DEBUG: topModelsByPrice:', topModelsByPrice);
-console.log('🔍 DEBUG: fastestModels:', fastestModels);
-console.log('🔍 DEBUG: costData.cheapest length:', costData.cheapest.length);
 
 // Benchmark display names
 const benchmarkNames = {
@@ -320,29 +280,49 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   // @ts-nocheck
   // Wait for DOM to be fully loaded
   const chartsSection = document.querySelector('.charts-section');
-
-  // Numeric helpers: truncate without rounding (top-level so all modules can use)
-  function truncateTo(num, decimals = 3) {
-    const n = Number(num);
-    if (!isFinite(n)) return 0;
+  
+  // Utility functions (duplicated from utils.ts for client-side use)
+  const log = console.log.bind(console); // Simple logging
+  
+  function formatPrice(price, decimals = 3) {
+    if (price === null || price === undefined) return '—';
+    if (!price && price !== 0) return '—';
     const factor = Math.pow(10, decimals);
-    return Math.trunc(n * factor) / factor;
+    const truncated = Math.trunc(price * factor) / factor;
+    return `$${truncated.toFixed(decimals)}`;
   }
-
-  function formatMoneyTrunc(num, decimals = 3) {
-    const t = truncateTo(num, decimals);
-    return `$${t.toFixed(decimals)}`;
+  
+  function formatScore(score) {
+    if (score === null || score === undefined) return '—';
+    const num = Number(score);
+    if (!isFinite(num) || num <= 0) return '—';
+    const pct = num <= 1 ? num * 100 : num;
+    return `${pct.toFixed(1)}%`;
+  }
+  
+  function formatTPS(tps) {
+    return tps && Number(tps) > 0 ? `${Number(tps).toFixed(1)}` : '—';
+  }
+  
+  function formatTTFT(ttft) {
+    return ttft && Number(ttft) > 0 ? `${Number(ttft).toFixed(2)}s` : '—';
+  }
+  
+  function sanitizeHTML(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
   }
 
   async function initDashboard() {
-    console.log('🚀 Dashboard charts initializing...');
+    log('🚀 Dashboard charts initializing...');
 
     // Get chart elements with more robust selectors
 
     const performanceChartContainer = document.getElementById('performance-chart-container');
     const benchmarkSelector = document.getElementById('benchmark-selector');
     
-    console.log('📊 Chart elements:', {
+    log('📊 Chart elements:', {
       performanceChart: !!performanceChartContainer,
       benchmarkSelector: !!benchmarkSelector
     });
@@ -409,29 +389,29 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
           // Bronze for 3rd place
           rankStyle = 'background: linear-gradient(135deg, #CD7F32 0%, #D2691E 30%, #CD7F32 60%, #DEB887 100%) !important; color: #FFFFFF !important; box-shadow: 0 6px 20px rgba(205, 127, 50, 0.4), 0 0 0 3px rgba(205, 127, 50, 0.3) !important; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;';
         } else {
-          // Theme color for 4th and 5th place
-          rankStyle = 'background: linear-gradient(135deg, #94C5CC 0%, #B4D2E7 50%, #94C5CC 100%) !important; color: #1a1a1a !important; box-shadow: 0 4px 16px rgba(148, 197, 204, 0.4), 0 0 0 2px rgba(148, 197, 204, 0.3) !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important;';
+          // Theme color for 4th and 5th place (Rose Pine foam)
+          rankStyle = 'background: linear-gradient(135deg, #9ccfd8 0%, #c4a7e7 50%, #9ccfd8 100%) !important; color: #1a1a1a !important; box-shadow: 0 4px 16px rgba(156, 207, 216, 0.4), 0 0 0 2px rgba(156, 207, 216, 0.3) !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important;';
         }
         
         return `
-          <div class="leaderboard-row" style="display: grid !important; grid-template-columns: 60px 1fr 80px !important; gap: 1rem !important; padding: 1.5rem 1rem !important; border-bottom: 1px solid rgba(148, 197, 204, 0.12) !important; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important; background: linear-gradient(90deg, rgba(25, 25, 40, 0.9), rgba(30, 30, 50, 0.8)) !important; position: relative !important; align-items: center !important;">
+          <div class="leaderboard-row" style="display: grid !important; grid-template-columns: 60px 1fr 80px !important; gap: 1rem !important; padding: 1.5rem 1rem !important; border-bottom: 1px solid rgba(156, 207, 216, 0.12) !important; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important; background: linear-gradient(90deg, rgba(31, 29, 46, 0.9), rgba(38, 35, 58, 0.8)) !important; position: relative !important; align-items: center !important;">
             <div class="rank-cell" style="display: flex !important; align-items: center !important; justify-content: center !important; font-weight: 900 !important; font-size: 1.2rem !important; border-radius: 50% !important; width: 48px !important; height: 48px !important; margin: auto !important; position: relative !important; transition: all 0.3s ease !important; overflow: hidden !important; ${rankStyle}">${index + 1}</div>
              <div class="name-cell" style="display: flex !important; flex-direction: column !important; width: 100% !important; min-width: 0 !important; align-items: flex-start !important; justify-content: flex-start !important; position: relative !important;">
-               <div class="model-name" style="font-size: 1rem !important; font-weight: 800 !important; color: #F8F8F8 !important; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6) !important; line-height: 1.3 !important; margin-bottom: 0.2rem !important; text-align: left !important; white-space: nowrap !important; width: 100% !important; display: block !important;" title="${model.name}">${model.name}</div>
+               <div class="model-name" style="font-size: 1rem !important; font-weight: 800 !important; color: #e0def4 !important; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6) !important; line-height: 1.3 !important; margin-bottom: 0.2rem !important; text-align: left !important; white-space: nowrap !important; width: 100% !important; display: block !important;" title="${model.name}">${model.name}</div>
                <div class="company-name-container" style="display: block !important; width: 100% !important; text-align: left !important; position: relative !important;">
-                <span class="company-name" style="font-size: 0.85rem !important; font-weight: 600 !important; color: rgba(148, 197, 204, 0.95) !important; text-transform: uppercase !important; letter-spacing: 0.8px !important; background: linear-gradient(90deg, rgba(148, 197, 204, 0.2), transparent) !important; padding: 0.1rem 0.4rem 0.1rem 1.2rem !important; margin: 0 !important; border-radius: 6px !important; border: 1px solid rgba(148, 197, 204, 0.3) !important; display: inline-block !important; white-space: nowrap !important;line-height: 1.2 !important; position: relative !important;">
-                  <div class="info-icon tooltip-trigger" data-tooltip="${model.name} • ${model.company_name || 'Unknown'}" style="position: absolute !important; top: 50% !important; left: 4px !important; transform: translateY(-50%) !important; width: 12px !important; height: 12px !important; background: rgba(148, 197, 204, 1) !important; border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 8px !important; font-weight: bold !important; color: #1a1a1a !important; cursor: help !important; transition: all 0.2s ease !important; border: 1px solid rgba(148, 197, 204, 0.8) !important;">i</div>
+                <span class="company-name" style="font-size: 0.85rem !important; font-weight: 600 !important; color: rgba(156, 207, 216, 0.95) !important; text-transform: uppercase !important; letter-spacing: 0.8px !important; background: linear-gradient(90deg, rgba(156, 207, 216, 0.2), transparent) !important; padding: 0.1rem 0.4rem 0.1rem 1.2rem !important; margin: 0 !important; border-radius: 6px !important; border: 1px solid rgba(156, 207, 216, 0.3) !important; display: inline-block !important; white-space: nowrap !important;line-height: 1.2 !important; position: relative !important;">
+                  <div class="info-icon tooltip-trigger" data-tooltip="${model.name} • ${model.company_name || 'Unknown'}" style="position: absolute !important; top: 50% !important; left: 4px !important; transform: translateY(-50%) !important; width: 12px !important; height: 12px !important; background: rgba(156, 207, 216, 1) !important; border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 8px !important; font-weight: bold !important; color: #1a1a1a !important; cursor: help !important; transition: all 0.2s ease !important; border: 1px solid rgba(156, 207, 216, 0.8) !important;">i</div>
                   ${model.company_name || 'Unknown'}
                 </span>
               </div>
             </div>
-            <div class="score-cell" style="display: flex !important; align-items: center !important; justify-content: center !important; font-size: 0.85rem !important; font-weight: 900 !important; color: #F8F8F8 !important; background: linear-gradient(135deg, rgba(148, 197, 204, 0.3), rgba(148, 197, 204, 0.15)) !important; border-radius: 4px !important; padding: 0.2rem 0.3rem !important; border: 1px solid rgba(148, 197, 204, 0.5) !important; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6) !important; width: 50px !important; height: 30px !important; margin: 0 !important;">${formattedScore}</div>
+            <div class="score-cell" style="display: flex !important; align-items: center !important; justify-content: center !important; font-size: 0.85rem !important; font-weight: 900 !important; color: #e0def4 !important; background: linear-gradient(135deg, rgba(156, 207, 216, 0.3), rgba(156, 207, 216, 0.15)) !important; border-radius: 4px !important; padding: 0.2rem 0.3rem !important; border: 1px solid rgba(156, 207, 216, 0.5) !important; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6) !important; width: 50px !important; height: 30px !important; margin: 0 !important;">${formattedScore}</div>
           </div>
         `;
       }).join('');  
       
       const leaderboardHTML = `
-        <div class="leaderboard-header" style="display: grid !important; grid-template-columns: 60px 1fr 100px !important; gap: 0.75rem !important; padding: 1.25rem 1rem !important; background: linear-gradient(135deg, #94C5CC 0%, #B4D2E7 30%, #E8F4F8 50%, #B4D2E7 70%, #94C5CC 100%) !important; font-weight: 900 !important; font-size: 0.9rem !important; color: #1a1a1a !important; text-transform: uppercase !important; letter-spacing: 1px !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important; border-bottom: 4px solid rgba(148, 197, 204, 0.5) !important;">
+        <div class="leaderboard-header" style="display: grid !important; grid-template-columns: 60px 1fr 100px !important; gap: 0.75rem !important; padding: 1.25rem 1rem !important; background: linear-gradient(135deg, #9ccfd8 0%, #c4a7e7 30%, #ebbcba 50%, #c4a7e7 70%, #9ccfd8 100%) !important; font-weight: 900 !important; font-size: 0.9rem !important; color: #191724 !important; text-transform: uppercase !important; letter-spacing: 1px !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important; border-bottom: 4px solid rgba(156, 207, 216, 0.5) !important;">
           <div class="rank-col">RANK</div>  
           <div class="name-col">NAME</div>
           <div class="score-col">SCORE</div>
@@ -466,13 +446,13 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
     // Function to fetch fresh data from API
     async function fetchFreshData() {
       try {
-        console.log('🔄 Fetching fresh data from API...');
+        log('🔄 Fetching fresh data from API...');
         const response = await fetch('/api/models.json');
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const freshModels = await response.json();
-        console.log('✅ Fresh data fetched:', freshModels.length, 'models');
+        log('✅ Fresh data fetched:', freshModels.length, 'models');
         return freshModels;
       } catch (error) {
         console.error('❌ Error fetching fresh data:', error);
@@ -508,22 +488,22 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 
       if (totalModelsElement) {
         totalModelsElement.textContent = totalModels.toString();
-        console.log('📊 Updated total models:', totalModels);
+        log('📊 Updated total models:', totalModels);
       }
 
       if (avgInputPriceElement) {
-        const val = formatMoneyTrunc(avgInputPrice, 3);
+        const val = formatPrice(avgInputPrice, 3);
         avgInputPriceElement.textContent = val;
-        console.log('📊 Updated avg input price:', val);
+        log('📊 Updated avg input price:', val);
       }
 
       if (avgOutputPriceElement) {
-        const val = formatMoneyTrunc(avgOutputPrice, 3);
+        const val = formatPrice(avgOutputPrice, 3);
         avgOutputPriceElement.textContent = val;
-        console.log('📊 Updated avg output price:', val);
+        log('📊 Updated avg output price:', val);
       }
 
-      console.log('✅ Stats section updated with live Supabase data');
+      log('✅ Stats section updated with live Supabase data');
     }
 
     // Function to update data and re-render charts
@@ -594,7 +574,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       // Update stats section with fresh data
       updateStatsSection(freshModels);
 
-      console.log('✅ Data refreshed successfully');
+      log('✅ Data refreshed successfully');
       return true;
     }
 
@@ -603,7 +583,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       benchmarkSelector.addEventListener('change', async function(e) {
         const target = e.target;
         if (target && target.value) {
-          console.log('🔄 Benchmark changed to:', target.value);
+          log('🔄 Benchmark changed to:', target.value);
           await refreshDataAndCharts();
           renderPerformanceChart(target.value);
         }
@@ -617,7 +597,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       const refreshed = await refreshDataAndCharts();
       const selector = (benchmarkSelector && benchmarkSelector.value) || 'mmlu_pro';
       renderPerformanceChart(selector);
-      console.log('🎉 Charts initialized with', refreshed ? 'fresh' : 'cached', 'data');
+      log('🎉 Charts initialized with', refreshed ? 'fresh' : 'cached', 'data');
     } catch (e) {
       console.warn('⚠️ Falling back to initial render due to refresh error', e);
       renderPerformanceChart('mmlu_pro');
@@ -646,36 +626,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
     let isLoading = false;
     let hasMoreItems = true;
     
-    // Helper functions
-    function formatPrice(price) {
-      if (!price && price !== 0) return '—';
-      return formatMoneyTrunc(price, 3);
-    }
-    
-    function formatScore(score, fieldName) {
-      // mark optional arg as used for linters
-      void fieldName;
-      if (score === null || score === undefined) return '—';
-      const num = Number(score);
-      if (!isFinite(num) || num <= 0) return '—';
-      const pct = num <= 1 ? num * 100 : num;
-      return `${pct.toFixed(1)}%`;
-    }
-    
-    function formatTPS(tps) {
-      return tps && Number(tps) > 0 ? `${Number(tps).toFixed(1)}` : '—';
-    }
-    
-    function formatTTFT(ttft) {
-      return ttft && Number(ttft) > 0 ? `${Number(ttft).toFixed(2)}s` : '—';
-    }
-    
-    // Security: HTML sanitization function to prevent XSS attacks
-    function sanitizeHTML(str) {
-      const div = document.createElement('div');
-      div.textContent = str || '';
-      return div.innerHTML;
-    }
+    // Formatting functions defined at top of script
 
     function createModelCard(model) {
       const cardElement = document.createElement('div');
@@ -809,7 +760,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
           endIndicator.style.display = 'block';
         }
         
-        console.log(`📄 Loaded page ${currentPage}, showing ${modelsGrid.children.length} of ${filteredModels.length} models`);
+        log(`📄 Loaded page ${currentPage}, showing ${modelsGrid.children.length} of ${filteredModels.length} models`);
       }, 300);
     }
     
@@ -849,7 +800,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
         }
       });
       
-      console.log(`🔍 Filtered ${filteredModels.length} models out of ${validModels.length}`);
+      log(`🔍 Filtered ${filteredModels.length} models out of ${validModels.length}`);
       
       // Load first page
       loadMoreModels();
@@ -886,7 +837,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
     // Initial load
     applyFilters();
     
-    console.log('✅ Model pagination initialized with', validModels.length, 'models');
+    log('✅ Model pagination initialized with', validModels.length, 'models');
   }
   
   // Tooltip functionality similar to compare page
@@ -1053,20 +1004,31 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       subtree: true
     });
     
-    console.log('✅ Tooltips initialized');
+    log('✅ Tooltips initialized');
   }
   
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      initDashboard();
-      initModelPagination();
-      initTooltips();
-    });
-  } else {
+  // Initialize on both initial load and after view transitions
+  function initialize() {
     initDashboard();
     initModelPagination();
     initTooltips();
   }
+
+  // Handle initial page load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initialize);
+  } else {
+    initialize();
+  }
+
+  // Handle Astro View Transitions - re-initialize after navigation
+  document.addEventListener('astro:page-load', initialize);
+  
+  // Cleanup before page swap to prevent memory leaks
+  document.addEventListener('astro:before-swap', () => {
+    // Remove any active tooltips
+    document.querySelectorAll('.dashboard-tooltip').forEach(t => t.remove());
+  });
 </script>
 
 <style is:global>
@@ -1078,8 +1040,8 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 }
 .dashboard-container {
   min-height: 100vh;
-  background: #000100;
-  color: #F8F8F8;
+  background: var(--base);
+  color: var(--text);
   font-family: 'Nebula Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   width: 100%;
   max-width: 100vw;
@@ -1106,14 +1068,14 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   font-size: 2.5rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
-  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  background: linear-gradient(135deg, var(--foam), var(--iris));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .dashboard-header p {
   font-size: 1.2rem;
-  color: rgba(161, 166, 180, 0.8);
+  color: var(--subtle);
 }
 
 /* Charts Section */
@@ -1122,8 +1084,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   grid-template-columns: repeat(auto-fit, minmax(min(350px, 100%), 1fr));
   gap: clamp(1rem, 3vw, 2.5rem);
   margin-bottom: 3rem;
-  opacity: 0;
-  transition: opacity 0.4s ease-in-out;
+  opacity: 1;
   justify-items: stretch;
   max-width: 100%;
   width: 100%;
@@ -1134,30 +1095,40 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 }
 
 .chart-card {
-  background: rgba(10, 10, 11, 0.8);
+  background: var(--surface);
   border-radius: 1rem;
-  border: 1px solid rgba(161, 166, 180, 0.25);
+  border: 1px solid var(--highlight-med);
   padding: clamp(1rem, 2.5vw, 1.5rem);
   backdrop-filter: blur(20px);
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
+  overflow: visible;
+  will-change: transform;
 }
 
 /* Performance chart specific styling */
 .chart-card .chart-container {
-  min-height: 200px;
+  min-height: 550px;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0;
 }
 
-.chart-card:hover {
-  border-color: rgba(148, 197, 204, 0.4);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+@media (prefers-reduced-motion: no-preference) {
+  .chart-card:hover {
+    border-color: var(--foam);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-card:hover {
+    border-color: var(--foam);
+  }
 }
 
 /* Chart Header */
@@ -1174,7 +1145,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   margin: 0;
   font-size: 1.2rem;
   font-weight: 600;
-  color: #F8F8F8;
+  color: var(--text);
 }
 
 /* Selectors */
@@ -1185,10 +1156,10 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 
 #benchmark-selector,
 #cost-selector {
-  background: rgba(161, 166, 180, 0.1);
-  border: 1px solid rgba(161, 166, 180, 0.3);
+  background: var(--overlay);
+  border: 1px solid var(--highlight-med);
   border-radius: 0.5rem;
-  color: #F8F8F8;
+  color: var(--text);
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   font-weight: 500;
@@ -1201,20 +1172,20 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 
 #benchmark-selector:hover,
 #cost-selector:hover {
-  border-color: rgba(148, 197, 204, 0.5);
-  background: rgba(148, 197, 204, 0.1);
+  border-color: var(--foam);
+  background: var(--highlight-low);
 }
 
 #benchmark-selector:focus,
 #cost-selector:focus {
-  border-color: #94C5CC;
-  box-shadow: 0 0 0 2px rgba(148, 197, 204, 0.2);
+  border-color: var(--foam);
+  box-shadow: 0 0 0 2px rgba(156, 207, 216, 0.2);
 }
 
 #benchmark-selector option,
 #cost-selector option {
-  background: #0A0A0B;
-  color: #F8F8F8;
+  background: var(--surface);
+  color: var(--text);
   padding: 0.5rem;
 }
 
@@ -1491,7 +1462,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   gap: 1.5rem !important;
   padding: 1.75rem 2rem !important;
   border-bottom: 1px solid rgba(148, 197, 204, 0.12) !important;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: background 0.2s ease, box-shadow 0.2s ease !important;
   background: 
     linear-gradient(90deg, rgba(25, 25, 40, 0.8), rgba(30, 30, 50, 0.6)),
     radial-gradient(circle at 100% 50%, rgba(148, 197, 204, 0.03), transparent 70%) !important;
@@ -1508,7 +1479,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   width: 4px;
   background: linear-gradient(180deg, transparent, rgba(148, 197, 204, 0.4), transparent);
   opacity: 0;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.2s ease;
 }
 
 .leaderboard-row:last-child {
@@ -1516,19 +1487,27 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   border-radius: 0 0 20px 20px;
 }
 
-.leaderboard-row:hover {
-  background: 
-    linear-gradient(90deg, rgba(148, 197, 204, 0.12), rgba(148, 197, 204, 0.06)),
-    radial-gradient(circle at 100% 50%, rgba(148, 197, 204, 0.08), transparent 70%);
-  transform: translateX(6px) scale(1.01);
-  box-shadow: 
-    6px 0 0 rgba(148, 197, 204, 0.6),
-    0 8px 32px rgba(148, 197, 204, 0.15),
-    0 4px 16px rgba(0, 0, 0, 0.2);
+@media (prefers-reduced-motion: no-preference) {
+  .leaderboard-row:hover {
+    background: 
+      linear-gradient(90deg, rgba(148, 197, 204, 0.12), rgba(148, 197, 204, 0.06)),
+      radial-gradient(circle at 100% 50%, rgba(148, 197, 204, 0.08), transparent 70%);
+    box-shadow: 
+      2px 0 0 rgba(148, 197, 204, 0.4),
+      0 4px 16px rgba(148, 197, 204, 0.1);
+  }
+  
+  .leaderboard-row:hover::before {
+    opacity: 1;
+  }
 }
 
-.leaderboard-row:hover::before {
-  opacity: 1;
+@media (prefers-reduced-motion: reduce) {
+  .leaderboard-row:hover {
+    background: 
+      linear-gradient(90deg, rgba(148, 197, 204, 0.12), rgba(148, 197, 204, 0.06)),
+      radial-gradient(circle at 100% 50%, rgba(148, 197, 204, 0.08), transparent 70%);
+  }
 }
 
 #performance-chart-container .rank-cell,
@@ -1630,9 +1609,16 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   pointer-events: none;
 }
 
-.leaderboard-row:hover .rank-cell {
-  transform: scale(1.1) rotate(5deg);
-  filter: brightness(1.1);
+@media (prefers-reduced-motion: no-preference) {
+  .leaderboard-row:hover .rank-cell {
+    filter: brightness(1.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaderboard-row:hover .rank-cell {
+    filter: brightness(1.05);
+  }
 }
 
 .name-cell {
@@ -2076,11 +2062,11 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
   }
   .chart-card {
     border-radius: 16px;
-    overflow: hidden;
+    overflow: visible;
   }
   .leaderboard-container {
     border-radius: 12px;
-    overflow: hidden;
+    overflow: visible;
   }
 }
 

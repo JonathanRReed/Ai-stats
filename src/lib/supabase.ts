@@ -49,15 +49,11 @@ export type AaModel = {
  * Adds company_name derived from creator_name for the existing UI.
  */
 export async function getModels(): Promise<AaModel[]> {
-  // Select explicit columns to keep payload small and predictable
+  // Select only required columns to minimize payload size
   const select = [
     'id',
     'name',
-    'slug',
-    'creator_id',
     'creator_name',
-    'creator_slug',
-    'evaluations',
     'aa_intelligence_index',
     'aa_coding_index',
     'aa_math_index',
@@ -68,19 +64,16 @@ export async function getModels(): Promise<AaModel[]> {
     'scicode',
     'math_500',
     'aime',
-    'pricing',
     'price_1m_blended_3_to_1',
     'price_1m_input_tokens',
     'price_1m_output_tokens',
     'median_output_tokens_per_second',
     'median_time_to_first_token_seconds',
     'median_time_to_first_answer_token',
-    'first_seen',
-    'last_seen',
   ].join(',');
 
   const { data, error } = await supabase
-    .from<AaModel>('aa_models')
+    .from('aa_models')
     .select(select)
     .order('aa_intelligence_index', { ascending: false, nullsFirst: false });
 
@@ -89,10 +82,12 @@ export async function getModels(): Promise<AaModel[]> {
     throw error;
   }
 
-  const models = (data ?? []).map((model) => ({
+  // Map and add derived fields
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const models = (data ?? []).map((model: any) => ({
     ...model,
     company_name: model.creator_name ?? null,
-  })) satisfies AaModel[];
+  })) as AaModel[];
 
   return models;
 }
