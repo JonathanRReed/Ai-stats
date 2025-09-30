@@ -305,6 +305,9 @@ const availableBenchmarks = {
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
         width: 100%;
         transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        position: relative;
+        z-index: 1;
+        overflow: visible;
       }
       @media (prefers-reduced-motion: no-preference) {
         .chart-section:hover {
@@ -1292,10 +1295,32 @@ const availableBenchmarks = {
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                   legend: { position: 'bottom', labels: { color: '#eae9f0' } },
-                  tooltip: { callbacks: { label: (ctx) => `$${(ctx.parsed.y ?? 0).toFixed(3)} per 1M` } },
+                  tooltip: { 
+                    enabled: true,
+                    position: 'nearest',
+                    yAlign: 'bottom',
+                    displayColors: true,
+                    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    borderColor: 'rgba(156, 207, 216, 0.5)',
+                    borderWidth: 1,
+                    padding: 12,
+                    callbacks: { 
+                      label: (ctx) => `${ctx.dataset.label}: $${(ctx.parsed.y ?? 0).toFixed(3)} per 1M` 
+                    } 
+                  },
                   datalabels: {
-                    anchor: 'end', align: 'end', color: '#111', backgroundColor: 'rgba(255,255,255,0.9)',
-                    borderRadius: 4, padding: 4, font: { weight: '900' },
+                    anchor: 'end', 
+                    align: 'end', 
+                    color: '#111', 
+                    backgroundColor: 'rgba(255,255,255,0.9)',
+                    borderRadius: 4, 
+                    padding: 6,
+                    font: { weight: '900', size: 11 },
+                    offset: 4,
+                    clip: false,
+                    display: true,
                     formatter: (v) => `$${(v >= 10 ? v.toFixed(1) : v.toFixed(2))}`,
                   },
                 },
@@ -1306,7 +1331,7 @@ const availableBenchmarks = {
                        ticks: { color: '#eae9f0', callback: (v) => `$${Number(v).toFixed(0)}` },
                        grid: { color: 'rgba(255,255,255,0.08)', drawBorder: false } },
                 },
-                layout: { padding: { top: 32 } },
+                layout: { padding: { top: 48, bottom: 8, left: 8, right: 8 } },
               },
               plugins: [window.ChartDataLabels || window['ChartDataLabels']],
             });
