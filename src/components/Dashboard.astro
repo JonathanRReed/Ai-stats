@@ -241,9 +241,9 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
               <option value="scicode">SciCode</option>
               <option value="math_500">Math 500</option>
               <option value="livecodebench">LiveCodeBench</option>
-              <option value="artificial_analysis_math_index">AA Math</option>
-              <option value="artificial_analysis_coding_index">AA Coding</option>
-              <option value="artificial_analysis_intelligence_index">AA Intelligence</option>
+              <option value="aa_math_index">AA Math</option>
+              <option value="aa_coding_index">AA Coding</option>
+              <option value="aa_intelligence_index">AA Intelligence</option>
             </select>
           </div>
           
@@ -539,11 +539,11 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
 
       // Recalculate fastest models
       const freshFastestModels = [...validModels]
-        .filter(model => model.tps_score && Number(model.tps_score) > 0)
-        .sort((a, b) => Number(b.tps_score) - Number(a.tps_score))
+        .filter(model => model.median_output_tokens_per_second && Number(model.median_output_tokens_per_second) > 0)
+        .sort((a, b) => Number(b.median_output_tokens_per_second) - Number(a.median_output_tokens_per_second))
         .reduce((acc, model) => {
-          const modelKey = model.name;
-          if (!acc.some(m => m.name === modelKey)) {
+          const brand = model.name.split(' ')[0];
+          if (!acc.some(m => m.name.split(' ')[0] === brand)) {
             acc.push(model);
           }
           return acc;
@@ -729,44 +729,43 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
       if (isLoading || !hasMoreItems) return;
       
       isLoading = true;
-      loadingIndicator.style.display = 'flex';
+      if (loadingIndicator && currentPage > 0) {
+        loadingIndicator.style.display = 'flex';
+      }
+
+      const startIndex = currentPage * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const modelsToLoad = filteredModels.slice(startIndex, endIndex);
+
+      if (modelsToLoad.length === 0) {
+        hasMoreItems = false;
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
+        if (endIndicator) endIndicator.style.display = 'block';
+        return;
+      }
+
+      // Add new model cards immediately so first render has no artificial delay
+      modelsToLoad.forEach(model => {
+        const cardElement = createModelCard(model);
+        modelsGrid.appendChild(cardElement);
+      });
+
+      currentPage++;
+      isLoading = false;
+      if (loadingIndicator) loadingIndicator.style.display = 'none';
+
+      // Check if we've loaded all models
+      if (endIndex >= filteredModels.length) {
+        hasMoreItems = false;
+        if (endIndicator) endIndicator.style.display = 'block';
+      }
       
-      // Simulate loading delay for better UX
-      setTimeout(() => {
-        const startIndex = currentPage * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        const modelsToLoad = filteredModels.slice(startIndex, endIndex);
-        
-        if (modelsToLoad.length === 0) {
-          hasMoreItems = false;
-          loadingIndicator.style.display = 'none';
-          endIndicator.style.display = 'block';
-          return;
-        }
-        
-        // Add new model cards
-        modelsToLoad.forEach(model => {
-          const cardElement = createModelCard(model);
-          modelsGrid.appendChild(cardElement);
-        });
-        
-        currentPage++;
-        isLoading = false;
-        loadingIndicator.style.display = 'none';
-        
-        // Check if we've loaded all models
-        if (endIndex >= filteredModels.length) {
-          hasMoreItems = false;
-          endIndicator.style.display = 'block';
-        }
-        
-        log(`📄 Loaded page ${currentPage}, showing ${modelsGrid.children.length} of ${filteredModels.length} models`);
-      }, 300);
+      log(`📄 Loaded page ${currentPage}, showing ${modelsGrid.children.length} of ${filteredModels.length} models`);
     }
     
     function applyFilters() {
       const searchTerm = searchInput?.value?.toLowerCase() || '';
-      const sortBy = sortBySelect?.value || 'name';
+      const sortBy = sortBySelect?.value || 'price_1m_input_tokens';
       const sortOrder = sortOrderSelect?.value || 'desc';
       
       // Reset pagination
@@ -808,7 +807,7 @@ const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Num
     
     function clearAllFilters() {
       if (searchInput) searchInput.value = '';
-      if (sortBySelect) sortBySelect.value = 'name';
+      if (sortBySelect) sortBySelect.value = 'price_1m_input_tokens';
       if (sortOrderSelect) sortOrderSelect.value = 'desc';
       applyFilters();
     }
