@@ -1311,14 +1311,15 @@ const availableBenchmarks = {
                     } 
                   },
                   datalabels: {
-                    anchor: 'end', 
-                    align: 'end', 
-                    color: '#111', 
+                    anchor: 'end',
+                    align: 'start',
+                    color: '#111',
                     backgroundColor: 'rgba(255,255,255,0.9)',
-                    borderRadius: 4, 
+                    borderRadius: 4,
                     padding: 6,
                     font: { weight: '900', size: 11 },
-                    offset: 4,
+                    offset: -6,
+                    clamp: true,
                     clip: false,
                     display: true,
                     formatter: (v) => `$${(v >= 10 ? v.toFixed(1) : v.toFixed(2))}`,
@@ -1376,8 +1377,8 @@ const availableBenchmarks = {
                     return `${t.toFixed(3)}%`;
                   } } },
                   datalabels: {
-                    anchor: 'end', align: 'end', color: '#111', backgroundColor: 'rgba(255,255,255,0.9)',
-                    borderRadius: 4, padding: 4, font: { weight: '900' }, clip: false,
+                    anchor: 'end', align: 'start', color: '#111', backgroundColor: 'rgba(255,255,255,0.9)',
+                    borderRadius: 4, padding: 4, font: { weight: '900' }, clip: false, clamp: true, offset: -6,
                     formatter: (v) => {
                       const t = Math.trunc(Number(v) * 1000) / 1000; // truncate
                       return `${t.toFixed(3)}%`;
