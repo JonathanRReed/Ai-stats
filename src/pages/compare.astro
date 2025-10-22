@@ -49,6 +49,10 @@ const getCheapestTokensModel = () => {
 
 const cheapestTokensModel = getCheapestTokensModel();
 
+// SEO Configuration
+const canonicalURL = new URL(Astro.url.pathname, Astro.site).href;
+const ogImageURL = new URL('/jonathan.avif', Astro.site).href;
+
 // Dynamic benchmark mapping from database fields
 const availableBenchmarks = {
   'mmlu_pro': 'MMLU Pro',
@@ -67,8 +71,34 @@ const availableBenchmarks = {
 <html lang="en" transition:animate="none">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
-    <title>AI Stats – Compare Models</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/webp" href="/favicon.webp" />
+    
+    <!-- SEO Meta Tags -->
+    <title>Compare AI Models - Pricing & Performance | AI Stats</title>
+    <meta name="description" content="Compare AI model pricing, benchmarks, and specifications side-by-side. Interactive charts for GPT-4, Claude, Gemini, Llama and more. Filter by performance metrics including MMLU Pro, GPQA, and coding benchmarks." />
+    <link rel="canonical" href={canonicalURL} />
+    <meta name="robots" content="index, follow" />
+    <meta name="author" content="Jonathan Reed" />
+    <meta name="theme-color" content="#191724" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:title" content="Compare AI Models - Pricing & Performance | AI Stats" />
+    <meta property="og:description" content="Compare AI model pricing, benchmarks, and specifications side-by-side with interactive charts." />
+    <meta property="og:image" content={ogImageURL} />
+    <meta property="og:site_name" content="AI Stats" />
+    <meta property="og:locale" content="en_US" />
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content={canonicalURL} />
+    <meta name="twitter:title" content="Compare AI Models - Pricing & Performance | AI Stats" />
+    <meta name="twitter:description" content="Compare AI model pricing, benchmarks, and specifications side-by-side with interactive charts." />
+    <meta name="twitter:image" content={ogImageURL} />
+    <meta name="twitter:creator" content="@jonathanrayreed" />
+    
     <link rel="stylesheet" href="/fonts/nebula sans/nebula-sans.css" />
     <ViewTransitions />
     <style>

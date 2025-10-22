@@ -1,19 +1,81 @@
 ---
 // Layout.astro: Shared layout for all pages
 import { ViewTransitions } from 'astro:transitions';
-const { title = 'AI Stats Dashboard', description = '' } = Astro.props;
+
+interface Props {
+  title?: string;
+  description?: string;
+  image?: string;
+  ogType?: string;
+  noindex?: boolean;
+}
+
+const { 
+  title = 'AI Stats Dashboard - Compare AI Model Pricing & Performance', 
+  description = 'Compare AI model pricing, performance benchmarks, and technical specifications. Real-time data for GPT-4, Claude, Gemini, and more AI models.',
+  image = '/jonathan.avif',
+  ogType = 'website',
+  noindex = false
+} = Astro.props;
+
+const canonicalURL = new URL(Astro.url.pathname, Astro.site).href;
+const ogImageURL = new URL(image, Astro.site).href;
 ---
 <html lang="en" transition:animate="none">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/webp" href="/favicon.webp" />
+    
     <!-- Preload critical font to improve LCP -->
     <link rel="preload" href="/fonts/nebula sans/NebulaSans-Book.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/fonts/nebula sans/nebula-sans.css" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="generator" content={Astro.generator} />
-    {description && <meta name="description" content={description} />}
+    
+    <!-- SEO Meta Tags -->
     <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalURL} />
+    <meta name="generator" content={Astro.generator} />
+    {noindex ? <meta name="robots" content="noindex, nofollow" /> : <meta name="robots" content="index, follow" />}
+    <meta name="author" content="Jonathan Reed" />
+    <meta name="theme-color" content="#191724" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content={ogType} />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImageURL} />
+    <meta property="og:site_name" content="AI Stats" />
+    <meta property="og:locale" content="en_US" />
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content={canonicalURL} />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageURL} />
+    <meta name="twitter:creator" content="@jonathanrayreed" />
+    
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "AI Stats",
+      "description": "Compare AI model pricing, performance benchmarks, and technical specifications",
+      "url": Astro.site?.href || canonicalURL,
+      "author": {
+        "@type": "Person",
+        "name": "Jonathan Reed",
+        "url": "https://jonathanrreed.com"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": `${Astro.site?.href || canonicalURL}?q={search_term_string}`,
+        "query-input": "required name=search_term_string"
+      }
+    })} />
+    
     <ViewTransitions />
     <style is:global>
       :root {
