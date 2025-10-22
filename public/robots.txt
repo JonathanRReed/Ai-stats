@@ -4,3 +4,7 @@ Allow: /
 
 # Sitemap
 Sitemap: https://ai-stats.vercel.app/sitemap-index.xml
+
+# LLM-friendly content summary
+# https://llmstxt.org/
+# See /llms.txt for structured information optimized for AI models

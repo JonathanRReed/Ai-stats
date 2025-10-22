@@ -1,0 +1,34 @@
+# AI Stats
+
+> AI Stats is a web application for comparing AI model pricing, performance benchmarks, and technical specifications. Built with Astro, TypeScript, and Supabase, it provides real-time data visualization for models including GPT-4, Claude, Gemini, Llama, and more.
+
+This project is a hobbyist tool inspired by Theo Browne's model-prices dashboard. All benchmark data is sourced from ArtificialAnalysis.com via their free API. The site uses NebulaSans custom font from Nebula.com.
+
+Key features:
+- Interactive comparison of AI model pricing (input/output token costs)
+- Performance benchmarks including MMLU Pro, GPQA, HumanEval, and more
+- Real-time data updates from ArtificialAnalysis API
+- Responsive glassmorphism design with Rose Pine theme
+- Filter and sort capabilities for custom comparisons
+
+## Pages
+
+- [Homepage](https://ai-stats.vercel.app/): Dashboard view with sortable tables and visualizations of AI model data
+- [Compare Models](https://ai-stats.vercel.app/compare): Interactive side-by-side comparison tool with customizable metrics and charts
+- [About](https://ai-stats.vercel.app/about): Project information and tech stack details
+
+## Tech Stack
+
+- [Astro Documentation](https://docs.astro.build/): Static site generator used for the project
+- [Supabase Documentation](https://supabase.com/docs): Backend database for caching API data
+- [Chart.js Documentation](https://www.chartjs.org/docs/): Charting library for data visualization
+- [ArtificialAnalysis API](https://artificialanalysis.ai/): Primary data source for AI model benchmarks and pricing
+
+## Data Sources
+
+- [ArtificialAnalysis.com](https://artificialanalysis.ai/): All benchmark data, pricing information, and performance metrics
+
+## Optional
+
+- [Bun Documentation](https://bun.sh/docs): JavaScript runtime and package manager used in development
+- [Rose Pine Theme](https://rosepinetheme.com/): Color scheme inspiration for the UI design
