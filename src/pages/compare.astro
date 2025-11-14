@@ -103,7 +103,7 @@ const availableBenchmarks = {
     <ViewTransitions />
     <style>
       :root {
-        /* Rosé Pine Night (default) */
+        /* Rosé Pine Night */
         --base: #191724;
         --surface: #1f1d2e;
         --overlay: #26233a;
@@ -125,42 +125,6 @@ const availableBenchmarks = {
         --text-primary: var(--text);
         --glass: rgba(156, 207, 216, 0.05);
         --accent: var(--foam);
-      }
-
-      :root[data-theme='moon'] {
-        --base: #232136;
-        --surface: #2a273f;
-        --overlay: #393552;
-        --muted: #6e6a86;
-        --subtle: #908caa;
-        --text: #e0def4;
-        --love: #eb6f92;
-        --gold: #f6c177;
-        --rose: #ea9a97;
-        --pine: #3e8fb0;
-        --foam: #9ccfd8;
-        --iris: #c4a7e7;
-        --highlight-low: #2a283e;
-        --highlight-med: #44415a;
-        --highlight-high: #56526e;
-      }
-
-      :root[data-theme='dawn'] {
-        --base: #faf4ed;
-        --surface: #fffaf3;
-        --overlay: #f2e9e1;
-        --muted: #9893a5;
-        --subtle: #797593;
-        --text: #575279;
-        --love: #b4637a;
-        --gold: #ea9d34;
-        --rose: #d7827e;
-        --pine: #286983;
-        --foam: #56949f;
-        --iris: #907aa9;
-        --highlight-low: #f4ede8;
-        --highlight-med: #dfdad9;
-        --highlight-high: #cecacd;
       }
 
       .bar-stack-duo { height: 170px; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
@@ -1001,10 +965,6 @@ const availableBenchmarks = {
       </div>
     </div>
 
-    <!-- Chart.js (CDN) -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-
     <script define:vars={{ validModels }}>
       // Security: HTML sanitization function to prevent XSS attacks
       function sanitizeHTML(str) {
@@ -1013,15 +973,56 @@ const availableBenchmarks = {
         return div.innerHTML;
       }
 
+      const cleanupEffects = [];
+      const registerCleanup = (fn) => {
+        if (typeof fn === 'function') cleanupEffects.push(fn);
+      };
+      const runCleanup = () => {
+        while (cleanupEffects.length) {
+          const cleanup = cleanupEffects.pop();
+          try {
+            cleanup();
+          } catch (error) {
+            console.warn('Cleanup failed', error);
+          }
+        }
+      };
+
+      const destroyChartForCanvas = (canvas) => {
+        if (!canvas || !window.Chart) return;
+        const existing = typeof window.Chart.getChart === 'function'
+          ? window.Chart.getChart(canvas)
+          : null;
+        if (existing && typeof existing.destroy === 'function') {
+          existing.destroy();
+        }
+      };
+
       // Dynamically ensure Chart.js is available (in case CDN is blocked)
       let __chartLibLoading = null;
       function loadScript(src) {
         return new Promise((resolve, reject) => {
+          const existing = document.querySelector(`script[data-loaded-src="${src}"]`);
+          if (existing) {
+            if (existing.dataset.loaded === 'true') {
+              resolve();
+            } else {
+              existing.addEventListener('load', resolve, { once: true });
+              existing.addEventListener('error', reject, { once: true });
+            }
+            return;
+          }
+
           const s = document.createElement('script');
           s.src = src;
-          s.async = true;
-          s.onload = resolve;
-          s.onerror = reject;
+          s.async = false;
+          s.defer = false;
+          s.dataset.loadedSrc = src;
+          s.addEventListener('load', () => {
+            s.dataset.loaded = 'true';
+            resolve();
+          }, { once: true });
+          s.addEventListener('error', reject, { once: true });
           document.head.appendChild(s);
         });
       }
@@ -1068,6 +1069,7 @@ const availableBenchmarks = {
         // Call initially and on resize
         initializeLayout();
         window.addEventListener('resize', initializeLayout);
+        registerCleanup(() => window.removeEventListener('resize', initializeLayout));
 
         const toggle = document.getElementById('filter-toggle');
         const rail = document.getElementById('smart-filter-rail');
@@ -1310,6 +1312,8 @@ const availableBenchmarks = {
           }
 
           // Do not clear containers; destroy existing chart instances instead
+          destroyChartForCanvas(priceCanvas);
+          destroyChartForCanvas(perfCanvas);
           if (priceChartInstance) { priceChartInstance.destroy(); priceChartInstance = null; }
           if (perfChartInstance) { perfChartInstance.destroy(); perfChartInstance = null; }
 
@@ -1592,6 +1596,7 @@ const availableBenchmarks = {
             }
           });
         });
+        registerCleanup(() => observer.disconnect());
         
         // Observe both charts for changes
         if (priceChart) {
@@ -1607,15 +1612,18 @@ const availableBenchmarks = {
         }
         
         // Re-fit on window resize
-        window.addEventListener('resize', () => {
+        const handleResize = () => {
           fitModelsToChart(priceChart);
           fitModelsToChart(perfChart);
-        });
+        };
+        window.addEventListener('resize', handleResize);
+        registerCleanup(() => window.removeEventListener('resize', handleResize));
 
       }
 
       // Initialize on both initial load and after view transitions
       function initialize() {
+        runCleanup();
         initCompare();
         initAutoFit();
       }
