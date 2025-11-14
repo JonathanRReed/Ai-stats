@@ -1,6 +1,7 @@
 ---
 // Layout.astro: Shared layout for all pages
 import { ViewTransitions } from 'astro:transitions';
+import '../styles/tailwind.css';
 
 interface Props {
   title?: string;
@@ -79,7 +80,7 @@ const ogImageURL = new URL(image, Astro.site).href;
     <ViewTransitions />
     <style is:global>
       :root {
-        /* Rose Pine Theme Colors */
+        /* Rose Pine Night (default) */
         --base: #191724;
         --surface: #1f1d2e;
         --overlay: #26233a;
@@ -95,7 +96,7 @@ const ogImageURL = new URL(image, Astro.site).href;
         --highlight-low: #21202e;
         --highlight-med: #403d52;
         --highlight-high: #524f67;
-        
+
         /* Legacy aliases for compatibility */
         --surface-0: var(--base);
         --surface-1: var(--surface);
@@ -144,6 +145,8 @@ const ogImageURL = new URL(image, Astro.site).href;
         min-height: 100vh;
         color-scheme: dark;
       }
+
+      html { color-scheme: dark; }
 
       /* Typography rhythm */
       h1 { font-size: clamp(1.75rem, 3vw, 2.25rem); line-height: 1.2; letter-spacing: -0.01em; }

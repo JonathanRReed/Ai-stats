@@ -22,9 +22,9 @@ const { currentPage = 'dashboard' } = Astro.props;
   position: sticky;
   top: 0;
   z-index: 1000;
-  background: rgba(25, 23, 36, 0.95);
+  background: linear-gradient(to right, var(--overlay), var(--surface));
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(156, 207, 216, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   height: 40px;
   box-sizing: border-box;
 }
@@ -37,6 +37,7 @@ const { currentPage = 'dashboard' } = Astro.props;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
   box-sizing: border-box;
 }
 
