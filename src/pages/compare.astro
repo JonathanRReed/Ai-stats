@@ -103,11 +103,66 @@ const availableBenchmarks = {
     <ViewTransitions />
     <style>
       :root {
-        --surface-0: var(--base, #191724);
-        --text-primary: var(--text, #e0def4);
+        /* Rosé Pine Night (default) */
+        --base: #191724;
+        --surface: #1f1d2e;
+        --overlay: #26233a;
+        --muted: #6e6a86;
+        --subtle: #908caa;
+        --text: #e0def4;
+        --love: #eb6f92;
+        --gold: #f6c177;
+        --rose: #ebbcba;
+        --pine: #31748f;
+        --foam: #9ccfd8;
+        --iris: #c4a7e7;
+        --highlight-low: #21202e;
+        --highlight-med: #403d52;
+        --highlight-high: #524f67;
+
+        /* Page-specific helpers */
+        --surface-0: var(--base);
+        --text-primary: var(--text);
         --glass: rgba(156, 207, 216, 0.05);
-        --accent: var(--foam, #9ccfd8);
+        --accent: var(--foam);
       }
+
+      :root[data-theme='moon'] {
+        --base: #232136;
+        --surface: #2a273f;
+        --overlay: #393552;
+        --muted: #6e6a86;
+        --subtle: #908caa;
+        --text: #e0def4;
+        --love: #eb6f92;
+        --gold: #f6c177;
+        --rose: #ea9a97;
+        --pine: #3e8fb0;
+        --foam: #9ccfd8;
+        --iris: #c4a7e7;
+        --highlight-low: #2a283e;
+        --highlight-med: #44415a;
+        --highlight-high: #56526e;
+      }
+
+      :root[data-theme='dawn'] {
+        --base: #faf4ed;
+        --surface: #fffaf3;
+        --overlay: #f2e9e1;
+        --muted: #9893a5;
+        --subtle: #797593;
+        --text: #575279;
+        --love: #b4637a;
+        --gold: #ea9d34;
+        --rose: #d7827e;
+        --pine: #286983;
+        --foam: #56949f;
+        --iris: #907aa9;
+        --highlight-low: #f4ede8;
+        --highlight-med: #dfdad9;
+        --highlight-high: #cecacd;
+      }
+
       .bar-stack-duo { height: 170px; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
       .bar-stack { height: 200px; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
       * {
@@ -116,7 +171,9 @@ const availableBenchmarks = {
         box-sizing: border-box;
       }
       body {
-        background: var(--surface-0);
+        background: radial-gradient(1200px 800px at 10% -10%, rgba(156, 207, 216, 0.06), transparent 60%),
+                    radial-gradient(800px 600px at 90% -10%, rgba(196, 167, 231, 0.05), transparent 60%),
+                    var(--base);
         color: var(--text-primary);
         font-family: 'Nebula Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         line-height: 1.6;
@@ -170,9 +227,9 @@ const availableBenchmarks = {
         width: 280px;
         min-width: 280px;
         flex-shrink: 0;
-        background: rgba(31, 29, 46, 0.95);
+        background: var(--surface);
         backdrop-filter: blur(20px);
-        border-right: 1px solid rgba(156, 207, 216, 0.1);
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
         padding: 2rem 1.5rem;
         padding-top: 1.5rem; /* Increased padding to push content below header */
         height: 100vh; /* Full viewport height */
@@ -208,7 +265,7 @@ const availableBenchmarks = {
           transform: translateX(-100%);
           z-index: 55;
           overflow-y: auto;
-          background: rgba(0, 1, 0, 0.95);
+          background: var(--surface);
           backdrop-filter: blur(20px);
           border-right: 1px solid rgba(255, 255, 255, 0.1);
           box-shadow: 0 4px 32px rgba(0,0,0,0.6);
@@ -1265,6 +1322,7 @@ const availableBenchmarks = {
           
           // Calculate dynamic gap based on number of models
           const numModels = chosenByPrice.length;
+          const showPriceLabels = numModels <= 8;
           const dynamicGap = numModels > 6 ? '0.5rem' : '1rem';
           
           // Update container gap for this render
@@ -1342,17 +1400,17 @@ const availableBenchmarks = {
                   },
                   datalabels: {
                     anchor: 'end',
-                    align: 'start',
+                    align: 'end',
                     color: '#111',
                     backgroundColor: 'rgba(255,255,255,0.9)',
                     borderRadius: 4,
                     padding: 6,
                     font: { weight: '900', size: 11 },
-                    offset: -6,
+                    offset: -4,
                     clamp: true,
                     clip: false,
-                    display: true,
-                    formatter: (v) => `$${(v >= 10 ? v.toFixed(1) : v.toFixed(2))}`,
+                    display: showPriceLabels,
+                    formatter: (v) => `${(v >= 10 ? v.toFixed(1) : v.toFixed(2))}`,
                   },
                 },
                 scales: {
@@ -1378,6 +1436,7 @@ const availableBenchmarks = {
           // Build performance chart using Chart.js
           const perfLabels = chosenByMetric.map(m => labelParts(m.name));
           const scores = chosenByMetric.map(m => Number(m[metric]) || 0);
+          const showPerfLabels = chosenByMetric.length <= 8;
           if (perfCanvas && window.Chart) {
             window.Chart.register(window.ChartDataLabels || window['ChartDataLabels']);
             const maxScore = scores.length ? Math.max(...scores) : 0;
@@ -1407,8 +1466,9 @@ const availableBenchmarks = {
                     return `${t.toFixed(3)}%`;
                   } } },
                   datalabels: {
-                    anchor: 'end', align: 'start', color: '#111', backgroundColor: 'rgba(255,255,255,0.9)',
-                    borderRadius: 4, padding: 4, font: { weight: '900' }, clip: false, clamp: true, offset: -6,
+                    anchor: 'end', align: 'end', color: '#111', backgroundColor: 'rgba(255,255,255,0.9)',
+                    borderRadius: 4, padding: 4, font: { weight: '900' }, clip: false, clamp: true, offset: -4,
+                    display: showPerfLabels,
                     formatter: (v) => {
                       const t = Math.trunc(Number(v) * 1000) / 1000; // truncate
                       return `${t.toFixed(3)}%`;

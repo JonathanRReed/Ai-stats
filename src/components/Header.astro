@@ -14,17 +14,56 @@ const { currentPage = 'dashboard' } = Astro.props;
       <a href="/compare" class={`nav-item ${currentPage === 'compare' ? 'active' : ''}`}>Compare</a>
       <a href="/about" class={`nav-item ${currentPage === 'about' ? 'active' : ''}`}>About</a>
     </nav>
+    <div class="theme-toggle" aria-label="Theme">
+      <button type="button" class="theme-pill" data-theme-choice="night">Night</button>
+      <button type="button" class="theme-pill" data-theme-choice="moon">Moon</button>
+      <button type="button" class="theme-pill" data-theme-choice="dawn">Dawn</button>
+    </div>
   </div>
 </header>
+
+<script>
+  // @ts-nocheck
+  if (typeof document !== 'undefined') {
+    const THEME_KEY = 'ai-stats-theme';
+    const VALID = ['night', 'moon', 'dawn'];
+    const root = document.documentElement;
+    const buttons = Array.from(document.querySelectorAll('[data-theme-choice]'));
+
+    function applyTheme(theme) {
+      if (!VALID.includes(theme)) return;
+      root.dataset.theme = theme;
+      try {
+        localStorage.setItem(THEME_KEY, theme);
+      } catch (e) {
+        // ignore
+      }
+      buttons.forEach((btn) => {
+        if (!(btn instanceof HTMLElement)) return;
+        btn.classList.toggle('active', btn.dataset.themeChoice === theme);
+      });
+    }
+
+    const initial = root.dataset.theme;
+    applyTheme(VALID.includes(initial) ? initial : 'night');
+
+    buttons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const theme = btn.dataset.themeChoice;
+        if (theme) applyTheme(theme);
+      });
+    });
+  }
+</script>
 
 <style>
 .header {
   position: sticky;
   top: 0;
   z-index: 1000;
-  background: rgba(25, 23, 36, 0.95);
+  background: linear-gradient(to right, var(--overlay), var(--surface));
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(156, 207, 216, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   height: 40px;
   box-sizing: border-box;
 }
@@ -37,6 +76,7 @@ const { currentPage = 'dashboard' } = Astro.props;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
   box-sizing: border-box;
 }
 
@@ -53,6 +93,37 @@ const { currentPage = 'dashboard' } = Astro.props;
   display: flex;
   gap: 0.8rem;
   align-items: center;
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 2px;
+  border-radius: 9999px;
+  background: rgba(38, 35, 58, 0.9);
+  border: 1px solid rgba(156, 207, 216, 0.4);
+}
+
+.theme-pill {
+  border: none;
+  background: transparent;
+  padding: 0.15rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: rgba(224, 222, 244, 0.7);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.theme-pill:hover {
+  background: rgba(156, 207, 216, 0.16);
+}
+
+.theme-pill.active {
+  background: var(--foam);
+  color: var(--base);
 }
 
 .nav-item {
@@ -120,6 +191,9 @@ const { currentPage = 'dashboard' } = Astro.props;
   .logo {
     font-size: 1.1rem;
     flex-shrink: 0;
+  }
+  .theme-toggle {
+    display: none;
   }
 }
 
