@@ -1,0 +1,129 @@
+---
+---
+
+<script is:inline>
+  (() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+    const STORAGE_KEY = 'ai-stats-theme';
+    const VALID_CHOICES = ['night', 'moon', 'dawn', 'system'];
+    const DEFAULT_CHOICE = 'system';
+    const root = document.documentElement;
+    const media = typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-color-scheme: dark)')
+      : null;
+    const listeners = new Set();
+
+    const resolveTheme = (choice) => {
+      if (choice === 'system') {
+        if (media) return media.matches ? 'night' : 'dawn';
+        return 'night';
+      }
+      return choice;
+    };
+
+    const readStoredChoice = () => {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored && VALID_CHOICES.includes(stored)) return stored;
+      } catch {
+        // ignore storage access issues
+      }
+      return DEFAULT_CHOICE;
+    };
+
+    const persistChoice = (choice) => {
+      try {
+        localStorage.setItem(STORAGE_KEY, choice);
+      } catch {
+        // ignore
+      }
+    };
+
+    const updateButtons = (activeChoice) => {
+      const buttons = document.querySelectorAll('[data-theme-choice]');
+      buttons.forEach((btn) => {
+        if (!(btn instanceof HTMLElement)) return;
+        const isActive = btn.dataset.themeChoice === activeChoice;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-pressed', String(isActive));
+      });
+    };
+
+    let currentChoice = readStoredChoice();
+
+    const applyChoice = (choice, { shouldPersist = false, notify = true } = {}) => {
+      if (!VALID_CHOICES.includes(choice)) return;
+      currentChoice = choice;
+      const resolvedTheme = resolveTheme(choice);
+      root.dataset.theme = resolvedTheme;
+      root.dataset.themeChoice = choice;
+      const nextColorScheme = resolvedTheme === 'dawn' ? 'light' : 'dark';
+      root.style.colorScheme = nextColorScheme;
+      if (document.body) {
+        document.body.style.colorScheme = nextColorScheme;
+      }
+
+      if (shouldPersist) persistChoice(choice);
+      updateButtons(choice);
+
+      if (notify) {
+        listeners.forEach((callback) => {
+          try {
+            callback(choice, resolvedTheme);
+          } catch {
+            // swallow listener errors
+          }
+        });
+      }
+    };
+
+    applyChoice(currentChoice, { notify: false });
+
+    const handleButtonClick = (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const button = target.closest('[data-theme-choice]');
+      if (!button) return;
+      const choice = button.getAttribute('data-theme-choice');
+      if (choice) applyChoice(choice, { shouldPersist: true });
+    };
+
+    document.addEventListener('click', handleButtonClick);
+
+    const syncButtons = () => updateButtons(currentChoice);
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        syncButtons();
+      }, { once: true });
+    } else {
+      syncButtons();
+    }
+    document.addEventListener('astro:page-load', syncButtons);
+
+    const handleSystemChange = () => {
+      if (currentChoice === 'system') {
+        applyChoice('system', { shouldPersist: false });
+      }
+    };
+
+    if (media) {
+      if (typeof media.addEventListener === 'function') {
+        media.addEventListener('change', handleSystemChange);
+      } else if (typeof media.addListener === 'function') {
+        media.addListener(handleSystemChange);
+      }
+    }
+
+    window.__aiTheme = {
+      getChoice: () => currentChoice,
+      getResolvedTheme: () => root.dataset.theme,
+      setTheme: (choice, options) => applyChoice(choice, options),
+      subscribe: (callback) => {
+        if (typeof callback !== 'function') return () => {};
+        listeners.add(callback);
+        return () => listeners.delete(callback);
+      },
+    };
+  })();
+</script>

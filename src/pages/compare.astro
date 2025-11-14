@@ -103,11 +103,30 @@ const availableBenchmarks = {
     <ViewTransitions />
     <style>
       :root {
-        --surface-0: var(--base, #191724);
-        --text-primary: var(--text, #e0def4);
+        /* Rosé Pine Night */
+        --base: #191724;
+        --surface: #1f1d2e;
+        --overlay: #26233a;
+        --muted: #6e6a86;
+        --subtle: #908caa;
+        --text: #e0def4;
+        --love: #eb6f92;
+        --gold: #f6c177;
+        --rose: #ebbcba;
+        --pine: #31748f;
+        --foam: #9ccfd8;
+        --iris: #c4a7e7;
+        --highlight-low: #21202e;
+        --highlight-med: #403d52;
+        --highlight-high: #524f67;
+
+        /* Page-specific helpers */
+        --surface-0: var(--base);
+        --text-primary: var(--text);
         --glass: rgba(156, 207, 216, 0.05);
-        --accent: var(--foam, #9ccfd8);
+        --accent: var(--foam);
       }
+
       .bar-stack-duo { height: 170px; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
       .bar-stack { height: 200px; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
       * {
@@ -116,7 +135,9 @@ const availableBenchmarks = {
         box-sizing: border-box;
       }
       body {
-        background: var(--surface-0);
+        background: radial-gradient(1200px 800px at 10% -10%, rgba(156, 207, 216, 0.06), transparent 60%),
+                    radial-gradient(800px 600px at 90% -10%, rgba(196, 167, 231, 0.05), transparent 60%),
+                    var(--base);
         color: var(--text-primary);
         font-family: 'Nebula Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         line-height: 1.6;
@@ -170,9 +191,9 @@ const availableBenchmarks = {
         width: 280px;
         min-width: 280px;
         flex-shrink: 0;
-        background: rgba(31, 29, 46, 0.95);
+        background: var(--surface);
         backdrop-filter: blur(20px);
-        border-right: 1px solid rgba(156, 207, 216, 0.1);
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
         padding: 2rem 1.5rem;
         padding-top: 1.5rem; /* Increased padding to push content below header */
         height: 100vh; /* Full viewport height */
@@ -208,7 +229,7 @@ const availableBenchmarks = {
           transform: translateX(-100%);
           z-index: 55;
           overflow-y: auto;
-          background: rgba(0, 1, 0, 0.95);
+          background: var(--surface);
           backdrop-filter: blur(20px);
           border-right: 1px solid rgba(255, 255, 255, 0.1);
           box-shadow: 0 4px 32px rgba(0,0,0,0.6);
@@ -944,10 +965,6 @@ const availableBenchmarks = {
       </div>
     </div>
 
-    <!-- Chart.js (CDN) -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-
     <script define:vars={{ validModels }}>
       // Security: HTML sanitization function to prevent XSS attacks
       function sanitizeHTML(str) {
@@ -956,15 +973,56 @@ const availableBenchmarks = {
         return div.innerHTML;
       }
 
+      const cleanupEffects = [];
+      const registerCleanup = (fn) => {
+        if (typeof fn === 'function') cleanupEffects.push(fn);
+      };
+      const runCleanup = () => {
+        while (cleanupEffects.length) {
+          const cleanup = cleanupEffects.pop();
+          try {
+            cleanup();
+          } catch (error) {
+            console.warn('Cleanup failed', error);
+          }
+        }
+      };
+
+      const destroyChartForCanvas = (canvas) => {
+        if (!canvas || !window.Chart) return;
+        const existing = typeof window.Chart.getChart === 'function'
+          ? window.Chart.getChart(canvas)
+          : null;
+        if (existing && typeof existing.destroy === 'function') {
+          existing.destroy();
+        }
+      };
+
       // Dynamically ensure Chart.js is available (in case CDN is blocked)
       let __chartLibLoading = null;
       function loadScript(src) {
         return new Promise((resolve, reject) => {
+          const existing = document.querySelector(`script[data-loaded-src="${src}"]`);
+          if (existing) {
+            if (existing.dataset.loaded === 'true') {
+              resolve();
+            } else {
+              existing.addEventListener('load', resolve, { once: true });
+              existing.addEventListener('error', reject, { once: true });
+            }
+            return;
+          }
+
           const s = document.createElement('script');
           s.src = src;
-          s.async = true;
-          s.onload = resolve;
-          s.onerror = reject;
+          s.async = false;
+          s.defer = false;
+          s.dataset.loadedSrc = src;
+          s.addEventListener('load', () => {
+            s.dataset.loaded = 'true';
+            resolve();
+          }, { once: true });
+          s.addEventListener('error', reject, { once: true });
           document.head.appendChild(s);
         });
       }
@@ -1011,6 +1069,7 @@ const availableBenchmarks = {
         // Call initially and on resize
         initializeLayout();
         window.addEventListener('resize', initializeLayout);
+        registerCleanup(() => window.removeEventListener('resize', initializeLayout));
 
         const toggle = document.getElementById('filter-toggle');
         const rail = document.getElementById('smart-filter-rail');
@@ -1253,6 +1312,8 @@ const availableBenchmarks = {
           }
 
           // Do not clear containers; destroy existing chart instances instead
+          destroyChartForCanvas(priceCanvas);
+          destroyChartForCanvas(perfCanvas);
           if (priceChartInstance) { priceChartInstance.destroy(); priceChartInstance = null; }
           if (perfChartInstance) { perfChartInstance.destroy(); perfChartInstance = null; }
 
@@ -1265,6 +1326,7 @@ const availableBenchmarks = {
           
           // Calculate dynamic gap based on number of models
           const numModels = chosenByPrice.length;
+          const showPriceLabels = numModels <= 8;
           const dynamicGap = numModels > 6 ? '0.5rem' : '1rem';
           
           // Update container gap for this render
@@ -1342,17 +1404,17 @@ const availableBenchmarks = {
                   },
                   datalabels: {
                     anchor: 'end',
-                    align: 'start',
+                    align: 'end',
                     color: '#111',
                     backgroundColor: 'rgba(255,255,255,0.9)',
                     borderRadius: 4,
                     padding: 6,
                     font: { weight: '900', size: 11 },
-                    offset: -6,
+                    offset: -4,
                     clamp: true,
                     clip: false,
-                    display: true,
-                    formatter: (v) => `$${(v >= 10 ? v.toFixed(1) : v.toFixed(2))}`,
+                    display: showPriceLabels,
+                    formatter: (v) => `${(v >= 10 ? v.toFixed(1) : v.toFixed(2))}`,
                   },
                 },
                 scales: {
@@ -1378,6 +1440,7 @@ const availableBenchmarks = {
           // Build performance chart using Chart.js
           const perfLabels = chosenByMetric.map(m => labelParts(m.name));
           const scores = chosenByMetric.map(m => Number(m[metric]) || 0);
+          const showPerfLabels = chosenByMetric.length <= 8;
           if (perfCanvas && window.Chart) {
             window.Chart.register(window.ChartDataLabels || window['ChartDataLabels']);
             const maxScore = scores.length ? Math.max(...scores) : 0;
@@ -1407,8 +1470,9 @@ const availableBenchmarks = {
                     return `${t.toFixed(3)}%`;
                   } } },
                   datalabels: {
-                    anchor: 'end', align: 'start', color: '#111', backgroundColor: 'rgba(255,255,255,0.9)',
-                    borderRadius: 4, padding: 4, font: { weight: '900' }, clip: false, clamp: true, offset: -6,
+                    anchor: 'end', align: 'end', color: '#111', backgroundColor: 'rgba(255,255,255,0.9)',
+                    borderRadius: 4, padding: 4, font: { weight: '900' }, clip: false, clamp: true, offset: -4,
+                    display: showPerfLabels,
                     formatter: (v) => {
                       const t = Math.trunc(Number(v) * 1000) / 1000; // truncate
                       return `${t.toFixed(3)}%`;
@@ -1532,6 +1596,7 @@ const availableBenchmarks = {
             }
           });
         });
+        registerCleanup(() => observer.disconnect());
         
         // Observe both charts for changes
         if (priceChart) {
@@ -1547,15 +1612,18 @@ const availableBenchmarks = {
         }
         
         // Re-fit on window resize
-        window.addEventListener('resize', () => {
+        const handleResize = () => {
           fitModelsToChart(priceChart);
           fitModelsToChart(perfChart);
-        });
+        };
+        window.addEventListener('resize', handleResize);
+        registerCleanup(() => window.removeEventListener('resize', handleResize));
 
       }
 
       // Initialize on both initial load and after view transitions
       function initialize() {
+        runCleanup();
         initCompare();
         initAutoFit();
       }
