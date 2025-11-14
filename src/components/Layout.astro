@@ -1,6 +1,7 @@
 ---
 // Layout.astro: Shared layout for all pages
 import { ViewTransitions } from 'astro:transitions';
+import '../styles/tailwind.css';
 
 interface Props {
   title?: string;
@@ -79,7 +80,7 @@ const ogImageURL = new URL(image, Astro.site).href;
     <ViewTransitions />
     <style is:global>
       :root {
-        /* Rose Pine Theme Colors */
+        /* Ros Pine Night (default) */
         --base: #191724;
         --surface: #1f1d2e;
         --overlay: #26233a;
@@ -95,7 +96,7 @@ const ogImageURL = new URL(image, Astro.site).href;
         --highlight-low: #21202e;
         --highlight-med: #403d52;
         --highlight-high: #524f67;
-        
+
         /* Legacy aliases for compatibility */
         --surface-0: var(--base);
         --surface-1: var(--surface);
@@ -120,6 +121,42 @@ const ogImageURL = new URL(image, Astro.site).href;
         /* Layout */
         --container-max: 1200px;
         --container-pad: 1rem;
+      }
+
+      :root[data-theme='moon'] {
+        --base: #232136;
+        --surface: #2a273f;
+        --overlay: #393552;
+        --muted: #6e6a86;
+        --subtle: #908caa;
+        --text: #e0def4;
+        --love: #eb6f92;
+        --gold: #f6c177;
+        --rose: #ea9a97;
+        --pine: #3e8fb0;
+        --foam: #9ccfd8;
+        --iris: #c4a7e7;
+        --highlight-low: #2a283e;
+        --highlight-med: #44415a;
+        --highlight-high: #56526e;
+      }
+
+      :root[data-theme='dawn'] {
+        --base: #faf4ed;
+        --surface: #fffaf3;
+        --overlay: #f2e9e1;
+        --muted: #9893a5;
+        --subtle: #797593;
+        --text: #575279;
+        --love: #b4637a;
+        --gold: #ea9d34;
+        --rose: #d7827e;
+        --pine: #286983;
+        --foam: #56949f;
+        --iris: #907aa9;
+        --highlight-low: #f4ede8;
+        --highlight-med: #dfdad9;
+        --highlight-high: #cecacd;
       }
 
       /* Modern CSS reset (minimal) */
@@ -194,6 +231,21 @@ const ogImageURL = new URL(image, Astro.site).href;
         }
       }
     </style>
+    <script>
+      (function () {
+        if (typeof document === 'undefined') return;
+        var THEME_KEY = 'ai-stats-theme';
+        var VALID = ['night', 'moon', 'dawn'];
+        var stored = null;
+        try {
+          stored = localStorage.getItem(THEME_KEY);
+        } catch (e) {
+          stored = null;
+        }
+        var theme = VALID.indexOf(stored || '') >= 0 ? stored : 'night';
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
     <slot name="head" />
   </head>
   <body>

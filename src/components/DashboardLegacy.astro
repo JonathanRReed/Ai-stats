@@ -1,0 +1,2576 @@
+---
+import { getModels } from '../lib/supabase';
+import { formatScore } from '../lib/format-utils';
+import Header from './Header.astro';
+import { PrimaryCta } from './PrimaryCta';
+
+const models = await getModels();
+
+// Filter models with valid prices
+const validModels = models.filter((model: any) => {
+  const inputPrice = Number(model.price_1m_input_tokens);
+  const outputPrice = Number(model.price_1m_output_tokens);
+  return inputPrice > 0 && outputPrice > 0;
+});
+
+// Get top models by performance for different benchmarks - proper deduplication
+function getTopModelsByBenchmark(benchmark: string) {
+  // First, deduplicate by model name and keep the one with the highest score
+  const uniqueModels = new Map();
+  
+  validModels
+    .filter((model: any) => model[benchmark] && Number(model[benchmark]) > 0)
+    .forEach((model: any) => {
+      const modelName = model.name.trim();
+      const score = Number(model[benchmark]);
+      
+      if (!uniqueModels.has(modelName) || uniqueModels.get(modelName).score < score) {
+        uniqueModels.set(modelName, { ...model, score });
+      }
+    });
+  
+  // Convert back to array and sort by score
+  return Array.from(uniqueModels.values())
+    .sort((a: any, b: any) => Number(b[benchmark]) - Number(a[benchmark]))
+    .slice(0, 5);
+}
+
+// Prepare all benchmark data for client-side use
+const benchmarkData = {
+  mmlu_pro: getTopModelsByBenchmark('mmlu_pro'),
+  gpqa: getTopModelsByBenchmark('gpqa'),
+  hle: getTopModelsByBenchmark('hle'),
+  aime: getTopModelsByBenchmark('aime'),
+  scicode: getTopModelsByBenchmark('scicode'),
+  math_500: getTopModelsByBenchmark('math_500'),
+  livecodebench: getTopModelsByBenchmark('livecodebench'),
+  aa_math_index: getTopModelsByBenchmark('aa_math_index'),
+  aa_coding_index: getTopModelsByBenchmark('aa_coding_index'),
+  aa_intelligence_index: getTopModelsByBenchmark('aa_intelligence_index')
+};
+
+// Get fastest models (by tokens per second) - smart deduplication by brand
+const getFastestModels = (models: any[], count = 5) => {
+  return models
+    .filter((m: any) => m.median_output_tokens_per_second && Number(m.median_output_tokens_per_second) > 0)
+    .sort((a: any, b: any) => Number(b.median_output_tokens_per_second) - Number(a.median_output_tokens_per_second))
+    .reduce((acc: any[], model: any) => {
+      const brand = model.name.split(' ')[0];
+      if (!acc.some(m => m.name.split(' ')[0] === brand)) {
+        acc.push(model);
+      }
+      return acc;
+    }, [])
+    .slice(0, count);
+};
+
+const fastestModels = getFastestModels(validModels);
+
+// Get cheapest models - smart deduplication by brand
+const getCheapestModels = (models: any[], count = 5) => {
+  return models
+    .filter((m: any) => {
+      const inputPrice = Number(m.price_1m_input_tokens);
+      return inputPrice > 0;
+    })
+    .sort((a: any, b: any) => Number(a.price_1m_input_tokens) - Number(b.price_1m_input_tokens))
+    .reduce((acc: any[], model: any) => {
+      const brand = model.name.split(' ')[0];
+      if (!acc.some(m => m.name.split(' ')[0] === brand)) {
+        acc.push(model);
+      }
+      return acc;
+    }, [])
+    .slice(0, count);
+};
+
+const cheapestModels = getCheapestModels(validModels);
+
+// Cost data for charts
+const costData = {
+  cheapest: cheapestModels,
+  fastest: fastestModels
+};
+
+// Data will be serialized using Astro's define:vars
+
+// Benchmark display names
+const benchmarkNames = {
+  mmlu_pro: 'MMLU Pro Ranking (Top 5)',
+  gpqa: 'GPQA Ranking (Top 5)',
+  hle: 'HLE Ranking (Top 5)',
+  aime: 'AIME Ranking (Top 5)',
+  scicode: 'SciCode Ranking (Top 5)',
+  math_500: 'Math 500 Ranking (Top 5)',
+  livecodebench: 'LiveCodeBench Ranking (Top 5)',
+  aa_math_index: 'AA Math Index Ranking (Top 5)',
+  aa_coding_index: 'AA Coding Index Ranking (Top 5)',
+  aa_intelligence_index: 'AA Intelligence Index Ranking (Top 5)'
+};
+
+// Field mappings for client-side use
+const fieldMappings = {
+  mmlu_pro: 'mmlu_pro',
+  gpqa: 'gpqa',
+  hle: 'hle',
+  aime: 'aime',
+  scicode: 'scicode',
+  math_500: 'math_500',
+  livecodebench: 'livecodebench',
+  aa_math_index: 'aa_math_index',
+  aa_coding_index: 'aa_coding_index',
+  aa_intelligence_index: 'aa_intelligence_index'
+};
+
+// (Removed unused costFieldMappings)
+
+// Stats
+const totalModels = validModels.length;
+const avgInputPrice = validModels.reduce((sum: number, model: any) => sum + Number(model.price_1m_input_tokens), 0) / totalModels;
+const avgOutputPrice = validModels.reduce((sum: number, model: any) => sum + Number(model.price_1m_output_tokens), 0) / totalModels;
+---
+
+<div class="dashboard-container">
+  <!-- Navigation -->
+  <Header currentPage="dashboard" />
+
+  <!-- Main Content -->
+  <main class="dashboard-main">
+    <div class="dashboard-header">
+      <h1>AI Stats</h1>
+      <p>{totalModels} LLM models & counting 
+        <br />
+       Data provided by Artificial Analysis.com
+      </p>
+      <div style="margin-top: 10px; margin-bottom: 20px;">
+        <img class="aa-logo" src="/icons/Icon + Artificial Analysis - Horizontal SVG.svg" alt="Artificial Analysis" />
+      </div>
+      <div class="mt-4 flex justify-center">
+        <PrimaryCta client:load />
+      </div>
+    </div>
+
+    <!-- Charts Section -->
+    <section class="charts-section">
+
+
+      <!-- Performance Chart -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3 id="performance-title">MMLU Pro Ranking (Top 5)</h3>
+          <select id="benchmark-selector" class="benchmark-selector">
+            <option value="mmlu_pro">MMLU Pro</option>
+            <option value="gpqa">GPQA</option>
+            <option value="hle">HLE</option>
+            <option value="aime">AIME</option>
+            <option value="scicode">SciCode</option>
+            <option value="math_500">Math 500</option>
+            <option value="livecodebench">LiveCodeBench</option>
+            <option value="aa_math_index">AA Math</option>
+            <option value="aa_coding_index">AA Coding</option>
+            <option value="aa_intelligence_index">AA Intelligence</option>
+          </select>
+        </div>
+        <div class="leaderboard-container" id="performance-chart-container">
+          <div class="leaderboard-header">
+            <div class="rank-col">RANK</div>
+            <div class="name-col">NAME</div>
+            <div class="score-col">SCORE</div>
+          </div>
+          <div class="leaderboard-body">
+            {
+              benchmarkData.mmlu_pro.slice(0, 5).map((model: any, index: number) => {
+                const score = Number(model.mmlu_pro) || 0;
+                const formattedScore = formatScore(score);
+
+                return (
+                  <div class="leaderboard-row">
+                    <div class="rank-cell">{index + 1}</div>
+                    <div class="name-cell">
+                      <div class="model-info">
+                        <div class="model-name">{model.name}</div>
+                        <div class="company-name">{model.company_name || 'Unknown'}</div>
+                      </div>
+                    </div>
+                    <div class="score-cell">{formattedScore}</div>
+                  </div>
+                );
+              })
+            }
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stats Overview -->
+    <section class="stats-section">
+      <div class="stat-card">
+        <div class="stat-value" id="total-models-stat">{totalModels}</div>
+        <div class="stat-label">Total Models</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="avg-input-price-stat">${avgInputPrice.toFixed(3)}</div>
+        <div class="stat-label">Avg Input Price</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="avg-output-price-stat">${avgOutputPrice.toFixed(3)}</div>
+        <div class="stat-label">Avg Output Price</div>
+      </div>
+    </section>
+
+    <!-- Model Details Cards -->
+    <section class="models-section">
+      <div class="section-header">
+        <h3>Model Details</h3>
+        <p class="section-subtitle">Comprehensive benchmark comparison across all models</p>
+        
+        <!-- Filter Row -->
+        <div class="filter-row">
+          <div class="filter-item">
+            <label for="model-search">Search Models</label>
+            <input type="text" id="model-search" placeholder="Search by model name..." class="filter-input">
+          </div>
+          
+        
+          
+          <div class="filter-item">
+            <label for="sort-by">Sort By</label>
+            <select id="sort-by" class="filter-select">
+              <option value="price_1m_input_tokens">Input Price</option>
+              <option value="price_1m_output_tokens">Output Price</option>
+              <option value="mmlu_pro">MMLU Pro</option>
+              <option value="gpqa">GPQA</option>
+              <option value="hle">HLE</option>
+              <option value="aime">AIME</option>
+              <option value="scicode">SciCode</option>
+              <option value="math_500">Math 500</option>
+              <option value="livecodebench">LiveCodeBench</option>
+              <option value="aa_math_index">AA Math</option>
+              <option value="aa_coding_index">AA Coding</option>
+              <option value="aa_intelligence_index">AA Intelligence</option>
+            </select>
+          </div>
+          
+          <div class="filter-item">
+            <label for="sort-order">Order</label>
+            <select id="sort-order" class="filter-select">
+              <option value="desc">Highest to Lowest</option>
+              <option value="asc">Lowest to Highest</option>
+            </select>
+          </div>
+          
+          <button id="clear-filters" class="clear-btn">Clear All</button>
+        </div>
+      </div>
+      <div class="models-grid" id="models-grid">
+        <!-- Models will be loaded dynamically via JavaScript -->
+      </div>
+      
+      <!-- Loading indicator -->
+      <div class="loading-indicator" id="loading-indicator" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p>Loading more models...</p>
+      </div>
+      
+      <!-- End of results indicator -->
+      <div class="end-indicator" id="end-indicator" style="display: none;">
+        <p>You've reached the end of all models</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script define:vars={{ benchmarkData, costData, fieldMappings, benchmarkNames, validModels }}>
+  // @ts-nocheck
+  // Wait for DOM to be fully loaded
+  const chartsSection = document.querySelector('.charts-section');
+  
+  // Utility functions (duplicated from utils.ts for client-side use)
+  const log = console.log.bind(console); // Simple logging
+  
+  function formatPrice(price, decimals = 3) {
+    if (price === null || price === undefined) return '—';
+    if (!price && price !== 0) return '—';
+    const factor = Math.pow(10, decimals);
+    const truncated = Math.trunc(price * factor) / factor;
+    return `$${truncated.toFixed(decimals)}`;
+  }
+  
+  function formatScore(score) {
+    if (score === null || score === undefined) return '—';
+    const num = Number(score);
+    if (!isFinite(num) || num <= 0) return '—';
+    const pct = num <= 1 ? num * 100 : num;
+    return `${pct.toFixed(1)}%`;
+  }
+  
+  function formatTPS(tps) {
+    return tps && Number(tps) > 0 ? `${Number(tps).toFixed(1)}` : '—';
+  }
+  
+  function formatTTFT(ttft) {
+    return ttft && Number(ttft) > 0 ? `${Number(ttft).toFixed(2)}s` : '—';
+  }
+  
+  function sanitizeHTML(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  async function initDashboard() {
+    log('🚀 Dashboard charts initializing...');
+
+    // Get chart elements with more robust selectors
+
+    const performanceChartContainer = document.getElementById('performance-chart-container');
+    const benchmarkSelector = document.getElementById('benchmark-selector');
+    
+    log('📊 Chart elements:', {
+      performanceChart: !!performanceChartContainer,
+      benchmarkSelector: !!benchmarkSelector
+    });
+    
+    // --- FORCE CHARTS VISIBLE (hotfix for CSS/JS bugs) ---
+    if (chartsSection) {
+      chartsSection.classList.add('ready');
+      chartsSection.style.opacity = '1';
+      chartsSection.style.display = 'grid';
+    }
+    // -----------------------------------------------------
+    
+    // Helper: Get top 5 models (already sorted and deduplicated from server)
+    function getTopModels(models, count = 5) {
+      // Models are already sorted by score and deduplicated on the server side
+      // Just return the top count models
+      return models.slice(0, count);
+    }
+    
+    // Render performance chart (horizontal bars)
+    function renderPerformanceChart(benchmark = 'mmlu_pro') {
+      if (!performanceChartContainer) {
+        console.error('❌ Performance chart container not found');
+        return;
+      }
+
+      const titleEl = document.getElementById('performance-title');
+      if (titleEl) {
+        titleEl.textContent = benchmarkNames[benchmark] || 'Performance Ranking (Top 5)';
+      }
+
+      const models = benchmarkData[benchmark] || [];
+      const topModels = getTopModels(models, 5);
+      const field = fieldMappings[benchmark];
+
+      if (!field || topModels.length === 0) {
+        performanceChartContainer.innerHTML = '<div class="no-data">No data available</div>';
+        return;
+      }
+
+      // Generate leaderboard HTML
+      const leaderboardBodyHTML = topModels.map((model, index) => {
+        const score = Number(model[field]) || 0;
+        let formattedScore;
+        if (score > 0) {
+          // Fields that need *100 conversion (stored as decimals 0-1)
+          const decimalFields = ['mmlu_pro', 'gpqa', 'hle', 'aime', 'scicode', 'math_500', 'livecodebench', 'aa_math_index', 'aa_coding_index', 'aa_intelligence_index'];
+          const needsPercent = decimalFields.includes(field);
+          const pctValue = needsPercent ? (score <= 1 ? score * 100 : score) : score;
+          formattedScore = needsPercent ? `${pctValue.toFixed(1)}%` : `${Math.round(pctValue)}`;
+        } else {
+          formattedScore = '—';
+        }
+        
+        // Rank badge styles based on position
+        let rankStyle = '';
+        if (index === 0) {
+          // Gold for 1st place
+          rankStyle = 'background: linear-gradient(135deg, #FFD700 0%, #FFA500 30%, #FFD700 60%, #FFED4E 100%) !important; color: #8B4513 !important; box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4), 0 0 0 3px rgba(255, 215, 0, 0.3) !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important;';
+        } else if (index === 1) {
+          // Silver for 2nd place
+          rankStyle = 'background: linear-gradient(135deg, #C0C0C0 0%, #E8E8E8 30%, #C0C0C0 60%, #F5F5F5 100%) !important; color: #2C2C2C !important; box-shadow: 0 6px 20px rgba(192, 192, 192, 0.4), 0 0 0 3px rgba(192, 192, 192, 0.3) !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5) !important;';
+        } else if (index === 2) {
+          // Bronze for 3rd place
+          rankStyle = 'background: linear-gradient(135deg, #CD7F32 0%, #D2691E 30%, #CD7F32 60%, #DEB887 100%) !important; color: #FFFFFF !important; box-shadow: 0 6px 20px rgba(205, 127, 50, 0.4), 0 0 0 3px rgba(205, 127, 50, 0.3) !important; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;';
+        } else {
+          // Theme color for 4th and 5th place (Rose Pine foam)
+          rankStyle = 'background: linear-gradient(135deg, #9ccfd8 0%, #c4a7e7 50%, #9ccfd8 100%) !important; color: #1a1a1a !important; box-shadow: 0 4px 16px rgba(156, 207, 216, 0.4), 0 0 0 2px rgba(156, 207, 216, 0.3) !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important;';
+        }
+        
+        return `
+          <div class="leaderboard-row" style="display: grid !important; grid-template-columns: 60px 1fr 80px !important; gap: 1rem !important; padding: 1.5rem 1rem !important; border-bottom: 1px solid rgba(156, 207, 216, 0.12) !important; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important; background: linear-gradient(90deg, rgba(31, 29, 46, 0.9), rgba(38, 35, 58, 0.8)) !important; position: relative !important; align-items: center !important;">
+            <div class="rank-cell" style="display: flex !important; align-items: center !important; justify-content: center !important; font-weight: 900 !important; font-size: 1.2rem !important; border-radius: 50% !important; width: 48px !important; height: 48px !important; margin: auto !important; position: relative !important; transition: all 0.3s ease !important; overflow: hidden !important; ${rankStyle}">${index + 1}</div>
+             <div class="name-cell" style="display: flex !important; flex-direction: column !important; width: 100% !important; min-width: 0 !important; align-items: flex-start !important; justify-content: flex-start !important; position: relative !important;">
+               <div class="model-name" style="font-size: 1rem !important; font-weight: 800 !important; color: #e0def4 !important; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6) !important; line-height: 1.3 !important; margin-bottom: 0.2rem !important; text-align: left !important; white-space: nowrap !important; width: 100% !important; display: block !important;" title="${model.name}">${model.name}</div>
+               <div class="company-name-container" style="display: block !important; width: 100% !important; text-align: left !important; position: relative !important;">
+                <span class="company-name" style="font-size: 0.85rem !important; font-weight: 600 !important; color: rgba(156, 207, 216, 0.95) !important; text-transform: uppercase !important; letter-spacing: 0.8px !important; background: linear-gradient(90deg, rgba(156, 207, 216, 0.2), transparent) !important; padding: 0.1rem 0.4rem 0.1rem 1.2rem !important; margin: 0 !important; border-radius: 6px !important; border: 1px solid rgba(156, 207, 216, 0.3) !important; display: inline-block !important; white-space: nowrap !important;line-height: 1.2 !important; position: relative !important;">
+                  <div class="info-icon tooltip-trigger" data-tooltip="${model.name} • ${model.company_name || 'Unknown'}" style="position: absolute !important; top: 50% !important; left: 4px !important; transform: translateY(-50%) !important; width: 12px !important; height: 12px !important; background: rgba(156, 207, 216, 1) !important; border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 8px !important; font-weight: bold !important; color: #1a1a1a !important; cursor: help !important; transition: all 0.2s ease !important; border: 1px solid rgba(156, 207, 216, 0.8) !important;">i</div>
+                  ${model.company_name || 'Unknown'}
+                </span>
+              </div>
+            </div>
+            <div class="score-cell" style="display: flex !important; align-items: center !important; justify-content: center !important; font-size: 0.85rem !important; font-weight: 900 !important; color: #e0def4 !important; background: linear-gradient(135deg, rgba(156, 207, 216, 0.3), rgba(156, 207, 216, 0.15)) !important; border-radius: 4px !important; padding: 0.2rem 0.3rem !important; border: 1px solid rgba(156, 207, 216, 0.5) !important; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6) !important; width: 50px !important; height: 30px !important; margin: 0 !important;">${formattedScore}</div>
+          </div>
+        `;
+      }).join('');  
+      
+      const leaderboardHTML = `
+        <div class="leaderboard-header" style="display: grid !important; grid-template-columns: 60px 1fr 100px !important; gap: 0.75rem !important; padding: 1.25rem 1rem !important; background: linear-gradient(135deg, #9ccfd8 0%, #c4a7e7 30%, #ebbcba 50%, #c4a7e7 70%, #9ccfd8 100%) !important; font-weight: 900 !important; font-size: 0.9rem !important; color: #191724 !important; text-transform: uppercase !important; letter-spacing: 1px !important; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important; border-bottom: 4px solid rgba(156, 207, 216, 0.5) !important;">
+          <div class="rank-col">RANK</div>  
+          <div class="name-col">NAME</div>
+          <div class="score-col">SCORE</div>
+        </div>
+        <div class="leaderboard-body" style="display: flex !important; flex-direction: column !important;">
+          ${leaderboardBodyHTML}
+        </div>
+      `;
+      
+      performanceChartContainer.innerHTML = leaderboardHTML;
+      
+      // Apply premium container styling directly
+      performanceChartContainer.style.cssText = `
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0 !important;
+        border-radius: 20px !important;
+        overflow: hidden !important;
+        background: linear-gradient(145deg, rgba(15, 15, 25, 0.98), rgba(25, 25, 40, 0.95)) !important;
+        border: 3px solid rgba(148, 197, 204, 0.3) !important;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 8px 32px rgba(148, 197, 204, 0.1) !important;
+        backdrop-filter: blur(20px) !important;
+        position: relative !important;
+      `;
+      
+      // Add premium styling class to trigger CSS
+      performanceChartContainer.classList.add('premium-leaderboard');
+    }
+    
+
+    
+    // Function to fetch fresh data from API
+    async function fetchFreshData() {
+      try {
+        log('🔄 Fetching fresh data from API...');
+        const response = await fetch('/api/models.json');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const freshModels = await response.json();
+        log('✅ Fresh data fetched:', freshModels.length, 'models');
+        return freshModels;
+      } catch (error) {
+        console.error('❌ Error fetching fresh data:', error);
+        return null;
+      }
+    }
+
+    
+
+    // Function to calculate and update live stats from fresh data
+    function updateStatsSection(freshModels) {
+      if (!freshModels || freshModels.length === 0) {
+        console.warn('⚠️ No fresh models data for stats update');
+        return;
+      }
+
+      // Filter valid models (same logic as server-side)
+      const validModels = freshModels.filter((model) => {
+        const inputPrice = Number(model.price_1m_input_tokens);
+        const outputPrice = Number(model.price_1m_output_tokens);
+        return inputPrice > 0 && outputPrice > 0;
+      });
+
+      // Calculate fresh stats
+      const totalModels = validModels.length;
+      const avgInputPrice = validModels.reduce((sum, model) => sum + Number(model.price_1m_input_tokens), 0) / totalModels;
+      const avgOutputPrice = validModels.reduce((sum, model) => sum + Number(model.price_1m_output_tokens), 0) / totalModels;
+
+      // Update DOM elements
+      const totalModelsElement = document.getElementById('total-models-stat');
+      const avgInputPriceElement = document.getElementById('avg-input-price-stat');
+      const avgOutputPriceElement = document.getElementById('avg-output-price-stat');
+
+      if (totalModelsElement) {
+        totalModelsElement.textContent = totalModels.toString();
+        log('📊 Updated total models:', totalModels);
+      }
+
+      if (avgInputPriceElement) {
+        const val = formatPrice(avgInputPrice, 3);
+        avgInputPriceElement.textContent = val;
+        log('📊 Updated avg input price:', val);
+      }
+
+      if (avgOutputPriceElement) {
+        const val = formatPrice(avgOutputPrice, 3);
+        avgOutputPriceElement.textContent = val;
+        log('📊 Updated avg output price:', val);
+      }
+
+      log('✅ Stats section updated with live Supabase data');
+    }
+
+    // Function to update data and re-render charts
+    async function refreshDataAndCharts() {
+      const freshModels = await fetchFreshData();
+      if (!freshModels) {
+        console.warn('⚠️ Using cached data due to fetch error');
+        return false;
+      }
+
+      // Update global data with fresh models
+      const validModels = freshModels.filter((model) => {
+        const inputPrice = Number(model.price_1m_input_tokens);
+        const outputPrice = Number(model.price_1m_output_tokens);
+        return inputPrice > 0 && outputPrice > 0;
+      });
+
+      // Recalculate top models by price
+      const freshTopModelsByPrice = [...validModels]
+        .sort((a, b) => {
+          const totalCostA = Number(a.price_1m_input_tokens) + Number(a.price_1m_output_tokens);
+          const totalCostB = Number(b.price_1m_input_tokens) + Number(b.price_1m_output_tokens);
+          return totalCostA - totalCostB;
+        })
+        .reduce((acc, model) => {
+          const modelKey = model.name;
+          if (!acc.some(m => m.name === modelKey)) {
+            acc.push(model);
+          }
+          return acc;
+        }, [])
+        .slice(0, 5);
+
+      // Recalculate fastest models
+      const freshFastestModels = [...validModels]
+        .filter(model => model.median_output_tokens_per_second && Number(model.median_output_tokens_per_second) > 0)
+        .sort((a, b) => Number(b.median_output_tokens_per_second) - Number(a.median_output_tokens_per_second))
+        .reduce((acc, model) => {
+          const brand = model.name.split(' ')[0];
+          if (!acc.some(m => m.name.split(' ')[0] === brand)) {
+            acc.push(model);
+          }
+          return acc;
+        }, [])
+        .slice(0, 5);
+
+      // Update global costData
+      costData.cheapest = freshTopModelsByPrice;
+      costData.fastest = freshFastestModels;
+
+      // Update benchmark data
+      Object.keys(benchmarkData).forEach(benchmark => {
+        const uniqueModels = new Map();
+        validModels
+          .filter(model => model[fieldMappings[benchmark]] && Number(model[fieldMappings[benchmark]]) > 0)
+          .forEach(model => {
+            const existing = uniqueModels.get(model.name);
+            if (!existing || Number(model[fieldMappings[benchmark]]) > Number(existing[fieldMappings[benchmark]])) {
+              uniqueModels.set(model.name, model);
+            }
+          });
+        
+        benchmarkData[benchmark] = Array.from(uniqueModels.values())
+          .sort((a, b) => Number(b[fieldMappings[benchmark]]) - Number(a[fieldMappings[benchmark]]))
+          .slice(0, 5);
+      });
+
+      // Update stats section with fresh data
+      updateStatsSection(freshModels);
+
+      log('✅ Data refreshed successfully');
+      return true;
+    }
+
+    // Event listeners with proper type casting
+    if (benchmarkSelector) {
+      benchmarkSelector.addEventListener('change', async function(e) {
+        const target = e.target;
+        if (target && target.value) {
+          log('🔄 Benchmark changed to:', target.value);
+          await refreshDataAndCharts();
+          renderPerformanceChart(target.value);
+        }
+      });
+    }
+    
+
+    
+    // Fetch fresh data on load so stats and leaderboard are current
+    try {
+      const refreshed = await refreshDataAndCharts();
+      const selector = (benchmarkSelector && benchmarkSelector.value) || 'mmlu_pro';
+      renderPerformanceChart(selector);
+      log('🎉 Charts initialized with', refreshed ? 'fresh' : 'cached', 'data');
+    } catch (e) {
+      console.warn('⚠️ Falling back to initial render due to refresh error', e);
+      renderPerformanceChart('mmlu_pro');
+    }
+  }
+
+  // Infinite scroll pagination functionality
+  function initModelPagination() {
+    const modelsGrid = document.getElementById('models-grid');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const endIndicator = document.getElementById('end-indicator');
+    const searchInput = document.getElementById('model-search');
+    const sortBySelect = document.getElementById('sort-by');
+    const sortOrderSelect = document.getElementById('sort-order');
+    const clearFiltersBtn = document.getElementById('clear-filters');
+    
+    if (!modelsGrid) {
+      console.warn('Models grid not found');
+      return;
+    }
+    
+    // Pagination state
+    let currentPage = 0;
+    const itemsPerPage = 8;
+    let filteredModels = [...validModels];
+    let isLoading = false;
+    let hasMoreItems = true;
+    
+    // Formatting functions defined at top of script
+
+    function createModelCard(model) {
+      const cardElement = document.createElement('div');
+      cardElement.className = 'model-card';
+      
+      // Create comprehensive tooltip with full details (removed unused local var)
+      
+      // Use sanitized HTML to prevent XSS injection
+      cardElement.innerHTML = `
+        <div class="model-header">
+          <div class="model-info">
+            <h4 class="model-name">${sanitizeHTML(model.name)}</h4>
+            <h5 class="company-name">${sanitizeHTML(model.company_name)}</h5>
+          </div>
+          <div class="model-pricing">
+            <div class="price-item">
+              <span class="price-label">Input</span>
+              <span class="price-value">${formatPrice(model.price_1m_input_tokens)}</span>
+            </div>
+            <div class="price-item">
+              <span class="price-label">Output</span>
+              <span class="price-value">${formatPrice(model.price_1m_output_tokens)}</span>
+            </div>
+            <div class="price-item">
+              <span class="price-label">TPS</span>
+              <span class="price-value">${formatTPS(model.median_output_tokens_per_second)}</span>
+            </div>
+            <div class="price-item">
+              <span class="price-label">TTFT</span>
+              <span class="price-value">${formatTTFT(model.median_time_to_first_answer_token)}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="benchmarks-container">
+          <div class="benchmark-group">
+            <h5 class="group-title">Academic</h5>
+            <div class="benchmark-grid">
+              <div class="benchmark-item">
+                <span class="benchmark-label">MMLU Pro</span>
+                <span class="benchmark-score">${formatScore(model.mmlu_pro, 'mmlu_pro')}</span>
+              </div>
+              <div class="benchmark-item">
+                <span class="benchmark-label">GPQA</span>
+                <span class="benchmark-score">${formatScore(model.gpqa, 'gpqa')}</span>
+              </div>
+              <div class="benchmark-item">
+                <span class="benchmark-label">HLE</span>
+                <span class="benchmark-score">${formatScore(model.hle, 'hle')}</span>
+              </div>
+              <div class="benchmark-item">
+                <span class="benchmark-label">AIME</span>
+                <span class="benchmark-score">${formatScore(model.aime, 'aime')}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="benchmark-group">
+            <h5 class="group-title">Coding & Math</h5>
+            <div class="benchmark-grid">
+              <div class="benchmark-item">
+                <span class="benchmark-label">SciCode</span>
+                <span class="benchmark-score">${formatScore(model.scicode, 'scicode')}</span>
+              </div>
+              <div class="benchmark-item">
+                <span class="benchmark-label">LiveCodeBench</span>
+                <span class="benchmark-score">${formatScore(model.livecodebench, 'livecodebench')}</span>
+              </div>
+              <div class="benchmark-item">
+                <span class="benchmark-label">Math 500</span>
+                <span class="benchmark-score">${formatScore(model.math_500, 'math_500')}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="benchmark-group">
+            <h5 class="group-title">AI Analysis</h5>
+            <div class="benchmark-grid">
+              <div class="benchmark-item">
+                <span class="benchmark-label">Math Index</span>
+                <span class="benchmark-score">${formatScore(model.aa_math_index, 'aa_math_index')}</span>
+              </div>
+              <div class="benchmark-item">
+                <span class="benchmark-label">Coding Index</span>
+                <span class="benchmark-score">${formatScore(model.aa_coding_index, 'aa_coding_index')}</span>
+              </div>
+              <div class="benchmark-item">
+                <span class="benchmark-label">Intelligence</span>
+                <span class="benchmark-score">${formatScore(model.aa_intelligence_index, 'aa_intelligence_index')}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      return cardElement;
+    }
+    
+    function loadMoreModels() {
+      if (isLoading || !hasMoreItems) return;
+      
+      isLoading = true;
+      if (loadingIndicator && currentPage > 0) {
+        loadingIndicator.style.display = 'flex';
+      }
+
+      const startIndex = currentPage * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const modelsToLoad = filteredModels.slice(startIndex, endIndex);
+
+      if (modelsToLoad.length === 0) {
+        hasMoreItems = false;
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
+        if (endIndicator) endIndicator.style.display = 'block';
+        return;
+      }
+
+      // Add new model cards immediately so first render has no artificial delay
+      modelsToLoad.forEach(model => {
+        const cardElement = createModelCard(model);
+        modelsGrid.appendChild(cardElement);
+      });
+
+      currentPage++;
+      isLoading = false;
+      if (loadingIndicator) loadingIndicator.style.display = 'none';
+
+      // Check if we've loaded all models
+      if (endIndex >= filteredModels.length) {
+        hasMoreItems = false;
+        if (endIndicator) endIndicator.style.display = 'block';
+      }
+      
+      log(`📄 Loaded page ${currentPage}, showing ${modelsGrid.children.length} of ${filteredModels.length} models`);
+    }
+    
+    function applyFilters() {
+      const searchTerm = searchInput?.value?.toLowerCase() || '';
+      const sortBy = sortBySelect?.value || 'price_1m_input_tokens';
+      const sortOrder = sortOrderSelect?.value || 'desc';
+      
+      // Reset pagination
+      currentPage = 0;
+      hasMoreItems = true;
+      modelsGrid.innerHTML = '';
+      endIndicator.style.display = 'none';
+      
+      // Apply search filter
+      filteredModels = validModels.filter(model => 
+        !searchTerm || model.name.toLowerCase().includes(searchTerm)
+      );
+      
+      // Apply sorting
+      filteredModels.sort((a, b) => {
+        let valueA, valueB;
+        
+        if (sortBy === 'name') {
+          valueA = a.name.toLowerCase();
+          valueB = b.name.toLowerCase();
+          return sortOrder === 'asc' ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA);
+        } else {
+          valueA = Number(a[sortBy]) || 0;
+          valueB = Number(b[sortBy]) || 0;
+          
+          if (sortOrder === 'asc') {
+            return valueA - valueB;
+          } else {
+            return valueB - valueA;
+          }
+        }
+      });
+      
+      log(`🔍 Filtered ${filteredModels.length} models out of ${validModels.length}`);
+      
+      // Load first page
+      loadMoreModels();
+    }
+    
+    function clearAllFilters() {
+      if (searchInput) searchInput.value = '';
+      if (sortBySelect) sortBySelect.value = 'price_1m_input_tokens';
+      if (sortOrderSelect) sortOrderSelect.value = 'desc';
+      applyFilters();
+    }
+    
+    // Infinite scroll detection
+    function handleScroll() {
+      if (isLoading || !hasMoreItems) return;
+      
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      
+      // Load more when user is 200px from bottom
+      if (scrollTop + windowHeight >= documentHeight - 200) {
+        loadMoreModels();
+      }
+    }
+    
+    // Add event listeners
+    searchInput?.addEventListener('input', applyFilters);
+    sortBySelect?.addEventListener('change', applyFilters);
+    sortOrderSelect?.addEventListener('change', applyFilters);
+    clearFiltersBtn?.addEventListener('click', clearAllFilters);
+    window.addEventListener('scroll', handleScroll);
+    
+    // Initial load
+    applyFilters();
+    
+    log('✅ Model pagination initialized with', validModels.length, 'models');
+  }
+  
+  // Tooltip functionality (temporarily simplified)
+  function initTooltips() {
+    // Tooltips disabled for now during refactor.
+  }
+  
+  // Initialize on both initial load and after view transitions
+  function initialize() {
+    initDashboard();
+    initModelPagination();
+    initTooltips();
+  }
+
+  // Handle initial page load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initialize);
+  } else {
+    initialize();
+  }
+
+  // Handle Astro View Transitions - re-initialize after navigation
+  document.addEventListener('astro:page-load', initialize);
+  
+  // Cleanup before page swap to prevent memory leaks
+  document.addEventListener('astro:before-swap', () => {
+    // Remove any active tooltips
+    document.querySelectorAll('.dashboard-tooltip').forEach(t => t.remove());
+  });
+</script>
+
+<style is:global>
+.aa-logo {
+  display: block;
+  margin: 0 auto;
+  height: 30px;
+  width: auto;
+}
+.dashboard-container {
+  min-height: 100vh;
+  background: var(--base);
+  color: var(--text);
+  font-family: 'Nebula Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+
+
+/* Main Content */
+.dashboard-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.dashboard-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.dashboard-header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, var(--foam), var(--iris));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.dashboard-header p {
+  font-size: 1.2rem;
+  color: var(--subtle);
+}
+
+/* Charts Section */
+.charts-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(350px, 100%), 1fr));
+  gap: clamp(1rem, 3vw, 2.5rem);
+  margin-bottom: 3rem;
+  opacity: 1;
+  justify-items: stretch;
+  max-width: 100%;
+  width: 100%;
+}
+
+.charts-section.ready {
+  opacity: 1;
+}
+
+.chart-card {
+  background: var(--surface);
+  border-radius: 1rem;
+  border: 1px solid var(--highlight-med);
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  backdrop-filter: blur(20px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: visible;
+  will-change: transform;
+}
+
+/* Performance chart specific styling */
+.chart-card .chart-container {
+  min-height: 550px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .chart-card:hover {
+    border-color: var(--foam);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-card:hover {
+    border-color: var(--foam);
+  }
+}
+
+/* Chart Header */
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.chart-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Selectors */
+.benchmark-selector,
+.cost-selector {
+  position: relative;
+}
+
+#benchmark-selector,
+#cost-selector {
+  background: var(--overlay);
+  border: 1px solid var(--highlight-med);
+  border-radius: 0.5rem;
+  color: var(--text);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+  outline: none;
+  min-width: 120px;
+}
+
+#benchmark-selector:hover,
+#cost-selector:hover {
+  border-color: var(--foam);
+  background: var(--highlight-low);
+}
+
+#benchmark-selector:focus,
+#cost-selector:focus {
+  border-color: var(--foam);
+  box-shadow: 0 0 0 2px rgba(156, 207, 216, 0.2);
+}
+
+#benchmark-selector option,
+#cost-selector option {
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.5rem;
+}
+
+/* Vertical Chart (Cost) */
+.vertical-chart {
+  height: 250px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(10, 10, 11, 0.4) 0%, rgba(10, 10, 11, 0.8) 100%);
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid rgba(161, 166, 180, 0.1);
+}
+
+.vertical-chart .chart-container {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: space-evenly;
+  gap: 0.25rem;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.chart-bar-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 60px;
+  max-width: 100px;
+}
+
+.chart-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  padding: 0.5rem 0.25rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 4px 12px rgba(148, 197, 204, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+  overflow: hidden;
+  background: none !important; /* Remove background since we'll use split colors */
+}
+
+.chart-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.pricing-toggle {
+  display: flex;
+  background: rgba(161, 166, 180, 0.1);
+  border-radius: 6px;
+  padding: 2px;
+  border: 1px solid rgba(161, 166, 180, 0.2);
+}
+
+.toggle-btn {
+  padding: 0.4rem 0.8rem;
+  border: none;
+  background: transparent;
+  color: rgba(161, 166, 180, 0.8);
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-btn:hover {
+  background: rgba(161, 166, 180, 0.1);
+  color: rgba(161, 166, 180, 1);
+}
+
+.toggle-btn.active {
+  background: #22c55e;
+  color: white;
+  box-shadow: 0 2px 4px rgba(34, 197, 94, 0.3);
+}
+
+.toggle-btn.active.output {
+  background: #ef4444;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+}
+
+.chart-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+}
+
+.chart-bar:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 8px 24px rgba(148, 197, 204, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.cheapest-bar {
+  background: #22c55e !important; /* Solid Green */
+  border-color: rgba(34, 197, 94, 0.4);
+  box-shadow: 
+    0 4px 12px rgba(34, 197, 94, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.cheapest-bar.input-mode {
+  background: #22c55e !important; /* Green for input */
+  border-color: rgba(34, 197, 94, 0.4);
+  box-shadow: 
+    0 4px 12px rgba(34, 197, 94, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.cheapest-bar.output-mode {
+  background: #ef4444 !important; /* Red for output */
+  border-color: rgba(239, 68, 68, 0.4);
+  box-shadow: 
+    0 4px 12px rgba(239, 68, 68, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.fastest-bar {
+  background: #7AA2C2 !important; /* Muted Blue */
+  border-color: rgba(122, 162, 194, 0.4);
+  box-shadow: 0 4px 12px rgba(122, 162, 194, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.fastest-bar.tps-mode {
+  background: #7AA2C2 !important; /* Muted Blue for TPS */
+  border-color: rgba(122, 162, 194, 0.4);
+  box-shadow: 0 4px 12px rgba(122, 162, 194, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.fastest-bar.ttft-mode {
+  background: #f59e0b !important; /* Orange for TTFT */
+  border-color: rgba(245, 158, 11, 0.4);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.bar-value {
+  font-size: 1rem;
+  color: #000;
+  font-weight: 900;
+  text-align: center;
+  padding: 0.5rem;
+  text-shadow: 0 2px 4px rgba(255, 255, 255, 0.5);
+  line-height: 1.2;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.bar-units {
+  font-size: 0.6rem;
+  color: rgba(0, 0, 0, 0.7);
+  font-weight: 500;
+  text-align: center;
+  margin-top: 0.25rem;
+  opacity: 0.8;
+}
+
+.bar-label {
+  font-size: 0.75rem;
+  color: #F8F8F8;
+  font-weight: 600;
+  text-align: center;
+  margin-top: 0.25rem;
+  line-height: 1.2;
+  max-width: 100px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  min-height: 2.4em; /* Ensure consistent height for 2 lines */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Leaderboard Styles - Using higher specificity to override Astro scoped styles */
+#performance-chart-container.leaderboard-container,
+.leaderboard-container {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  border-radius: 20px !important;
+  overflow: visible !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  background: 
+    linear-gradient(145deg, rgba(15, 15, 25, 0.98), rgba(25, 25, 40, 0.95)),
+    radial-gradient(circle at 20% 80%, rgba(148, 197, 204, 0.1), transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(180, 210, 231, 0.08), transparent 50%) !important;
+  border: 3px solid rgba(148, 197, 204, 0.3) !important;
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.4),
+    0 8px 32px rgba(148, 197, 204, 0.1),
+    0 0 0 1px rgba(148, 197, 204, 0.15) inset,
+    0 2px 0 rgba(255, 255, 255, 0.05) inset !important;
+  position: relative !important;
+}
+
+.leaderboard-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(148, 197, 204, 0.6), transparent);
+  z-index: 1;
+}
+
+#performance-chart-container .leaderboard-header,
+.leaderboard-header {
+  display: grid !important;
+  grid-template-columns: 80px 1fr 120px !important;
+  gap: 1.5rem !important;
+  padding: 1.5rem 2rem !important;
+  background: 
+    linear-gradient(135deg, #94C5CC 0%, #B4D2E7 30%, #E8F4F8 50%, #B4D2E7 70%, #94C5CC 100%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.1), transparent) !important;
+  font-weight: 900 !important;
+  font-size: 0.95rem !important;
+  color: #1a1a1a !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1.2px !important;
+  text-shadow: 
+    0 1px 2px rgba(255, 255, 255, 0.4),
+    0 1px 4px rgba(148, 197, 204, 0.3) !important;
+  border-bottom: 4px solid rgba(148, 197, 204, 0.5) !important;
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+.leaderboard-header::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(148, 197, 204, 0.8), transparent);
+}
+
+.leaderboard-body {
+  display: flex;
+  flex-direction: column;
+  background: rgba(15, 15, 25, 0.8);
+}
+
+#performance-chart-container .leaderboard-row,
+.leaderboard-row {
+  display: grid !important;
+  grid-template-columns: 80px 1fr 120px !important;
+  gap: 1.5rem !important;
+  padding: 1.75rem 2rem !important;
+  border-bottom: 1px solid rgba(148, 197, 204, 0.12) !important;
+  transition: background 0.2s ease, box-shadow 0.2s ease !important;
+  background: 
+    linear-gradient(90deg, rgba(25, 25, 40, 0.8), rgba(30, 30, 50, 0.6)),
+    radial-gradient(circle at 100% 50%, rgba(148, 197, 204, 0.03), transparent 70%) !important;
+  position: relative !important;
+  backdrop-filter: blur(5px) !important;
+}
+
+.leaderboard-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, transparent, rgba(148, 197, 204, 0.4), transparent);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.leaderboard-row:last-child {
+  border-bottom: none;
+  border-radius: 0 0 20px 20px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .leaderboard-row:hover {
+    background: 
+      linear-gradient(90deg, rgba(148, 197, 204, 0.12), rgba(148, 197, 204, 0.06)),
+      radial-gradient(circle at 100% 50%, rgba(148, 197, 204, 0.08), transparent 70%);
+    box-shadow: 
+      2px 0 0 rgba(148, 197, 204, 0.4),
+      0 4px 16px rgba(148, 197, 204, 0.1);
+  }
+  
+  .leaderboard-row:hover::before {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaderboard-row:hover {
+    background: 
+      linear-gradient(90deg, rgba(148, 197, 204, 0.12), rgba(148, 197, 204, 0.06)),
+      radial-gradient(circle at 100% 50%, rgba(148, 197, 204, 0.08), transparent 70%);
+  }
+}
+
+#performance-chart-container .rank-cell,
+.rank-cell {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: 900 !important;
+  font-size: 1.4rem !important;
+  border-radius: 50% !important;
+  width: 56px !important;
+  height: 56px !important;
+  margin: auto !important;
+  position: relative !important;
+  transition: all 0.3s ease !important;
+  overflow: hidden !important;
+}
+
+/* Gold for 1st place */
+#performance-chart-container .leaderboard-row:nth-child(1) .rank-cell,
+.leaderboard-row:nth-child(1) .rank-cell {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 30%, #FFD700 60%, #FFED4E 100%) !important;
+  color: #8B4513 !important;
+  box-shadow: 
+    0 6px 20px rgba(255, 215, 0, 0.4),
+    0 0 0 3px rgba(255, 215, 0, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -2px 0 rgba(255, 165, 0, 0.3) !important;
+  text-shadow: 
+    0 1px 2px rgba(255, 255, 255, 0.4),
+    0 1px 4px rgba(255, 215, 0, 0.3) !important;
+}
+
+/* Silver for 2nd place */
+#performance-chart-container .leaderboard-row:nth-child(2) .rank-cell,
+.leaderboard-row:nth-child(2) .rank-cell {
+  background: linear-gradient(135deg, #C0C0C0 0%, #E8E8E8 30%, #C0C0C0 60%, #F5F5F5 100%) !important;
+  color: #2C2C2C !important;
+  box-shadow: 
+    0 6px 20px rgba(192, 192, 192, 0.4),
+    0 0 0 3px rgba(192, 192, 192, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -2px 0 rgba(169, 169, 169, 0.3) !important;
+  text-shadow: 
+    0 1px 2px rgba(255, 255, 255, 0.5),
+    0 1px 4px rgba(192, 192, 192, 0.3) !important;
+}
+
+/* Bronze for 3rd place */
+#performance-chart-container .leaderboard-row:nth-child(3) .rank-cell,
+.leaderboard-row:nth-child(3) .rank-cell {
+  background: linear-gradient(135deg, #CD7F32 0%, #D2691E 30%, #CD7F32 60%, #DEB887 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 
+    0 6px 20px rgba(205, 127, 50, 0.4),
+    0 0 0 3px rgba(205, 127, 50, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 0 rgba(160, 82, 45, 0.3) !important;
+  text-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    0 1px 4px rgba(205, 127, 50, 0.3) !important;
+}
+
+/* Default theme color for 4th and 5th place */
+#performance-chart-container .leaderboard-row:nth-child(n+4) .rank-cell,
+.leaderboard-row:nth-child(n+4) .rank-cell {
+  background: linear-gradient(135deg, #94C5CC 0%, #B4D2E7 50%, #94C5CC 100%) !important;
+  color: #1a1a1a !important;
+  box-shadow: 
+    0 4px 16px rgba(148, 197, 204, 0.4),
+    0 0 0 2px rgba(148, 197, 204, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 0 rgba(148, 197, 204, 0.3) !important;
+  text-shadow: 
+    0 1px 2px rgba(255, 255, 255, 0.4),
+    0 1px 4px rgba(148, 197, 204, 0.3) !important;
+}
+
+.rank-cell::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  right: 3px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+  border-radius: 50%;
+}
+
+.rank-cell::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3), transparent 60%);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .leaderboard-row:hover .rank-cell {
+    filter: brightness(1.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaderboard-row:hover .rank-cell {
+    filter: brightness(1.05);
+  }
+}
+
+.name-cell {
+  display: flex;
+  align-items: center;
+  padding-left: 1rem;
+}
+
+.model-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.model-name {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #F8F8F8;
+  text-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.6),
+    0 0 8px rgba(148, 197, 204, 0.2);
+  line-height: 1.3;
+  margin-bottom: 0.2rem;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+
+.company-name {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #94C5CC;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+  background: rgba(148, 197, 204, 0.15);
+  padding: 0.2rem 0.7rem;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  line-height: 1;
+  border: 1px solid rgba(148, 197, 204, 0.2);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+  height: 20px;
+  min-width: 0;
+  max-width: fit-content;
+  box-sizing: border-box;
+}
+
+.company-name::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.1) 50%, 
+    transparent 100%);
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.leaderboard-row:hover .model-name {
+  color: #FFFFFF;
+  text-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.8),
+    0 0 12px rgba(148, 197, 204, 0.4);
+}
+
+.leaderboard-row:hover .company-name {
+  background: linear-gradient(90deg, rgba(148, 197, 204, 0.3), rgba(148, 197, 204, 0.1));
+  border-color: rgba(148, 197, 204, 0.5);
+  transform: translateX(2px);
+}
+
+.score-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #F8F8F8;
+  background: 
+    linear-gradient(135deg, rgba(148, 197, 204, 0.3), rgba(148, 197, 204, 0.15)),
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1), transparent 60%);
+  border-radius: 16px;
+  padding: 1rem 1.25rem;
+  border: 2px solid rgba(148, 197, 204, 0.5);
+  box-shadow: 
+    0 4px 16px rgba(148, 197, 204, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 2px 0 rgba(148, 197, 204, 0.3),
+    inset 0 -2px 0 rgba(148, 197, 204, 0.1);
+  text-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.6),
+    0 0 8px rgba(148, 197, 204, 0.4);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+}
+
+.score-cell::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  right: 2px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  border-radius: 14px;
+}
+
+.leaderboard-row:hover .score-cell {
+  transform: scale(1.02);
+  box-shadow: 
+    0 4px 16px rgba(148, 197, 204, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.2);
+  border-color: rgba(148, 197, 204, 0.6);
+}
+
+/* Column headers */
+.rank-col, .name-col, .score-col {
+  display: flex;
+  align-items: center;
+}
+
+.rank-col {
+  justify-content: center;
+}
+
+.name-col {
+  padding-left: 1rem;
+}
+
+.score-col {
+  justify-content: center;
+}
+
+.no-data {
+  text-align: center;
+  padding: 2rem;
+  color: rgba(161, 166, 180, 0.6);
+  font-style: italic;
+}
+
+/* Stats Section */
+.stats-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+.stat-card {
+  background: rgba(10, 10, 11, 0.8);
+  border-radius: 1rem;
+  border: 1px solid rgba(161, 166, 180, 0.25);
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #94C5CC;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: rgba(161, 166, 180, 0.8);
+}
+
+/* Leaders Section */
+.leaders-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+.leader-card {
+  background: rgba(10, 10, 11, 0.8);
+  border-radius: 1rem;
+  border: 1px solid rgba(161, 166, 180, 0.25);
+  padding: 1.5rem;
+}
+
+.leader-card h3 {
+  margin-bottom: 1rem;
+  color: #94C5CC;
+  font-size: 1.2rem;
+}
+
+.leader-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.leader-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(161, 166, 180, 0.08);
+  border-radius: 0.5rem;
+}
+
+.leader-name {
+  font-weight: 500;
+  color: #F8F8F8;
+}
+
+.leader-price,
+.leader-score {
+  color: #94C5CC;
+  font-weight: 600;
+}
+
+/* Table Section */
+.table-section {
+  margin-bottom: 3rem;
+}
+
+.table-card {
+  background: rgba(10, 10, 11, 0.8);
+  border-radius: 1rem;
+  border: 1px solid rgba(161, 166, 180, 0.25);
+  padding: 1.5rem;
+}
+
+.table-card h3 {
+  margin-bottom: 1rem;
+  color: #94C5CC;
+  font-size: 1.2rem;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+.table-header,
+.table-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
+  gap: 1rem;
+  align-items: center;
+}
+
+.table-header {
+  padding: 1rem;
+  background: rgba(148, 197, 204, 0.08);
+  font-weight: 600;
+  color: rgba(161, 166, 180, 0.9);
+}
+
+.table-row {
+  padding: 1rem;
+  border-bottom: 1px solid rgba(161, 166, 180, 0.12);
+}
+
+.table-row:last-child {
+  border-bottom: none;
+}
+
+.table-row:nth-child(even) {
+  background: rgba(161, 166, 180, 0.04);
+}
+
+.table-cell {
+  color: rgba(161, 166, 180, 0.9);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .nav-content {
+    padding: 1rem;
+  }
+  
+  .nav-links {
+    gap: 1rem;
+  }
+  
+  .dashboard-main {
+    padding: 90px 1rem 1rem;
+  }
+  
+  .dashboard-header h1 {
+    font-size: 2rem;
+  }
+  
+  .charts-section {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .models-table {
+    font-size: 0.875rem;
+  }
+  
+  .table-cell {
+    padding: 0.75rem 0.5rem;
+  }
+  
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+</div>
+
+<!-- Global styles for dynamically created chart elements -->
+<style is:global>
+/* Responsive scaling for dashboard */
+@media (max-width: 900px) {
+  .dashboard-container, .dashboard-main, .charts-section, .table-section, .stats-section {
+    width: 100%;
+    min-width: 0;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    box-sizing: border-box;
+  }
+  .dashboard-main {
+    padding: 1.5rem 1rem;
+  }
+  .dashboard-header, .stat-card, .chart-card, .table-card {
+    width: 100%;
+    min-width: 0;
+    margin: 0 auto 1.5rem auto;
+  }
+  .dashboard-header h1 {
+    font-size: 2rem;
+  }
+  .dashboard-header p {
+    font-size: 1rem;
+  }
+  .table-header, .table-row {
+    flex-wrap: wrap;
+    font-size: 0.95rem;
+  }
+  .charts-section {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+@media (max-width: 600px) {
+  .dashboard-main {
+    padding: 1rem 0.75rem;
+  }
+  .dashboard-header {
+    margin-bottom: 2rem;
+  }
+  .dashboard-header h1 {
+    font-size: 1.75rem;
+  }
+  .dashboard-header p {
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .dashboard-header, .stat-card, .chart-card, .table-card {
+    padding: 1rem;
+    font-size: 0.95rem;
+    margin-bottom: 1.25rem;
+  }
+  .table-header, .table-row {
+    font-size: 0.85rem;
+  }
+  .chart-header h3 {
+    font-size: 1.1rem;
+  }
+  .benchmark-selector {
+    font-size: 0.85rem;
+    padding: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-main {
+    padding: 0.75rem 0.5rem;
+  }
+  .dashboard-header {
+    margin-bottom: 1.5rem;
+  }
+  .dashboard-header h1 {
+    font-size: 1.5rem;
+  }
+  .dashboard-header p {
+    font-size: 0.85rem;
+  }
+  .stat-card, .chart-card {
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  .chart-header h3 {
+    font-size: 1rem;
+  }
+  .benchmark-selector {
+    width: 100%;
+    font-size: 0.8rem;
+  }
+  .leaderboard-header,
+  .leaderboard-row {
+    font-size: 0.8rem;
+    padding: 0.75rem 1rem;
+  }
+  .leaderboard-header {
+    grid-template-columns: 60px 1fr 80px;
+    gap: 1rem;
+  }
+  .leaderboard-row {
+    grid-template-columns: 60px 1fr 80px;
+    gap: 1rem;
+  }
+  .rank-col, .score-col {
+    min-width: 50px;
+    font-size: 0.85rem;
+  }
+  .name-col {
+    flex: 1;
+    min-width: 120px;
+  }
+  .model-name {
+    font-size: 0.9rem;
+    line-height: 1.2;
+  }
+  .company-name {
+    font-size: 0.75rem;
+  }
+  .chart-card {
+    border-radius: 16px;
+    overflow: visible;
+  }
+  .leaderboard-container {
+    border-radius: 12px;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 3600px) {
+  .dashboard-main {
+    padding: 0.5rem 0.25rem;
+  }
+  .chart-card {
+    padding: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+  .chart-header h3 {
+    font-size: 0.9rem;
+  }
+  .benchmark-selector {
+    font-size: 0.75rem;
+    padding: 0.4rem;
+  }
+  .leaderboard-header,
+  .leaderboard-row {
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
+  }
+  .leaderboard-header {
+    grid-template-columns: 50px 1fr 70px;
+    gap: 0.75rem;
+  }
+  .leaderboard-row {
+    grid-template-columns: 50px 1fr 70px;
+    gap: 0.75rem;
+  }
+}
+</style>
+    grid-template-columns: 50px 1fr 70px;
+    gap: 0.75rem;
+  }
+  .rank-col, .score-col {
+    min-width: 40px;
+    font-size: 0.8rem;
+  }
+  .model-name {
+    font-size: 0.8rem;
+  }
+  .company-name {
+    font-size: 0.7rem;
+  }
+
+/* Global chart bar styles to bypass Astro CSS scoping */
+.chart-bar.cheapest-bar {
+  background: #22c55e !important;
+  border-color: rgba(34, 197, 94, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.chart-bar.fastest-bar {
+  background: #7AA2C2 !important;
+  border-color: rgba(122, 162, 194, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(122, 162, 194, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.perf-fill {
+  background: linear-gradient(135deg, #94C5CC 0%, #B4D2E7 50%, #94C5CC 100%) !important;
+  border: 2px solid #94C5CC !important;
+  min-width: 20px !important;
+}
+
+/* Ensure chart bars are visible */
+.chart-bar {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  width: 100% !important;
+  padding: 0.5rem 0.25rem !important;
+  border-radius: 8px !important;
+  transition: all 0.3s ease !important;
+  cursor: pointer !important;
+  position: relative !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  overflow: hidden !important;
+}
+
+  .perf-bar {
+    flex: 1 !important;
+    height: 28px !important;
+    background: rgba(161, 166, 180, 0.15) !important;
+    border-radius: 14px !important;
+  position: relative !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(161, 166, 180, 0.25) !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Model Cards Styles */
+.models-section {
+  margin: 2rem 0;
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.section-header h3 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: rgba(161, 166, 180, 0.95);
+  margin-bottom: 0.5rem;
+}
+
+.section-subtitle {
+  color: rgba(161, 166, 180, 0.7);
+  font-size: 1rem;
+  margin: 0 0 1.5rem 0;
+}
+
+/* Filter Row Styles */
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: end;
+  justify-content: center;
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: rgba(148, 197, 204, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(148, 197, 204, 0.15);
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 150px;
+}
+
+.filter-item label {
+  font-size: 0.8rem;
+  color: rgba(161, 166, 180, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.filter-input,
+.filter-select {
+  padding: 0.75rem 1rem;
+  background: rgba(15, 15, 25, 0.6);
+  border: 1px solid rgba(148, 197, 204, 0.2);
+  border-radius: 8px;
+  color: rgba(161, 166, 180, 0.9);
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+.filter-input:focus,
+.filter-select:focus {
+  outline: none;
+  border-color: rgba(148, 197, 204, 0.5);
+  box-shadow: 0 0 0 2px rgba(148, 197, 204, 0.1);
+  background: rgba(15, 15, 25, 0.8);
+}
+
+.filter-input::placeholder {
+  color: rgba(161, 166, 180, 0.5);
+}
+
+.filter-select option {
+  background: rgba(15, 15, 25, 0.95);
+  color: rgba(161, 166, 180, 0.9);
+}
+
+.clear-btn {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, rgba(148, 197, 204, 0.2), rgba(148, 197, 204, 0.1));
+  border: 1px solid rgba(148, 197, 204, 0.3);
+  border-radius: 8px;
+  color: rgba(161, 166, 180, 0.9);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.clear-btn:hover {
+  background: linear-gradient(135deg, rgba(148, 197, 204, 0.3), rgba(148, 197, 204, 0.2));
+  border-color: rgba(148, 197, 204, 0.4);
+  transform: translateY(-1px);
+}
+
+.clear-btn:active {
+  transform: translateY(0);
+}
+
+.models-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1.5rem;
+  padding: 0 1rem;
+}
+
+.model-card {
+  background: 
+    linear-gradient(145deg, rgba(15, 15, 25, 0.95), rgba(25, 25, 40, 0.9)),
+    radial-gradient(circle at 20% 80%, rgba(148, 197, 204, 0.08), transparent 50%);
+  border: 2px solid rgba(148, 197, 204, 0.2);
+  border-radius: 16px;
+  padding: 1.5rem;
+  backdrop-filter: blur(20px);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 4px 16px rgba(148, 197, 204, 0.1),
+    0 0 0 1px rgba(148, 197, 204, 0.1) inset;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.model-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(148, 197, 204, 0.4), transparent);
+  z-index: 1;
+}
+
+.model-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(148, 197, 204, 0.4);
+  box-shadow: 
+    0 12px 48px rgba(0, 0, 0, 0.4),
+    0 8px 24px rgba(148, 197, 204, 0.15),
+    0 0 0 1px rgba(148, 197, 204, 0.2) inset;
+}
+
+.model-header {
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(148, 197, 204, 0.15);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  align-items: center;
+}
+
+.model-info {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+
+
+.model-name {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: rgba(161, 166, 180, 0.95);
+  margin: 0 auto 0.25rem auto;
+  text-align: center;
+  white-space: normal;
+  overflow: hidden;
+  line-height: 1.2;
+  padding: 0 0.5rem;
+}
+
+
+.company-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba(148, 197, 204, 0.8);
+  white-space: normal;
+  overflow: hidden;
+  text-align: center;
+  margin: 0 auto 0.5rem auto;
+  padding: 0 0.5rem;
+}
+
+.model-pricing {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.price-item {
+  flex: 1;
+  text-align: center;
+  padding: 0.75rem;
+  background: rgba(148, 197, 204, 0.08);
+  border-radius: 8px;
+  border: 1px solid rgba(148, 197, 204, 0.15);
+}
+
+.price-label {
+  display: block;
+  font-size: 0.8rem;
+  color: rgba(161, 166, 180, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.25rem;
+}
+
+.price-value {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: rgba(161, 166, 180, 0.9);
+}
+
+.benchmarks-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.benchmark-group {
+  background: rgba(148, 197, 204, 0.05);
+  border-radius: 12px;
+  padding: 1rem;
+  border: 1px solid rgba(148, 197, 204, 0.1);
+}
+
+.group-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(148, 197, 204, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 0.75rem 0;
+  text-align: center;
+}
+
+.benchmark-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+
+.benchmark-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(15, 15, 25, 0.3);
+  border-radius: 8px;
+  border: 1px solid rgba(148, 197, 204, 0.1);
+  transition: all 0.2s ease;
+}
+
+.benchmark-item:hover {
+  background: rgba(148, 197, 204, 0.08);
+  border-color: rgba(148, 197, 204, 0.2);
+}
+
+.benchmark-label {
+  font-size: 0.75rem;
+  color: rgba(161, 166, 180, 0.7);
+  text-align: center;
+  margin-bottom: 0.25rem;
+  line-height: 1.2;
+}
+
+.benchmark-score {
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgba(161, 166, 180, 0.9);
+  text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dashboard-main {
+    padding: 1rem;
+  }
+  
+  .charts-section {
+    grid-template-columns: 1fr;
+    gap: clamp(1rem, 2.5vw, 1.5rem);
+    justify-items: stretch;
+    max-width: 100%;
+  }
+  
+  .chart-card {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+  }
+  
+  .models-grid {
+    grid-template-columns: 1fr;
+    padding: 0;
+    justify-items: center;
+  }
+  
+  .model-card {
+    padding: 1.25rem;
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  .benchmark-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .section-header h3 {
+    font-size: 1.75rem;
+    text-align: center;
+  }
+  
+  .section-header {
+    text-align: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .filter-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .filter-item {
+    min-width: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-main {
+    padding: 0.75rem;
+  }
+  
+  .charts-section {
+    grid-template-columns: 1fr;
+    gap: clamp(0.75rem, 2vw, 1rem);
+    margin-bottom: 2rem;
+    justify-items: stretch;
+  }
+  
+  .chart-card {
+    padding: 0.75rem;
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+    box-sizing: border-box;
+  }
+  
+  #performance-chart-container.leaderboard-container,
+  .leaderboard-container {
+    width: calc(100vw - 2rem) !important;
+    max-width: calc(100vw - 2rem) !important;
+    overflow: visible !important;
+    margin: 0 auto !important;
+  }
+  
+  .filter-row {
+    padding: 1rem;
+    gap: 0.75rem;
+    justify-content: center;
+  }
+  
+  .model-pricing {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .benchmark-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .model-card {
+    padding: 1rem;
+    width: 100%;
+  }
+  
+  .models-section {
+    text-align: center;
+  }
+}
+
+@media (min-width: 1200px) {
+  .models-grid {
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  }
+}
+
+/* Loading and End Indicators */
+.loading-indicator,
+.end-indicator {
+  text-align: center;
+  padding: 2rem;
+  margin: 2rem 0;
+}
+
+.loading-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(148, 197, 204, 0.2);
+  border-top: 3px solid rgba(148, 197, 204, 0.8);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-indicator p,
+.end-indicator p {
+  color: rgba(161, 166, 180, 0.7);
+  font-size: 1rem;
+  margin: 0;
+}
+
+.end-indicator {
+  border-top: 1px solid rgba(148, 197, 204, 0.2);
+  background: rgba(148, 197, 204, 0.05);
+  border-radius: 12px;
+}
+
+.end-indicator p {
+  font-style: italic;
+}
+@media (min-width: 1024px) {
+  .model-name {
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.45);
+  }
+  .company-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #9fd2e0;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+}
+/* Mobile responsive styles */
+@media (max-width: 480px) {
+  #performance-chart-container .leaderboard-row,
+  .leaderboard-row {
+    grid-template-columns: 50px minmax(min-content, 1fr) 70px !important;
+    gap: 0.5rem !important;
+    padding: 1.25rem 0.75rem !important;
+  }
+  
+  #performance-chart-container .leaderboard-header,
+  .leaderboard-header {
+    grid-template-columns: 50px 1fr 70px !important;
+    gap: 0.5rem !important;
+    padding: 1rem 0.75rem !important;
+    font-size: 0.85rem !important;
+    letter-spacing: 0.5px !important;
+  }
+  
+  .rank-cell {
+    width: 40px !important;
+    height: 40px !important;
+    font-size: 1rem !important;
+  }
+  
+  .model-name {
+    font-size: 1rem !important;
+    max-width: 12ch !important;
+  }
+  
+  .company-badge {
+    font-size: 0.7rem !important;
+    padding: 0.2rem 0.5rem !important;
+  }
+  
+  .score-cell {
+    font-size: 1.2rem !important;
+    padding: 0.75rem 1rem !important;
+    width: 100% !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+  
+  .company-name-container {
+    width: 100% !important;
+    text-align: left !important;
+  }
+  
+  .company-name {
+    display: inline-block !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+  }
+}
+
+@media (max-width: 390px) {
+  #performance-chart-container .leaderboard-row,
+  .leaderboard-row {
+    grid-template-columns: 35px 1fr 60px !important;
+    gap: 0.25rem !important;
+    padding: 0.75rem 0.5rem !important;
+  }
+  
+  #performance-chart-container .leaderboard-header,
+  .leaderboard-header {
+    grid-template-columns: 35px 1fr 60px !important;
+    gap: 0.25rem !important;
+    padding: 0.75rem 0.5rem !important;
+    font-size: 0.8rem !important;
+  }
+  
+  .rank-cell {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 0.8rem !important;
+  }
+  
+  .model-name {
+    font-size: 0.9rem !important;
+    max-width: 10ch !important;
+  }
+  
+  #performance-chart-container.leaderboard-container,
+  .leaderboard-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+  }
+  
+  .company-badge {
+    font-size: 0.65rem !important;
+    padding: 0.15rem 0.4rem !important;
+  }
+  
+  .score-cell {
+    font-size: 0.9rem !important;
+    padding: 0.25rem !important;
+    border-radius: 6px !important;
+    border-width: 1px !important;
+    width: auto !important;
+    min-width: 50px !important;
+    max-width: 70px !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+  }
+}
+</style>
