@@ -8,7 +8,9 @@ const { currentPage = 'dashboard' } = Astro.props;
 
 <header class="header">
   <div class="header-container">
-    <div class="logo">AI Stats</div>
+    <a href="/" class="logo-link" aria-label="Go to homepage">
+      <div class="logo">AI Stats</div>
+    </a>
     <nav class="nav">
       <a href="/" class={`nav-item ${currentPage === 'dashboard' ? 'active' : ''}`}>Stats</a>
       <a href="/compare" class={`nav-item ${currentPage === 'compare' ? 'active' : ''}`}>Compare</a>
@@ -39,6 +41,16 @@ const { currentPage = 'dashboard' } = Astro.props;
   align-items: center;
   gap: 1rem;
   box-sizing: border-box;
+}
+
+.logo-link {
+  text-decoration: none;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.logo-link:hover {
+  transform: scale(1.02);
+  opacity: 0.9;
 }
 
 .logo {

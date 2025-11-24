@@ -3,6 +3,10 @@
   "type": "module",
   "version": "0.0.1",
   "packageManager": "bun@^1.1.0",
+  "overrides": {
+    "glob": ">=10.5.0",
+    "js-yaml": ">=4.1.1"
+  },
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
@@ -15,8 +19,8 @@
     "@astrojs/react": "^4.4.2",
     "@astrojs/sitemap": "^3.6.0",
     "@astrojs/tailwind": "^6.0.2",
-    "@supabase/supabase-js": "^2.81.1",
-    "astro": "^5.15.7",
+    "@supabase/supabase-js": "^2.84.0",
+    "astro": "^5.16.0",
     "autoprefixer": "^10.4.22",
     "chart.js": "^4.5.1",
     "chartjs-plugin-datalabels": "^2.2.0",
@@ -30,8 +34,8 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^8.46.4",
-    "@typescript-eslint/parser": "^8.46.4",
+    "@typescript-eslint/eslint-plugin": "^8.48.0",
+    "@typescript-eslint/parser": "^8.48.0",
     "eslint": "^8.57.1",
     "eslint-plugin-astro": "^1.5.0",
     "eslint-plugin-jsx-a11y": "^6.10.2"
