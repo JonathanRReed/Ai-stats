@@ -1,6 +1,8 @@
 ---
 import { getModels } from '../lib/supabase';
 import Header from './Header.astro';
+import Footer from './Footer.astro';
+import ScrollToTop from './ScrollToTop.astro';
 import { formatScore, formatPrice, formatTPS, formatTTFT } from '../lib/format-utils';
 import Card from './ui/Card.astro';
 
@@ -306,7 +308,7 @@ const cheapestBlendedModel = [...validModels]
             data-input-price={Number(model.price_1m_input_tokens) || 0}
             data-output-price={Number(model.price_1m_output_tokens) || 0}
             data-tps={Number(model.median_output_tokens_per_second) || 0}
-            class="rounded-2xl border border-highlight-med bg-surface/95 px-4 py-4 text-sm shadow-md shadow-black/30 transition-transform hover:-translate-y-[1px] hover:border-foam/70 hover:shadow-lg hover:shadow-black/50"
+            class="model-card rounded-2xl border border-highlight-med bg-surface/95 px-4 py-4 text-sm shadow-md shadow-black/30"
           >
             <header class="flex items-baseline justify-between gap-2">
               <div>
@@ -410,8 +412,41 @@ const cheapestBlendedModel = [...validModels]
         </button>
       </div>
     </section>
+
+    <Footer />
   </main>
+  
+  <ScrollToTop />
 </div>
+
+<style>
+  .model-card {
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.25s ease,
+                box-shadow 0.25s ease;
+  }
+  
+  .model-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(156, 207, 216, 0.5);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(156, 207, 216, 0.1),
+                0 0 20px rgba(156, 207, 216, 0.08);
+  }
+  
+  .model-card:active {
+    transform: translateY(-1px);
+  }
+  
+  @media (prefers-reduced-motion: reduce) {
+    .model-card {
+      transition: none;
+    }
+    .model-card:hover {
+      transform: none;
+    }
+  }
+</style>
 
 <script>
   // @ts-nocheck
