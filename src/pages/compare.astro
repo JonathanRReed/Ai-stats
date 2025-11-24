@@ -1,6 +1,8 @@
 ---
 import { getModels } from '../lib/supabase';
 import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import ScrollToTop from '../components/ScrollToTop.astro';
 import { ViewTransitions } from 'astro:transitions';
 
 const models = await getModels();
@@ -963,7 +965,10 @@ const availableBenchmarks = {
           </section>
         </main>
       </div>
+      <Footer />
     </div>
+    
+    <ScrollToTop />
 
     <script define:vars={{ validModels }}>
       // Security: HTML sanitization function to prevent XSS attacks

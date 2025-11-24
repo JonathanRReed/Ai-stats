@@ -1,0 +1,130 @@
+---
+const currentYear = new Date().getFullYear();
+---
+
+<footer class="footer">
+  <div class="footer-container">
+    <div class="footer-brand">
+      <span class="footer-logo">AI Stats</span>
+      <span class="footer-tagline">Open-source AI model comparison tool</span>
+    </div>
+    
+    <div class="footer-links">
+      <a href="/" class="footer-link">Dashboard</a>
+      <a href="/compare" class="footer-link">Compare</a>
+      <a href="/about" class="footer-link">About</a>
+    </div>
+    
+    <div class="footer-credits">
+      <span class="footer-data">
+        Data from <a href="https://artificialanalysis.ai/" target="_blank" rel="noopener noreferrer" class="external-link">ArtificialAnalysis.ai</a>
+      </span>
+      <span class="footer-copyright">&copy; {currentYear} Jonathan Reed</span>
+    </div>
+  </div>
+</footer>
+
+<style>
+.footer {
+  margin-top: auto;
+  background: linear-gradient(to top, var(--surface), var(--base));
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 2rem 1rem;
+}
+
+.footer-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  text-align: center;
+}
+
+.footer-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.footer-logo {
+  font-size: 1rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #e0def4, #9ccfd8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.footer-tagline {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.footer-links {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.footer-link {
+  color: var(--subtle);
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.footer-link:hover {
+  color: var(--foam);
+}
+
+.footer-credits {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.footer-data {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.external-link {
+  color: var(--foam);
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.external-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.footer-copyright {
+  opacity: 0.7;
+}
+
+@media (min-width: 640px) {
+  .footer-container {
+    flex-direction: row;
+    justify-content: space-between;
+    text-align: left;
+  }
+  
+  .footer-brand {
+    align-items: flex-start;
+  }
+  
+  .footer-credits {
+    align-items: flex-end;
+  }
+}
+</style>
