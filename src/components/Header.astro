@@ -277,44 +277,54 @@ const { currentPage = 'dashboard' } = Astro.props;
 }
 </style>
 
-<script>
-  // @ts-nocheck
-  // Mobile menu toggle
-  const menuToggle = document.getElementById('mobile-menu-toggle');
-  const mobileNav = document.getElementById('mobile-nav');
-  const overlay = document.getElementById('mobile-nav-overlay');
+<script is:inline>
+  (function() {
+    function initHeader() {
+      var menuToggle = document.getElementById('mobile-menu-toggle');
+      var mobileNav = document.getElementById('mobile-nav');
+      var overlay = document.getElementById('mobile-nav-overlay');
+      var themeToggle = document.getElementById('theme-toggle');
+      var themeToggleMobile = document.getElementById('theme-toggle-mobile');
 
-  function toggleMenu() {
-    const isOpen = mobileNav?.classList.toggle('open');
-    menuToggle?.classList.toggle('open', isOpen);
-    overlay?.classList.toggle('open', isOpen);
-    menuToggle?.setAttribute('aria-expanded', String(isOpen));
-    mobileNav?.setAttribute('aria-hidden', String(!isOpen));
-  }
+      function toggleMenu() {
+        var isOpen = mobileNav && mobileNav.classList.toggle('open');
+        if (menuToggle) menuToggle.classList.toggle('open', isOpen);
+        if (overlay) overlay.classList.toggle('open', isOpen);
+        if (menuToggle) menuToggle.setAttribute('aria-expanded', String(isOpen));
+        if (mobileNav) mobileNav.setAttribute('aria-hidden', String(!isOpen));
+      }
 
-  menuToggle?.addEventListener('click', toggleMenu);
-  overlay?.addEventListener('click', toggleMenu);
+      function toggleTheme() {
+        var isLight = document.documentElement.classList.contains('light');
+        var newTheme = isLight ? 'dark' : 'light';
+        document.documentElement.classList.toggle('light', newTheme === 'light');
+        localStorage.setItem('theme', newTheme);
+      }
 
-  // Theme toggle
-  /** @param {string} theme */
-  function setTheme(theme) {
-    document.documentElement.classList.toggle('light', theme === 'light');
-    localStorage.setItem('theme', theme);
-  }
+      // Remove old listeners by cloning elements
+      if (menuToggle) {
+        var newMenuToggle = menuToggle.cloneNode(true);
+        menuToggle.parentNode.replaceChild(newMenuToggle, menuToggle);
+        newMenuToggle.addEventListener('click', toggleMenu);
+      }
+      if (overlay) {
+        var newOverlay = overlay.cloneNode(true);
+        overlay.parentNode.replaceChild(newOverlay, overlay);
+        newOverlay.addEventListener('click', toggleMenu);
+      }
+      if (themeToggle) {
+        var newThemeToggle = themeToggle.cloneNode(true);
+        themeToggle.parentNode.replaceChild(newThemeToggle, themeToggle);
+        newThemeToggle.addEventListener('click', toggleTheme);
+      }
+      if (themeToggleMobile) {
+        var newThemeToggleMobile = themeToggleMobile.cloneNode(true);
+        themeToggleMobile.parentNode.replaceChild(newThemeToggleMobile, themeToggleMobile);
+        newThemeToggleMobile.addEventListener('click', toggleTheme);
+      }
+    }
 
-  function toggleTheme() {
-    const isLight = document.documentElement.classList.contains('light');
-    setTheme(isLight ? 'dark' : 'light');
-  }
-
-  // Initialize theme from localStorage or system preference
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme === 'light' || savedTheme === 'dark') {
-    setTheme(savedTheme);
-  } else if (window.matchMedia('(prefers-color-scheme: light)').matches) {
-    setTheme('light');
-  }
-
-  document.getElementById('theme-toggle')?.addEventListener('click', toggleTheme);
-  document.getElementById('theme-toggle-mobile')?.addEventListener('click', toggleTheme);
+    // Run on initial load and after View Transitions
+    document.addEventListener('astro:page-load', initHeader);
+  })();
 </script>

@@ -134,6 +134,20 @@ const topFrontierMath = epochRuns
     
     <link rel="stylesheet" href="/fonts/nebula sans/nebula-sans.css" />
     <ViewTransitions />
+    
+    <!-- Theme initialization - runs before page render to prevent flash -->
+    <script is:inline>
+      function applyTheme() {
+        var saved = localStorage.getItem('theme');
+        if (saved === 'light') {
+          document.documentElement.classList.add('light');
+        } else {
+          document.documentElement.classList.remove('light');
+        }
+      }
+      applyTheme();
+      document.addEventListener('astro:after-swap', applyTheme);
+    </script>
     <style>
       :root {
         /* Rosé Pine Night */
@@ -160,6 +174,26 @@ const topFrontierMath = epochRuns
         --accent: var(--foam);
       }
 
+      /* Rose Pine Dawn (light theme) */
+      html.light {
+        --base: #faf4ed;
+        --surface: #fffaf3;
+        --overlay: #f2e9e1;
+        --muted: #9893a5;
+        --subtle: #797593;
+        --text: #575279;
+        --love: #b4637a;
+        --gold: #ea9d34;
+        --rose: #d7827e;
+        --pine: #286983;
+        --foam: #56949f;
+        --iris: #907aa9;
+        --highlight-low: #f4ede8;
+        --highlight-med: #dfdad9;
+        --highlight-high: #cecacd;
+        color-scheme: light;
+      }
+
       .bar-stack-duo { height: 170px; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
       .bar-stack { height: 200px; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
       * {
@@ -174,6 +208,12 @@ const topFrontierMath = epochRuns
         color: var(--text-primary);
         font-family: 'Nebula Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         line-height: 1.6;
+      }
+      html.light body {
+        background: radial-gradient(1200px 800px at 10% -10%, rgba(40, 105, 131, 0.08), transparent 60%),
+                    radial-gradient(800px 600px at 90% -10%, rgba(144, 122, 169, 0.06), transparent 60%),
+                    var(--base);
+        color: var(--text);
       }
       .glass-nav {
         background: var(--glass);
@@ -237,6 +277,9 @@ const topFrontierMath = epochRuns
         z-index: 40;
         transform: translateX(0);
         transition: transform 0.3s ease;
+      }
+      html.light .smart-filter-rail {
+        border-right: 1px solid rgba(0, 0, 0, 0.08);
       }
       
       /* Add more space for the first element in the sidebar */
@@ -342,6 +385,10 @@ const topFrontierMath = epochRuns
       .filter-section h3 {
         margin-bottom: 0.5rem;
         font-size: 1rem;
+        color: var(--text);
+      }
+      html.light .filter-section h3 {
+        color: #575279;
       }
       .model-list {
         display: flex;
@@ -393,6 +440,11 @@ const topFrontierMath = epochRuns
         z-index: 1;
         overflow: visible;
       }
+      html.light .chart-section {
+        background: rgba(255, 255, 255, 0.6);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      }
       @media (prefers-reduced-motion: no-preference) {
         .chart-section:hover {
           box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
@@ -415,6 +467,9 @@ const topFrontierMath = epochRuns
         font-size: 1.2rem;
         font-weight: 600;
         color: #F8F8F8;
+      }
+      html.light .chart-header h3 {
+        color: #575279;
       }
       
       .zoom-button {
@@ -640,6 +695,10 @@ const topFrontierMath = epochRuns
         border: 1px solid rgba(161, 166, 180, 0.1);
         transition: border-color 0.2s ease, box-shadow 0.2s ease;
       }
+      html.light .insight-card {
+        background: rgba(255, 255, 255, 0.6);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+      }
       @media (prefers-reduced-motion: no-preference) {
         .insight-card:hover {
           border-color: rgba(161, 166, 180, 0.2);
@@ -658,11 +717,17 @@ const topFrontierMath = epochRuns
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
+      html.light .insight-card h4 {
+        color: #797593;
+      }
       .insight-card p {
         margin: 0;
         font-size: 1.1rem;
         font-weight: 600;
         color: var(--text-primary);
+      }
+      html.light .insight-card p {
+        color: #575279;
       }
       
       .no-data {
