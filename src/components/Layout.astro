@@ -2,6 +2,7 @@
 // Layout.astro: Shared layout for all pages
 import { ViewTransitions } from 'astro:transitions';
 import '../styles/tailwind.css';
+import ModelDrawer from './ModelDrawer';
 
 interface Props {
   title?: string;
@@ -80,7 +81,7 @@ const ogImageURL = new URL(image, Astro.site).href;
     <ViewTransitions />
     <style is:global>
       :root {
-        /* Rose Pine Night (default) */
+        /* Rose Pine Moon (default dark) */
         --base: #191724;
         --surface: #1f1d2e;
         --overlay: #26233a;
@@ -96,7 +97,71 @@ const ogImageURL = new URL(image, Astro.site).href;
         --highlight-low: #21202e;
         --highlight-med: #403d52;
         --highlight-high: #524f67;
+      }
 
+      /* Rose Pine Dawn (light theme) */
+      html.light {
+        --base: #faf4ed;
+        --surface: #fffaf3;
+        --overlay: #f2e9e1;
+        --muted: #9893a5;
+        --subtle: #797593;
+        --text: #575279;
+        --love: #b4637a;
+        --gold: #ea9d34;
+        --rose: #d7827e;
+        --pine: #286983;
+        --foam: #56949f;
+        --iris: #907aa9;
+        --highlight-low: #f4ede8;
+        --highlight-med: #dfdad9;
+        --highlight-high: #cecacd;
+        color-scheme: light;
+      }
+
+      /* Score colors - Dark mode (default) */
+      .score-high { color: #56d4a8; }
+      .score-mid { color: #e5b567; }
+      .score-low { color: #e08c7a; }
+      .score-poor { color: #e06688; }
+      .score-none { color: var(--muted); }
+
+      .score-bg-high { background: rgba(86, 212, 168, 0.15); border: 1px solid rgba(86, 212, 168, 0.35); }
+      .score-bg-mid { background: rgba(229, 181, 103, 0.15); border: 1px solid rgba(229, 181, 103, 0.35); }
+      .score-bg-low { background: rgba(224, 140, 122, 0.15); border: 1px solid rgba(224, 140, 122, 0.35); }
+      .score-bg-poor { background: rgba(224, 102, 136, 0.15); border: 1px solid rgba(224, 102, 136, 0.35); }
+      .score-bg-none { background: var(--highlight-low); border: 1px solid var(--highlight-med); }
+
+      /* Score colors - Light mode (higher contrast) */
+      html.light .score-high { color: #1a8a5f; }
+      html.light .score-mid { color: #9a6b1a; }
+      html.light .score-low { color: #a84a35; }
+      html.light .score-poor { color: #b03060; }
+      html.light .score-none { color: var(--muted); }
+
+      html.light .score-bg-high { background: rgba(26, 138, 95, 0.12); border: 1px solid rgba(26, 138, 95, 0.4); }
+      html.light .score-bg-mid { background: rgba(154, 107, 26, 0.12); border: 1px solid rgba(154, 107, 26, 0.4); }
+      html.light .score-bg-low { background: rgba(168, 74, 53, 0.12); border: 1px solid rgba(168, 74, 53, 0.4); }
+      html.light .score-bg-poor { background: rgba(176, 48, 96, 0.12); border: 1px solid rgba(176, 48, 96, 0.4); }
+      html.light .score-bg-none { background: var(--highlight-low); border: 1px solid var(--highlight-med); }
+
+      /* Dark logo visibility - subtle background in dark mode */
+      .provider-logo-dark {
+        opacity: 0.85;
+        padding: 3px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.12);
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+      }
+      html.light .provider-logo-dark {
+        opacity: 0.75;
+        padding: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+
+      /* Shared sizing & spacing (both themes) */
+      :root {
         /* Legacy aliases for compatibility */
         --surface-0: var(--base);
         --surface-1: var(--surface);
@@ -201,5 +266,6 @@ const ogImageURL = new URL(image, Astro.site).href;
   </head>
   <body>
     <slot />
+    <ModelDrawer client:load />
   </body>
 </html>
