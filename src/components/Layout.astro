@@ -79,6 +79,20 @@ const ogImageURL = new URL(image, Astro.site).href;
     })} />
     
     <ViewTransitions />
+    
+    <!-- Theme initialization - runs before page render to prevent flash -->
+    <script is:inline>
+      function applyTheme() {
+        var saved = localStorage.getItem('theme');
+        if (saved === 'light') {
+          document.documentElement.classList.add('light');
+        } else {
+          document.documentElement.classList.remove('light');
+        }
+      }
+      applyTheme();
+      document.addEventListener('astro:after-swap', applyTheme);
+    </script>
     <style is:global>
       :root {
         /* Rose Pine Moon (default dark) */
