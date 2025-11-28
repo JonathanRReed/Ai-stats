@@ -1,12 +1,39 @@
 ---
-import { getModels } from '../lib/supabase';
+import { getModels, getEpochModels, getEpochBenchmarks, getEpochBenchmarkRuns } from '../lib/supabase';
 import Header from './Header.astro';
 import Footer from './Footer.astro';
 import ScrollToTop from './ScrollToTop.astro';
-import { formatScore, formatPrice, formatTPS, formatTTFT } from '../lib/format-utils';
+import { formatScore, formatPrice } from '../lib/format-utils';
 import Card from './ui/Card.astro';
+import ModelCard from './ModelCard.astro';
 
 const models = await getModels();
+
+// Fetch epoch.ai data
+const epochModels = await getEpochModels();
+const epochBenchmarks = await getEpochBenchmarks();
+const epochRuns = await getEpochBenchmarkRuns();
+
+// Key epoch benchmarks to display
+const keyEpochBenchmarks = [
+  'gpqa_diamond',
+  'frontiermath', 
+  'swe_bench_verified',
+  'math_level_5',
+  'arc_agi_external',
+  'mmlu_external',
+  'gsm8k_external',
+  'aider_polyglot_external',
+];
+
+// Get benchmark name mapping
+const epochBenchmarkNames: Record<string, string> = {};
+epochBenchmarks.forEach(b => {
+  epochBenchmarkNames[b.slug] = b.name;
+});
+
+// Top epoch model by ECI score
+const topEciModel = epochModels.find(m => m.eci_score !== null) ?? null;
 
 const validModels = models.filter((model: any) => {
   const inputPrice = Number(model.price_1m_input_tokens);
@@ -23,28 +50,53 @@ const avgOutputPrice =
   validModels.reduce((sum: number, m: any) => sum + Number(m.price_1m_output_tokens), 0) /
   (totalModels || 1);
 
+// Combined benchmark configs - AA benchmarks first, then Epoch benchmarks
 const benchmarkConfigs = [
-  { key: 'mmlu_pro', label: 'MMLU Pro' },
-  { key: 'gpqa', label: 'GPQA' },
-  { key: 'hle', label: 'HLE' },
-  { key: 'aime', label: 'AIME' },
-  { key: 'scicode', label: 'SciCode' },
-  { key: 'math_500', label: 'Math 500' },
-  { key: 'livecodebench', label: 'LiveCodeBench' },
-  { key: 'aa_math_index', label: 'AA Math Index' },
-  { key: 'aa_coding_index', label: 'AA Coding Index' },
-  { key: 'aa_intelligence_index', label: 'AA Intelligence Index' },
+  // AA Benchmarks
+  { key: 'mmlu_pro', label: 'MMLU Pro', source: 'aa' },
+  { key: 'gpqa', label: 'GPQA', source: 'aa' },
+  { key: 'hle', label: 'HLE', source: 'aa' },
+  { key: 'aime', label: 'AIME', source: 'aa' },
+  { key: 'scicode', label: 'SciCode', source: 'aa' },
+  { key: 'math_500', label: 'Math 500', source: 'aa' },
+  { key: 'livecodebench', label: 'LiveCodeBench', source: 'aa' },
+  { key: 'aa_math_index', label: 'AA Math Index', source: 'aa' },
+  { key: 'aa_coding_index', label: 'AA Coding Index', source: 'aa' },
+  { key: 'aa_intelligence_index', label: 'AA Intelligence Index', source: 'aa' },
+  // Epoch Benchmarks
+  ...keyEpochBenchmarks.map(slug => ({
+    key: `epoch_${slug}`,
+    label: `${epochBenchmarkNames[slug] || slug} (Epoch)`,
+    source: 'epoch' as const,
+  })),
 ];
 
-const topByBenchmark = Object.fromEntries(
-  benchmarkConfigs.map(({ key }) => {
-    const list = [...validModels]
-      .filter((m: any) => m[key] && Number(m[key]) > 0)
-      .sort((a: any, b: any) => Number(b[key]) - Number(a[key]))
-      .slice(0, 5);
-    return [key, list];
-  }),
-) as Record<string, any[]>;
+// Build top models for AA benchmarks
+const topByBenchmark: Record<string, any[]> = {};
+
+// AA benchmarks - from validModels
+benchmarkConfigs.filter(c => c.source === 'aa').forEach(({ key }) => {
+  const list = [...validModels]
+    .filter((m: any) => m[key] && Number(m[key]) > 0)
+    .sort((a: any, b: any) => Number(b[key]) - Number(a[key]))
+    .slice(0, 5);
+  topByBenchmark[key] = list;
+});
+
+// Epoch benchmarks - from epochRuns
+keyEpochBenchmarks.forEach(slug => {
+  const runs = epochRuns
+    .filter(r => r.benchmark_slug === slug && r.score !== null)
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .slice(0, 5)
+    .map(r => ({
+      name: r.model_version.replace(/_/g, ' ').replace(/-/g, ' '),
+      company_name: r.organization,
+      score: r.score,
+      isEpoch: true,
+    }));
+  topByBenchmark[`epoch_${slug}`] = runs;
+});
 
 const topMmluModel = [...validModels]
   .filter((m: any) => m.mmlu_pro && Number(m.mmlu_pro) > 0)
@@ -56,6 +108,16 @@ const cheapestBlendedModel = [...validModels]
     (a: any, b: any) =>
       Number(a.price_1m_blended_3_to_1) - Number(b.price_1m_blended_3_to_1),
   )[0] ?? null;
+
+// Helper for score coloring
+function getScoreClass(score: number | null | undefined): string {
+  if (!score || score <= 0) return 'score-none';
+  const pct = score <= 1 ? score * 100 : score;
+  if (pct >= 80) return 'score-high';
+  if (pct >= 60) return 'score-mid';
+  if (pct >= 40) return 'score-low';
+  return 'score-poor';
+}
 ---
 
 <div class="min-h-screen bg-base text-text">
@@ -80,38 +142,56 @@ const cheapestBlendedModel = [...validModels]
           <p class="mt-2 max-w-xl text-sm text-subtle sm:text-base">
             {totalModels} LLM models tracked with pricing & performance benchmarks.
             <br />
-            Data sourced from ArtificialAnalysis.com in near real-time.
+            Data sourced from ArtificialAnalysis.com & Epoch.ai
           </p>
-
-          <div
-            class="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-text md:hidden"
-            aria-label="Artificial Analysis"
-          >
+          
+          <!-- Mobile data partners -->
+          <div class="mt-3 flex items-center gap-3 md:hidden">
             <img
               src="/icons/Icon + Artificial Analysis - Horizontal SVG.svg"
               alt="Artificial Analysis"
-              class="h-6 w-auto opacity-90"
+              class="h-5 w-auto opacity-80"
+            />
+            <span class="text-subtle">+</span>
+            <img
+              src="/icons/epochaidata.svg"
+              alt="Epoch AI"
+              class="h-5 w-auto"
             />
           </div>
         </div>
 
-        <div class="hidden flex-col items-end gap-2 text-[0.65rem] text-subtle md:flex">
-          <span class="text-[0.6rem] font-semibold uppercase tracking-wide text-muted">Data partner</span>
-          <div
-            class="inline-flex items-center gap-2 text-xs font-semibold text-text"
-            aria-label="Artificial Analysis"
-          >
-            <img
-              src="/icons/Icon + Artificial Analysis - Horizontal SVG.svg"
-              alt="Artificial Analysis"
-              class="h-7 w-auto opacity-90"
-            />
+        <!-- Desktop data partners -->
+        <div class="hidden flex-col items-end gap-3 text-[0.65rem] text-subtle md:flex">
+          <span class="text-[0.55rem] font-semibold uppercase tracking-wide text-muted">Data Partners</span>
+          <div class="flex flex-col items-end gap-2">
+            <div
+              class="inline-flex items-center gap-2 text-xs font-semibold text-text"
+              aria-label="Artificial Analysis"
+            >
+              <img
+                src="/icons/Icon + Artificial Analysis - Horizontal SVG.svg"
+                alt="Artificial Analysis"
+                class="h-6 w-auto opacity-90"
+              />
+            </div>
+            <div
+              class="inline-flex items-center gap-2 text-xs font-semibold text-text"
+              aria-label="Epoch AI"
+            >
+              <img
+                src="/icons/epochaidata.svg"
+                alt="Epoch AI"
+                class="h-6 w-auto"
+              />
+              <span class="text-[0.65rem] text-subtle">Epoch AI</span>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- Top model strip -->
-      <div class="mx-auto mt-4 grid max-w-4xl gap-3 text-xs sm:text-sm md:grid-cols-2">
+      <div class="mx-auto mt-4 grid max-w-4xl gap-3 text-xs sm:text-sm md:grid-cols-2 lg:grid-cols-4">
         <Card class="flex items-center justify-between px-4 py-3">
           <div class="text-subtle">Top MMLU model</div>
           <div class="text-right">
@@ -136,6 +216,28 @@ const cheapestBlendedModel = [...validModels]
                     3,
                   )
                 : ''}
+            </div>
+          </div>
+        </Card>
+        <Card class="flex items-center justify-between px-4 py-3 border-iris/30">
+          <div class="text-subtle">Top ECI Score</div>
+          <div class="text-right">
+            <div class="text-sm font-semibold text-text">
+              {topEciModel ? (topEciModel.display_name || topEciModel.model_name) : '—'}
+            </div>
+            <div class="text-[0.7rem] text-iris">
+              {topEciModel ? topEciModel.eci_score?.toFixed(1) : ''} ECI
+            </div>
+          </div>
+        </Card>
+        <Card class="flex items-center justify-between px-4 py-3 border-iris/30">
+          <div class="text-subtle">Epoch.ai Models</div>
+          <div class="text-right">
+            <div class="text-sm font-semibold text-text">
+              {epochModels.length}
+            </div>
+            <div class="text-[0.7rem] text-iris">
+              {epochRuns.length} benchmark runs
             </div>
           </div>
         </Card>
@@ -190,49 +292,83 @@ const cheapestBlendedModel = [...validModels]
           </div>
         </header>
 
-        <div class="space-y-3 px-4 pb-4 pt-1 md:px-6 md:pb-6">
-          {benchmarkConfigs.map(({ key }) => {
+        <div class="space-y-3 px-4 pb-4 pt-3 md:px-6 md:pb-6">
+          {benchmarkConfigs.map(({ key, source }) => {
             const list = topByBenchmark[key] ?? [];
             if (!list.length) return null;
+            const isEpoch = source === 'epoch';
+            // For epoch benchmarks, score is stored in model.score; for AA, it's model[key]
+            const getScore = (m: any) => isEpoch ? (Number(m.score) || 0) : (Number(m[key]) || 0);
+            const maxScore = Math.max(...list.map(getScore));
 
             return (
               <div
                 data-metric={key}
-                class="overflow-hidden rounded-2xl border border-highlight-low bg-overlay/80 shadow-inner shadow-black/30"
+                class="overflow-hidden rounded-2xl border border-highlight-low/60"
                 hidden={key !== 'mmlu_pro'}
               >
-                <div
-                  class="grid grid-cols-[3rem_2fr_1fr] gap-3 border-b border-highlight-low bg-overlay px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-wide text-subtle"
-                >
-                  <div>#</div>
-                  <div>Model</div>
-                  <div class="text-right">
-                    {benchmarkConfigs.find((b) => b.key === key)?.label}
-                  </div>
-                </div>
-                <ul class="divide-y divide-highlight-low/80">
-                  {list.map((model: any, index: number) => (
-                    <li
-                      class="grid grid-cols-[3rem_2fr_1fr] items-center gap-3 px-4 py-3 transition-colors hover:bg-highlight-low/80"
-                    >
-                      <div
-                        class="flex h-7 w-7 items-center justify-center rounded-full bg-highlight-med/80 text-xs font-semibold text-subtle"
-                      >
-                        {index + 1}
-                      </div>
-                      <div>
-                        <div class="truncate text-sm font-medium text-text" title={model.name}>
-                          {model.name}
+                <ul class="divide-y divide-highlight-low/40">
+                  {list.map((model: any, index: number) => {
+                    const score = getScore(model);
+                    const barWidth = maxScore > 0 ? (score / maxScore) * 100 : 0;
+                    const rankColors = [
+                      'from-amber-500/20 to-yellow-500/10 border-l-amber-400',
+                      'from-slate-400/15 to-gray-400/5 border-l-slate-300',
+                      'from-orange-600/15 to-amber-700/5 border-l-orange-500',
+                      'from-transparent to-transparent border-l-highlight-med',
+                      'from-transparent to-transparent border-l-highlight-med',
+                    ];
+                    
+                    return (
+                      <li class="relative overflow-hidden transition-colors hover:bg-highlight-low/40">
+                        {/* Background bar */}
+                        <div 
+                          class={`absolute inset-y-0 left-0 bg-gradient-to-r ${rankColors[index]} border-l-4`}
+                          style={`width: ${barWidth}%`}
+                        />
+                        
+                        <div class="relative grid grid-cols-[2.5rem_1fr_auto] items-center gap-4 px-4 py-3.5">
+                          {/* Rank */}
+                          <div class="flex items-center justify-center">
+                            {index === 0 ? (
+                              <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 text-sm font-bold text-amber-900 shadow-lg shadow-amber-500/30">
+                                1
+                              </div>
+                            ) : index === 1 ? (
+                              <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-slate-300 to-gray-400 text-sm font-bold text-slate-700 shadow-lg shadow-slate-400/30">
+                                2
+                              </div>
+                            ) : index === 2 ? (
+                              <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-amber-600 text-sm font-bold text-orange-900 shadow-lg shadow-orange-500/30">
+                                3
+                              </div>
+                            ) : (
+                              <div class="flex h-7 w-7 items-center justify-center rounded-full bg-highlight-med/60 text-xs font-semibold text-subtle">
+                                {index + 1}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Model info */}
+                          <div class="min-w-0">
+                            <div class="flex items-center gap-2">
+                              <span class={`truncate font-semibold ${index === 0 ? 'text-text' : 'text-text/90'}`} title={model.name}>
+                                {model.name}
+                              </span>
+                            </div>
+                            <div class="mt-0.5 text-[0.7rem] text-subtle">
+                              {model.company_name ?? 'Unknown provider'}
+                            </div>
+                          </div>
+                          
+                          {/* Score */}
+                          <div class={`text-right font-mono text-lg font-bold ${index === 0 ? 'score-high' : index < 3 ? 'text-text' : 'text-subtle'}`}>
+                            {isEpoch ? `${(score * 100).toFixed(1)}%` : formatScore(model[key])}
+                          </div>
                         </div>
-                        <div class="mt-0.5 text-[0.7rem] text-subtle">
-                          {model.company_name ?? 'Unknown provider'}
-                        </div>
-                      </div>
-                      <div class="text-right text-sm font-semibold text-foam">
-                        {formatScore(model[key])}
-                      </div>
-                    </li>
-                  ))}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             );
@@ -254,7 +390,8 @@ const cheapestBlendedModel = [...validModels]
         </p>
       </header>
 
-      <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+      <!-- Sticky filter bar -->
+      <div class="sticky top-0 z-20 -mx-4 bg-base/95 px-4 py-3 backdrop-blur-sm border-b border-highlight-low/50 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div class="w-full md:max-w-xs">
           <label for="model-search" class="block text-xs font-medium text-subtle">
             Search models
@@ -267,139 +404,116 @@ const cheapestBlendedModel = [...validModels]
           />
         </div>
 
-        <div class="w-full md:max-w-sm">
-          <label for="model-sort" class="block text-xs font-medium text-subtle">
-            Sort models
-          </label>
-          <div class="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
-            <select
-              id="model-sort"
-              class="w-full rounded-md border border-highlight-med bg-surface px-3 py-2 text-sm text-text shadow-sm focus:outline-none focus:ring-2 focus:ring-foam"
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <div class="w-full md:max-w-sm">
+            <label for="model-sort" class="block text-xs font-medium text-subtle">
+              Sort models
+            </label>
+            <div class="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <select
+                id="model-sort"
+                class="w-full rounded-md border border-highlight-med bg-surface px-3 py-2 text-sm text-text shadow-sm focus:outline-none focus:ring-2 focus:ring-foam"
+              >
+                <option value="mmlu">MMLU Pro</option>
+                <option value="gpqa">GPQA</option>
+                <option value="hle">HLE</option>
+                <option value="aime">AIME</option>
+                <option value="inputPrice">Input price</option>
+                <option value="outputPrice">Output price</option>
+                <option value="tps">Tokens per second</option>
+              </select>
+              <select
+                id="model-sort-direction"
+                class="w-full rounded-md border border-highlight-med bg-surface px-3 py-2 text-sm text-text shadow-sm focus:outline-none focus:ring-2 focus:ring-foam sm:w-32"
+              >
+                <option value="desc">Top first</option>
+                <option value="asc">Lowest first</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- View toggle -->
+          <div class="flex items-center gap-1 rounded-lg border border-highlight-med bg-surface p-1">
+            <button
+              id="view-cards"
+              type="button"
+              class="view-toggle-btn active rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+              aria-pressed="true"
+              title="Card view"
             >
-              <option value="mmlu">MMLU Pro</option>
-              <option value="gpqa">GPQA</option>
-              <option value="hle">HLE</option>
-              <option value="aime">AIME</option>
-              <option value="inputPrice">Input price</option>
-              <option value="outputPrice">Output price</option>
-              <option value="tps">Tokens per second</option>
-            </select>
-            <select
-              id="model-sort-direction"
-              class="w-full rounded-md border border-highlight-med bg-surface px-3 py-2 text-sm text-text shadow-sm focus:outline-none focus:ring-2 focus:ring-foam sm:w-32"
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+            </button>
+            <button
+              id="view-table"
+              type="button"
+              class="view-toggle-btn rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+              aria-pressed="false"
+              title="Table view"
             >
-              <option value="desc">Top first</option>
-              <option value="asc">Lowest first</option>
-            </select>
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
 
+      <!-- Empty state -->
+      <div id="empty-state" class="hidden py-16 text-center">
+        <svg class="mx-auto h-12 w-12 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+        </svg>
+        <h3 class="mt-4 text-sm font-semibold text-text">No models found</h3>
+        <p class="mt-1 text-xs text-subtle">Try adjusting your search or filters.</p>
+      </div>
+
       <div class="grid gap-3 md:grid-cols-2" id="models-grid">
         {validModels.map((model: any) => (
-          <article
-            data-model-card
-            data-name={(model.name ?? '').toLowerCase()}
-            data-company={(model.company_name ?? '').toLowerCase()}
-            data-mmlu={Number(model.mmlu_pro) || 0}
-            data-gpqa={Number(model.gpqa) || 0}
-            data-hle={Number(model.hle) || 0}
-            data-aime={Number(model.aime) || 0}
-            data-input-price={Number(model.price_1m_input_tokens) || 0}
-            data-output-price={Number(model.price_1m_output_tokens) || 0}
-            data-tps={Number(model.median_output_tokens_per_second) || 0}
-            class="model-card rounded-2xl border border-highlight-med bg-surface/95 px-4 py-4 text-sm shadow-md shadow-black/30"
-          >
-            <header class="flex items-baseline justify-between gap-2">
-              <div>
-                <h3 class="truncate text-sm font-semibold text-text" title={model.name}>
-                  {model.name}
-                </h3>
-                <p class="mt-0.5 text-xs text-subtle">{model.company_name ?? 'Unknown provider'}</p>
-              </div>
-              <div class="text-right text-[0.65rem] text-subtle">
-                <div>Input: {formatPrice(Number(model.price_1m_input_tokens) || 0, 3)}</div>
-                <div>Output: {formatPrice(Number(model.price_1m_output_tokens) || 0, 3)}</div>
-              </div>
-            </header>
-
-            <div class="mt-4 grid gap-3 text-[0.7rem] text-subtle md:grid-cols-2">
-              <section class="rounded-lg border border-highlight-low/60 bg-overlay/50 px-3 py-2">
-                <div class="text-[0.6rem] uppercase tracking-wide text-muted">Pricing</div>
-                <dl class="mt-2 space-y-1 text-text">
-                  <div class="flex items-center justify-between">
-                    <dt>Input (1M)</dt>
-                    <dd class="font-semibold">{formatPrice(Number(model.price_1m_input_tokens) || 0, 3)}</dd>
-                  </div>
-                  <div class="flex items-center justify-between">
-                    <dt>Output (1M)</dt>
-                    <dd class="font-semibold">{formatPrice(Number(model.price_1m_output_tokens) || 0, 3)}</dd>
-                  </div>
-                  <div class="flex items-center justify-between">
-                    <dt>Blended (3:1)</dt>
-                    <dd class="font-semibold">{formatPrice(Number(model.price_1m_blended_3_to_1) || 0, 3)}</dd>
-                  </div>
-                </dl>
-              </section>
-
-              <section class="rounded-lg border border-highlight-low/60 bg-overlay/50 px-3 py-2">
-                <div class="text-[0.6rem] uppercase tracking-wide text-muted">Performance</div>
-                <dl class="mt-2 space-y-1 text-text">
-                  <div class="flex items-center justify-between">
-                    <dt>Tokens / s</dt>
-                    <dd class="font-semibold">{formatTPS(model.median_output_tokens_per_second)}</dd>
-                  </div>
-                  <div class="flex items-center justify-between">
-                    <dt>TTFT (token)</dt>
-                    <dd class="font-semibold">{formatTTFT(model.median_time_to_first_token_seconds)}</dd>
-                  </div>
-                  <div class="flex items-center justify-between">
-                    <dt>TTFT (answer)</dt>
-                    <dd class="font-semibold">{formatTTFT(model.median_time_to_first_answer_token)}</dd>
-                  </div>
-                </dl>
-              </section>
-
-              <section class="rounded-lg border border-highlight-low/60 bg-overlay/50 px-3 py-2 md:col-span-2">
-                <div class="text-[0.6rem] uppercase tracking-wide text-muted">Benchmarks</div>
-                <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {[
-                    ['MMLU Pro', model.mmlu_pro],
-                    ['GPQA', model.gpqa],
-                    ['HLE', model.hle],
-                    ['AIME', model.aime],
-                    ['LiveCodeBench', model.livecodebench],
-                    ['SciCode', model.scicode],
-                    ['Math 500', model.math_500],
-                  ].map(([label, value]) => (
-                    <div class="rounded-md border border-highlight-low/60 px-2 py-2">
-                      <div class="text-[0.6rem] uppercase tracking-wide text-muted">{label}</div>
-                      <div class="text-sm font-semibold text-text">{formatScore(value)}</div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section class="rounded-lg border border-highlight-low/60 bg-overlay/50 px-3 py-2 md:col-span-2">
-                <div class="text-[0.6rem] uppercase tracking-wide text-muted">AA Indexes</div>
-                <div class="mt-2 grid gap-2 sm:grid-cols-3">
-                  <div class="rounded-md border border-highlight-low/60 px-2 py-2">
-                    <div class="text-[0.6rem] uppercase tracking-wide text-muted">Intelligence</div>
-                    <div class="text-sm font-semibold text-text">{formatScore(model.aa_intelligence_index)}</div>
-                  </div>
-                  <div class="rounded-md border border-highlight-low/60 px-2 py-2">
-                    <div class="text-[0.6rem] uppercase tracking-wide text-muted">Coding</div>
-                    <div class="text-sm font-semibold text-text">{formatScore(model.aa_coding_index)}</div>
-                  </div>
-                  <div class="rounded-md border border-highlight-low/60 px-2 py-2">
-                    <div class="text-[0.6rem] uppercase tracking-wide text-muted">Math</div>
-                    <div class="text-sm font-semibold text-text">{formatScore(model.aa_math_index)}</div>
-                  </div>
-                </div>
-              </section>
-            </div>
-          </article>
+          <ModelCard model={model} />
         ))}
+      </div>
+
+      <!-- Table view (hidden by default) -->
+      <div id="models-table-container" class="hidden overflow-x-auto">
+        <table class="w-full min-w-[800px] text-left text-sm">
+          <thead class="border-b border-highlight-med bg-overlay/50 text-xs uppercase text-subtle">
+            <tr>
+              <th class="px-4 py-3 font-semibold">Model</th>
+              <th class="px-4 py-3 font-semibold">Provider</th>
+              <th class="px-4 py-3 font-semibold text-right">Input</th>
+              <th class="px-4 py-3 font-semibold text-right">Output</th>
+              <th class="px-4 py-3 font-semibold text-right">MMLU</th>
+              <th class="px-4 py-3 font-semibold text-right">GPQA</th>
+              <th class="px-4 py-3 font-semibold text-right">TPS</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-highlight-low/50" id="models-table-body">
+            {validModels.map((model: any) => (
+              <tr 
+                class="cursor-pointer transition-colors hover:bg-highlight-low/50"
+                data-table-row
+                data-model-json={JSON.stringify(model)}
+                data-name={(model.name ?? '').toLowerCase()}
+                data-company={(model.company_name ?? '').toLowerCase()}
+                data-mmlu={Number(model.mmlu_pro) || 0}
+                data-gpqa={Number(model.gpqa) || 0}
+                data-input-price={Number(model.price_1m_input_tokens) || 0}
+                data-output-price={Number(model.price_1m_output_tokens) || 0}
+                data-tps={Number(model.median_output_tokens_per_second) || 0}
+              >
+                <td class="px-4 py-3 font-medium text-text">{model.name}</td>
+                <td class="px-4 py-3 text-subtle">{model.company_name ?? '-'}</td>
+                <td class="px-4 py-3 text-right font-mono text-text">{formatPrice(Number(model.price_1m_input_tokens) || 0, 3)}</td>
+                <td class="px-4 py-3 text-right font-mono text-text">{formatPrice(Number(model.price_1m_output_tokens) || 0, 3)}</td>
+                <td class={`px-4 py-3 text-right font-semibold ${getScoreClass(model.mmlu_pro)}`}>{formatScore(model.mmlu_pro)}</td>
+                <td class={`px-4 py-3 text-right font-semibold ${getScoreClass(model.gpqa)}`}>{formatScore(model.gpqa)}</td>
+                <td class="px-4 py-3 text-right text-text">{model.median_output_tokens_per_second ? model.median_output_tokens_per_second.toFixed(1) : '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <div class="mt-4 flex justify-center">
@@ -446,11 +560,53 @@ const cheapestBlendedModel = [...validModels]
       transform: none;
     }
   }
+  
+  /* View toggle buttons */
+  .view-toggle-btn {
+    color: var(--subtle);
+  }
+  .view-toggle-btn:hover {
+    color: var(--text);
+    background: var(--highlight-low);
+  }
+  .view-toggle-btn.active {
+    color: var(--foam);
+    background: rgba(156, 207, 216, 0.15);
+  }
 </style>
 
 <script>
   // @ts-nocheck
   if (typeof window !== 'undefined') {
+    // Animated number counter
+    const animateValue = (el, start, end, duration) => {
+      if (!el || start === end) return;
+      const range = end - start;
+      const startTime = performance.now();
+      const isDecimal = !Number.isInteger(end);
+      
+      const update = (currentTime) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+        const current = start + range * eased;
+        el.textContent = isDecimal ? current.toFixed(2) : Math.round(current).toString();
+        if (progress < 1) requestAnimationFrame(update);
+      };
+      requestAnimationFrame(update);
+    };
+
+    // Animate summary stats on page load
+    document.querySelectorAll('[data-animate-number]').forEach((el) => {
+      const target = parseFloat(el.textContent?.replace(/[^0-9.-]/g, '') || '0');
+      const prefix = el.textContent?.match(/^[^0-9]*/)?.[0] || '';
+      const suffix = el.textContent?.match(/[^0-9]*$/)?.[0] || '';
+      el.textContent = prefix + '0' + suffix;
+      setTimeout(() => {
+        animateValue(el, 0, target, 800);
+      }, 100);
+    });
+
     const metricSelect = document.getElementById('leaderboard-metric');
     const metricContainers = document.querySelectorAll('[data-metric]');
 
@@ -473,6 +629,7 @@ const cheapestBlendedModel = [...validModels]
     const loadMoreBtn = document.getElementById('load-more-models');
     const sortSelect = document.getElementById('model-sort');
     const sortDirectionSelect = document.getElementById('model-sort-direction');
+    const emptyState = document.getElementById('empty-state');
 
     const updateVisibility = () => {
       let visible = 0;
@@ -481,14 +638,14 @@ const cheapestBlendedModel = [...validModels]
         if (match && visible < currentVisible) {
           card.style.display = '';
           visible++;
-        } else if (match) {
-          card.style.display = 'none';
         } else {
           card.style.display = 'none';
         }
       });
       if (visibleCountEl) visibleCountEl.textContent = String(visible);
       if (loadMoreBtn) loadMoreBtn.hidden = visible >= matchedTotal;
+      if (grid) grid.style.display = matchedTotal === 0 ? 'none' : '';
+      if (emptyState) emptyState.classList.toggle('hidden', matchedTotal > 0);
     };
 
     const applySearch = (resetVisible = false) => {
@@ -537,8 +694,89 @@ const cheapestBlendedModel = [...validModels]
 
     sortSelect?.addEventListener('change', sortCards);
     sortDirectionSelect?.addEventListener('change', sortCards);
-
     searchInput?.addEventListener('input', () => applySearch(true));
+
+    // Keyboard navigation for model cards
+    let focusedCardIndex = -1;
+    const getVisibleCards = () => cards.filter(c => c.style.display !== 'none');
+
+    document.addEventListener('keydown', (e) => {
+      const visibleCards = getVisibleCards();
+      if (!visibleCards.length) return;
+
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const delta = e.key === 'ArrowDown' ? 1 : -1;
+        focusedCardIndex = Math.max(0, Math.min(visibleCards.length - 1, focusedCardIndex + delta));
+        visibleCards[focusedCardIndex]?.focus();
+      }
+    });
+
+    // Make cards focusable (but not clickable - they have expandable details instead)
+    cards.forEach((card) => {
+      card.setAttribute('tabindex', '0');
+      card.addEventListener('focus', () => {
+        focusedCardIndex = getVisibleCards().indexOf(card);
+      });
+    });
+
+    // View toggle (cards vs table)
+    const viewCardsBtn = document.getElementById('view-cards');
+    const viewTableBtn = document.getElementById('view-table');
+    const tableContainer = document.getElementById('models-table-container');
+    const tableRows = Array.from(document.querySelectorAll('[data-table-row]'));
+    let currentView = 'cards';
+
+    const setView = (view) => {
+      currentView = view;
+      if (view === 'cards') {
+        grid.style.display = '';
+        tableContainer?.classList.add('hidden');
+        viewCardsBtn?.classList.add('active');
+        viewCardsBtn?.setAttribute('aria-pressed', 'true');
+        viewTableBtn?.classList.remove('active');
+        viewTableBtn?.setAttribute('aria-pressed', 'false');
+        loadMoreBtn.style.display = '';
+      } else {
+        grid.style.display = 'none';
+        tableContainer?.classList.remove('hidden');
+        viewCardsBtn?.classList.remove('active');
+        viewCardsBtn?.setAttribute('aria-pressed', 'false');
+        viewTableBtn?.classList.add('active');
+        viewTableBtn?.setAttribute('aria-pressed', 'true');
+        loadMoreBtn.style.display = 'none';
+        applyTableSearch();
+      }
+    };
+
+    const applyTableSearch = () => {
+      const q = (searchInput?.value || '').toLowerCase().trim();
+      tableRows.forEach((row) => {
+        const name = row.dataset.name || '';
+        const company = row.dataset.company || '';
+        const match = !q || name.includes(q) || company.includes(q);
+        row.style.display = match ? '' : 'none';
+      });
+    };
+
+    viewCardsBtn?.addEventListener('click', () => setView('cards'));
+    viewTableBtn?.addEventListener('click', () => setView('table'));
+
+    // Also filter table on search
+    searchInput?.addEventListener('input', () => {
+      if (currentView === 'table') applyTableSearch();
+    });
+
+    // Make table rows clickable
+    tableRows.forEach((row) => {
+      row.addEventListener('click', () => {
+        const modelJson = row.dataset.modelJson;
+        if (modelJson) {
+          const model = JSON.parse(modelJson);
+          window.dispatchEvent(new CustomEvent('open-model-drawer', { detail: model }));
+        }
+      });
+    });
 
     applySearch(true);
   }
