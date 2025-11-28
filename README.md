@@ -5,6 +5,7 @@ Inspired by Theo Browne's [model-prices](https://model-prices.vercel.app/)
 
 The data is from [ArtificialAnalysis.com](https://artificialanalysis.ai) via their free API.
 All data & benchmarking is created & owned internally by ArtificialAnalysis.com
+And Epoch AI, ‘AI Benchmarking Hub’. Published online at epoch.ai. Retrieved from ‘https://epoch.ai/benchmarks’ [online resource]. Accessed 28 Nov 2025.
 
 The font used is NebulaSans, which is a custom font created by [nebula.com](https://nebula.com) all rights reserved to them.
 
@@ -48,3 +49,6 @@ Notes:
 
 - If you previously used npm, you can remove `package-lock.json` and `node_modules/` before running `bun install` to avoid lockfile conflicts.
 - Bun can run `astro` directly as well via `bunx astro`, but the scripts defined in `package.json` are recommended.
+
+Citation/Thanks yous:
+Logo icons are from [lobe-icons](https://lobe-icons.dev/)

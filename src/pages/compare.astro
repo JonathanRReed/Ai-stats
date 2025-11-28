@@ -1,11 +1,27 @@
 ---
-import { getModels } from '../lib/supabase';
+import { getModels, getEpochBenchmarks, getEpochBenchmarkRuns } from '../lib/supabase';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import ScrollToTop from '../components/ScrollToTop.astro';
 import { ViewTransitions } from 'astro:transitions';
 
 const models = await getModels();
+
+// Fetch epoch.ai benchmark data
+const epochBenchmarks = await getEpochBenchmarks();
+const epochRuns = await getEpochBenchmarkRuns();
+
+// Create a map of epoch benchmark scores by model
+const epochScoresByModel: Record<string, Record<string, number>> = {};
+epochRuns.forEach(run => {
+  if (!run.model_version || run.score === null) return;
+  if (!epochScoresByModel[run.model_version]) {
+    epochScoresByModel[run.model_version] = {};
+  }
+  if (run.benchmark_slug) {
+    epochScoresByModel[run.model_version][run.benchmark_slug] = run.score;
+  }
+});
 
 const validModels = models.filter((model: any) => {
   const inputPrice = Number(model.price_1m_input_tokens);
@@ -55,8 +71,9 @@ const cheapestTokensModel = getCheapestTokensModel();
 const canonicalURL = new URL(Astro.url.pathname, Astro.site).href;
 const ogImageURL = new URL('/jonathan.avif', Astro.site).href;
 
-// Dynamic benchmark mapping from database fields
-const availableBenchmarks = {
+// Dynamic benchmark mapping - Combined AA and Epoch benchmarks
+const availableBenchmarks: Record<string, string> = {
+  // AA Benchmarks
   'mmlu_pro': 'MMLU Pro',
   'gpqa': 'GPQA',
   'hle': 'HumanEval',
@@ -67,8 +84,22 @@ const availableBenchmarks = {
   'scicode': 'SciCode',
   'math_500': 'Math 500',
   'aime': 'AIME',
-  'elo': 'ELO Rating'
+  'elo': 'ELO Rating',
 };
+
+// Add Epoch.ai benchmarks to the dropdown
+epochBenchmarks.forEach(b => {
+  availableBenchmarks[`epoch_${b.slug}`] = `${b.name} (Epoch)`;
+});
+
+// Top epoch benchmark performers for insights
+const topGpqaDiamond = epochRuns
+  .filter(r => r.benchmark_slug === 'gpqa_diamond' && r.score !== null)
+  .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0] ?? null;
+
+const topFrontierMath = epochRuns
+  .filter(r => r.benchmark_slug === 'frontiermath' && r.score !== null)
+  .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0] ?? null;
 ---
 <html lang="en" transition:animate="none">
   <head>
@@ -961,6 +992,16 @@ const availableBenchmarks = {
                 <h4 id="performance-metric-title">Top MMLU Pro</h4>
                 <p>{performanceWinner ? performanceWinner.name : '—'}</p>
               </div>
+              <div class="insight-card" style="border-color: rgba(196, 167, 231, 0.3);">
+                <h4 style="color: #c4a7e7;">Top GPQA Diamond</h4>
+                <p>{topGpqaDiamond ? topGpqaDiamond.model_version.replace(/_/g, ' ') : '—'}</p>
+                <span style="font-size: 0.65rem; color: #908caa;">{topGpqaDiamond ? `${(topGpqaDiamond.score! * 100).toFixed(1)}%` : ''}</span>
+              </div>
+              <div class="insight-card" style="border-color: rgba(196, 167, 231, 0.3);">
+                <h4 style="color: #c4a7e7;">Top FrontierMath</h4>
+                <p>{topFrontierMath ? topFrontierMath.model_version.replace(/_/g, ' ') : '—'}</p>
+                <span style="font-size: 0.65rem; color: #908caa;">{topFrontierMath ? `${(topFrontierMath.score! * 100).toFixed(1)}%` : ''}</span>
+              </div>
             </div>
           </section>
         </main>
@@ -970,7 +1011,7 @@ const availableBenchmarks = {
     
     <ScrollToTop />
 
-    <script define:vars={{ validModels }}>
+    <script define:vars={{ validModels, epochScoresByModel, availableBenchmarks }}>
       // Security: HTML sanitization function to prevent XSS attacks
       function sanitizeHTML(str) {
         const div = document.createElement('div');
@@ -1147,20 +1188,11 @@ const availableBenchmarks = {
         const metricSelector = document.getElementById('metric-selector');
         const performanceMetricTitle = document.getElementById('performance-metric-title');
         
-        // Benchmark display names mapping (client-side)
-        const benchmarkNames = {
-          'mmlu_pro': 'MMLU Pro',
-          'gpqa': 'GPQA',
-          'hle': 'HumanEval',
-          'aa_math_index': 'Math Index',
-          'aa_coding_index': 'Coding Index',
-          'aa_intelligence_index': 'Intelligence Index',
-          'livecodebench': 'LiveCodeBench',
-          'scicode': 'SciCode',
-          'math_500': 'Math 500',
-          'aime': 'AIME',
-          'elo': 'ELO Rating'
-        };
+        // Benchmark display names mapping (from server)
+        const benchmarkNames = availableBenchmarks;
+        
+        // Epoch scores by model (from server)
+        const epochScores = epochScoresByModel;
         const sortToggle = document.getElementById('sort-toggle');
         const searchInput = document.getElementById('model-search');
 
@@ -1435,16 +1467,33 @@ const availableBenchmarks = {
             });
           }
 
+          // Helper to get score for a model (handles both AA and Epoch benchmarks)
+          const getModelScore = (model, metricKey) => {
+            if (metricKey.startsWith('epoch_')) {
+              // Epoch benchmark - look up by model name in epochScores
+              const epochSlug = metricKey.replace('epoch_', '');
+              // Try to find a matching epoch model by name
+              for (const [modelVersion, scores] of Object.entries(epochScores)) {
+                if (model.name && modelVersion.toLowerCase().includes(model.name.toLowerCase().split(' ')[0])) {
+                  return scores[epochSlug] ? scores[epochSlug] * 100 : 0;
+                }
+              }
+              return 0;
+            }
+            // AA benchmark - direct property access
+            return Number(model[metricKey]) || 0;
+          };
+          
           // Sort chosen models by selected metric for performance chart
           const chosenByMetric = [...chosen].sort((a, b) => {
-            const scoreA = Number(a[metric]) || 0;
-            const scoreB = Number(b[metric]) || 0;
+            const scoreA = getModelScore(a, metric);
+            const scoreB = getModelScore(b, metric);
             return sortOrder === 'desc' ? scoreB - scoreA : scoreA - scoreB;
           });
           
           // Build performance chart using Chart.js
           const perfLabels = chosenByMetric.map(m => labelParts(m.name));
-          const scores = chosenByMetric.map(m => Number(m[metric]) || 0);
+          const scores = chosenByMetric.map(m => getModelScore(m, metric));
           const showPerfLabels = chosenByMetric.length <= 8;
           if (perfCanvas && window.Chart) {
             window.Chart.register(window.ChartDataLabels || window['ChartDataLabels']);
