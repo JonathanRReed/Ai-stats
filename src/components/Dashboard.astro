@@ -422,8 +422,10 @@ function getScoreClass(score: number | null | undefined): string {
                 <option value="outputPrice">Output price</option>
                 <option value="tps">Tokens per second</option>
               </select>
+              <label for="model-sort-direction" class="sr-only">Sort direction</label>
               <select
                 id="model-sort-direction"
+                aria-label="Sort direction"
                 class="w-full rounded-md border border-highlight-med bg-surface px-3 py-2 text-sm text-text shadow-sm focus:outline-none focus:ring-2 focus:ring-foam sm:w-32"
               >
                 <option value="desc">Top first</option>

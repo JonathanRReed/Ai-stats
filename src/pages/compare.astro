@@ -989,8 +989,10 @@ const topFrontierMath = epochRuns
       <div class="layout">
         <aside class="smart-filter-rail" id="smart-filter-rail">
           <div class="filter-section">
-            <h3>Performance Metric</h3>
-            <select id="metric-selector" class="metric-dropdown">
+            <label for="metric-selector" class="filter-label">
+              <h3>Performance Metric</h3>
+            </label>
+            <select id="metric-selector" class="metric-dropdown" aria-label="Select performance metric">
               {Object.entries(availableBenchmarks).map(([value, label]) => (
                 <option value={value} selected={value === 'mmlu_pro'}>{label}</option>
               ))}

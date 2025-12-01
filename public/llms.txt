@@ -13,9 +13,9 @@ Key features:
 
 ## Pages
 
-- [Homepage](https://ai-stats.vercel.app/): Dashboard view with sortable tables and visualizations of AI model data
-- [Compare Models](https://ai-stats.vercel.app/compare): Interactive side-by-side comparison tool with customizable metrics and charts
-- [About](https://ai-stats.vercel.app/about): Project information and tech stack details
+- [Homepage](https://aistats.jonathanrreed.com/): Dashboard view with sortable tables and visualizations of AI model data
+- [Compare Models](https://aistats.jonathanrreed.com/compare): Interactive side-by-side comparison tool with customizable metrics and charts
+- [About](https://aistats.jonathanrreed.com/about): Project information and tech stack details
 
 ## Tech Stack
 
