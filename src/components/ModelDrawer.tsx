@@ -106,14 +106,14 @@ export default function ModelDrawer() {
         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-[#403d52] bg-[#1f1d2e]/95 px-6 py-4 backdrop-blur">
           <div>
             <h2 className="text-lg font-bold text-[#e0def4]">{model.name}</h2>
-            <p className="text-sm text-[#908caa]">{model.company_name || 'Unknown provider'}</p>
+            <p className="text-sm text-[#b0acbe]">{model.company_name || 'Unknown provider'}</p>
           </div>
           <button
             onClick={() => {
               setIsOpen(false);
               document.body.style.overflow = '';
             }}
-            className="rounded-lg p-2 text-[#908caa] transition-colors hover:bg-[#26233a] hover:text-[#e0def4]"
+            className="rounded-lg p-2 text-[#b0acbe] transition-colors hover:bg-[#26233a] hover:text-[#e0def4]"
             aria-label="Close drawer"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -125,18 +125,18 @@ export default function ModelDrawer() {
         <div className="space-y-6 p-6">
           {/* Pricing */}
           <section className="rounded-xl border border-[#403d52] bg-[#26233a]/50 p-4">
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#6e6a86]">Pricing</h3>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#9490a8]">Pricing</h3>
             <dl className="grid gap-3 sm:grid-cols-3">
               <div>
-                <dt className="text-xs text-[#908caa]">Input (1M tokens)</dt>
+                <dt className="text-xs text-[#b0acbe]">Input (1M tokens)</dt>
                 <dd className="text-lg font-semibold text-[#e0def4]">{formatPrice(model.price_1m_input_tokens, 3)}</dd>
               </div>
               <div>
-                <dt className="text-xs text-[#908caa]">Output (1M tokens)</dt>
+                <dt className="text-xs text-[#b0acbe]">Output (1M tokens)</dt>
                 <dd className="text-lg font-semibold text-[#e0def4]">{formatPrice(model.price_1m_output_tokens, 3)}</dd>
               </div>
               <div>
-                <dt className="text-xs text-[#908caa]">Blended (3:1)</dt>
+                <dt className="text-xs text-[#b0acbe]">Blended (3:1)</dt>
                 <dd className="text-lg font-semibold text-[#e0def4]">{formatPrice(model.price_1m_blended_3_to_1, 3)}</dd>
               </div>
             </dl>
@@ -144,18 +144,18 @@ export default function ModelDrawer() {
 
           {/* Performance */}
           <section className="rounded-xl border border-[#403d52] bg-[#26233a]/50 p-4">
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#6e6a86]">Performance</h3>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#9490a8]">Performance</h3>
             <dl className="grid gap-3 sm:grid-cols-3">
               <div>
-                <dt className="text-xs text-[#908caa]">Throughput</dt>
+                <dt className="text-xs text-[#b0acbe]">Throughput</dt>
                 <dd className="text-lg font-semibold text-[#e0def4]">{formatTPS(model.median_output_tokens_per_second)}</dd>
               </div>
               <div>
-                <dt className="text-xs text-[#908caa]">TTFT (token)</dt>
+                <dt className="text-xs text-[#b0acbe]">TTFT (token)</dt>
                 <dd className="text-lg font-semibold text-[#e0def4]">{formatTTFT(model.median_time_to_first_token_seconds)}</dd>
               </div>
               <div>
-                <dt className="text-xs text-[#908caa]">TTFT (answer)</dt>
+                <dt className="text-xs text-[#b0acbe]">TTFT (answer)</dt>
                 <dd className="text-lg font-semibold text-[#e0def4]">{formatTTFT(model.median_time_to_first_answer_token)}</dd>
               </div>
             </dl>
@@ -163,7 +163,7 @@ export default function ModelDrawer() {
 
           {/* Benchmarks */}
           <section className="rounded-xl border border-[#403d52] bg-[#26233a]/50 p-4">
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#6e6a86]">Benchmarks</h3>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#9490a8]">Benchmarks</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               {[
                 ['MMLU Pro', model.mmlu_pro],
@@ -175,7 +175,7 @@ export default function ModelDrawer() {
                 ['Math 500', model.math_500],
               ].map(([label, value]) => (
                 <div key={label as string} className="flex items-center justify-between rounded-lg bg-[#21202e] px-3 py-2">
-                  <span className="text-sm text-[#908caa]">{label}</span>
+                  <span className="text-sm text-[#b0acbe]">{label}</span>
                   <span className={`text-sm font-semibold ${getScoreColor(value as number)}`}>
                     {formatScore(value as number)}
                   </span>
@@ -186,7 +186,7 @@ export default function ModelDrawer() {
 
           {/* AA Indexes */}
           <section className="rounded-xl border border-[#403d52] bg-[#26233a]/50 p-4">
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#6e6a86]">AA Indexes</h3>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#9490a8]">AA Indexes</h3>
             <div className="grid gap-3 sm:grid-cols-3">
               {[
                 ['Intelligence', model.aa_intelligence_index],
@@ -194,7 +194,7 @@ export default function ModelDrawer() {
                 ['Math', model.aa_math_index],
               ].map(([label, value]) => (
                 <div key={label as string} className="rounded-lg bg-[#21202e] p-3 text-center">
-                  <div className="text-xs text-[#908caa]">{label}</div>
+                  <div className="text-xs text-[#b0acbe]">{label}</div>
                   <div className={`mt-1 text-xl font-bold ${getScoreColor(value as number)}`}>
                     {formatScore(value as number)}
                   </div>
@@ -206,11 +206,11 @@ export default function ModelDrawer() {
           {/* Context Window */}
           {(model.context_window || model.max_output_tokens) && (
             <section className="rounded-xl border border-[#403d52] bg-[#26233a]/50 p-4">
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#6e6a86]">Context</h3>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#9490a8]">Context</h3>
               <dl className="grid gap-3 sm:grid-cols-2">
                 {model.context_window && (
                   <div>
-                    <dt className="text-xs text-[#908caa]">Context Window</dt>
+                    <dt className="text-xs text-[#b0acbe]">Context Window</dt>
                     <dd className="text-lg font-semibold text-[#e0def4]">
                       {(model.context_window / 1000).toFixed(0)}K tokens
                     </dd>
@@ -218,7 +218,7 @@ export default function ModelDrawer() {
                 )}
                 {model.max_output_tokens && (
                   <div>
-                    <dt className="text-xs text-[#908caa]">Max Output</dt>
+                    <dt className="text-xs text-[#b0acbe]">Max Output</dt>
                     <dd className="text-lg font-semibold text-[#e0def4]">
                       {(model.max_output_tokens / 1000).toFixed(0)}K tokens
                     </dd>
