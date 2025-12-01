@@ -1,0 +1,6 @@
+# Redirect HTTP to HTTPS (Cloudflare handles this, but explicit for clarity)
+http://aistats.jonathanrreed.com/* https://aistats.jonathanrreed.com/:splat 301
+
+# Redirect trailing slashes to non-trailing (if any slip through)
+/compare/ /compare 301
+/about/ /about 301

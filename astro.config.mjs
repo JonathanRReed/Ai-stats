@@ -6,7 +6,11 @@ import tailwind from '@astrojs/tailwind';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://ai-stats.vercel.app',
+  site: 'https://aistats.jonathanrreed.com',
+  trailingSlash: 'never',
+  build: {
+    format: 'file',
+  },
   integrations: [
     react(),
     tailwind({

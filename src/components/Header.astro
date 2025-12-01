@@ -48,9 +48,9 @@ const { currentPage = 'dashboard' } = Astro.props;
   <!-- Mobile nav overlay -->
   <div id="mobile-nav-overlay" class="mobile-nav-overlay"></div>
   <nav id="mobile-nav" class="mobile-nav" aria-hidden="true">
-    <a href="/" class={`mobile-nav-item ${currentPage === 'dashboard' ? 'active' : ''}`}>Stats</a>
-    <a href="/compare" class={`mobile-nav-item ${currentPage === 'compare' ? 'active' : ''}`}>Compare</a>
-    <a href="/about" class={`mobile-nav-item ${currentPage === 'about' ? 'active' : ''}`}>About</a>
+    <a href="/" class={`mobile-nav-item ${currentPage === 'dashboard' ? 'active' : ''}`} tabindex="-1">Stats</a>
+    <a href="/compare" class={`mobile-nav-item ${currentPage === 'compare' ? 'active' : ''}`} tabindex="-1">Compare</a>
+    <a href="/about" class={`mobile-nav-item ${currentPage === 'about' ? 'active' : ''}`} tabindex="-1">About</a>
   </nav>
 </header>
 
@@ -291,7 +291,14 @@ const { currentPage = 'dashboard' } = Astro.props;
         if (menuToggle) menuToggle.classList.toggle('open', isOpen);
         if (overlay) overlay.classList.toggle('open', isOpen);
         if (menuToggle) menuToggle.setAttribute('aria-expanded', String(isOpen));
-        if (mobileNav) mobileNav.setAttribute('aria-hidden', String(!isOpen));
+        if (mobileNav) {
+          mobileNav.setAttribute('aria-hidden', String(!isOpen));
+          // Toggle tabindex on focusable children to prevent focus when hidden
+          var navLinks = mobileNav.querySelectorAll('a');
+          navLinks.forEach(function(link) {
+            link.setAttribute('tabindex', isOpen ? '0' : '-1');
+          });
+        }
       }
 
       function toggleTheme() {
