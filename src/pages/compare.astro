@@ -154,8 +154,8 @@ const topFrontierMath = epochRuns
         --base: #191724;
         --surface: #1f1d2e;
         --overlay: #26233a;
-        --muted: #6e6a86;
-        --subtle: #908caa;
+        --muted: #9490a8;
+        --subtle: #b0acbe;
         --text: #e0def4;
         --love: #eb6f92;
         --gold: #f6c177;
@@ -236,7 +236,7 @@ const topFrontierMath = epochRuns
         gap: 1rem;
       }
       .nav-link {
-        color: var(--subtle, #908caa);
+        color: var(--subtle, #b0acbe);
         text-decoration: none;
         padding: 0.25rem 0.5rem;
         border-radius: 4px;
@@ -1062,12 +1062,12 @@ const topFrontierMath = epochRuns
               <div class="insight-card" style="border-color: rgba(196, 167, 231, 0.3);">
                 <h4 style="color: #c4a7e7;">Top GPQA Diamond</h4>
                 <p>{topGpqaDiamond ? topGpqaDiamond.model_version.replace(/_/g, ' ') : '—'}</p>
-                <span style="font-size: 0.65rem; color: #908caa;">{topGpqaDiamond ? `${(topGpqaDiamond.score! * 100).toFixed(1)}%` : ''}</span>
+                <span style="font-size: 0.65rem; color: #b0acbe;">{topGpqaDiamond ? `${(topGpqaDiamond.score! * 100).toFixed(1)}%` : ''}</span>
               </div>
               <div class="insight-card" style="border-color: rgba(196, 167, 231, 0.3);">
                 <h4 style="color: #c4a7e7;">Top FrontierMath</h4>
                 <p>{topFrontierMath ? topFrontierMath.model_version.replace(/_/g, ' ') : '—'}</p>
-                <span style="font-size: 0.65rem; color: #908caa;">{topFrontierMath ? `${(topFrontierMath.score! * 100).toFixed(1)}%` : ''}</span>
+                <span style="font-size: 0.65rem; color: #b0acbe;">{topFrontierMath ? `${(topFrontierMath.score! * 100).toFixed(1)}%` : ''}</span>
               </div>
             </div>
           </section>
