@@ -3,21 +3,82 @@ const currentYear = new Date().getFullYear();
 ---
 
 <footer class="footer">
+  <div class="footer-glow"></div>
   <div class="footer-container">
     <div class="footer-brand">
       <span class="footer-logo">AI Stats</span>
       <span class="footer-tagline">Open-source AI model comparison tool</span>
     </div>
-    
-    <div class="footer-links">
-      <a href="/" class="footer-link">Dashboard</a>
-      <a href="/compare" class="footer-link">Compare</a>
-      <a href="/about" class="footer-link">About</a>
+
+    <div class="footer-center">
+      <span class="footer-label">More Projects</span>
+      <div class="footer-links">
+        <a
+          href="https://ai-news.helloworldfirm.com"
+          class="footer-link"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <svg
+            class="link-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 12h10"
+            ></path>
+          </svg>
+          AI News
+        </a>
+        <a
+          href="https://aidragrace.com"
+          class="footer-link"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <svg
+            class="link-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+          </svg>
+          AI Drag Race
+        </a>
+        <a
+          href="https://jonathanrreed.com"
+          class="footer-link"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <svg
+            class="link-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M12 2a14.5 14.5 0 000 20 14.5 14.5 0 000-20M2 12h20"
+            ></path>
+          </svg>
+          Portfolio
+        </a>
+      </div>
     </div>
-    
+
     <div class="footer-credits">
       <span class="footer-data">
-        Data from <a href="https://artificialanalysis.ai/" target="_blank" rel="noopener noreferrer" class="external-link">ArtificialAnalysis.ai</a>
+        Data from <a
+          href="https://artificialanalysis.ai/"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="external-link">ArtificialAnalysis.ai</a
+        >
       </span>
       <span class="footer-copyright">&copy; {currentYear} Jonathan Reed</span>
     </div>
@@ -25,106 +86,254 @@ const currentYear = new Date().getFullYear();
 </footer>
 
 <style>
-.footer {
-  margin-top: auto;
-  background: linear-gradient(to top, var(--surface), var(--base));
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 2rem 1rem;
-}
+  .footer {
+    position: relative;
+    width: 100%;
+    background: linear-gradient(
+      180deg,
+      rgba(25, 23, 36, 0) 0%,
+      rgba(25, 23, 36, 0.95) 20%,
+      #191724 100%
+    );
+    border-top: 1px solid rgba(156, 207, 216, 0.1);
+    padding: 3rem 1.5rem 2rem;
+    overflow: hidden;
+  }
 
-.footer-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.25rem;
-  text-align: center;
-}
+  .footer-glow {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(156, 207, 216, 0.5) 50%,
+      transparent 100%
+    );
+  }
 
-.footer-brand {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.footer-logo {
-  font-size: 1rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, #e0def4, #9ccfd8);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.footer-tagline {
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-
-.footer-links {
-  display: flex;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.footer-link {
-  color: var(--subtle);
-  text-decoration: none;
-  font-size: 0.8rem;
-  font-weight: 500;
-  transition: color 0.2s ease;
-}
-
-.footer-link:hover {
-  color: var(--foam);
-}
-
-.footer-credits {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.7rem;
-  color: var(--muted);
-}
-
-.footer-data {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.external-link {
-  color: var(--foam);
-  text-decoration: none;
-  transition: opacity 0.2s ease;
-}
-
-.external-link:hover {
-  opacity: 0.8;
-  text-decoration: underline;
-}
-
-.footer-copyright {
-  opacity: 0.7;
-}
-
-@media (min-width: 640px) {
   .footer-container {
-    flex-direction: row;
-    justify-content: space-between;
-    text-align: left;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 2rem;
   }
-  
+
   .footer-brand {
-    align-items: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
   }
-  
+
+  .footer-logo {
+    font-size: 1.125rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #e0def4 0%, #9ccfd8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .footer-tagline {
+    font-size: 0.75rem;
+    color: #6e6a86;
+    letter-spacing: 0.02em;
+  }
+
+  .footer-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .footer-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #6e6a86;
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .footer-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(156, 207, 216, 0.08);
+    border: 1px solid rgba(156, 207, 216, 0.15);
+    border-radius: 9999px;
+    color: #e0def4;
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .footer-link:hover {
+    background: rgba(156, 207, 216, 0.15);
+    border-color: rgba(156, 207, 216, 0.4);
+    color: #9ccfd8;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(156, 207, 216, 0.15);
+  }
+
+  .link-icon {
+    width: 14px;
+    height: 14px;
+    opacity: 0.7;
+  }
+
+  .footer-link:hover .link-icon {
+    opacity: 1;
+  }
+
   .footer-credits {
+    display: flex;
+    flex-direction: column;
     align-items: flex-end;
+    gap: 0.375rem;
+    font-size: 0.75rem;
+    color: #6e6a86;
   }
-}
+
+  .footer-data {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .external-link {
+    color: #9ccfd8;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+
+  .external-link:hover {
+    color: #c4a7e7;
+    text-decoration: underline;
+  }
+
+  .footer-copyright {
+    opacity: 0.7;
+    font-size: 0.7rem;
+  }
+
+  /* Tablet layout */
+  @media (max-width: 900px) {
+    .footer-container {
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    .footer-center {
+      grid-column: 1 / -1;
+      order: -1;
+    }
+
+    .footer-credits {
+      align-items: flex-end;
+    }
+  }
+
+  /* Mobile layout */
+  @media (max-width: 600px) {
+    .footer {
+      padding: 2.5rem 1rem 1.5rem;
+    }
+
+    .footer-container {
+      grid-template-columns: 1fr;
+      text-align: center;
+      gap: 1.5rem;
+    }
+
+    .footer-brand {
+      align-items: center;
+    }
+
+    .footer-center {
+      order: 0;
+    }
+
+    .footer-credits {
+      align-items: center;
+    }
+
+    .footer-links {
+      gap: 0.5rem;
+    }
+
+    .footer-link {
+      padding: 0.5rem 0.875rem;
+      font-size: 0.75rem;
+    }
+  }
+
+  /* Light theme styles */
+  :global(html.light) .footer {
+    background: linear-gradient(
+      180deg,
+      rgba(250, 248, 246, 0) 0%,
+      rgba(250, 248, 246, 0.95) 20%,
+      #faf4ed 100%
+    );
+    border-top: 1px solid rgba(87, 82, 121, 0.1);
+  }
+
+  :global(html.light) .footer-glow {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(40, 105, 131, 0.4) 50%,
+      transparent 100%
+    );
+  }
+
+  :global(html.light) .footer-logo {
+    background: linear-gradient(135deg, #575279 0%, #286983 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  :global(html.light) .footer-tagline,
+  :global(html.light) .footer-label,
+  :global(html.light) .footer-credits {
+    color: #797593;
+  }
+
+  :global(html.light) .footer-link {
+    background: rgba(40, 105, 131, 0.08);
+    border: 1px solid rgba(40, 105, 131, 0.15);
+    color: #575279;
+  }
+
+  :global(html.light) .footer-link:hover {
+    background: rgba(40, 105, 131, 0.15);
+    border-color: rgba(40, 105, 131, 0.4);
+    color: #286983;
+    box-shadow: 0 4px 20px rgba(40, 105, 131, 0.1);
+  }
+
+  :global(html.light) .external-link {
+    color: #286983;
+  }
+
+  :global(html.light) .external-link:hover {
+    color: #907aa9;
+  }
 </style>

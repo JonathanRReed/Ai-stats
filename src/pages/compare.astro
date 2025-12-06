@@ -1,9 +1,13 @@
 ---
-import { getModels, getEpochBenchmarks, getEpochBenchmarkRuns } from '../lib/supabase';
-import Header from '../components/Header.astro';
-import Footer from '../components/Footer.astro';
-import ScrollToTop from '../components/ScrollToTop.astro';
-import { ViewTransitions } from 'astro:transitions';
+import {
+  getModels,
+  getEpochBenchmarks,
+  getEpochBenchmarkRuns,
+} from "../lib/supabase";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import ScrollToTop from "../components/ScrollToTop.astro";
+import { ViewTransitions } from "astro:transitions";
 
 const models = await getModels();
 
@@ -11,9 +15,16 @@ const models = await getModels();
 const epochBenchmarks = await getEpochBenchmarks();
 const epochRuns = await getEpochBenchmarkRuns();
 
+// Keep only epoch benchmarks that have at least one scored run
+const epochBenchmarksWithData = epochBenchmarks.filter((b) =>
+  epochRuns.some(
+    (run) => run.benchmark_slug === b.slug && run.score !== null,
+  ),
+);
+
 // Create a map of epoch benchmark scores by model
 const epochScoresByModel: Record<string, Record<string, number>> = {};
-epochRuns.forEach(run => {
+epochRuns.forEach((run) => {
   if (!run.model_version || run.score === null) return;
   if (!epochScoresByModel[run.model_version]) {
     epochScoresByModel[run.model_version] = {};
@@ -32,7 +43,7 @@ const validModels = models.filter((model: any) => {
 const selectedModels = validModels.slice(0, 3);
 
 const getWinner = (items: any[], key: string, isLowerBetter = false) => {
-  const usable = items.filter(m => Number(m[key]) > 0);
+  const usable = items.filter((m) => Number(m[key]) > 0);
   if (usable.length === 0) return null;
   return usable.sort((a, b) => {
     const valA = Number(a[key]);
@@ -41,27 +52,44 @@ const getWinner = (items: any[], key: string, isLowerBetter = false) => {
   })[0];
 };
 
-const inputPriceWinner = getWinner(selectedModels, 'price_1m_input_tokens', true);
-const outputPriceWinner = getWinner(selectedModels, 'price_1m_output_tokens', true);
-const performanceWinner = getWinner(selectedModels, 'mmlu_pro');
-const tpsWinner = getWinner(selectedModels, 'median_output_tokens_per_second');
-const ttftWinner = getWinner(selectedModels, 'median_time_to_first_answer_token', true);
+const inputPriceWinner = getWinner(
+  selectedModels,
+  "price_1m_input_tokens",
+  true,
+);
+const outputPriceWinner = getWinner(
+  selectedModels,
+  "price_1m_output_tokens",
+  true,
+);
+const performanceWinner = getWinner(selectedModels, "mmlu_pro");
+const tpsWinner = getWinner(selectedModels, "median_output_tokens_per_second");
+const ttftWinner = getWinner(
+  selectedModels,
+  "median_time_to_first_answer_token",
+  true,
+);
 
 const getCheapestTokensModel = () => {
   if (selectedModels.length === 0) return null;
-  const modelsWithBlendedPrice = selectedModels.filter(model => {
+  const modelsWithBlendedPrice = selectedModels.filter((model) => {
     const blendedPrice = model.price_1m_blended_3_to_1;
     const priceNum = Number(blendedPrice);
-    return blendedPrice !== null && blendedPrice !== undefined && !isNaN(priceNum) && priceNum > 0;
+    return (
+      blendedPrice !== null &&
+      blendedPrice !== undefined &&
+      !isNaN(priceNum) &&
+      priceNum > 0
+    );
   });
   if (modelsWithBlendedPrice.length === 0) return null;
-  
+
   const sorted = modelsWithBlendedPrice.sort((a, b) => {
     const priceA = Number(a.price_1m_blended_3_to_1);
     const priceB = Number(b.price_1m_blended_3_to_1);
     return priceA - priceB; // Lower price is better
   });
-  
+
   return sorted[0];
 };
 
@@ -69,84 +97,102 @@ const cheapestTokensModel = getCheapestTokensModel();
 
 // SEO Configuration
 const canonicalURL = new URL(Astro.url.pathname, Astro.site).href;
-const ogImageURL = new URL('/jonathan.avif', Astro.site).href;
+const ogImageURL = new URL("/jonathan.avif", Astro.site).href;
 
 // Dynamic benchmark mapping - Combined AA and Epoch benchmarks
 const availableBenchmarks: Record<string, string> = {
   // AA Benchmarks
-  'mmlu_pro': 'MMLU Pro',
-  'gpqa': 'GPQA',
-  'hle': 'HumanEval',
-  'aa_math_index': 'Math Index',
-  'aa_coding_index': 'Coding Index',
-  'aa_intelligence_index': 'Intelligence Index',
-  'livecodebench': 'LiveCodeBench',
-  'scicode': 'SciCode',
-  'math_500': 'Math 500',
-  'aime': 'AIME',
-  'elo': 'ELO Rating',
+  mmlu_pro: "MMLU Pro",
+  gpqa: "GPQA",
+  hle: "HumanEval",
+  aa_math_index: "Math Index",
+  aa_coding_index: "Coding Index",
+  aa_intelligence_index: "Intelligence Index",
+  livecodebench: "LiveCodeBench",
+  scicode: "SciCode",
+  math_500: "Math 500",
+  aime: "AIME",
+  elo: "ELO Rating",
 };
 
-// Add Epoch.ai benchmarks to the dropdown
-epochBenchmarks.forEach(b => {
+// Add Epoch.ai benchmarks to the dropdown (only those with data)
+epochBenchmarksWithData.forEach((b) => {
   availableBenchmarks[`epoch_${b.slug}`] = `${b.name} (Epoch)`;
 });
 
 // Top epoch benchmark performers for insights
-const topGpqaDiamond = epochRuns
-  .filter(r => r.benchmark_slug === 'gpqa_diamond' && r.score !== null)
-  .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0] ?? null;
+const topGpqaDiamond =
+  epochRuns
+    .filter((r) => r.benchmark_slug === "gpqa_diamond" && r.score !== null)
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0] ?? null;
 
-const topFrontierMath = epochRuns
-  .filter(r => r.benchmark_slug === 'frontiermath' && r.score !== null)
-  .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0] ?? null;
+const topFrontierMath =
+  epochRuns
+    .filter((r) => r.benchmark_slug === "frontiermath" && r.score !== null)
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0] ?? null;
 ---
+
 <html lang="en" transition:animate="none">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/webp" href="/favicon.webp" />
-    
+
     <!-- SEO Meta Tags -->
     <title>Compare AI Models - Pricing & Performance | AI Stats</title>
-    <meta name="description" content="Compare AI model pricing, benchmarks, and specifications side-by-side. Interactive charts for GPT-4, Claude, Gemini, Llama and more. Filter by performance metrics including MMLU Pro, GPQA, and coding benchmarks." />
+    <meta
+      name="description"
+      content="Compare AI model pricing, benchmarks, and specifications side-by-side. Interactive charts for GPT-4, Claude, Gemini, Llama and more. Filter by performance metrics including MMLU Pro, GPQA, and coding benchmarks."
+    />
     <link rel="canonical" href={canonicalURL} />
     <meta name="robots" content="index, follow" />
     <meta name="author" content="Jonathan Reed" />
     <meta name="theme-color" content="#191724" />
-    
+
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonicalURL} />
-    <meta property="og:title" content="Compare AI Models - Pricing & Performance | AI Stats" />
-    <meta property="og:description" content="Compare AI model pricing, benchmarks, and specifications side-by-side with interactive charts." />
+    <meta
+      property="og:title"
+      content="Compare AI Models - Pricing & Performance | AI Stats"
+    />
+    <meta
+      property="og:description"
+      content="Compare AI model pricing, benchmarks, and specifications side-by-side with interactive charts."
+    />
     <meta property="og:image" content={ogImageURL} />
     <meta property="og:site_name" content="AI Stats" />
     <meta property="og:locale" content="en_US" />
-    
+
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:url" content={canonicalURL} />
-    <meta name="twitter:title" content="Compare AI Models - Pricing & Performance | AI Stats" />
-    <meta name="twitter:description" content="Compare AI model pricing, benchmarks, and specifications side-by-side with interactive charts." />
+    <meta
+      name="twitter:title"
+      content="Compare AI Models - Pricing & Performance | AI Stats"
+    />
+    <meta
+      name="twitter:description"
+      content="Compare AI model pricing, benchmarks, and specifications side-by-side with interactive charts."
+    />
     <meta name="twitter:image" content={ogImageURL} />
     <meta name="twitter:creator" content="@jonathanrayreed" />
-    
+
     <link rel="stylesheet" href="/fonts/nebula sans/nebula-sans.css" />
     <ViewTransitions />
-    
+
     <!-- Theme initialization - runs before page render to prevent flash -->
     <script is:inline>
       function applyTheme() {
-        var saved = localStorage.getItem('theme');
-        if (saved === 'light') {
-          document.documentElement.classList.add('light');
+        var saved = localStorage.getItem("theme");
+        if (saved === "light") {
+          document.documentElement.classList.add("light");
         } else {
-          document.documentElement.classList.remove('light');
+          document.documentElement.classList.remove("light");
         }
       }
       applyTheme();
-      document.addEventListener('astro:after-swap', applyTheme);
+      document.addEventListener("astro:after-swap", applyTheme);
     </script>
     <style>
       :root {
@@ -194,25 +240,60 @@ const topFrontierMath = epochRuns
         color-scheme: light;
       }
 
-      .bar-stack-duo { height: 170px; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
-      .bar-stack { height: 200px; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+      .bar-stack-duo {
+        height: 170px;
+        width: 100%;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 2px;
+      }
+      .bar-stack {
+        height: 200px;
+        width: 100%;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+      }
       * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
       }
       body {
-        background: radial-gradient(1200px 800px at 10% -10%, rgba(156, 207, 216, 0.06), transparent 60%),
-                    radial-gradient(800px 600px at 90% -10%, rgba(196, 167, 231, 0.05), transparent 60%),
-                    var(--base);
+        background: radial-gradient(
+            1200px 800px at 10% -10%,
+            rgba(156, 207, 216, 0.06),
+            transparent 60%
+          ),
+          radial-gradient(
+            800px 600px at 90% -10%,
+            rgba(196, 167, 231, 0.05),
+            transparent 60%
+          ),
+          var(--base);
         color: var(--text-primary);
-        font-family: 'Nebula Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-family:
+          "Nebula Sans",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
         line-height: 1.6;
       }
       html.light body {
-        background: radial-gradient(1200px 800px at 10% -10%, rgba(40, 105, 131, 0.08), transparent 60%),
-                    radial-gradient(800px 600px at 90% -10%, rgba(144, 122, 169, 0.06), transparent 60%),
-                    var(--base);
+        background: radial-gradient(
+            1200px 800px at 10% -10%,
+            rgba(40, 105, 131, 0.08),
+            transparent 60%
+          ),
+          radial-gradient(
+            800px 600px at 90% -10%,
+            rgba(144, 122, 169, 0.06),
+            transparent 60%
+          ),
+          var(--base);
         color: var(--text);
       }
       .glass-nav {
@@ -264,29 +345,48 @@ const topFrontierMath = epochRuns
         width: 280px;
         min-width: 280px;
         flex-shrink: 0;
-        background: var(--surface);
-        backdrop-filter: blur(20px);
-        border-right: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 2rem 1.5rem;
-        padding-top: 1.5rem; /* Increased padding to push content below header */
-        height: 100vh; /* Full viewport height */
+        background: linear-gradient(
+          180deg,
+          rgba(30, 28, 42, 0.98) 0%,
+          rgba(25, 23, 36, 0.99) 100%
+        );
+        backdrop-filter: blur(24px);
+        border-right: 1px solid rgba(156, 207, 216, 0.08);
+        padding: 5rem 1.25rem 2rem;
+        height: 100vh;
         overflow-y: auto;
         position: fixed;
         top: 0;
         left: 0;
         z-index: 40;
         transform: translateX(0);
-        transition: transform 0.3s ease;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        scrollbar-width: thin;
+        scrollbar-color: rgba(156, 207, 216, 0.3) transparent;
       }
+
+      .smart-filter-rail::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .smart-filter-rail::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .smart-filter-rail::-webkit-scrollbar-thumb {
+        background: rgba(156, 207, 216, 0.3);
+        border-radius: 3px;
+      }
+
       html.light .smart-filter-rail {
-        border-right: 1px solid rgba(0, 0, 0, 0.08);
+        background: linear-gradient(
+          180deg,
+          rgba(250, 248, 246, 0.98) 0%,
+          rgba(255, 250, 245, 0.99) 100%
+        );
+        border-right: 1px solid rgba(87, 82, 121, 0.1);
       }
-      
-      /* Add more space for the first element in the sidebar */
-      .smart-filter-rail > *:first-child {
-        margin-top: 1.5rem;
-      }
-      
+
       .smart-filter-rail.closed {
         transform: translateX(-100%);
       }
@@ -308,7 +408,7 @@ const topFrontierMath = epochRuns
           background: var(--surface);
           backdrop-filter: blur(20px);
           border-right: 1px solid rgba(255, 255, 255, 0.1);
-          box-shadow: 0 4px 32px rgba(0,0,0,0.6);
+          box-shadow: 0 4px 32px rgba(0, 0, 0, 0.6);
           height: 100vh;
           padding: 1rem 1.5rem;
           padding-top: 5rem; /* Adjusted padding for mobile */
@@ -348,21 +448,22 @@ const topFrontierMath = epochRuns
           scrollbar-color: var(--accent) rgba(0, 0, 0, 0.2);
         }
         /* Make canvases fill container */
-        #price-canvas, #perf-canvas {
+        #price-canvas,
+        #perf-canvas {
           display: block;
           width: 100% !important;
           height: 100% !important;
         }
-        
+
         .chart-container::-webkit-scrollbar {
           height: 6px;
         }
-        
+
         .chart-container::-webkit-scrollbar-track {
           background: rgba(0, 0, 0, 0.2);
           border-radius: 3px;
         }
-        
+
         .chart-container::-webkit-scrollbar-thumb {
           background-color: var(--accent);
           border-radius: 3px;
@@ -380,27 +481,119 @@ const topFrontierMath = epochRuns
         }
       }
       .filter-section {
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.75rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid rgba(156, 207, 216, 0.08);
       }
+
+      .filter-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+      }
+
       .filter-section h3 {
-        margin-bottom: 0.5rem;
-        font-size: 1rem;
-        color: var(--text);
+        margin-bottom: 0.75rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #6e6a86;
       }
+
       html.light .filter-section h3 {
-        color: #575279;
+        color: #797593;
       }
+
       .model-list {
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
-        max-height: 300px;
+        gap: 0.25rem;
+        max-height: 320px;
         overflow-y: auto;
+        padding-right: 0.5rem;
+        margin-right: -0.5rem;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(156, 207, 216, 0.3) transparent;
       }
+
+      .model-list::-webkit-scrollbar {
+        width: 4px;
+      }
+
+      .model-list::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .model-list::-webkit-scrollbar-thumb {
+        background: rgba(156, 207, 216, 0.3);
+        border-radius: 2px;
+      }
+
       .model-item {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.625rem;
+        padding: 0.5rem 0.625rem;
+        border-radius: 8px;
+        transition: background 0.2s ease;
+        cursor: pointer;
+      }
+
+      .model-item:hover {
+        background: rgba(156, 207, 216, 0.08);
+      }
+
+      .model-item input[type="checkbox"] {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(156, 207, 216, 0.4);
+        border-radius: 4px;
+        background: transparent;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: all 0.2s ease;
+        position: relative;
+      }
+
+      .model-item input[type="checkbox"]:checked {
+        background: linear-gradient(135deg, #9ccfd8, #7fb5c0);
+        border-color: #9ccfd8;
+      }
+
+      .model-item input[type="checkbox"]:checked::after {
+        content: "";
+        position: absolute;
+        left: 4px;
+        top: 1px;
+        width: 4px;
+        height: 8px;
+        border: solid #191724;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+      }
+
+      .model-item label {
+        font-size: 0.8rem;
+        color: #e0def4;
+        cursor: pointer;
+        line-height: 1.3;
+      }
+
+      html.light .model-item label {
+        color: #575279;
+      }
+
+      .selected-count {
+        font-size: 0.75rem;
+        color: #9ccfd8;
+        font-weight: 500;
+        margin-bottom: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        background: rgba(156, 207, 216, 0.1);
+        border-radius: 6px;
+        border: 1px solid rgba(156, 207, 216, 0.15);
       }
       .compare-main {
         flex: 1;
@@ -435,7 +628,9 @@ const topFrontierMath = epochRuns
         border: 1px solid rgba(161, 166, 180, 0.1);
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
         width: 100%;
-        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        transition:
+          border-color 0.2s ease,
+          box-shadow 0.2s ease;
         position: relative;
         z-index: 1;
         overflow: visible;
@@ -466,12 +661,12 @@ const topFrontierMath = epochRuns
         margin: 0;
         font-size: 1.2rem;
         font-weight: 600;
-        color: #F8F8F8;
+        color: #f8f8f8;
       }
       html.light .chart-header h3 {
         color: #575279;
       }
-      
+
       .zoom-button {
         background: var(--glass);
         color: var(--accent);
@@ -482,12 +677,12 @@ const topFrontierMath = epochRuns
         cursor: pointer;
         transition: all 0.2s ease;
       }
-      
+
       .zoom-button:hover {
         background: rgba(122, 162, 194, 0.15);
         border-color: var(--accent);
       }
-      
+
       .zoom-button.active {
         background: rgba(122, 162, 194, 0.25);
         border-color: var(--accent);
@@ -501,7 +696,11 @@ const topFrontierMath = epochRuns
         box-sizing: border-box;
         overflow: visible;
         padding-top: 2rem;
-        background: linear-gradient(180deg, rgba(10, 10, 11, 0.4) 0%, rgba(10, 10, 11, 0.8) 100%);
+        background: linear-gradient(
+          180deg,
+          rgba(10, 10, 11, 0.4) 0%,
+          rgba(10, 10, 11, 0.8) 100%
+        );
         border-radius: 8px;
         padding: 1rem;
         border: 1px solid rgba(161, 166, 180, 0.1);
@@ -521,14 +720,17 @@ const topFrontierMath = epochRuns
         width: 100%;
         min-width: 40px;
         border-radius: 12px;
-        transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        transition:
+          background 0.2s ease,
+          border-color 0.2s ease,
+          box-shadow 0.2s ease;
         position: relative;
         margin-top: auto;
         background: rgba(122, 162, 194, 0.22);
         backdrop-filter: blur(20px) saturate(1.2);
         -webkit-backdrop-filter: blur(20px) saturate(1.2);
         border: 1px solid rgba(255, 255, 255, 0.2);
-        box-shadow: 
+        box-shadow:
           0 8px 32px rgba(0, 0, 0, 0.15),
           0 2px 8px rgba(0, 0, 0, 0.1),
           inset 0 1px 0 rgba(255, 255, 255, 0.3),
@@ -538,35 +740,39 @@ const topFrontierMath = epochRuns
         visibility: visible;
         overflow: hidden;
       }
-      
+
       .chart-bar::before {
-        content: '';
+        content: "";
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        background: linear-gradient(135deg, 
-          rgba(255, 255, 255, 0.2) 0%, 
-          rgba(255, 255, 255, 0.1) 30%, 
-          rgba(255, 255, 255, 0.02) 70%, 
-          rgba(0, 0, 0, 0.05) 100%);
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.2) 0%,
+          rgba(255, 255, 255, 0.1) 30%,
+          rgba(255, 255, 255, 0.02) 70%,
+          rgba(0, 0, 0, 0.05) 100%
+        );
         border-radius: inherit;
         pointer-events: none;
         opacity: 0.8;
       }
-      
+
       .chart-bar::after {
-        content: '';
+        content: "";
         position: absolute;
         top: 1px;
         left: 1px;
         right: 1px;
         height: 30%;
-        background: linear-gradient(180deg, 
-          rgba(255, 255, 255, 0.15) 0%, 
-          rgba(255, 255, 255, 0.05) 50%, 
-          transparent 100%);
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.15) 0%,
+          rgba(255, 255, 255, 0.05) 50%,
+          transparent 100%
+        );
         border-radius: 10px 10px 0 0;
         pointer-events: none;
       }
@@ -574,7 +780,7 @@ const topFrontierMath = epochRuns
         .chart-bar:hover {
           background: rgba(122, 162, 194, 0.28);
           border-color: rgba(255, 255, 255, 0.25);
-          box-shadow: 
+          box-shadow:
             0 12px 36px rgba(122, 162, 194, 0.25),
             0 4px 12px rgba(0, 0, 0, 0.15),
             inset 0 1px 0 rgba(255, 255, 255, 0.35);
@@ -594,7 +800,7 @@ const topFrontierMath = epochRuns
         .input-price-bar:hover {
           background: rgba(34, 197, 94, 0.35);
           border-color: rgba(34, 197, 94, 0.5);
-          box-shadow: 
+          box-shadow:
             0 12px 36px rgba(34, 197, 94, 0.25),
             0 4px 12px rgba(0, 0, 0, 0.15),
             inset 0 1px 0 rgba(255, 255, 255, 0.35);
@@ -606,7 +812,7 @@ const topFrontierMath = epochRuns
           border-color: rgba(34, 197, 94, 0.5);
         }
       }
-      
+
       .output-price-bar {
         background: rgba(239, 68, 68, 0.25);
         border-color: rgba(239, 68, 68, 0.4);
@@ -615,7 +821,7 @@ const topFrontierMath = epochRuns
         .output-price-bar:hover {
           background: rgba(239, 68, 68, 0.35);
           border-color: rgba(239, 68, 68, 0.5);
-          box-shadow: 
+          box-shadow:
             0 12px 36px rgba(239, 68, 68, 0.25),
             0 4px 12px rgba(0, 0, 0, 0.15),
             inset 0 1px 0 rgba(255, 255, 255, 0.35);
@@ -627,7 +833,7 @@ const topFrontierMath = epochRuns
           border-color: rgba(239, 68, 68, 0.5);
         }
       }
-      
+
       .performance-bar {
         background: rgba(122, 162, 194, 0.22);
         border-color: rgba(122, 162, 194, 0.38);
@@ -636,7 +842,7 @@ const topFrontierMath = epochRuns
         .performance-bar:hover {
           background: rgba(122, 162, 194, 0.3);
           border-color: rgba(122, 162, 194, 0.5);
-          box-shadow: 
+          box-shadow:
             0 12px 36px rgba(122, 162, 194, 0.25),
             0 4px 12px rgba(0, 0, 0, 0.15),
             inset 0 1px 0 rgba(255, 255, 255, 0.35);
@@ -675,10 +881,17 @@ const topFrontierMath = epochRuns
         white-space: normal;
         line-height: 1.15;
         max-width: 100%;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
       }
-      .bar-label .bar-name { display: block; }
-      .bar-label .bar-variant { display: block; font-weight: 600; opacity: 0.85; font-size: 0.8rem; }
+      .bar-label .bar-name {
+        display: block;
+      }
+      .bar-label .bar-variant {
+        display: block;
+        font-weight: 600;
+        opacity: 0.85;
+        font-size: 0.8rem;
+      }
       .insights-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -693,7 +906,9 @@ const topFrontierMath = epochRuns
         border-radius: 8px;
         padding: 1.5rem;
         border: 1px solid rgba(161, 166, 180, 0.1);
-        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        transition:
+          border-color 0.2s ease,
+          box-shadow 0.2s ease;
       }
       html.light .insight-card {
         background: rgba(255, 255, 255, 0.6);
@@ -729,7 +944,7 @@ const topFrontierMath = epochRuns
       html.light .insight-card p {
         color: #575279;
       }
-      
+
       .no-data {
         text-align: center;
         color: #666;
@@ -737,26 +952,34 @@ const topFrontierMath = epochRuns
         font-style: italic;
       }
       .search-container {
-        margin-bottom: 1rem;
+        margin-bottom: 0.75rem;
       }
       .model-search {
-        background: rgba(161, 166, 180, 0.1);
-        border: 1px solid rgba(161, 166, 180, 0.3);
-        border-radius: 0.5rem;
-        color: var(--text-primary);
-        padding: 0.5rem 0.75rem;
+        background: rgba(30, 28, 42, 0.6);
+        border: 1px solid rgba(156, 207, 216, 0.15);
+        border-radius: 10px;
+        color: #e0def4;
+        padding: 0.625rem 1rem;
         width: 100%;
-        font-size: 0.875rem;
-        backdrop-filter: blur(8px);
-        transition: all 0.3s ease;
+        font-size: 0.8rem;
+        transition: all 0.25s ease;
         outline: none;
       }
       .model-search:focus {
-        border-color: var(--accent);
-        box-shadow: 0 0 0 2px rgba(122, 162, 194, 0.2);
+        border-color: #9ccfd8;
+        background: rgba(30, 28, 42, 0.8);
+        box-shadow: 0 0 0 3px rgba(156, 207, 216, 0.15);
       }
       .model-search::placeholder {
-        color: rgba(161, 166, 180, 0.6);
+        color: #6e6a86;
+      }
+      html.light .model-search {
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(87, 82, 121, 0.15);
+        color: #575279;
+      }
+      html.light .model-search::placeholder {
+        color: #797593;
       }
       .filter-toggle {
         position: fixed;
@@ -776,18 +999,18 @@ const topFrontierMath = epochRuns
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         transition: all 0.3s ease;
       }
-      
+
       .filter-toggle:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 16px rgba(122, 162, 194, 0.35);
         background: #6b85a3;
       }
-      
+
       .filter-toggle:active {
         transform: translateY(0);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
       }
-      
+
       .filter-label {
         font-size: 1.2rem;
         font-weight: bold;
@@ -797,7 +1020,7 @@ const topFrontierMath = epochRuns
         width: 100%;
         height: 100%;
       }
-      
+
       .filter-overlay {
         position: fixed;
         inset: 0;
@@ -833,7 +1056,7 @@ const topFrontierMath = epochRuns
         }
         .smart-filter-rail.open {
           transform: translateX(0);
-          box-shadow: 0 4px 32px rgba(0,0,0,0.6);
+          box-shadow: 0 4px 32px rgba(0, 0, 0, 0.6);
         }
         .compare-main {
           width: 100%;
@@ -873,7 +1096,7 @@ const topFrontierMath = epochRuns
           max-width: 70px;
         }
       }
-      
+
       @media (max-width: 500px) {
         .insights-grid {
           grid-template-columns: 1fr;
@@ -898,66 +1121,85 @@ const topFrontierMath = epochRuns
         }
       }
       .sort-toggle {
-        background: var(--glass);
-        border: 1px solid rgba(161, 166, 180, 0.3);
-        border-radius: 0.5rem;
-        color: var(--text-primary);
-        padding: 0.5rem 0.75rem;
+        background: rgba(30, 28, 42, 0.6);
+        border: 1px solid rgba(156, 207, 216, 0.15);
+        border-radius: 10px;
+        color: #e0def4;
+        padding: 0.625rem 1rem;
         width: 100%;
-        font-size: 0.875rem;
+        font-size: 0.8rem;
         cursor: pointer;
-        transition: all 0.3s ease;
-        text-align: left;
-        backdrop-filter: blur(8px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        transition: all 0.25s ease;
+        text-align: center;
+        font-weight: 500;
       }
       .sort-toggle:hover {
-        border-color: var(--accent);
-        background: rgba(156, 207, 216, 0.15);
-        box-shadow: 0 4px 12px rgba(156, 207, 216, 0.2);
-        transform: translateY(-1px);
+        border-color: #9ccfd8;
+        background: rgba(156, 207, 216, 0.1);
       }
-      
+      html.light .sort-toggle {
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(87, 82, 121, 0.15);
+        color: #575279;
+      }
+
       .metric-dropdown {
-        background: var(--glass);
-        border: 1px solid rgba(161, 166, 180, 0.3);
-        border-radius: 0.5rem;
-        color: var(--text-primary);
-        padding: 0.5rem 0.75rem;
+        background: rgba(30, 28, 42, 0.6);
+        border: 1px solid rgba(156, 207, 216, 0.15);
+        border-radius: 10px;
+        color: #e0def4;
+        padding: 0.625rem 1rem;
         width: 100%;
-        font-size: 0.875rem;
+        font-size: 0.8rem;
         cursor: pointer;
-        transition: all 0.3s ease;
-        text-align: left;
-        backdrop-filter: blur(8px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        transition: all 0.25s ease;
         appearance: none;
         -webkit-appearance: none;
         -moz-appearance: none;
-        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgba(161, 166, 180, 0.8)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ccfd8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
         background-repeat: no-repeat;
         background-position: right 0.75rem center;
-        background-size: 1rem;
+        background-size: 0.875rem;
         padding-right: 2.5rem;
       }
-      
+
       .metric-dropdown:hover {
-        border-color: var(--accent);
-        background-color: rgba(122, 162, 194, 0.15);
-        box-shadow: 0 4px 12px rgba(122, 162, 194, 0.2);
-        transform: translateY(-1px);
+        border-color: #9ccfd8;
+        background-color: rgba(156, 207, 216, 0.08);
       }
-      
+
       .metric-dropdown:focus {
         outline: none;
-        border-color: var(--accent);
-        box-shadow: 0 0 0 2px rgba(122, 162, 194, 0.28);
+        border-color: #9ccfd8;
+        box-shadow: 0 0 0 3px rgba(156, 207, 216, 0.15);
       }
-      
+
       .metric-dropdown option {
-        background-color: #121212;
-        color: var(--text-primary);
-        padding: 8px;
+        background-color: #1e1c2a;
+        color: #e0def4;
+        padding: 10px;
+      }
+
+      html.light .metric-dropdown {
+        background-color: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(87, 82, 121, 0.2);
+        color: #575279;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23286983' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 0.875rem;
+      }
+
+      .footer-wrapper {
+        margin-left: 280px;
+        width: calc(100% - 280px);
+      }
+
+      @media (max-width: 800px) {
+        .footer-wrapper {
+          margin-left: 0;
+          width: 100%;
+        }
       }
 
       /* View Transitions - Smooth page navigation */
@@ -978,10 +1220,18 @@ const topFrontierMath = epochRuns
     </style>
   </head>
   <body>
-    <div class="compare-container" style="overflow-x: hidden; width: 100%; max-width: 100vw;">
+    <div
+      class="compare-container"
+      style="overflow-x: hidden; width: 100%; max-width: 100vw;"
+    >
       <Header currentPage="compare" />
 
-      <button class="filter-toggle" id="filter-toggle" aria-expanded="false" aria-label="Toggle filters">
+      <button
+        class="filter-toggle"
+        id="filter-toggle"
+        aria-expanded="false"
+        aria-label="Toggle filters"
+      >
         <span class="filter-label">&lt;=&gt;</span>
       </button>
       <div class="filter-overlay" id="filter-overlay"></div>
@@ -992,10 +1242,18 @@ const topFrontierMath = epochRuns
             <label for="metric-selector" class="filter-label">
               <h3>Performance Metric</h3>
             </label>
-            <select id="metric-selector" class="metric-dropdown" aria-label="Select performance metric">
-              {Object.entries(availableBenchmarks).map(([value, label]) => (
-                <option value={value} selected={value === 'mmlu_pro'}>{label}</option>
-              ))}
+            <select
+              id="metric-selector"
+              class="metric-dropdown"
+              aria-label="Select performance metric"
+            >
+              {
+                Object.entries(availableBenchmarks).map(([value, label]) => (
+                  <option value={value} selected={value === "mmlu_pro"}>
+                    {label}
+                  </option>
+                ))
+              }
             </select>
           </div>
           <div class="filter-section">
@@ -1007,7 +1265,12 @@ const topFrontierMath = epochRuns
           <div class="filter-section">
             <h3>Model Selection</h3>
             <div class="search-container">
-              <input type="text" id="model-search" placeholder="Search models..." class="model-search">
+              <input
+                type="text"
+                id="model-search"
+                placeholder="Search models..."
+                class="model-search"
+              />
             </div>
             <div class="selected-count"></div>
             <div class="model-list"></div>
@@ -1021,14 +1284,18 @@ const topFrontierMath = epochRuns
                 <div class="chart-header">
                   <h3>Price Comparison</h3>
                 </div>
-                <div class="chart-container" id="price-chart"><canvas id="price-canvas"></canvas></div>
+                <div class="chart-container" id="price-chart">
+                  <canvas id="price-canvas"></canvas>
+                </div>
               </div>
 
               <div class="chart-section">
                 <div class="chart-header">
                   <h3>Performance Comparison</h3>
                 </div>
-                <div class="chart-container" id="performance-chart"><canvas id="perf-canvas"></canvas></div>
+                <div class="chart-container" id="performance-chart">
+                  <canvas id="perf-canvas"></canvas>
+                </div>
               </div>
             </div>
           </section>
@@ -1037,58 +1304,92 @@ const topFrontierMath = epochRuns
             <div class="insights-grid">
               <div class="insight-card">
                 <h4>Cheapest Tokens</h4>
-                <p>{cheapestTokensModel ? cheapestTokensModel.name : '—'}</p>
+                <p>{cheapestTokensModel ? cheapestTokensModel.name : "—"}</p>
               </div>
               <div class="insight-card">
                 <h4>Cheapest Input</h4>
-                <p>{inputPriceWinner ? inputPriceWinner.name : '—'}</p>
+                <p>{inputPriceWinner ? inputPriceWinner.name : "—"}</p>
               </div>
               <div class="insight-card">
                 <h4>Cheapest Output</h4>
-                <p>{outputPriceWinner ? outputPriceWinner.name : '—'}</p>
+                <p>{outputPriceWinner ? outputPriceWinner.name : "—"}</p>
               </div>
               <div class="insight-card">
                 <h4>Highest TPS</h4>
-                <p>{tpsWinner ? tpsWinner.name : '—'}</p>
+                <p>{tpsWinner ? tpsWinner.name : "—"}</p>
               </div>
               <div class="insight-card">
                 <h4>Fastest TTFT</h4>
-                <p>{ttftWinner ? ttftWinner.name : '—'}</p>
+                <p>{ttftWinner ? ttftWinner.name : "—"}</p>
               </div>
               <div class="insight-card">
                 <h4 id="performance-metric-title">Top MMLU Pro</h4>
-                <p>{performanceWinner ? performanceWinner.name : '—'}</p>
+                <p>{performanceWinner ? performanceWinner.name : "—"}</p>
               </div>
-              <div class="insight-card" style="border-color: rgba(196, 167, 231, 0.3);">
+              <div
+                class="insight-card"
+                style="border-color: rgba(196, 167, 231, 0.3);"
+              >
                 <h4 style="color: #c4a7e7;">Top GPQA Diamond</h4>
-                <p>{topGpqaDiamond ? topGpqaDiamond.model_version.replace(/_/g, ' ') : '—'}</p>
-                <span style="font-size: 0.65rem; color: #b0acbe;">{topGpqaDiamond ? `${(topGpqaDiamond.score! * 100).toFixed(1)}%` : ''}</span>
+                <p>
+                  {
+                    topGpqaDiamond
+                      ? topGpqaDiamond.model_version.replace(/_/g, " ")
+                      : "—"
+                  }
+                </p>
+                <span style="font-size: 0.65rem; color: #b0acbe;"
+                  >{
+                    topGpqaDiamond
+                      ? `${(topGpqaDiamond.score! * 100).toFixed(1)}%`
+                      : ""
+                  }</span
+                >
               </div>
-              <div class="insight-card" style="border-color: rgba(196, 167, 231, 0.3);">
+              <div
+                class="insight-card"
+                style="border-color: rgba(196, 167, 231, 0.3);"
+              >
                 <h4 style="color: #c4a7e7;">Top FrontierMath</h4>
-                <p>{topFrontierMath ? topFrontierMath.model_version.replace(/_/g, ' ') : '—'}</p>
-                <span style="font-size: 0.65rem; color: #b0acbe;">{topFrontierMath ? `${(topFrontierMath.score! * 100).toFixed(1)}%` : ''}</span>
+                <p>
+                  {
+                    topFrontierMath
+                      ? topFrontierMath.model_version.replace(/_/g, " ")
+                      : "—"
+                  }
+                </p>
+                <span style="font-size: 0.65rem; color: #b0acbe;"
+                  >{
+                    topFrontierMath
+                      ? `${(topFrontierMath.score! * 100).toFixed(1)}%`
+                      : ""
+                  }</span
+                >
               </div>
             </div>
           </section>
         </main>
       </div>
+    </div>
+
+    <div class="footer-wrapper">
       <Footer />
     </div>
-    
     <ScrollToTop />
 
-    <script define:vars={{ validModels, epochScoresByModel, availableBenchmarks }}>
+    <script
+      define:vars={{ validModels, epochScoresByModel, availableBenchmarks }}
+    >
       // Security: HTML sanitization function to prevent XSS attacks
       function sanitizeHTML(str) {
-        const div = document.createElement('div');
-        div.textContent = str || '';
+        const div = document.createElement("div");
+        div.textContent = str || "";
         return div.innerHTML;
       }
 
       const cleanupEffects = [];
       const registerCleanup = (fn) => {
-        if (typeof fn === 'function') cleanupEffects.push(fn);
+        if (typeof fn === "function") cleanupEffects.push(fn);
       };
       const runCleanup = () => {
         while (cleanupEffects.length) {
@@ -1096,17 +1397,18 @@ const topFrontierMath = epochRuns
           try {
             cleanup();
           } catch (error) {
-            console.warn('Cleanup failed', error);
+            console.warn("Cleanup failed", error);
           }
         }
       };
 
       const destroyChartForCanvas = (canvas) => {
         if (!canvas || !window.Chart) return;
-        const existing = typeof window.Chart.getChart === 'function'
-          ? window.Chart.getChart(canvas)
-          : null;
-        if (existing && typeof existing.destroy === 'function') {
+        const existing =
+          typeof window.Chart.getChart === "function"
+            ? window.Chart.getChart(canvas)
+            : null;
+        if (existing && typeof existing.destroy === "function") {
           existing.destroy();
         }
       };
@@ -1115,39 +1417,53 @@ const topFrontierMath = epochRuns
       let __chartLibLoading = null;
       function loadScript(src) {
         return new Promise((resolve, reject) => {
-          const existing = document.querySelector(`script[data-loaded-src="${src}"]`);
+          const existing = document.querySelector(
+            `script[data-loaded-src="${src}"]`,
+          );
           if (existing) {
-            if (existing.dataset.loaded === 'true') {
+            if (existing.dataset.loaded === "true") {
               resolve();
             } else {
-              existing.addEventListener('load', resolve, { once: true });
-              existing.addEventListener('error', reject, { once: true });
+              existing.addEventListener("load", resolve, { once: true });
+              existing.addEventListener("error", reject, { once: true });
             }
             return;
           }
 
-          const s = document.createElement('script');
+          const s = document.createElement("script");
           s.src = src;
           s.async = false;
           s.defer = false;
           s.dataset.loadedSrc = src;
-          s.addEventListener('load', () => {
-            s.dataset.loaded = 'true';
-            resolve();
-          }, { once: true });
-          s.addEventListener('error', reject, { once: true });
+          s.addEventListener(
+            "load",
+            () => {
+              s.dataset.loaded = "true";
+              resolve();
+            },
+            { once: true },
+          );
+          s.addEventListener("error", reject, { once: true });
           document.head.appendChild(s);
         });
       }
       async function ensureChartLibs() {
-        if (window.Chart && (window.ChartDataLabels || window['ChartDataLabels'])) return true;
+        if (
+          window.Chart &&
+          (window.ChartDataLabels || window["ChartDataLabels"])
+        )
+          return true;
         if (!__chartLibLoading) {
           __chartLibLoading = (async () => {
             if (!window.Chart) {
-              await loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js');
+              await loadScript(
+                "https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js",
+              );
             }
-            if (!(window.ChartDataLabels || window['ChartDataLabels'])) {
-              await loadScript('https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js');
+            if (!(window.ChartDataLabels || window["ChartDataLabels"])) {
+              await loadScript(
+                "https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js",
+              );
             }
             return true;
           })();
@@ -1159,133 +1475,142 @@ const topFrontierMath = epochRuns
         // Initialize sidebar state based on screen size
         const initializeLayout = () => {
           const isMobile = window.innerWidth <= 800;
-          const rail = document.getElementById('smart-filter-rail');
-          const main = document.querySelector('.compare-main');
-          const toggle = document.getElementById('filter-toggle');
-          const label = toggle?.querySelector('.filter-label');
-          
+          const rail = document.getElementById("smart-filter-rail");
+          const main = document.querySelector(".compare-main");
+          const toggle = document.getElementById("filter-toggle");
+          const label = toggle?.querySelector(".filter-label");
+
           if (isMobile) {
-            rail?.classList.remove('closed');
-            rail?.classList.remove('open');
-            if (label) label.innerHTML = '&lt;=&gt;';
+            rail?.classList.remove("closed");
+            rail?.classList.remove("open");
+            if (label) label.innerHTML = "&lt;=&gt;";
           } else {
             // Default to showing sidebar on desktop
-            rail?.classList.remove('closed');
+            rail?.classList.remove("closed");
             if (main) {
-              main.style.marginLeft = '280px';
-              main.style.width = 'calc(100% - 280px)';
+              main.style.marginLeft = "280px";
+              main.style.width = "calc(100% - 280px)";
             }
-            if (label) label.innerHTML = '&times;';
+            if (label) label.innerHTML = "&times;";
           }
         };
-        
+
         // Call initially and on resize
         initializeLayout();
-        window.addEventListener('resize', initializeLayout);
-        registerCleanup(() => window.removeEventListener('resize', initializeLayout));
+        window.addEventListener("resize", initializeLayout);
+        registerCleanup(() =>
+          window.removeEventListener("resize", initializeLayout),
+        );
 
-        const toggle = document.getElementById('filter-toggle');
-        const rail = document.getElementById('smart-filter-rail');
-        const overlay = document.getElementById('filter-overlay');
+        const toggle = document.getElementById("filter-toggle");
+        const rail = document.getElementById("smart-filter-rail");
+        const overlay = document.getElementById("filter-overlay");
 
         function closeFilters() {
           const isMobile = window.innerWidth <= 800;
-          
+
           if (isMobile) {
-            rail.classList.remove('open');
-            overlay.classList.remove('active');
-            toggle.setAttribute('aria-expanded', 'false');
-            const label = toggle.querySelector('.filter-label');
-            if (label) label.innerHTML = '&lt;=&gt;';
+            rail.classList.remove("open");
+            overlay.classList.remove("active");
+            toggle.setAttribute("aria-expanded", "false");
+            const label = toggle.querySelector(".filter-label");
+            if (label) label.innerHTML = "&lt;=&gt;";
           } else {
-            rail.classList.add('closed');
-            toggle.setAttribute('aria-expanded', 'false');
-            const label = toggle.querySelector('.filter-label');
-            if (label) label.innerHTML = '&lt;=&gt;';
-            
+            rail.classList.add("closed");
+            toggle.setAttribute("aria-expanded", "false");
+            const label = toggle.querySelector(".filter-label");
+            if (label) label.innerHTML = "&lt;=&gt;";
+
             // Adjust main content area
-            const main = document.querySelector('.compare-main');
+            const main = document.querySelector(".compare-main");
             if (main) {
-              main.style.marginLeft = '0';
-              main.style.width = '100%';
+              main.style.marginLeft = "0";
+              main.style.width = "100%";
             }
           }
         }
 
-        toggle?.addEventListener('click', () => {
+        toggle?.addEventListener("click", () => {
           // For mobile, we use 'open' class to show the sidebar
           // For desktop, we use 'closed' class to hide the sidebar
           const isMobile = window.innerWidth <= 800;
-          
+
           if (isMobile) {
-            const isOpen = rail.classList.toggle('open');
-            overlay.classList.toggle('active', isOpen);
-            toggle.setAttribute('aria-expanded', isOpen.toString());
-            const label = toggle.querySelector('.filter-label');
-            if (label) label.innerHTML = isOpen ? '&times;' : '&lt;=&gt;';
+            const isOpen = rail.classList.toggle("open");
+            overlay.classList.toggle("active", isOpen);
+            toggle.setAttribute("aria-expanded", isOpen.toString());
+            const label = toggle.querySelector(".filter-label");
+            if (label) label.innerHTML = isOpen ? "&times;" : "&lt;=&gt;";
           } else {
-            const isClosed = rail.classList.toggle('closed');
-            toggle.setAttribute('aria-expanded', (!isClosed).toString());
-            const label = toggle.querySelector('.filter-label');
-            if (label) label.innerHTML = isClosed ? '&lt;=&gt;' : '&times;';
-            
+            const isClosed = rail.classList.toggle("closed");
+            toggle.setAttribute("aria-expanded", (!isClosed).toString());
+            const label = toggle.querySelector(".filter-label");
+            if (label) label.innerHTML = isClosed ? "&lt;=&gt;" : "&times;";
+
             // Also adjust the main content area when sidebar is toggled
-            const main = document.querySelector('.compare-main');
+            const main = document.querySelector(".compare-main");
             if (main) {
-              main.style.marginLeft = isClosed ? '0' : '280px';
-              main.style.width = isClosed ? '100%' : 'calc(100% - 280px)';
+              main.style.marginLeft = isClosed ? "0" : "280px";
+              main.style.width = isClosed ? "100%" : "calc(100% - 280px)";
             }
           }
         });
 
-        overlay?.addEventListener('click', closeFilters);
+        overlay?.addEventListener("click", closeFilters);
 
         // Dynamic model selection and charts
         const models = validModels;
         let filteredModels = [...models]; // For search filtering
         const selected = new Set(models.slice(0, 3).map((m) => m.id));
-        const list = document.querySelector('.model-list');
-        const countEl = document.querySelector('.selected-count');
-        const priceChart = document.getElementById('price-chart');
-        const perfChart = document.getElementById('performance-chart');
-        const priceCanvas = document.getElementById('price-canvas');
-        const perfCanvas = document.getElementById('perf-canvas');
+        const list = document.querySelector(".model-list");
+        const countEl = document.querySelector(".selected-count");
+        const priceChart = document.getElementById("price-chart");
+        const perfChart = document.getElementById("performance-chart");
+        const priceCanvas = document.getElementById("price-canvas");
+        const perfCanvas = document.getElementById("perf-canvas");
         let priceChartInstance = null;
         let perfChartInstance = null;
-        const metricSelector = document.getElementById('metric-selector');
-        const performanceMetricTitle = document.getElementById('performance-metric-title');
-        
+        const metricSelector = document.getElementById("metric-selector");
+        const performanceMetricTitle = document.getElementById(
+          "performance-metric-title",
+        );
+
         // Benchmark display names mapping (from server)
         const benchmarkNames = availableBenchmarks;
-        
+
         // Epoch scores by model (from server)
         const epochScores = epochScoresByModel;
-        const sortToggle = document.getElementById('sort-toggle');
-        const searchInput = document.getElementById('model-search');
+        const sortToggle = document.getElementById("sort-toggle");
+        const searchInput = document.getElementById("model-search");
 
         function applyFiltersAndSort() {
-          const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+          const searchTerm = searchInput ? searchInput.value.toLowerCase() : "";
 
           // Filter by search term only
-          filteredModels = models.filter(model => 
-            model.name.toLowerCase().includes(searchTerm)
+          filteredModels = models.filter((model) =>
+            model.name.toLowerCase().includes(searchTerm),
           );
         }
 
         function renderModelList() {
           if (!list) return;
           applyFiltersAndSort();
-          
-          list.innerHTML = filteredModels.map((m) => `
+
+          list.innerHTML = filteredModels
+            .map(
+              (m) => `
             <div class="model-item">
-              <input type="checkbox" id="model-${m.id}" data-id="${m.id}" ${selected.has(m.id) ? 'checked' : ''} />
+              <input type="checkbox" id="model-${m.id}" data-id="${m.id}" ${selected.has(m.id) ? "checked" : ""} />
               <label for="model-${m.id}">${sanitizeHTML(m.name)}</label>
             </div>
-          `).join('');
+          `,
+            )
+            .join("");
         }
 
         function updateCount() {
-          if (countEl) countEl.textContent = `${selected.size} of ${filteredModels.length} models selected`;
+          if (countEl)
+            countEl.textContent = `${selected.size} of ${filteredModels.length} models selected`;
         }
 
         function getSelected() {
@@ -1294,11 +1619,11 @@ const topFrontierMath = epochRuns
 
         function updateInsights(models) {
           if (models.length === 0) return;
-          
+
           // Find cheapest tokens model (lowest blended price)
           let cheapestTokensModel = null;
           let lowestBlendedPrice = Infinity;
-          
+
           // Find cheapest input, output, top performer, TPS winner, and TTFT winner for current metric
           let cheapestInputModel = models[0];
           let cheapestOutputModel = models[0];
@@ -1307,241 +1632,342 @@ const topFrontierMath = epochRuns
           let ttftWinnerModel = null;
           let highestTPS = 0;
           let fastestTTFT = Infinity;
-          
+
           const currentMetric = metricSelector.value;
-          
-          models.forEach(model => {
+
+          models.forEach((model) => {
             // Find model with lowest blended price
             const blendedPrice = model.price_1m_blended_3_to_1;
             const priceNum = parseFloat(blendedPrice);
-            
-            if (blendedPrice !== null && blendedPrice !== undefined && !isNaN(priceNum) && priceNum > 0 && priceNum < lowestBlendedPrice) {
+
+            if (
+              blendedPrice !== null &&
+              blendedPrice !== undefined &&
+              !isNaN(priceNum) &&
+              priceNum > 0 &&
+              priceNum < lowestBlendedPrice
+            ) {
               lowestBlendedPrice = priceNum;
               cheapestTokensModel = model;
             }
-            
-            if ((Number(model.price_1m_input_tokens) || Infinity) < (Number(cheapestInputModel.price_1m_input_tokens) || Infinity)) {
+
+            if (
+              (Number(model.price_1m_input_tokens) || Infinity) <
+              (Number(cheapestInputModel.price_1m_input_tokens) || Infinity)
+            ) {
               cheapestInputModel = model;
             }
-            
-            if ((Number(model.price_1m_output_tokens) || Infinity) < (Number(cheapestOutputModel.price_1m_output_tokens) || Infinity)) {
+
+            if (
+              (Number(model.price_1m_output_tokens) || Infinity) <
+              (Number(cheapestOutputModel.price_1m_output_tokens) || Infinity)
+            ) {
               cheapestOutputModel = model;
             }
-            
-            if ((Number(model[currentMetric]) || 0) > (Number(topPerformerModel[currentMetric]) || 0)) {
+
+            if (
+              (Number(model[currentMetric]) || 0) >
+              (Number(topPerformerModel[currentMetric]) || 0)
+            ) {
               topPerformerModel = model;
             }
-            
+
             // Find TPS winner (highest tokens per second)
             const modelTPS = model.median_output_tokens_per_second;
             const winnerTpsNum = parseFloat(modelTPS);
-            if (modelTPS !== null && modelTPS !== undefined && !isNaN(winnerTpsNum) && winnerTpsNum > 0 && winnerTpsNum > highestTPS) {
+            if (
+              modelTPS !== null &&
+              modelTPS !== undefined &&
+              !isNaN(winnerTpsNum) &&
+              winnerTpsNum > 0 &&
+              winnerTpsNum > highestTPS
+            ) {
               highestTPS = winnerTpsNum;
               tpsWinnerModel = model;
             }
-            
+
             // Find TTFT winner (fastest time to first token - lower is better)
             const modelTTFT = model.median_time_to_first_answer_token;
             const ttftNum = parseFloat(modelTTFT);
-            if (modelTTFT !== null && modelTTFT !== undefined && !isNaN(ttftNum) && ttftNum > 0 && ttftNum < fastestTTFT) {
+            if (
+              modelTTFT !== null &&
+              modelTTFT !== undefined &&
+              !isNaN(ttftNum) &&
+              ttftNum > 0 &&
+              ttftNum < fastestTTFT
+            ) {
               fastestTTFT = ttftNum;
               ttftWinnerModel = model;
             }
           });
-          
+
           // Update the insight cards
-          const insightCards = document.querySelectorAll('.insight-card p');
+          const insightCards = document.querySelectorAll(".insight-card p");
           if (insightCards.length >= 6) {
-            insightCards[0].textContent = cheapestTokensModel ? cheapestTokensModel.name : '—';
+            insightCards[0].textContent = cheapestTokensModel
+              ? cheapestTokensModel.name
+              : "—";
             insightCards[1].textContent = cheapestInputModel.name;
             insightCards[2].textContent = cheapestOutputModel.name;
-            insightCards[3].textContent = tpsWinnerModel ? tpsWinnerModel.name : '—';
-            insightCards[4].textContent = ttftWinnerModel ? ttftWinnerModel.name : '—';
+            insightCards[3].textContent = tpsWinnerModel
+              ? tpsWinnerModel.name
+              : "—";
+            insightCards[4].textContent = ttftWinnerModel
+              ? ttftWinnerModel.name
+              : "—";
             insightCards[5].textContent = topPerformerModel.name;
           }
         }
-        
+
         function renderCharts() {
           let chosen = getSelected();
 
           // Ensure chart containers exist (metric selector is optional)
           if (!priceChart || !perfChart) {
-            console.error('Chart elements not found');
+            console.error("Chart elements not found");
             return;
           }
-          
+
           // Update insights section
           updateInsights(chosen);
 
           // Clear any existing "no data" messages but preserve the container structure
-          const existingNoData = priceChart.querySelector('.no-data');
+          const existingNoData = priceChart.querySelector(".no-data");
           if (existingNoData) existingNoData.remove();
-          
+
           if (chosen.length === 0) {
             // Add "no data" message without clearing the container
-            if (!priceChart.querySelector('.no-data')) {
-              const noDataEl = document.createElement('div');
-              noDataEl.className = 'no-data';
-              noDataEl.style.cssText = 'text-align: center; color: #666; padding: 2rem;';
-              noDataEl.textContent = 'Select models to compare';
+            if (!priceChart.querySelector(".no-data")) {
+              const noDataEl = document.createElement("div");
+              noDataEl.className = "no-data";
+              noDataEl.style.cssText =
+                "text-align: center; color: #666; padding: 2rem;";
+              noDataEl.textContent = "Select models to compare";
               priceChart.appendChild(noDataEl);
             }
-            
-            if (!perfChart.querySelector('.no-data')) {
-              const noDataEl = document.createElement('div');
-              noDataEl.className = 'no-data';
-              noDataEl.style.cssText = 'text-align: center; color: #666; padding: 2rem;';
-              noDataEl.textContent = 'Select models to compare';
+
+            if (!perfChart.querySelector(".no-data")) {
+              const noDataEl = document.createElement("div");
+              noDataEl.className = "no-data";
+              noDataEl.style.cssText =
+                "text-align: center; color: #666; padding: 2rem;";
+              noDataEl.textContent = "Select models to compare";
               perfChart.appendChild(noDataEl);
             }
             return;
           }
 
           // Get sort order and metric
-          const sortOrder = sortToggle ? sortToggle.getAttribute('data-order') : 'desc';
-          const metric = metricSelector ? metricSelector.value : 'mmlu_pro';
-          
+          const sortOrder = sortToggle
+            ? sortToggle.getAttribute("data-order")
+            : "desc";
+          const metric = metricSelector ? metricSelector.value : "mmlu_pro";
+
           // Update performance chart title with benchmark name
-          const perfChartHeader = document.querySelector('#performance-chart').parentElement.querySelector('.chart-header h3');
+          const perfChartHeader = document
+            .querySelector("#performance-chart")
+            .parentElement.querySelector(".chart-header h3");
           if (perfChartHeader) {
             const metricDisplayNames = {
-              'mmlu_pro': 'MMLU PRO',
-              'gpqa': 'GPQA', 
-              'math': 'MATH',
-              'humaneval': 'HumanEval',
-              'drop': 'DROP'
+              mmlu_pro: "MMLU PRO",
+              gpqa: "GPQA",
+              math: "MATH",
+              humaneval: "HumanEval",
+              drop: "DROP",
             };
-            const benchmarkName = metricDisplayNames[metric] || metric.toUpperCase().replace('_', ' ');
+            const benchmarkName =
+              metricDisplayNames[metric] ||
+              metric.toUpperCase().replace("_", " ");
             perfChartHeader.textContent = `${benchmarkName} Performance Comparison`;
           }
 
           // Do not clear containers; destroy existing chart instances instead
           destroyChartForCanvas(priceCanvas);
           destroyChartForCanvas(perfCanvas);
-          if (priceChartInstance) { priceChartInstance.destroy(); priceChartInstance = null; }
-          if (perfChartInstance) { perfChartInstance.destroy(); perfChartInstance = null; }
+          if (priceChartInstance) {
+            priceChartInstance.destroy();
+            priceChartInstance = null;
+          }
+          if (perfChartInstance) {
+            perfChartInstance.destroy();
+            perfChartInstance = null;
+          }
 
           // Sort chosen models by price for price chart
           const chosenByPrice = [...chosen].sort((a, b) => {
-            const totalA = (Number(a.price_1m_input_tokens) || 0) + (Number(a.price_1m_output_tokens) || 0);
-            const totalB = (Number(b.price_1m_input_tokens) || 0) + (Number(b.price_1m_output_tokens) || 0);
-            return sortOrder === 'desc' ? totalB - totalA : totalA - totalB;
+            const totalA =
+              (Number(a.price_1m_input_tokens) || 0) +
+              (Number(a.price_1m_output_tokens) || 0);
+            const totalB =
+              (Number(b.price_1m_input_tokens) || 0) +
+              (Number(b.price_1m_output_tokens) || 0);
+            return sortOrder === "desc" ? totalB - totalA : totalA - totalB;
           });
-          
+
           // Calculate dynamic gap based on number of models
           const numModels = chosenByPrice.length;
           const showPriceLabels = numModels <= 8;
-          const dynamicGap = numModels > 6 ? '0.5rem' : '1rem';
-          
+          const dynamicGap = numModels > 6 ? "0.5rem" : "1rem";
+
           // Update container gap for this render
           if (priceChart.parentElement) {
             priceChart.parentElement.style.gap = dynamicGap;
           }
-          
+
           // Ensure canvases have concrete pixel sizes
           if (priceCanvas) {
             const pr = priceChart.getBoundingClientRect();
-            priceCanvas.width = Math.max(300, priceChart.clientWidth || pr.width || 600);
-            priceCanvas.height = Math.max(200, priceChart.clientHeight || pr.height || 360);
+            priceCanvas.width = Math.max(
+              300,
+              priceChart.clientWidth || pr.width || 600,
+            );
+            priceCanvas.height = Math.max(
+              200,
+              priceChart.clientHeight || pr.height || 360,
+            );
           }
           if (perfCanvas) {
             const rr = perfChart.getBoundingClientRect();
-            perfCanvas.width = Math.max(300, perfChart.clientWidth || rr.width || 600);
-            perfCanvas.height = Math.max(200, perfChart.clientHeight || rr.height || 360);
+            perfCanvas.width = Math.max(
+              300,
+              perfChart.clientWidth || rr.width || 600,
+            );
+            perfCanvas.height = Math.max(
+              200,
+              perfChart.clientHeight || rr.height || 360,
+            );
           }
 
           // Build price chart using Chart.js
           const labelParts = (name) => {
             const m = name.match(/^(.*?)(\s*\(([^)]*)\))?$/);
             const base = m ? m[1] : name;
-            const variant = m && m[3] ? m[3] : '';
+            const variant = m && m[3] ? m[3] : "";
             return variant ? [base, `(${variant})`] : [base];
           };
-          const priceLabels = chosenByPrice.map(m => labelParts(m.name));
-          const inputData = chosenByPrice.map(m => Number(m.price_1m_input_tokens) || 0);
-          const outputData = chosenByPrice.map(m => Number(m.price_1m_output_tokens) || 0);
+          const priceLabels = chosenByPrice.map((m) => labelParts(m.name));
+          const inputData = chosenByPrice.map(
+            (m) => Number(m.price_1m_input_tokens) || 0,
+          );
+          const outputData = chosenByPrice.map(
+            (m) => Number(m.price_1m_output_tokens) || 0,
+          );
           if (priceCanvas && window.Chart) {
-            window.Chart.register(window.ChartDataLabels || window['ChartDataLabels']);
-            priceChartInstance = new window.Chart(priceCanvas.getContext('2d'), {
-              type: 'bar',
-              data: {
-                labels: priceLabels,
-                datasets: [
-                  {
-                    label: 'Input',
-                    data: inputData,
-                    backgroundColor: 'rgba(34,197,94,0.35)',
-                    borderColor: 'rgba(34,197,94,0.6)',
-                    borderWidth: 1,
-                    borderRadius: 10,
+            window.Chart.register(
+              window.ChartDataLabels || window["ChartDataLabels"],
+            );
+            priceChartInstance = new window.Chart(
+              priceCanvas.getContext("2d"),
+              {
+                type: "bar",
+                data: {
+                  labels: priceLabels,
+                  datasets: [
+                    {
+                      label: "Input",
+                      data: inputData,
+                      backgroundColor: "rgba(34,197,94,0.35)",
+                      borderColor: "rgba(34,197,94,0.6)",
+                      borderWidth: 1,
+                      borderRadius: 10,
+                    },
+                    {
+                      label: "Output",
+                      data: outputData,
+                      backgroundColor: "rgba(239,68,68,0.35)",
+                      borderColor: "rgba(239,68,68,0.6)",
+                      borderWidth: 1,
+                      borderRadius: 10,
+                    },
+                  ],
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  interaction: { mode: "index", intersect: false },
+                  plugins: {
+                    legend: {
+                      position: "bottom",
+                      labels: { color: "#eae9f0" },
+                    },
+                    tooltip: {
+                      enabled: true,
+                      position: "nearest",
+                      yAlign: "bottom",
+                      displayColors: true,
+                      backgroundColor: "rgba(0, 0, 0, 0.9)",
+                      titleColor: "#fff",
+                      bodyColor: "#fff",
+                      borderColor: "rgba(156, 207, 216, 0.5)",
+                      borderWidth: 1,
+                      padding: 12,
+                      callbacks: {
+                        label: (ctx) =>
+                          `${ctx.dataset.label}: $${(ctx.parsed.y ?? 0).toFixed(3)} per 1M`,
+                      },
+                    },
+                    datalabels: {
+                      anchor: "end",
+                      align: "end",
+                      color: "#111",
+                      backgroundColor: "rgba(255,255,255,0.9)",
+                      borderRadius: 4,
+                      padding: 6,
+                      font: { weight: "900", size: 11 },
+                      offset: -4,
+                      clamp: true,
+                      clip: false,
+                      display: showPriceLabels,
+                      formatter: (v) =>
+                        `${v >= 10 ? v.toFixed(1) : v.toFixed(2)}`,
+                    },
                   },
-                  {
-                    label: 'Output',
-                    data: outputData,
-                    backgroundColor: 'rgba(239,68,68,0.35)',
-                    borderColor: 'rgba(239,68,68,0.6)',
-                    borderWidth: 1,
-                    borderRadius: 10,
+                  scales: {
+                    x: {
+                      ticks: {
+                        color: "#eae9f0",
+                        maxRotation: 45,
+                        minRotation: 45,
+                      },
+                      grid: { display: false },
+                    },
+                    y: {
+                      beginAtZero: true,
+                      suggestedMax: Math.max(...inputData, ...outputData) * 1.2,
+                      ticks: {
+                        color: "#eae9f0",
+                        callback: (v) => `$${Number(v).toFixed(0)}`,
+                      },
+                      grid: {
+                        color: "rgba(255,255,255,0.08)",
+                        drawBorder: false,
+                      },
+                    },
                   },
-                ],
-              },
-              options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                  legend: { position: 'bottom', labels: { color: '#eae9f0' } },
-                  tooltip: { 
-                    enabled: true,
-                    position: 'nearest',
-                    yAlign: 'bottom',
-                    displayColors: true,
-                    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-                    titleColor: '#fff',
-                    bodyColor: '#fff',
-                    borderColor: 'rgba(156, 207, 216, 0.5)',
-                    borderWidth: 1,
-                    padding: 12,
-                    callbacks: { 
-                      label: (ctx) => `${ctx.dataset.label}: $${(ctx.parsed.y ?? 0).toFixed(3)} per 1M` 
-                    } 
-                  },
-                  datalabels: {
-                    anchor: 'end',
-                    align: 'end',
-                    color: '#111',
-                    backgroundColor: 'rgba(255,255,255,0.9)',
-                    borderRadius: 4,
-                    padding: 6,
-                    font: { weight: '900', size: 11 },
-                    offset: -4,
-                    clamp: true,
-                    clip: false,
-                    display: showPriceLabels,
-                    formatter: (v) => `${(v >= 10 ? v.toFixed(1) : v.toFixed(2))}`,
+                  layout: {
+                    padding: { top: 48, bottom: 8, left: 8, right: 8 },
                   },
                 },
-                scales: {
-                  x: { ticks: { color: '#eae9f0', maxRotation: 45, minRotation: 45 }, grid: { display: false } },
-                  y: { beginAtZero: true, 
-                       suggestedMax: Math.max(...inputData, ...outputData) * 1.2,
-                       ticks: { color: '#eae9f0', callback: (v) => `$${Number(v).toFixed(0)}` },
-                       grid: { color: 'rgba(255,255,255,0.08)', drawBorder: false } },
-                },
-                layout: { padding: { top: 48, bottom: 8, left: 8, right: 8 } },
+                plugins: [window.ChartDataLabels || window["ChartDataLabels"]],
               },
-              plugins: [window.ChartDataLabels || window['ChartDataLabels']],
-            });
+            );
           }
 
           // Helper to get score for a model (handles both AA and Epoch benchmarks)
           const getModelScore = (model, metricKey) => {
-            if (metricKey.startsWith('epoch_')) {
+            if (metricKey.startsWith("epoch_")) {
               // Epoch benchmark - look up by model name in epochScores
-              const epochSlug = metricKey.replace('epoch_', '');
+              const epochSlug = metricKey.replace("epoch_", "");
               // Try to find a matching epoch model by name
-              for (const [modelVersion, scores] of Object.entries(epochScores)) {
-                if (model.name && modelVersion.toLowerCase().includes(model.name.toLowerCase().split(' ')[0])) {
+              for (const [modelVersion, scores] of Object.entries(
+                epochScores,
+              )) {
+                if (
+                  model.name &&
+                  modelVersion
+                    .toLowerCase()
+                    .includes(model.name.toLowerCase().split(" ")[0])
+                ) {
                   return scores[epochSlug] ? scores[epochSlug] * 100 : 0;
                 }
               }
@@ -1550,31 +1976,33 @@ const topFrontierMath = epochRuns
             // AA benchmark - direct property access
             return Number(model[metricKey]) || 0;
           };
-          
+
           // Sort chosen models by selected metric for performance chart
           const chosenByMetric = [...chosen].sort((a, b) => {
             const scoreA = getModelScore(a, metric);
             const scoreB = getModelScore(b, metric);
-            return sortOrder === 'desc' ? scoreB - scoreA : scoreA - scoreB;
+            return sortOrder === "desc" ? scoreB - scoreA : scoreA - scoreB;
           });
-          
+
           // Build performance chart using Chart.js
-          const perfLabels = chosenByMetric.map(m => labelParts(m.name));
-          const scores = chosenByMetric.map(m => getModelScore(m, metric));
+          const perfLabels = chosenByMetric.map((m) => labelParts(m.name));
+          const scores = chosenByMetric.map((m) => getModelScore(m, metric));
           const showPerfLabels = chosenByMetric.length <= 8;
           if (perfCanvas && window.Chart) {
-            window.Chart.register(window.ChartDataLabels || window['ChartDataLabels']);
+            window.Chart.register(
+              window.ChartDataLabels || window["ChartDataLabels"],
+            );
             const maxScore = scores.length ? Math.max(...scores) : 0;
-            perfChartInstance = new window.Chart(perfCanvas.getContext('2d'), {
-              type: 'bar',
+            perfChartInstance = new window.Chart(perfCanvas.getContext("2d"), {
+              type: "bar",
               data: {
                 labels: perfLabels,
                 datasets: [
                   {
-                    label: 'Score',
+                    label: "Score",
                     data: scores,
-                    backgroundColor: 'rgba(122,162,194,0.35)',
-                    borderColor: 'rgba(122,162,194,0.6)',
+                    backgroundColor: "rgba(122,162,194,0.35)",
+                    borderColor: "rgba(122,162,194,0.6)",
                     borderWidth: 1,
                     borderRadius: 10,
                   },
@@ -1585,14 +2013,26 @@ const topFrontierMath = epochRuns
                 maintainAspectRatio: false,
                 plugins: {
                   legend: { display: false },
-                  tooltip: { callbacks: { label: (ctx) => {
-                    const y = ctx.parsed.y ?? 0;
-                    const t = Math.trunc(y * 1000) / 1000; // truncate, no rounding
-                    return `${t.toFixed(3)}%`;
-                  } } },
+                  tooltip: {
+                    callbacks: {
+                      label: (ctx) => {
+                        const y = ctx.parsed.y ?? 0;
+                        const t = Math.trunc(y * 1000) / 1000; // truncate, no rounding
+                        return `${t.toFixed(3)}%`;
+                      },
+                    },
+                  },
                   datalabels: {
-                    anchor: 'end', align: 'end', color: '#111', backgroundColor: 'rgba(255,255,255,0.9)',
-                    borderRadius: 4, padding: 4, font: { weight: '900' }, clip: false, clamp: true, offset: -4,
+                    anchor: "end",
+                    align: "end",
+                    color: "#111",
+                    backgroundColor: "rgba(255,255,255,0.9)",
+                    borderRadius: 4,
+                    padding: 4,
+                    font: { weight: "900" },
+                    clip: false,
+                    clamp: true,
+                    offset: -4,
                     display: showPerfLabels,
                     formatter: (v) => {
                       const t = Math.trunc(Number(v) * 1000) / 1000; // truncate
@@ -1601,56 +2041,74 @@ const topFrontierMath = epochRuns
                   },
                 },
                 scales: {
-                  x: { ticks: { color: '#eae9f0', maxRotation: 45, minRotation: 45 }, grid: { display: false } },
-                  y: { beginAtZero: true, suggestedMax: maxScore * 1.2,
-                       ticks: { color: '#eae9f0', callback: (v) => `${Number(v).toFixed(3)}%` },
-                       grid: { color: 'rgba(255,255,255,0.08)', drawBorder: false } },
+                  x: {
+                    ticks: {
+                      color: "#eae9f0",
+                      maxRotation: 45,
+                      minRotation: 45,
+                    },
+                    grid: { display: false },
+                  },
+                  y: {
+                    beginAtZero: true,
+                    suggestedMax: maxScore * 1.2,
+                    ticks: {
+                      color: "#eae9f0",
+                      callback: (v) => `${Number(v).toFixed(3)}%`,
+                    },
+                    grid: {
+                      color: "rgba(255,255,255,0.08)",
+                      drawBorder: false,
+                    },
+                  },
                 },
                 layout: { padding: { top: 32 } },
               },
-              plugins: [window.ChartDataLabels || window['ChartDataLabels']],
+              plugins: [window.ChartDataLabels || window["ChartDataLabels"]],
             });
           }
-
         }
 
-        list?.addEventListener('change', (e) => {
+        list?.addEventListener("change", (e) => {
           const target = e.target;
           if (target instanceof HTMLInputElement && target.dataset.id) {
-            target.checked ? selected.add(target.dataset.id) : selected.delete(target.dataset.id);
+            target.checked
+              ? selected.add(target.dataset.id)
+              : selected.delete(target.dataset.id);
             updateCount();
             renderCharts();
           }
         });
 
         // Metric selector change handler (consolidated)
-        metricSelector?.addEventListener('change', async () => {
+        metricSelector?.addEventListener("change", async () => {
           // Update the performance metric title
           const selectedMetric = metricSelector.value;
           const displayName = benchmarkNames[selectedMetric] || selectedMetric;
           if (performanceMetricTitle) {
             performanceMetricTitle.textContent = `Top ${displayName}`;
           }
-          
+
           // Re-render charts with new metric
           renderCharts();
         });
 
         // Add event listeners for new features
-        searchInput?.addEventListener('input', () => {
+        searchInput?.addEventListener("input", () => {
           renderModelList();
           updateCount();
         });
 
         // Sort toggle functionality
-        sortToggle?.addEventListener('click', () => {
+        sortToggle?.addEventListener("click", () => {
           if (sortToggle) {
-            const currentOrder = sortToggle.getAttribute('data-order');
-            const newOrder = currentOrder === 'desc' ? 'asc' : 'desc';
-            sortToggle.setAttribute('data-order', newOrder);
-            const textEl = sortToggle.querySelector('.sort-text');
+            const currentOrder = sortToggle.getAttribute("data-order");
+            const newOrder = currentOrder === "desc" ? "asc" : "desc";
+            sortToggle.setAttribute("data-order", newOrder);
+            const textEl = sortToggle.querySelector(".sort-text");
             if (textEl) {
-              textEl.textContent = newOrder === 'desc' ? 'High to Low' : 'Low to High';
+              textEl.textContent =
+                newOrder === "desc" ? "High to Low" : "Low to High";
             }
             renderCharts(); // Only re-render charts, not model list
           }
@@ -1661,85 +2119,95 @@ const topFrontierMath = epochRuns
         try {
           await ensureChartLibs();
         } catch (e) {
-          console.error('Failed to load chart libraries', e);
+          console.error("Failed to load chart libraries", e);
         }
         renderCharts();
       }
 
       // Auto-fit functionality for charts
       function initAutoFit() {
-        const priceChart = document.getElementById('price-chart');
-        const perfChart = document.getElementById('performance-chart');
-        
+        const priceChart = document.getElementById("price-chart");
+        const perfChart = document.getElementById("performance-chart");
+
         function fitModelsToChart(chart) {
           if (!chart) return;
-          
-          const chartItems = chart.querySelectorAll('.chart-item');
+
+          const chartItems = chart.querySelectorAll(".chart-item");
           if (!chartItems.length) return;
-          
+
           // Calculate the minimum width needed to fit all items
           const totalItems = chartItems.length;
           const containerWidth = chart.clientWidth;
           // Account for gap between items (0.75rem = ~12px) and ensure all fit
           const totalGapWidth = (totalItems - 1) * 12;
           const availableWidth = containerWidth - totalGapWidth - 10; // 10px buffer
-          const minItemWidth = Math.max(20, Math.floor(availableWidth / totalItems));
-          
+          const minItemWidth = Math.max(
+            20,
+            Math.floor(availableWidth / totalItems),
+          );
+
           // Apply the calculated width to all items
-          chartItems.forEach(item => {
-            item.style.minWidth = minItemWidth + 'px';
-            item.style.maxWidth = minItemWidth + 'px';
-            item.style.flex = '0 0 auto';
-            
+          chartItems.forEach((item) => {
+            item.style.minWidth = minItemWidth + "px";
+            item.style.maxWidth = minItemWidth + "px";
+            item.style.flex = "0 0 auto";
+
             // Improve overlapping names: allow up to 2 lines with ellipsis
-            const label = item.querySelector('.bar-label');
+            const label = item.querySelector(".bar-label");
             if (label) {
-              label.style.maxWidth = minItemWidth + 'px';
-              label.style.overflow = 'hidden';
-              label.style.display = '-webkit-box';
-              label.style.webkitBoxOrient = 'vertical';
-              label.style.webkitLineClamp = '2';
-              label.setAttribute('title', label.textContent || '');
+              label.style.maxWidth = minItemWidth + "px";
+              label.style.overflow = "hidden";
+              label.style.display = "-webkit-box";
+              label.style.webkitBoxOrient = "vertical";
+              label.style.webkitLineClamp = "2";
+              label.setAttribute("title", label.textContent || "");
             }
           });
-          
+
           // Center items in the container
-          chart.style.justifyContent = 'center';
+          chart.style.justifyContent = "center";
         }
-        
+
         // Apply auto-fit when charts are rendered
         const observer = new MutationObserver((mutations) => {
           mutations.forEach((mutation) => {
-            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-              if (mutation.target === priceChart || mutation.target === perfChart) {
+            if (
+              mutation.type === "childList" &&
+              mutation.addedNodes.length > 0
+            ) {
+              if (
+                mutation.target === priceChart ||
+                mutation.target === perfChart
+              ) {
                 fitModelsToChart(mutation.target);
               }
             }
           });
         });
         registerCleanup(() => observer.disconnect());
-        
+
         // Observe both charts for changes
         if (priceChart) {
           observer.observe(priceChart, { childList: true });
           // Initial fit if chart already has content
           fitModelsToChart(priceChart);
         }
-        
+
         if (perfChart) {
           observer.observe(perfChart, { childList: true });
           // Initial fit if chart already has content
           fitModelsToChart(perfChart);
         }
-        
+
         // Re-fit on window resize
         const handleResize = () => {
           fitModelsToChart(priceChart);
           fitModelsToChart(perfChart);
         };
-        window.addEventListener('resize', handleResize);
-        registerCleanup(() => window.removeEventListener('resize', handleResize));
-
+        window.addEventListener("resize", handleResize);
+        registerCleanup(() =>
+          window.removeEventListener("resize", handleResize),
+        );
       }
 
       // Initialize on both initial load and after view transitions
@@ -1750,14 +2218,14 @@ const topFrontierMath = epochRuns
       }
 
       // Handle initial page load
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initialize);
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initialize);
       } else {
         initialize();
       }
 
       // Handle Astro View Transitions - re-initialize after navigation
-      document.addEventListener('astro:page-load', initialize);
+      document.addEventListener("astro:page-load", initialize);
     </script>
   </body>
 </html>

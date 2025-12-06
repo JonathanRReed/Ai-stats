@@ -10,18 +10,24 @@ interface Props {
   image?: string;
   ogType?: string;
   noindex?: boolean;
+  robots?: string;
 }
 
+const siteName = 'AI Stats';
+const siteAuthor = 'Jonathan Reed';
+
 const { 
-  title = 'AI Stats Dashboard - Compare AI Model Pricing & Performance', 
+  title = 'AI Stats | AI model stats, LLM ranking & benchmarks by Jonathan Reed', 
   description = 'Compare AI model pricing, performance benchmarks, and technical specifications. Real-time data for GPT-4, Claude, Gemini, and more AI models.',
   image = '/jonathan.avif',
   ogType = 'website',
-  noindex = false
+  noindex = false,
+  robots = 'index, follow'
 } = Astro.props;
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site).href;
 const ogImageURL = new URL(image, Astro.site).href;
+const robotsContent = robots || (noindex ? 'noindex, nofollow' : 'index, follow');
 ---
 <html lang="en" transition:animate="none">
   <head>
@@ -38,8 +44,8 @@ const ogImageURL = new URL(image, Astro.site).href;
     <meta name="description" content={description} />
     <link rel="canonical" href={canonicalURL} />
     <meta name="generator" content={Astro.generator} />
-    {noindex ? <meta name="robots" content="noindex, nofollow" /> : <meta name="robots" content="index, follow" />}
-    <meta name="author" content="Jonathan Reed" />
+    <meta name="robots" content={robotsContent} />
+    <meta name="author" content={siteAuthor} />
     <meta name="theme-color" content="#191724" />
     
     <!-- Open Graph / Facebook -->
@@ -48,7 +54,7 @@ const ogImageURL = new URL(image, Astro.site).href;
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={ogImageURL} />
-    <meta property="og:site_name" content="AI Stats" />
+    <meta property="og:site_name" content={siteName} />
     <meta property="og:locale" content="en_US" />
     
     <!-- Twitter Card -->
@@ -63,18 +69,37 @@ const ogImageURL = new URL(image, Astro.site).href;
     <script type="application/ld+json" set:html={JSON.stringify({
       "@context": "https://schema.org",
       "@type": "WebSite",
-      "name": "AI Stats",
+      "name": siteName,
       "description": "Compare AI model pricing, performance benchmarks, and technical specifications",
       "url": Astro.site?.href || canonicalURL,
       "author": {
         "@type": "Person",
-        "name": "Jonathan Reed",
+        "name": siteAuthor,
         "url": "https://jonathanrreed.com"
       },
       "potentialAction": {
         "@type": "SearchAction",
         "target": `${Astro.site?.href || canonicalURL}?q={search_term_string}`,
         "query-input": "required name=search_term_string"
+      }
+    })} />
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": siteName,
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "url": Astro.site?.href || canonicalURL,
+      "description": description,
+      "creator": {
+        "@type": "Person",
+        "name": siteAuthor,
+        "url": "https://jonathanrreed.com"
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
       }
     })} />
     
