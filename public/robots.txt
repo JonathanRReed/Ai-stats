@@ -1,5 +1,10 @@
 # robots.txt – https://aistats.jonathanrreed.com/
 
+# LLM-friendly content guide
+# See https://llmstxt.org for specification
+# llms.txt: https://aistats.jonathanrreed.com/llms.txt
+
+
 # Generated 2025‑05‑07 · SEO‑optimised, AI‑scraper‑aware
 # ------------------------------------------------------------------
 # ███ 1. MAJOR SEARCH ENGINES (full access) ███

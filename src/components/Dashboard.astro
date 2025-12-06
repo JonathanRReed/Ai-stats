@@ -1,11 +1,16 @@
 ---
-import { getModels, getEpochModels, getEpochBenchmarks, getEpochBenchmarkRuns } from '../lib/supabase';
-import Header from './Header.astro';
-import Footer from './Footer.astro';
-import ScrollToTop from './ScrollToTop.astro';
-import { formatScore, formatPrice } from '../lib/format-utils';
-import Card from './ui/Card.astro';
-import ModelCard from './ModelCard.astro';
+import {
+  getModels,
+  getEpochModels,
+  getEpochBenchmarks,
+  getEpochBenchmarkRuns,
+} from "../lib/supabase";
+import Header from "./Header.astro";
+import Footer from "./Footer.astro";
+import ScrollToTop from "./ScrollToTop.astro";
+import { formatScore, formatPrice } from "../lib/format-utils";
+import Card from "./ui/Card.astro";
+import ModelCard from "./ModelCard.astro";
 
 const models = await getModels();
 
@@ -16,24 +21,24 @@ const epochRuns = await getEpochBenchmarkRuns();
 
 // Key epoch benchmarks to display
 const keyEpochBenchmarks = [
-  'gpqa_diamond',
-  'frontiermath', 
-  'swe_bench_verified',
-  'math_level_5',
-  'arc_agi_external',
-  'mmlu_external',
-  'gsm8k_external',
-  'aider_polyglot_external',
+  "gpqa_diamond",
+  "frontiermath",
+  "swe_bench_verified",
+  "math_level_5",
+  "arc_agi_external",
+  "mmlu_external",
+  "gsm8k_external",
+  "aider_polyglot_external",
 ];
 
 // Get benchmark name mapping
 const epochBenchmarkNames: Record<string, string> = {};
-epochBenchmarks.forEach(b => {
+epochBenchmarks.forEach((b) => {
   epochBenchmarkNames[b.slug] = b.name;
 });
 
 // Top epoch model by ECI score
-const topEciModel = epochModels.find(m => m.eci_score !== null) ?? null;
+const topEciModel = epochModels.find((m) => m.eci_score !== null) ?? null;
 
 const validModels = models.filter((model: any) => {
   const inputPrice = Number(model.price_1m_input_tokens);
@@ -44,30 +49,38 @@ const validModels = models.filter((model: any) => {
 const totalModels = validModels.length;
 const INITIAL_VISIBLE_MODELS = Math.min(20, totalModels);
 const avgInputPrice =
-  validModels.reduce((sum: number, m: any) => sum + Number(m.price_1m_input_tokens), 0) /
-  (totalModels || 1);
+  validModels.reduce(
+    (sum: number, m: any) => sum + Number(m.price_1m_input_tokens),
+    0,
+  ) / (totalModels || 1);
 const avgOutputPrice =
-  validModels.reduce((sum: number, m: any) => sum + Number(m.price_1m_output_tokens), 0) /
-  (totalModels || 1);
+  validModels.reduce(
+    (sum: number, m: any) => sum + Number(m.price_1m_output_tokens),
+    0,
+  ) / (totalModels || 1);
 
 // Combined benchmark configs - AA benchmarks first, then Epoch benchmarks
 const benchmarkConfigs = [
   // AA Benchmarks
-  { key: 'mmlu_pro', label: 'MMLU Pro', source: 'aa' },
-  { key: 'gpqa', label: 'GPQA', source: 'aa' },
-  { key: 'hle', label: 'HLE', source: 'aa' },
-  { key: 'aime', label: 'AIME', source: 'aa' },
-  { key: 'scicode', label: 'SciCode', source: 'aa' },
-  { key: 'math_500', label: 'Math 500', source: 'aa' },
-  { key: 'livecodebench', label: 'LiveCodeBench', source: 'aa' },
-  { key: 'aa_math_index', label: 'AA Math Index', source: 'aa' },
-  { key: 'aa_coding_index', label: 'AA Coding Index', source: 'aa' },
-  { key: 'aa_intelligence_index', label: 'AA Intelligence Index', source: 'aa' },
+  { key: "mmlu_pro", label: "MMLU Pro", source: "aa" },
+  { key: "gpqa", label: "GPQA", source: "aa" },
+  { key: "hle", label: "HLE", source: "aa" },
+  { key: "aime", label: "AIME", source: "aa" },
+  { key: "scicode", label: "SciCode", source: "aa" },
+  { key: "math_500", label: "Math 500", source: "aa" },
+  { key: "livecodebench", label: "LiveCodeBench", source: "aa" },
+  { key: "aa_math_index", label: "AA Math Index", source: "aa" },
+  { key: "aa_coding_index", label: "AA Coding Index", source: "aa" },
+  {
+    key: "aa_intelligence_index",
+    label: "AA Intelligence Index",
+    source: "aa",
+  },
   // Epoch Benchmarks
-  ...keyEpochBenchmarks.map(slug => ({
+  ...keyEpochBenchmarks.map((slug) => ({
     key: `epoch_${slug}`,
     label: `${epochBenchmarkNames[slug] || slug} (Epoch)`,
-    source: 'epoch' as const,
+    source: "epoch" as const,
   })),
 ];
 
@@ -75,22 +88,24 @@ const benchmarkConfigs = [
 const topByBenchmark: Record<string, any[]> = {};
 
 // AA benchmarks - from validModels
-benchmarkConfigs.filter(c => c.source === 'aa').forEach(({ key }) => {
-  const list = [...validModels]
-    .filter((m: any) => m[key] && Number(m[key]) > 0)
-    .sort((a: any, b: any) => Number(b[key]) - Number(a[key]))
-    .slice(0, 5);
-  topByBenchmark[key] = list;
-});
+benchmarkConfigs
+  .filter((c) => c.source === "aa")
+  .forEach(({ key }) => {
+    const list = [...validModels]
+      .filter((m: any) => m[key] && Number(m[key]) > 0)
+      .sort((a: any, b: any) => Number(b[key]) - Number(a[key]))
+      .slice(0, 5);
+    topByBenchmark[key] = list;
+  });
 
 // Epoch benchmarks - from epochRuns
-keyEpochBenchmarks.forEach(slug => {
+keyEpochBenchmarks.forEach((slug) => {
   const runs = epochRuns
-    .filter(r => r.benchmark_slug === slug && r.score !== null)
+    .filter((r) => r.benchmark_slug === slug && r.score !== null)
     .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
     .slice(0, 5)
-    .map(r => ({
-      name: r.model_version.replace(/_/g, ' ').replace(/-/g, ' '),
+    .map((r) => ({
+      name: r.model_version.replace(/_/g, " ").replace(/-/g, " "),
       company_name: r.organization,
       score: r.score,
       isEpoch: true,
@@ -98,40 +113,47 @@ keyEpochBenchmarks.forEach(slug => {
   topByBenchmark[`epoch_${slug}`] = runs;
 });
 
-const topMmluModel = [...validModels]
-  .filter((m: any) => m.mmlu_pro && Number(m.mmlu_pro) > 0)
-  .sort((a: any, b: any) => Number(b.mmlu_pro) - Number(a.mmlu_pro))[0] ?? null;
+const topMmluModel =
+  [...validModels]
+    .filter((m: any) => m.mmlu_pro && Number(m.mmlu_pro) > 0)
+    .sort((a: any, b: any) => Number(b.mmlu_pro) - Number(a.mmlu_pro))[0] ??
+  null;
 
-const cheapestBlendedModel = [...validModels]
-  .filter((m: any) => Number(m.price_1m_blended_3_to_1) > 0)
-  .sort(
-    (a: any, b: any) =>
-      Number(a.price_1m_blended_3_to_1) - Number(b.price_1m_blended_3_to_1),
-  )[0] ?? null;
+const cheapestBlendedModel =
+  [...validModels]
+    .filter((m: any) => Number(m.price_1m_blended_3_to_1) > 0)
+    .sort(
+      (a: any, b: any) =>
+        Number(a.price_1m_blended_3_to_1) - Number(b.price_1m_blended_3_to_1),
+    )[0] ?? null;
 
 // Helper for score coloring
 function getScoreClass(score: number | null | undefined): string {
-  if (!score || score <= 0) return 'score-none';
+  if (!score || score <= 0) return "score-none";
   const pct = score <= 1 ? score * 100 : score;
-  if (pct >= 80) return 'score-high';
-  if (pct >= 60) return 'score-mid';
-  if (pct >= 40) return 'score-low';
-  return 'score-poor';
+  if (pct >= 80) return "score-high";
+  if (pct >= 60) return "score-mid";
+  if (pct >= 40) return "score-low";
+  return "score-poor";
 }
 ---
 
 <div class="min-h-screen bg-base text-text">
   <Header currentPage="dashboard" />
 
-  <main class="mx-auto flex max-w-6xl flex-col gap-10 px-4 pb-16 pt-8 md:gap-12 md:pt-10">
+  <main
+    class="mx-auto flex max-w-6xl flex-col gap-10 px-4 pb-16 pt-8 md:gap-12 md:pt-10"
+  >
     <!-- Hero (simplified, no large card) -->
     <section aria-label="AI Stats overview" class="mt-2">
-      <div class="mx-auto flex max-w-4xl flex-col gap-5 md:flex-row md:items-start md:justify-between">
+      <div
+        class="mx-auto flex max-w-4xl flex-col gap-5 md:flex-row md:items-start md:justify-between"
+      >
         <div class="text-left">
           <div
             class="inline-flex items-center gap-2 rounded-full border border-highlight-med/60 bg-overlay/70 px-3 py-1 text-[0.65rem] font-medium uppercase tracking-wide text-subtle"
           >
-            <span class="h-1.5 w-1.5 rounded-full bg-foam" />
+            <span class="h-1.5 w-1.5 rounded-full bg-foam"></span>
             <span>Live AI model pricing & benchmarks</span>
           </div>
           <h1
@@ -144,7 +166,7 @@ function getScoreClass(score: number | null | undefined): string {
             <br />
             Data sourced from ArtificialAnalysis.com & Epoch.ai
           </p>
-          
+
           <!-- Mobile data partners -->
           <div class="mt-3 flex items-center gap-3 md:hidden">
             <img
@@ -162,8 +184,13 @@ function getScoreClass(score: number | null | undefined): string {
         </div>
 
         <!-- Desktop data partners -->
-        <div class="hidden flex-col items-end gap-3 text-[0.65rem] text-subtle md:flex">
-          <span class="text-[0.55rem] font-semibold uppercase tracking-wide text-muted">Data Partners</span>
+        <div
+          class="hidden flex-col items-end gap-3 text-[0.65rem] text-subtle md:flex"
+        >
+          <span
+            class="text-[0.55rem] font-semibold uppercase tracking-wide text-muted"
+            >Data Partners</span
+          >
           <div class="flex flex-col items-end gap-2">
             <div
               class="inline-flex items-center gap-2 text-xs font-semibold text-text"
@@ -191,15 +218,17 @@ function getScoreClass(score: number | null | undefined): string {
       </div>
 
       <!-- Top model strip -->
-      <div class="mx-auto mt-4 grid max-w-4xl gap-3 text-xs sm:text-sm md:grid-cols-2 lg:grid-cols-4">
+      <div
+        class="mx-auto mt-4 grid max-w-4xl gap-3 text-xs sm:text-sm md:grid-cols-2 lg:grid-cols-4"
+      >
         <Card class="flex items-center justify-between px-4 py-3">
           <div class="text-subtle">Top MMLU model</div>
           <div class="text-right">
             <div class="text-sm font-semibold text-text">
-              {topMmluModel ? topMmluModel.name : '—'}
+              {topMmluModel ? topMmluModel.name : "—"}
             </div>
             <div class="text-[0.7rem] text-subtle">
-              {topMmluModel ? formatScore(topMmluModel.mmlu_pro) : ''}
+              {topMmluModel ? formatScore(topMmluModel.mmlu_pro) : ""}
             </div>
           </div>
         </Card>
@@ -207,30 +236,40 @@ function getScoreClass(score: number | null | undefined): string {
           <div class="text-subtle">Cheapest blended price (3:1)</div>
           <div class="text-right">
             <div class="text-sm font-semibold text-text">
-              {cheapestBlendedModel ? cheapestBlendedModel.name : '—'}
+              {cheapestBlendedModel ? cheapestBlendedModel.name : "—"}
             </div>
             <div class="text-[0.7rem] text-subtle">
-              {cheapestBlendedModel
-                ? formatPrice(
-                    Number(cheapestBlendedModel.price_1m_blended_3_to_1) || 0,
-                    3,
-                  )
-                : ''}
+              {
+                cheapestBlendedModel
+                  ? formatPrice(
+                      Number(cheapestBlendedModel.price_1m_blended_3_to_1) || 0,
+                      3,
+                    )
+                  : ""
+              }
             </div>
           </div>
         </Card>
-        <Card class="flex items-center justify-between px-4 py-3 border-iris/30">
+        <Card
+          class="flex items-center justify-between px-4 py-3 border-iris/30"
+        >
           <div class="text-subtle">Top ECI Score</div>
           <div class="text-right">
             <div class="text-sm font-semibold text-text">
-              {topEciModel ? (topEciModel.display_name || topEciModel.model_name) : '—'}
+              {
+                topEciModel
+                  ? topEciModel.display_name || topEciModel.model_name
+                  : "—"
+              }
             </div>
             <div class="text-[0.7rem] text-iris">
-              {topEciModel ? topEciModel.eci_score?.toFixed(1) : ''} ECI
+              {topEciModel ? topEciModel.eci_score?.toFixed(1) : ""} ECI
             </div>
           </div>
         </Card>
-        <Card class="flex items-center justify-between px-4 py-3 border-iris/30">
+        <Card
+          class="flex items-center justify-between px-4 py-3 border-iris/30"
+        >
           <div class="text-subtle">Epoch.ai Models</div>
           <div class="text-right">
             <div class="text-sm font-semibold text-text">
@@ -245,155 +284,204 @@ function getScoreClass(score: number | null | undefined): string {
     </section>
 
     <!-- Summary stats -->
-    <section aria-label="Summary stats" class="mx-auto grid w-full max-w-4xl gap-4 md:grid-cols-3">
-      <Card class="bg-gradient-to-b from-surface to-overlay px-4 py-5 text-center shadow-md shadow-black/30">
-        <div class="text-[0.7rem] uppercase tracking-wide text-subtle">Total models</div>
+    <section
+      aria-label="Summary stats"
+      class="mx-auto grid w-full max-w-4xl gap-4 md:grid-cols-3"
+    >
+      <Card
+        class="bg-gradient-to-b from-surface to-overlay px-4 py-5 text-center shadow-md shadow-black/30"
+      >
+        <div class="text-[0.7rem] uppercase tracking-wide text-subtle">
+          Total models
+        </div>
         <div class="mt-2 text-2xl font-semibold text-text">{totalModels}</div>
         <p class="mt-1 text-[0.7rem] text-muted">From ArtificialAnalysis.com</p>
       </Card>
-      <Card class="bg-gradient-to-b from-surface to-overlay px-4 py-5 text-center shadow-md shadow-black/30">
-        <div class="text-[0.7rem] uppercase tracking-wide text-subtle">Avg input price</div>
-        <div class="mt-2 text-2xl font-semibold text-text">{formatPrice(avgInputPrice, 3)}</div>
+      <Card
+        class="bg-gradient-to-b from-surface to-overlay px-4 py-5 text-center shadow-md shadow-black/30"
+      >
+        <div class="text-[0.7rem] uppercase tracking-wide text-subtle">
+          Avg input price
+        </div>
+        <div class="mt-2 text-2xl font-semibold text-text">
+          {formatPrice(avgInputPrice, 3)}
+        </div>
         <p class="mt-1 text-[0.7rem] text-muted">per 1M input tokens</p>
       </Card>
-      <Card class="bg-gradient-to-b from-surface to-overlay px-4 py-5 text-center shadow-md shadow-black/30">
-        <div class="text-[0.7rem] uppercase tracking-wide text-subtle">Avg output price</div>
-        <div class="mt-2 text-2xl font-semibold text-text">{formatPrice(avgOutputPrice, 3)}</div>
+      <Card
+        class="bg-gradient-to-b from-surface to-overlay px-4 py-5 text-center shadow-md shadow-black/30"
+      >
+        <div class="text-[0.7rem] uppercase tracking-wide text-subtle">
+          Avg output price
+        </div>
+        <div class="mt-2 text-2xl font-semibold text-text">
+          {formatPrice(avgOutputPrice, 3)}
+        </div>
         <p class="mt-1 text-[0.7rem] text-muted">per 1M output tokens</p>
       </Card>
     </section>
 
     <!-- Leaderboard -->
     <section aria-label="Leaderboard" class="space-y-4">
-      <Card class="overflow-hidden rounded-3xl bg-surface/95 shadow-xl shadow-black/40">
+      <Card
+        class="overflow-hidden rounded-3xl bg-surface/95 shadow-xl shadow-black/40"
+      >
         <header
           class="flex flex-col gap-3 border-b border-highlight-low/80 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6"
         >
           <div>
-            <h2 class="text-base font-semibold text-text md:text-lg">Leaderboard</h2>
+            <h2 class="text-base font-semibold text-text md:text-lg">
+              Leaderboard
+            </h2>
             <p class="text-[0.7rem] text-subtle md:text-xs">
               Switch metrics to see different top-5 rankings.
             </p>
           </div>
           <div class="flex items-center gap-2">
-            <label for="leaderboard-metric" class="text-[0.7rem] font-medium text-subtle">
+            <label
+              for="leaderboard-metric"
+              class="text-[0.7rem] font-medium text-subtle"
+            >
               Metric
             </label>
             <select
               id="leaderboard-metric"
               class="rounded-md border border-highlight-med bg-surface px-2 py-1 text-[0.7rem] text-text shadow-sm focus:outline-none focus:ring-2 focus:ring-foam"
             >
-              {benchmarkConfigs.map(({ key, label }) => (
-                <option value={key} selected={key === 'mmlu_pro'}>
-                  {label}
-                </option>
-              ))}
+              {
+                benchmarkConfigs.map(({ key, label }) => (
+                  <option value={key} selected={key === "mmlu_pro"}>
+                    {label}
+                  </option>
+                ))
+              }
             </select>
           </div>
         </header>
 
         <div class="space-y-3 px-4 pb-4 pt-3 md:px-6 md:pb-6">
-          {benchmarkConfigs.map(({ key, source }) => {
-            const list = topByBenchmark[key] ?? [];
-            if (!list.length) return null;
-            const isEpoch = source === 'epoch';
-            // For epoch benchmarks, score is stored in model.score; for AA, it's model[key]
-            const getScore = (m: any) => isEpoch ? (Number(m.score) || 0) : (Number(m[key]) || 0);
-            const maxScore = Math.max(...list.map(getScore));
+          {
+            benchmarkConfigs.map(({ key, source }) => {
+              const list = topByBenchmark[key] ?? [];
+              if (!list.length) return null;
+              const isEpoch = source === "epoch";
+              // For epoch benchmarks, score is stored in model.score; for AA, it's model[key]
+              const getScore = (m: any) =>
+                isEpoch ? Number(m.score) || 0 : Number(m[key]) || 0;
+              const maxScore = Math.max(...list.map(getScore));
 
-            return (
-              <div
-                data-metric={key}
-                class="overflow-hidden rounded-2xl border border-highlight-low/60"
-                hidden={key !== 'mmlu_pro'}
-              >
-                <ul class="divide-y divide-highlight-low/40">
-                  {list.map((model: any, index: number) => {
-                    const score = getScore(model);
-                    const barWidth = maxScore > 0 ? (score / maxScore) * 100 : 0;
-                    const rankColors = [
-                      'from-amber-500/20 to-yellow-500/10 border-l-amber-400',
-                      'from-slate-400/15 to-gray-400/5 border-l-slate-300',
-                      'from-orange-600/15 to-amber-700/5 border-l-orange-500',
-                      'from-transparent to-transparent border-l-highlight-med',
-                      'from-transparent to-transparent border-l-highlight-med',
-                    ];
-                    
-                    return (
-                      <li class="relative overflow-hidden transition-colors hover:bg-highlight-low/40">
-                        {/* Background bar */}
-                        <div 
-                          class={`absolute inset-y-0 left-0 bg-gradient-to-r ${rankColors[index]} border-l-4`}
-                          style={`width: ${barWidth}%`}
-                        />
-                        
-                        <div class="relative grid grid-cols-[2.5rem_1fr_auto] items-center gap-4 px-4 py-3.5">
-                          {/* Rank */}
-                          <div class="flex items-center justify-center">
-                            {index === 0 ? (
-                              <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 text-sm font-bold text-amber-900 shadow-lg shadow-amber-500/30">
-                                1
-                              </div>
-                            ) : index === 1 ? (
-                              <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-slate-300 to-gray-400 text-sm font-bold text-slate-700 shadow-lg shadow-slate-400/30">
-                                2
-                              </div>
-                            ) : index === 2 ? (
-                              <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-amber-600 text-sm font-bold text-orange-900 shadow-lg shadow-orange-500/30">
-                                3
-                              </div>
-                            ) : (
-                              <div class="flex h-7 w-7 items-center justify-center rounded-full bg-highlight-med/60 text-xs font-semibold text-subtle">
-                                {index + 1}
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Model info */}
-                          <div class="min-w-0">
-                            <div class="flex items-center gap-2">
-                              <span class={`truncate font-semibold ${index === 0 ? 'text-text' : 'text-text/90'}`} title={model.name}>
-                                {model.name}
-                              </span>
+              return (
+                <div
+                  data-metric={key}
+                  class="overflow-hidden rounded-2xl border border-highlight-low/60"
+                  hidden={key !== "mmlu_pro"}
+                >
+                  <ul class="divide-y divide-highlight-low/40">
+                    {list.map((model: any, index: number) => {
+                      const score = getScore(model);
+                      const barWidth =
+                        maxScore > 0 ? (score / maxScore) * 100 : 0;
+                      const rankColors = [
+                        "from-amber-500/20 to-yellow-500/10 border-l-amber-400",
+                        "from-slate-400/15 to-gray-400/5 border-l-slate-300",
+                        "from-orange-600/15 to-amber-700/5 border-l-orange-500",
+                        "from-transparent to-transparent border-l-highlight-med",
+                        "from-transparent to-transparent border-l-highlight-med",
+                      ];
+
+                      return (
+                        <li class="relative overflow-hidden transition-colors hover:bg-highlight-low/40">
+                          {/* Background bar */}
+                          <div
+                            class={`absolute inset-y-0 left-0 bg-gradient-to-r ${rankColors[index]} border-l-4`}
+                            style={`width: ${barWidth}%`}
+                          />
+
+                          <div class="relative grid grid-cols-[2.5rem_1fr_auto] items-center gap-4 px-4 py-3.5">
+                            {/* Rank */}
+                            <div class="flex items-center justify-center">
+                              {index === 0 ? (
+                                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 text-sm font-bold text-amber-900 shadow-lg shadow-amber-500/30">
+                                  1
+                                </div>
+                              ) : index === 1 ? (
+                                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-slate-300 to-gray-400 text-sm font-bold text-slate-700 shadow-lg shadow-slate-400/30">
+                                  2
+                                </div>
+                              ) : index === 2 ? (
+                                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-amber-600 text-sm font-bold text-orange-900 shadow-lg shadow-orange-500/30">
+                                  3
+                                </div>
+                              ) : (
+                                <div class="flex h-7 w-7 items-center justify-center rounded-full bg-highlight-med/60 text-xs font-semibold text-subtle">
+                                  {index + 1}
+                                </div>
+                              )}
                             </div>
-                            <div class="mt-0.5 text-[0.7rem] text-subtle">
-                              {model.company_name ?? 'Unknown provider'}
+
+                            {/* Model info */}
+                            <div class="min-w-0">
+                              <div class="flex items-center gap-2">
+                                <span
+                                  class={`truncate font-semibold ${index === 0 ? "text-text" : "text-text/90"}`}
+                                  title={model.name}
+                                >
+                                  {model.name}
+                                </span>
+                              </div>
+                              <div class="mt-0.5 text-[0.7rem] text-subtle">
+                                {model.company_name ?? "Unknown provider"}
+                              </div>
+                            </div>
+
+                            {/* Score */}
+                            <div
+                              class={`text-right font-mono text-lg font-bold ${index === 0 ? "score-high" : index < 3 ? "text-text" : "text-subtle"}`}
+                            >
+                              {isEpoch
+                                ? `${(score * 100).toFixed(1)}%`
+                                : formatScore(model[key])}
                             </div>
                           </div>
-                          
-                          {/* Score */}
-                          <div class={`text-right font-mono text-lg font-bold ${index === 0 ? 'score-high' : index < 3 ? 'text-text' : 'text-subtle'}`}>
-                            {isEpoch ? `${(score * 100).toFixed(1)}%` : formatScore(model[key])}
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            );
-          })}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              );
+            })
+          }
         </div>
       </Card>
     </section>
 
     <!-- All models -->
     <section aria-label="All models" class="space-y-4">
-      <header class="flex flex-col gap-2 md:flex-row md:items-baseline md:justify-between">
+      <header
+        class="flex flex-col gap-2 md:flex-row md:items-baseline md:justify-between"
+      >
         <div>
           <h2 class="text-lg font-semibold text-text">All models</h2>
-          <p class="text-xs text-subtle">Search and scan every tracked model.</p>
+          <p class="text-xs text-subtle">
+            Search and scan every tracked model.
+          </p>
         </div>
         <p class="text-xs text-subtle">
-          Showing <span id="visible-model-count">{INITIAL_VISIBLE_MODELS}</span> of
+          Showing <span id="visible-model-count">{INITIAL_VISIBLE_MODELS}</span>
+          of
           <span id="total-models-count">{totalModels}</span> models
         </p>
       </header>
 
       <!-- Sticky filter bar -->
-      <div class="sticky top-0 z-20 -mx-4 bg-base/95 px-4 py-3 backdrop-blur-sm border-b border-highlight-low/50 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+      <div
+        class="sticky top-0 z-20 -mx-4 bg-base/95 px-4 py-3 backdrop-blur-sm border-b border-highlight-low/50 flex flex-col gap-3 md:flex-row md:items-start md:justify-between"
+      >
         <div class="w-full md:max-w-xs">
-          <label for="model-search" class="block text-xs font-medium text-subtle">
+          <label
+            for="model-search"
+            class="block text-xs font-medium text-subtle"
+          >
             Search models
           </label>
           <input
@@ -406,7 +494,10 @@ function getScoreClass(score: number | null | undefined): string {
 
         <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
           <div class="w-full md:max-w-sm">
-            <label for="model-sort" class="block text-xs font-medium text-subtle">
+            <label
+              for="model-sort"
+              class="block text-xs font-medium text-subtle"
+            >
               Sort models
             </label>
             <div class="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -422,7 +513,9 @@ function getScoreClass(score: number | null | undefined): string {
                 <option value="outputPrice">Output price</option>
                 <option value="tps">Tokens per second</option>
               </select>
-              <label for="model-sort-direction" class="sr-only">Sort direction</label>
+              <label for="model-sort-direction" class="sr-only"
+                >Sort direction</label
+              >
               <select
                 id="model-sort-direction"
                 aria-label="Sort direction"
@@ -435,7 +528,9 @@ function getScoreClass(score: number | null | undefined): string {
           </div>
 
           <!-- View toggle -->
-          <div class="flex items-center gap-1 rounded-lg border border-highlight-med bg-surface p-1">
+          <div
+            class="flex items-center gap-1 rounded-lg border border-highlight-med bg-surface p-1"
+          >
             <button
               id="view-cards"
               type="button"
@@ -443,8 +538,18 @@ function getScoreClass(score: number | null | undefined): string {
               aria-pressed="true"
               title="Card view"
             >
-              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              <svg
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+                ></path>
               </svg>
             </button>
             <button
@@ -454,8 +559,18 @@ function getScoreClass(score: number | null | undefined): string {
               aria-pressed="false"
               title="Table view"
             >
-              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              <svg
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                ></path>
               </svg>
             </button>
           </div>
@@ -464,23 +579,35 @@ function getScoreClass(score: number | null | undefined): string {
 
       <!-- Empty state -->
       <div id="empty-state" class="hidden py-16 text-center">
-        <svg class="mx-auto h-12 w-12 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+        <svg
+          class="mx-auto h-12 w-12 text-muted"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.5"
+            d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+          ></path>
         </svg>
         <h3 class="mt-4 text-sm font-semibold text-text">No models found</h3>
-        <p class="mt-1 text-xs text-subtle">Try adjusting your search or filters.</p>
+        <p class="mt-1 text-xs text-subtle">
+          Try adjusting your search or filters.
+        </p>
       </div>
 
       <div class="grid gap-3 md:grid-cols-2" id="models-grid">
-        {validModels.map((model: any) => (
-          <ModelCard model={model} />
-        ))}
+        {validModels.map((model: any) => <ModelCard model={model} />)}
       </div>
 
       <!-- Table view (hidden by default) -->
       <div id="models-table-container" class="hidden overflow-x-auto">
         <table class="w-full min-w-[800px] text-left text-sm">
-          <thead class="border-b border-highlight-med bg-overlay/50 text-xs uppercase text-subtle">
+          <thead
+            class="border-b border-highlight-med bg-overlay/50 text-xs uppercase text-subtle"
+          >
             <tr>
               <th class="px-4 py-3 font-semibold">Model</th>
               <th class="px-4 py-3 font-semibold">Provider</th>
@@ -491,29 +618,52 @@ function getScoreClass(score: number | null | undefined): string {
               <th class="px-4 py-3 font-semibold text-right">TPS</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-highlight-low/50" id="models-table-body">
-            {validModels.map((model: any) => (
-              <tr 
-                class="cursor-pointer transition-colors hover:bg-highlight-low/50"
-                data-table-row
-                data-model-json={JSON.stringify(model)}
-                data-name={(model.name ?? '').toLowerCase()}
-                data-company={(model.company_name ?? '').toLowerCase()}
-                data-mmlu={Number(model.mmlu_pro) || 0}
-                data-gpqa={Number(model.gpqa) || 0}
-                data-input-price={Number(model.price_1m_input_tokens) || 0}
-                data-output-price={Number(model.price_1m_output_tokens) || 0}
-                data-tps={Number(model.median_output_tokens_per_second) || 0}
-              >
-                <td class="px-4 py-3 font-medium text-text">{model.name}</td>
-                <td class="px-4 py-3 text-subtle">{model.company_name ?? '-'}</td>
-                <td class="px-4 py-3 text-right font-mono text-text">{formatPrice(Number(model.price_1m_input_tokens) || 0, 3)}</td>
-                <td class="px-4 py-3 text-right font-mono text-text">{formatPrice(Number(model.price_1m_output_tokens) || 0, 3)}</td>
-                <td class={`px-4 py-3 text-right font-semibold ${getScoreClass(model.mmlu_pro)}`}>{formatScore(model.mmlu_pro)}</td>
-                <td class={`px-4 py-3 text-right font-semibold ${getScoreClass(model.gpqa)}`}>{formatScore(model.gpqa)}</td>
-                <td class="px-4 py-3 text-right text-text">{model.median_output_tokens_per_second ? model.median_output_tokens_per_second.toFixed(1) : '-'}</td>
-              </tr>
-            ))}
+          <tbody
+            class="divide-y divide-highlight-low/50"
+            id="models-table-body"
+          >
+            {
+              validModels.map((model: any) => (
+                <tr
+                  class="cursor-pointer transition-colors hover:bg-highlight-low/50"
+                  data-table-row
+                  data-model-json={JSON.stringify(model)}
+                  data-name={(model.name ?? "").toLowerCase()}
+                  data-company={(model.company_name ?? "").toLowerCase()}
+                  data-mmlu={Number(model.mmlu_pro) || 0}
+                  data-gpqa={Number(model.gpqa) || 0}
+                  data-input-price={Number(model.price_1m_input_tokens) || 0}
+                  data-output-price={Number(model.price_1m_output_tokens) || 0}
+                  data-tps={Number(model.median_output_tokens_per_second) || 0}
+                >
+                  <td class="px-4 py-3 font-medium text-text">{model.name}</td>
+                  <td class="px-4 py-3 text-subtle">
+                    {model.company_name ?? "-"}
+                  </td>
+                  <td class="px-4 py-3 text-right font-mono text-text">
+                    {formatPrice(Number(model.price_1m_input_tokens) || 0, 3)}
+                  </td>
+                  <td class="px-4 py-3 text-right font-mono text-text">
+                    {formatPrice(Number(model.price_1m_output_tokens) || 0, 3)}
+                  </td>
+                  <td
+                    class={`px-4 py-3 text-right font-semibold ${getScoreClass(model.mmlu_pro)}`}
+                  >
+                    {formatScore(model.mmlu_pro)}
+                  </td>
+                  <td
+                    class={`px-4 py-3 text-right font-semibold ${getScoreClass(model.gpqa)}`}
+                  >
+                    {formatScore(model.gpqa)}
+                  </td>
+                  <td class="px-4 py-3 text-right text-text">
+                    {model.median_output_tokens_per_second
+                      ? model.median_output_tokens_per_second.toFixed(1)
+                      : "-"}
+                  </td>
+                </tr>
+              ))
+            }
           </tbody>
         </table>
       </div>
@@ -528,32 +678,33 @@ function getScoreClass(score: number | null | undefined): string {
         </button>
       </div>
     </section>
-
-    <Footer />
   </main>
-  
+
+  <Footer />
   <ScrollToTop />
 </div>
 
 <style>
   .model-card {
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-                border-color 0.25s ease,
-                box-shadow 0.25s ease;
+    transition:
+      transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+      border-color 0.25s ease,
+      box-shadow 0.25s ease;
   }
-  
+
   .model-card:hover {
     transform: translateY(-3px);
     border-color: rgba(156, 207, 216, 0.5);
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4),
-                0 0 0 1px rgba(156, 207, 216, 0.1),
-                0 0 20px rgba(156, 207, 216, 0.08);
+    box-shadow:
+      0 12px 28px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(156, 207, 216, 0.1),
+      0 0 20px rgba(156, 207, 216, 0.08);
   }
-  
+
   .model-card:active {
     transform: translateY(-1px);
   }
-  
+
   @media (prefers-reduced-motion: reduce) {
     .model-card {
       transition: none;
@@ -562,7 +713,7 @@ function getScoreClass(score: number | null | undefined): string {
       transform: none;
     }
   }
-  
+
   /* View toggle buttons */
   .view-toggle-btn {
     color: var(--subtle);
@@ -579,40 +730,44 @@ function getScoreClass(score: number | null | undefined): string {
 
 <script>
   // @ts-nocheck
-  if (typeof window !== 'undefined') {
+  if (typeof window !== "undefined") {
     // Animated number counter
     const animateValue = (el, start, end, duration) => {
       if (!el || start === end) return;
       const range = end - start;
       const startTime = performance.now();
       const isDecimal = !Number.isInteger(end);
-      
+
       const update = (currentTime) => {
         const elapsed = currentTime - startTime;
         const progress = Math.min(elapsed / duration, 1);
         const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
         const current = start + range * eased;
-        el.textContent = isDecimal ? current.toFixed(2) : Math.round(current).toString();
+        el.textContent = isDecimal
+          ? current.toFixed(2)
+          : Math.round(current).toString();
         if (progress < 1) requestAnimationFrame(update);
       };
       requestAnimationFrame(update);
     };
 
     // Animate summary stats on page load
-    document.querySelectorAll('[data-animate-number]').forEach((el) => {
-      const target = parseFloat(el.textContent?.replace(/[^0-9.-]/g, '') || '0');
-      const prefix = el.textContent?.match(/^[^0-9]*/)?.[0] || '';
-      const suffix = el.textContent?.match(/[^0-9]*$/)?.[0] || '';
-      el.textContent = prefix + '0' + suffix;
+    document.querySelectorAll("[data-animate-number]").forEach((el) => {
+      const target = parseFloat(
+        el.textContent?.replace(/[^0-9.-]/g, "") || "0",
+      );
+      const prefix = el.textContent?.match(/^[^0-9]*/)?.[0] || "";
+      const suffix = el.textContent?.match(/[^0-9]*$/)?.[0] || "";
+      el.textContent = prefix + "0" + suffix;
       setTimeout(() => {
         animateValue(el, 0, target, 800);
       }, 100);
     });
 
-    const metricSelect = document.getElementById('leaderboard-metric');
-    const metricContainers = document.querySelectorAll('[data-metric]');
+    const metricSelect = document.getElementById("leaderboard-metric");
+    const metricContainers = document.querySelectorAll("[data-metric]");
 
-    metricSelect?.addEventListener('change', (event) => {
+    metricSelect?.addEventListener("change", (event) => {
       const value = event.target.value;
       metricContainers.forEach((el) => {
         if (!(el instanceof HTMLElement)) return;
@@ -624,158 +779,164 @@ function getScoreClass(score: number | null | undefined): string {
     let currentVisible = PAGE_SIZE;
     let matchedTotal = 0;
 
-    const searchInput = document.getElementById('model-search');
-    const grid = document.getElementById('models-grid');
-    const cards = Array.from(document.querySelectorAll('[data-model-card]'));
-    const visibleCountEl = document.getElementById('visible-model-count');
-    const loadMoreBtn = document.getElementById('load-more-models');
-    const sortSelect = document.getElementById('model-sort');
-    const sortDirectionSelect = document.getElementById('model-sort-direction');
-    const emptyState = document.getElementById('empty-state');
+    const searchInput = document.getElementById("model-search");
+    const grid = document.getElementById("models-grid");
+    const cards = Array.from(document.querySelectorAll("[data-model-card]"));
+    const visibleCountEl = document.getElementById("visible-model-count");
+    const loadMoreBtn = document.getElementById("load-more-models");
+    const sortSelect = document.getElementById("model-sort");
+    const sortDirectionSelect = document.getElementById("model-sort-direction");
+    const emptyState = document.getElementById("empty-state");
 
     const updateVisibility = () => {
       let visible = 0;
       cards.forEach((card) => {
-        const match = card.dataset.match === 'true';
+        const match = card.dataset.match === "true";
         if (match && visible < currentVisible) {
-          card.style.display = '';
+          card.style.display = "";
           visible++;
         } else {
-          card.style.display = 'none';
+          card.style.display = "none";
         }
       });
       if (visibleCountEl) visibleCountEl.textContent = String(visible);
       if (loadMoreBtn) loadMoreBtn.hidden = visible >= matchedTotal;
-      if (grid) grid.style.display = matchedTotal === 0 ? 'none' : '';
-      if (emptyState) emptyState.classList.toggle('hidden', matchedTotal > 0);
+      if (grid) grid.style.display = matchedTotal === 0 ? "none" : "";
+      if (emptyState) emptyState.classList.toggle("hidden", matchedTotal > 0);
     };
 
     const applySearch = (resetVisible = false) => {
       if (resetVisible) currentVisible = PAGE_SIZE;
-      const q = (searchInput?.value || '').toLowerCase().trim();
+      const q = (searchInput?.value || "").toLowerCase().trim();
       matchedTotal = 0;
       cards.forEach((card) => {
-        const name = card.dataset.name || '';
-        const company = card.dataset.company || '';
+        const name = card.dataset.name || "";
+        const company = card.dataset.company || "";
         const match = !q || name.includes(q) || company.includes(q);
-        card.dataset.match = match ? 'true' : 'false';
+        card.dataset.match = match ? "true" : "false";
         if (match) matchedTotal++;
       });
       updateVisibility();
     };
 
-    loadMoreBtn?.addEventListener('click', () => {
+    loadMoreBtn?.addEventListener("click", () => {
       currentVisible = Math.min(currentVisible + PAGE_SIZE, matchedTotal);
       updateVisibility();
     });
 
     const sortAttrMap = {
-      mmlu: 'mmlu',
-      gpqa: 'gpqa',
-      hle: 'hle',
-      aime: 'aime',
-      inputPrice: 'inputPrice',
-      outputPrice: 'outputPrice',
-      tps: 'tps',
+      mmlu: "mmlu",
+      gpqa: "gpqa",
+      hle: "hle",
+      aime: "aime",
+      inputPrice: "inputPrice",
+      outputPrice: "outputPrice",
+      tps: "tps",
     };
 
     const sortCards = () => {
       if (!grid) return;
-      const metric = sortSelect?.value || 'mmlu';
-      const direction = sortDirectionSelect?.value || 'desc';
-      const attr = sortAttrMap[metric] ?? 'mmlu';
+      const metric = sortSelect?.value || "mmlu";
+      const direction = sortDirectionSelect?.value || "desc";
+      const attr = sortAttrMap[metric] ?? "mmlu";
       cards.sort((a, b) => {
         const valA = Number(a.dataset[attr]) || 0;
         const valB = Number(b.dataset[attr]) || 0;
         if (valA === valB) return 0;
-        return direction === 'desc' ? valB - valA : valA - valB;
+        return direction === "desc" ? valB - valA : valA - valB;
       });
       cards.forEach((card) => grid.appendChild(card));
       applySearch(true);
     };
 
-    sortSelect?.addEventListener('change', sortCards);
-    sortDirectionSelect?.addEventListener('change', sortCards);
-    searchInput?.addEventListener('input', () => applySearch(true));
+    sortSelect?.addEventListener("change", sortCards);
+    sortDirectionSelect?.addEventListener("change", sortCards);
+    searchInput?.addEventListener("input", () => applySearch(true));
 
     // Keyboard navigation for model cards
     let focusedCardIndex = -1;
-    const getVisibleCards = () => cards.filter(c => c.style.display !== 'none');
+    const getVisibleCards = () =>
+      cards.filter((c) => c.style.display !== "none");
 
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener("keydown", (e) => {
       const visibleCards = getVisibleCards();
       if (!visibleCards.length) return;
 
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
-        const delta = e.key === 'ArrowDown' ? 1 : -1;
-        focusedCardIndex = Math.max(0, Math.min(visibleCards.length - 1, focusedCardIndex + delta));
+        const delta = e.key === "ArrowDown" ? 1 : -1;
+        focusedCardIndex = Math.max(
+          0,
+          Math.min(visibleCards.length - 1, focusedCardIndex + delta),
+        );
         visibleCards[focusedCardIndex]?.focus();
       }
     });
 
     // Make cards focusable (but not clickable - they have expandable details instead)
     cards.forEach((card) => {
-      card.setAttribute('tabindex', '0');
-      card.addEventListener('focus', () => {
+      card.setAttribute("tabindex", "0");
+      card.addEventListener("focus", () => {
         focusedCardIndex = getVisibleCards().indexOf(card);
       });
     });
 
     // View toggle (cards vs table)
-    const viewCardsBtn = document.getElementById('view-cards');
-    const viewTableBtn = document.getElementById('view-table');
-    const tableContainer = document.getElementById('models-table-container');
-    const tableRows = Array.from(document.querySelectorAll('[data-table-row]'));
-    let currentView = 'cards';
+    const viewCardsBtn = document.getElementById("view-cards");
+    const viewTableBtn = document.getElementById("view-table");
+    const tableContainer = document.getElementById("models-table-container");
+    const tableRows = Array.from(document.querySelectorAll("[data-table-row]"));
+    let currentView = "cards";
 
     const setView = (view) => {
       currentView = view;
-      if (view === 'cards') {
-        grid.style.display = '';
-        tableContainer?.classList.add('hidden');
-        viewCardsBtn?.classList.add('active');
-        viewCardsBtn?.setAttribute('aria-pressed', 'true');
-        viewTableBtn?.classList.remove('active');
-        viewTableBtn?.setAttribute('aria-pressed', 'false');
-        loadMoreBtn.style.display = '';
+      if (view === "cards") {
+        grid.style.display = "";
+        tableContainer?.classList.add("hidden");
+        viewCardsBtn?.classList.add("active");
+        viewCardsBtn?.setAttribute("aria-pressed", "true");
+        viewTableBtn?.classList.remove("active");
+        viewTableBtn?.setAttribute("aria-pressed", "false");
+        loadMoreBtn.style.display = "";
       } else {
-        grid.style.display = 'none';
-        tableContainer?.classList.remove('hidden');
-        viewCardsBtn?.classList.remove('active');
-        viewCardsBtn?.setAttribute('aria-pressed', 'false');
-        viewTableBtn?.classList.add('active');
-        viewTableBtn?.setAttribute('aria-pressed', 'true');
-        loadMoreBtn.style.display = 'none';
+        grid.style.display = "none";
+        tableContainer?.classList.remove("hidden");
+        viewCardsBtn?.classList.remove("active");
+        viewCardsBtn?.setAttribute("aria-pressed", "false");
+        viewTableBtn?.classList.add("active");
+        viewTableBtn?.setAttribute("aria-pressed", "true");
+        loadMoreBtn.style.display = "none";
         applyTableSearch();
       }
     };
 
     const applyTableSearch = () => {
-      const q = (searchInput?.value || '').toLowerCase().trim();
+      const q = (searchInput?.value || "").toLowerCase().trim();
       tableRows.forEach((row) => {
-        const name = row.dataset.name || '';
-        const company = row.dataset.company || '';
+        const name = row.dataset.name || "";
+        const company = row.dataset.company || "";
         const match = !q || name.includes(q) || company.includes(q);
-        row.style.display = match ? '' : 'none';
+        row.style.display = match ? "" : "none";
       });
     };
 
-    viewCardsBtn?.addEventListener('click', () => setView('cards'));
-    viewTableBtn?.addEventListener('click', () => setView('table'));
+    viewCardsBtn?.addEventListener("click", () => setView("cards"));
+    viewTableBtn?.addEventListener("click", () => setView("table"));
 
     // Also filter table on search
-    searchInput?.addEventListener('input', () => {
-      if (currentView === 'table') applyTableSearch();
+    searchInput?.addEventListener("input", () => {
+      if (currentView === "table") applyTableSearch();
     });
 
     // Make table rows clickable
     tableRows.forEach((row) => {
-      row.addEventListener('click', () => {
+      row.addEventListener("click", () => {
         const modelJson = row.dataset.modelJson;
         if (modelJson) {
           const model = JSON.parse(modelJson);
-          window.dispatchEvent(new CustomEvent('open-model-drawer', { detail: model }));
+          window.dispatchEvent(
+            new CustomEvent("open-model-drawer", { detail: model }),
+          );
         }
       });
     });
