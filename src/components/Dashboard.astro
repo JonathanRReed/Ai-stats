@@ -166,6 +166,19 @@ function getScoreClass(score: number | null | undefined): string {
             <br />
             Data sourced from ArtificialAnalysis.com & Epoch.ai
           </p>
+          <p class="byline mt-3 max-w-xl">
+            <span class="byline-text">Built by</span>
+            <a
+              href="https://jonathanrreed.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="byline-name">Jonathan R Reed</a
+            >
+            <span class="byline-text"
+              >to compare model pricing, context limits and performance in one
+              place.</span
+            >
+          </p>
 
           <!-- Mobile data partners -->
           <div class="mt-3 flex items-center gap-3 md:hidden">
@@ -725,6 +738,51 @@ function getScoreClass(score: number | null | undefined): string {
   .view-toggle-btn.active {
     color: var(--foam);
     background: rgba(156, 207, 216, 0.15);
+  }
+
+  /* Byline styles */
+  .byline {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.5rem 1rem;
+    background: rgba(156, 207, 216, 0.06);
+    border: 1px solid rgba(156, 207, 216, 0.12);
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-style: italic;
+  }
+
+  .byline-text {
+    color: var(--muted);
+  }
+
+  .byline-name {
+    font-style: normal;
+    font-weight: 600;
+    background: linear-gradient(135deg, var(--foam), var(--iris));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .byline-name:hover {
+    opacity: 0.8;
+  }
+
+  :global(html.light) .byline {
+    background: rgba(40, 105, 131, 0.06);
+    border: 1px solid rgba(40, 105, 131, 0.12);
+  }
+
+  :global(html.light) .byline-name {
+    background: linear-gradient(135deg, var(--pine), var(--iris));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 </style>
 

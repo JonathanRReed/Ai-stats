@@ -1,8 +1,8 @@
 ---
 // Layout.astro: Shared layout for all pages
-import { ViewTransitions } from 'astro:transitions';
-import '../styles/tailwind.css';
-import ModelDrawer from './ModelDrawer';
+import { ViewTransitions } from "astro:transitions";
+import "../styles/tailwind.css";
+import ModelDrawer from "./ModelDrawer";
 
 interface Props {
   title?: string;
@@ -13,32 +13,40 @@ interface Props {
   robots?: string;
 }
 
-const siteName = 'AI Stats';
-const siteAuthor = 'Jonathan Reed';
+const siteName = "AI Stats";
+const siteAuthor = "Jonathan Reed";
 
-const { 
-  title = 'AI Stats | AI model stats, LLM ranking & benchmarks by Jonathan Reed', 
-  description = 'Compare AI model pricing, performance benchmarks, and technical specifications. Real-time data for GPT-4, Claude, Gemini, and more AI models.',
-  image = '/jonathan.avif',
-  ogType = 'website',
+const {
+  title = "AI Stats | AI model stats, LLM ranking & benchmarks by Jonathan Reed",
+  description = "Compare AI model pricing, performance benchmarks, and technical specifications. Real-time data for GPT-4, Claude, Gemini, and more AI models.",
+  image = "/jonathan.avif",
+  ogType = "website",
   noindex = false,
-  robots = 'index, follow'
+  robots = "index, follow",
 } = Astro.props;
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site).href;
 const ogImageURL = new URL(image, Astro.site).href;
-const robotsContent = robots || (noindex ? 'noindex, nofollow' : 'index, follow');
+const robotsContent =
+  robots || (noindex ? "noindex, nofollow" : "index, follow");
 ---
+
 <html lang="en" transition:animate="none">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/webp" href="/favicon.webp" />
-    
+
     <!-- Preload critical font to improve LCP -->
-    <link rel="preload" href="/fonts/nebula sans/NebulaSans-Book.woff2" as="font" type="font/woff2" crossorigin />
+    <link
+      rel="preload"
+      href="/fonts/nebula sans/NebulaSans-Book.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
     <link rel="stylesheet" href="/fonts/nebula sans/nebula-sans.css" />
-    
+
     <!-- SEO Meta Tags -->
     <title>{title}</title>
     <meta name="description" content={description} />
@@ -47,7 +55,7 @@ const robotsContent = robots || (noindex ? 'noindex, nofollow' : 'index, follow'
     <meta name="robots" content={robotsContent} />
     <meta name="author" content={siteAuthor} />
     <meta name="theme-color" content="#191724" />
-    
+
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content={ogType} />
     <meta property="og:url" content={canonicalURL} />
@@ -56,7 +64,7 @@ const robotsContent = robots || (noindex ? 'noindex, nofollow' : 'index, follow'
     <meta property="og:image" content={ogImageURL} />
     <meta property="og:site_name" content={siteName} />
     <meta property="og:locale" content="en_US" />
-    
+
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:url" content={canonicalURL} />
@@ -64,59 +72,91 @@ const robotsContent = robots || (noindex ? 'noindex, nofollow' : 'index, follow'
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImageURL} />
     <meta name="twitter:creator" content="@jonathanrayreed" />
-    
+
     <!-- Structured Data (JSON-LD) -->
-    <script type="application/ld+json" set:html={JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": siteName,
-      "description": "Compare AI model pricing, performance benchmarks, and technical specifications",
-      "url": Astro.site?.href || canonicalURL,
-      "author": {
-        "@type": "Person",
-        "name": siteAuthor,
-        "url": "https://jonathanrreed.com"
-      },
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": `${Astro.site?.href || canonicalURL}?q={search_term_string}`,
-        "query-input": "required name=search_term_string"
-      }
-    })} />
-    <script type="application/ld+json" set:html={JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": siteName,
-      "applicationCategory": "BusinessApplication",
-      "operatingSystem": "Web",
-      "url": Astro.site?.href || canonicalURL,
-      "description": description,
-      "creator": {
-        "@type": "Person",
-        "name": siteAuthor,
-        "url": "https://jonathanrreed.com"
-      },
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD"
-      }
-    })} />
-    
+    <script
+      type="application/ld+json"
+      set:html={JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: siteName,
+        description:
+          "Compare AI model pricing, performance benchmarks, and technical specifications",
+        url: Astro.site?.href || canonicalURL,
+        author: {
+          "@type": "Person",
+          name: siteAuthor,
+          alternateName: "Jonathan R Reed",
+          url: "https://jonathanrreed.com",
+        },
+        potentialAction: {
+          "@type": "SearchAction",
+          target: `${Astro.site?.href || canonicalURL}?q={search_term_string}`,
+          "query-input": "required name=search_term_string",
+        },
+      })}
+    />
+    <script
+      type="application/ld+json"
+      set:html={JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        name: siteName,
+        applicationCategory: "BusinessApplication",
+        operatingSystem: "Web",
+        url: Astro.site?.href || canonicalURL,
+        description: description,
+        creator: {
+          "@type": "Person",
+          name: siteAuthor,
+          alternateName: "Jonathan R Reed",
+          url: "https://jonathanrreed.com",
+        },
+        offers: {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "USD",
+        },
+      })}
+    />
+
     <ViewTransitions />
-    
+
     <!-- Theme initialization - runs before page render to prevent flash -->
     <script is:inline>
       function applyTheme() {
-        var saved = localStorage.getItem('theme');
-        if (saved === 'light') {
-          document.documentElement.classList.add('light');
+        var saved = localStorage.getItem("theme");
+        if (saved === "light") {
+          document.documentElement.classList.add("light");
         } else {
-          document.documentElement.classList.remove('light');
+          document.documentElement.classList.remove("light");
         }
       }
       applyTheme();
-      document.addEventListener('astro:after-swap', applyTheme);
+      document.addEventListener("astro:after-swap", applyTheme);
+    </script>
+
+    <!-- Developer console easter egg -->
+    <script is:inline>
+      (function () {
+        if (typeof window === "undefined") return;
+
+        const ascii = `
+    ___  ________  ________     
+   |\\  \\|\\   __  \\|\\   __  \\    
+   \\ \\  \\ \\  \\|\\  \\ \\  \\|\\  \\   
+ __ \\ \\  \\ \\   _  _\\ \\   _  _\\  
+|\\  \\\\_\\  \\ \\  \\\\  \\\\ \\  \\\\  \\|
+\\ \\________\\ \\__\\\\ _\\\\ \\__\\\\ _\\
+ \\|________|\\|__|\\|__|\\|__|\\|__|
+                                
+        `;
+
+        console.log(ascii);
+        console.log("Hey there. Interested in code?");
+        console.log("Check out my GitHub: https://github.com/JonathanRReed");
+        console.log("Most of my sites repos are open source.");
+      })();
     </script>
     <style is:global>
       :root {
@@ -159,30 +199,80 @@ const robotsContent = robots || (noindex ? 'noindex, nofollow' : 'index, follow'
       }
 
       /* Score colors - Dark mode (default) */
-      .score-high { color: #56d4a8; }
-      .score-mid { color: #e5b567; }
-      .score-low { color: #e08c7a; }
-      .score-poor { color: #e06688; }
-      .score-none { color: var(--muted); }
+      .score-high {
+        color: #56d4a8;
+      }
+      .score-mid {
+        color: #e5b567;
+      }
+      .score-low {
+        color: #e08c7a;
+      }
+      .score-poor {
+        color: #e06688;
+      }
+      .score-none {
+        color: var(--muted);
+      }
 
-      .score-bg-high { background: rgba(86, 212, 168, 0.15); border: 1px solid rgba(86, 212, 168, 0.35); }
-      .score-bg-mid { background: rgba(229, 181, 103, 0.15); border: 1px solid rgba(229, 181, 103, 0.35); }
-      .score-bg-low { background: rgba(224, 140, 122, 0.15); border: 1px solid rgba(224, 140, 122, 0.35); }
-      .score-bg-poor { background: rgba(224, 102, 136, 0.15); border: 1px solid rgba(224, 102, 136, 0.35); }
-      .score-bg-none { background: var(--highlight-low); border: 1px solid var(--highlight-med); }
+      .score-bg-high {
+        background: rgba(86, 212, 168, 0.15);
+        border: 1px solid rgba(86, 212, 168, 0.35);
+      }
+      .score-bg-mid {
+        background: rgba(229, 181, 103, 0.15);
+        border: 1px solid rgba(229, 181, 103, 0.35);
+      }
+      .score-bg-low {
+        background: rgba(224, 140, 122, 0.15);
+        border: 1px solid rgba(224, 140, 122, 0.35);
+      }
+      .score-bg-poor {
+        background: rgba(224, 102, 136, 0.15);
+        border: 1px solid rgba(224, 102, 136, 0.35);
+      }
+      .score-bg-none {
+        background: var(--highlight-low);
+        border: 1px solid var(--highlight-med);
+      }
 
       /* Score colors - Light mode (higher contrast) */
-      html.light .score-high { color: #1a8a5f; }
-      html.light .score-mid { color: #9a6b1a; }
-      html.light .score-low { color: #a84a35; }
-      html.light .score-poor { color: #b03060; }
-      html.light .score-none { color: var(--muted); }
+      html.light .score-high {
+        color: #1a8a5f;
+      }
+      html.light .score-mid {
+        color: #9a6b1a;
+      }
+      html.light .score-low {
+        color: #a84a35;
+      }
+      html.light .score-poor {
+        color: #b03060;
+      }
+      html.light .score-none {
+        color: var(--muted);
+      }
 
-      html.light .score-bg-high { background: rgba(26, 138, 95, 0.12); border: 1px solid rgba(26, 138, 95, 0.4); }
-      html.light .score-bg-mid { background: rgba(154, 107, 26, 0.12); border: 1px solid rgba(154, 107, 26, 0.4); }
-      html.light .score-bg-low { background: rgba(168, 74, 53, 0.12); border: 1px solid rgba(168, 74, 53, 0.4); }
-      html.light .score-bg-poor { background: rgba(176, 48, 96, 0.12); border: 1px solid rgba(176, 48, 96, 0.4); }
-      html.light .score-bg-none { background: var(--highlight-low); border: 1px solid var(--highlight-med); }
+      html.light .score-bg-high {
+        background: rgba(26, 138, 95, 0.12);
+        border: 1px solid rgba(26, 138, 95, 0.4);
+      }
+      html.light .score-bg-mid {
+        background: rgba(154, 107, 26, 0.12);
+        border: 1px solid rgba(154, 107, 26, 0.4);
+      }
+      html.light .score-bg-low {
+        background: rgba(168, 74, 53, 0.12);
+        border: 1px solid rgba(168, 74, 53, 0.4);
+      }
+      html.light .score-bg-poor {
+        background: rgba(176, 48, 96, 0.12);
+        border: 1px solid rgba(176, 48, 96, 0.4);
+      }
+      html.light .score-bg-none {
+        background: var(--highlight-low);
+        border: 1px solid var(--highlight-med);
+      }
 
       /* Dark logo visibility - subtle background in dark mode */
       .provider-logo-dark {
@@ -228,35 +318,99 @@ const robotsContent = robots || (noindex ? 'noindex, nofollow' : 'index, follow'
       }
 
       /* Modern CSS reset (minimal) */
-      *, *::before, *::after { box-sizing: border-box; }
-      * { margin: 0; }
-      html:focus-within { scroll-behavior: smooth; }
-      html, body { height: 100%; }
-      body { line-height: 1.6; -webkit-font-smoothing: antialiased; }
-      img, picture, video, canvas, svg { display: block; max-width: 100%; height: auto; }
-      input, button, textarea, select { font: inherit; }
-      a { color: inherit; text-decoration-color: rgba(148, 197, 204, 0.35); text-underline-offset: 2px; }
-      a:hover { text-decoration-color: var(--accent); }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      * {
+        margin: 0;
+      }
+      html:focus-within {
+        scroll-behavior: smooth;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+      img,
+      picture,
+      video,
+      canvas,
+      svg {
+        display: block;
+        max-width: 100%;
+        height: auto;
+      }
+      input,
+      button,
+      textarea,
+      select {
+        font: inherit;
+      }
+      a {
+        color: inherit;
+        text-decoration-color: rgba(148, 197, 204, 0.35);
+        text-underline-offset: 2px;
+      }
+      a:hover {
+        text-decoration-color: var(--accent);
+      }
 
       /* Global base */
       body {
-        background: radial-gradient(1200px 800px at 10% -10%, rgba(156, 207, 216, 0.06), transparent 60%),
-                    radial-gradient(800px 600px at 90% -10%, rgba(196, 167, 231, 0.05), transparent 60%),
-                    var(--base);
+        background:
+          radial-gradient(
+            1200px 800px at 10% -10%,
+            rgba(156, 207, 216, 0.06),
+            transparent 60%
+          ),
+          radial-gradient(
+            800px 600px at 90% -10%,
+            rgba(196, 167, 231, 0.05),
+            transparent 60%
+          ),
+          var(--base);
         color: var(--text);
-        font-family: 'Nebula Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, system-ui, sans-serif;
+        font-family:
+          "Nebula Sans",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          Inter,
+          system-ui,
+          sans-serif;
         font-size: clamp(15px, 1.2vw, 16px);
         min-height: 100vh;
         color-scheme: dark;
       }
 
-      html { color-scheme: dark; }
+      html {
+        color-scheme: dark;
+      }
 
       /* Typography rhythm */
-      h1 { font-size: clamp(1.75rem, 3vw, 2.25rem); line-height: 1.2; letter-spacing: -0.01em; }
-      h2 { font-size: clamp(1.4rem, 2.4vw, 1.75rem); line-height: 1.25; }
-      h3 { font-size: clamp(1.1rem, 1.8vw, 1.25rem); line-height: 1.3; }
-      p  { color: var(--text-2); }
+      h1 {
+        font-size: clamp(1.75rem, 3vw, 2.25rem);
+        line-height: 1.2;
+        letter-spacing: -0.01em;
+      }
+      h2 {
+        font-size: clamp(1.4rem, 2.4vw, 1.75rem);
+        line-height: 1.25;
+      }
+      h3 {
+        font-size: clamp(1.1rem, 1.8vw, 1.25rem);
+        line-height: 1.3;
+      }
+      p {
+        color: var(--text-2);
+      }
 
       /* Utility containers */
       .container {
@@ -267,11 +421,15 @@ const robotsContent = robots || (noindex ? 'noindex, nofollow' : 'index, follow'
       }
 
       @media (min-width: 768px) {
-        :root { --container-pad: 1.25rem; }
+        :root {
+          --container-pad: 1.25rem;
+        }
       }
 
       @media (min-width: 1200px) {
-        :root { --container-pad: 1.5rem; }
+        :root {
+          --container-pad: 1.5rem;
+        }
       }
 
       /* Focus styles for accessibility */
@@ -282,8 +440,14 @@ const robotsContent = robots || (noindex ? 'noindex, nofollow' : 'index, follow'
       }
 
       /* Prevent overflow bugs on small screens */
-      #root, main, section { min-width: 0; }
-      .no-overflow-x { overflow-x: hidden; }
+      #root,
+      main,
+      section {
+        min-width: 0;
+      }
+      .no-overflow-x {
+        overflow-x: hidden;
+      }
 
       /* View Transitions - Smooth page navigation */
       @media (prefers-reduced-motion: no-preference) {
