@@ -95,7 +95,7 @@ const aaIndexes = [
   data-input-price={Number(model.price_1m_input_tokens) || 0}
   data-output-price={Number(model.price_1m_output_tokens) || 0}
   data-tps={Number(model.median_output_tokens_per_second) || 0}
-  class="model-card group rounded-2xl border border-highlight-med bg-surface/95 px-4 py-4 text-sm shadow-md shadow-black/30"
+  class="model-card group rounded-2xl border border-highlight-med bg-surface/95 px-4 py-4 text-sm shadow-md shadow-black/30 gradient-border stagger-item tilt-card"
 >
   <header class="flex items-start justify-between gap-2">
     <div class="flex items-center gap-2 min-w-0">
@@ -191,18 +191,17 @@ const aaIndexes = [
 
 <style>
   .model-card {
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-                border-color 0.25s ease,
-                box-shadow 0.25s ease;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                border-color 0.3s ease,
+                box-shadow 0.3s ease;
   }
   
   .model-card:hover,
   .model-card:focus-visible {
-    transform: translateY(-3px);
     border-color: rgba(156, 207, 216, 0.5);
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4),
-                0 0 0 1px rgba(156, 207, 216, 0.1),
-                0 0 20px rgba(156, 207, 216, 0.08);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(156, 207, 216, 0.15),
+                0 0 30px rgba(156, 207, 216, 0.1);
   }
   
   .model-card:active {
