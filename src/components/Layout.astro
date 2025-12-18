@@ -464,11 +464,250 @@ const robotsContent =
           animation: none;
         }
       }
+
+      /* Premium subtle noise texture overlay */
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 9999;
+        opacity: 0.022;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      }
+      html.light body::before {
+        opacity: 0.028;
+      }
+
+      /* Scroll-triggered fade-in animation */
+      .fade-in-section {
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), 
+                    transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .fade-in-section.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* Staggered card animations */
+      .stagger-item {
+        opacity: 0;
+        transform: translateY(16px);
+        transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .stagger-item.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* Premium button hover glow */
+      .glow-btn {
+        position: relative;
+        overflow: visible;
+      }
+      .glow-btn::before {
+        content: '';
+        position: absolute;
+        inset: -4px;
+        background: linear-gradient(135deg, rgba(156, 207, 216, 0.5), rgba(196, 167, 231, 0.5));
+        border-radius: inherit;
+        opacity: 0;
+        z-index: -1;
+        transition: opacity 0.3s ease;
+        filter: blur(12px);
+      }
+      .glow-btn:hover::before {
+        opacity: 1;
+      }
+
+      /* Subtle gradient border animation on cards */
+      .gradient-border {
+        position: relative;
+      }
+      .gradient-border::before {
+        content: '';
+        position: absolute;
+        inset: -1px;
+        border-radius: inherit;
+        padding: 1px;
+        background: linear-gradient(135deg, rgba(156, 207, 216, 0.5), rgba(196, 167, 231, 0.4), rgba(156, 207, 216, 0.5));
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+      .gradient-border:hover::before {
+        opacity: 1;
+      }
+
+      /* Subtle pulse for live indicator */
+      @keyframes subtle-pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.7; transform: scale(1.1); }
+      }
+      .live-pulse {
+        animation: subtle-pulse 2s ease-in-out infinite;
+      }
+
+      /* Smooth spring-like button press */
+      .spring-press {
+        transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      .spring-press:active {
+        transform: scale(0.97);
+      }
+
+      /* Shimmer effect for gradient text */
+      @keyframes shimmer {
+        0% { background-position: 200% center; }
+        100% { background-position: -200% center; }
+      }
+      .shimmer-text {
+        background-size: 200% auto;
+        animation: shimmer 4s ease-in-out infinite;
+      }
+
+      /* Animated gradient background for cards */
+      @keyframes gradient-shift {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+      }
+      .animated-gradient {
+        background-size: 200% 200%;
+        animation: gradient-shift 6s ease infinite;
+      }
+
+      /* Glow ring effect */
+      .glow-ring {
+        position: relative;
+      }
+      .glow-ring::after {
+        content: '';
+        position: absolute;
+        inset: -1px;
+        border-radius: inherit;
+        background: linear-gradient(135deg, rgba(156, 207, 216, 0.1), rgba(196, 167, 231, 0.08), rgba(156, 207, 216, 0.1));
+        z-index: -1;
+        filter: blur(6px);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+      .glow-ring:hover::after {
+        opacity: 1;
+      }
+
+      /* Smooth number transition */
+      .animate-number {
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      /* Respect reduced motion */
+      @media (prefers-reduced-motion: reduce) {
+        .fade-in-section,
+        .stagger-item {
+          opacity: 1;
+          transform: none;
+          transition: none;
+        }
+        .glow-btn::before,
+        .gradient-border::before,
+        .glow-ring::after {
+          display: none;
+        }
+        .live-pulse,
+        .shimmer-text,
+        .animated-gradient {
+          animation: none;
+        }
+        .spring-press {
+          transition: none;
+        }
+      }
     </style>
     <slot name="head" />
   </head>
   <body>
     <slot />
     <ModelDrawer client:load />
+    
+    <!-- Premium effects initialization -->
+    <script is:inline>
+      (function() {
+        function initPremiumEffects(isNavigation) {
+          // If navigating via View Transitions, show elements immediately (skip animations)
+          if (isNavigation) {
+            document.querySelectorAll('.fade-in-section, .stagger-item').forEach(function(el) {
+              el.classList.add('is-visible');
+            });
+          } else {
+            // Scroll-triggered fade-in animations - only on initial load
+            var fadeObserver = new IntersectionObserver(function(entries) {
+              entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                  entry.target.classList.add('is-visible');
+                }
+              });
+            }, { threshold: 0.01, rootMargin: '50px 0px 0px 0px' });
+
+            document.querySelectorAll('.fade-in-section').forEach(function(el) {
+              fadeObserver.observe(el);
+            });
+
+            // Staggered card animations - only on initial load
+            var staggerObserver = new IntersectionObserver(function(entries) {
+              entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                  var items = entry.target.querySelectorAll('.stagger-item:not(.is-visible)');
+                  items.forEach(function(item, index) {
+                    setTimeout(function() {
+                      item.classList.add('is-visible');
+                    }, index * 40);
+                  });
+                }
+              });
+            }, { threshold: 0.01, rootMargin: '50px 0px 0px 0px' });
+
+            document.querySelectorAll('.stagger-container').forEach(function(el) {
+              staggerObserver.observe(el);
+            });
+          }
+
+          // Subtle 3D tilt on cards - always re-attach on navigation
+          document.querySelectorAll('.tilt-card').forEach(function(card) {
+            // Remove old listeners by cloning
+            var newCard = card.cloneNode(true);
+            card.parentNode.replaceChild(newCard, card);
+            
+            newCard.addEventListener('mousemove', function(e) {
+              var rect = newCard.getBoundingClientRect();
+              var x = (e.clientX - rect.left) / rect.width;
+              var y = (e.clientY - rect.top) / rect.height;
+              var tiltX = (y - 0.5) * 6;
+              var tiltY = (x - 0.5) * -6;
+              newCard.style.transform = 'perspective(1000px) rotateX(' + tiltX + 'deg) rotateY(' + tiltY + 'deg) translateY(-4px)';
+            });
+            newCard.addEventListener('mouseleave', function() {
+              newCard.style.transform = '';
+            });
+          });
+        }
+
+        // Run on initial load (with animations)
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', function() { initPremiumEffects(false); });
+        } else {
+          initPremiumEffects(false);
+        }
+        
+        // On View Transition navigation, skip animations and show immediately
+        document.addEventListener('astro:page-load', function() {
+          initPremiumEffects(true);
+        });
+      })();
+    </script>
   </body>
 </html>

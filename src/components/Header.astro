@@ -123,6 +123,10 @@ const { currentPage = 'dashboard' } = Astro.props;
   transform: translateY(-1px);
 }
 
+.nav-item:active {
+  transform: scale(0.97);
+}
+
 .nav-item.active {
   color: #e0def4;
   background: linear-gradient(135deg, rgba(156, 207, 216, 0.3), rgba(156, 207, 216, 0.15));
@@ -149,6 +153,10 @@ const { currentPage = 'dashboard' } = Astro.props;
 .theme-toggle:hover {
   background: rgba(156, 207, 216, 0.2);
   border-color: rgba(156, 207, 216, 0.5);
+}
+
+.theme-toggle:active {
+  transform: scale(0.92);
 }
 
 .theme-toggle .sun-icon { display: none; }
