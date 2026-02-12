@@ -481,26 +481,26 @@ const robotsContent =
 
       /* Scroll-triggered fade-in animation */
       .fade-in-section {
-        opacity: 0;
-        transform: translateY(20px);
+        opacity: 1;
+        transform: none;
         transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), 
                     transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
       }
       .fade-in-section.is-visible {
         opacity: 1;
-        transform: translateY(0);
+        transform: none;
       }
 
       /* Staggered card animations */
       .stagger-item {
-        opacity: 0;
-        transform: translateY(16px);
+        opacity: 1;
+        transform: none;
         transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),
                     transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
       }
       .stagger-item.is-visible {
         opacity: 1;
-        transform: translateY(0);
+        transform: none;
       }
 
       /* Premium button hover glow */
@@ -625,6 +625,13 @@ const robotsContent =
         }
         .spring-press {
           transition: none;
+        }
+      }
+
+      /* Reduce paint cost on mobile/low-power GPUs */
+      @media (max-width: 768px) {
+        body::before {
+          display: none;
         }
       }
     </style>
