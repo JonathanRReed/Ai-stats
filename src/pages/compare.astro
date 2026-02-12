@@ -40,6 +40,11 @@ const validModels = models.filter((model: any) => {
   return inputPrice > 0 && outputPrice > 0;
 });
 
+const INITIAL_CLIENT_MODELS = Math.min(40, validModels.length);
+const initialClientModels = validModels.slice(0, INITIAL_CLIENT_MODELS);
+const initialEpochScoreEntries = Object.entries(epochScoresByModel).slice(0, 80);
+const initialClientEpochScores = Object.fromEntries(initialEpochScoreEntries);
+
 const selectedModels = validModels.slice(0, 3);
 
 const getWinner = (items: any[], key: string, isLowerBetter = false) => {
@@ -1378,7 +1383,11 @@ const topFrontierMath =
     <ScrollToTop />
 
     <script
-      define:vars={{ validModels, epochScoresByModel, availableBenchmarks }}
+      define:vars={{
+        validModels: initialClientModels,
+        epochScoresByModel: initialClientEpochScores,
+        availableBenchmarks,
+      }}
     >
       // Security: HTML sanitization function to prevent XSS attacks
       function sanitizeHTML(str) {
@@ -1559,9 +1568,9 @@ const topFrontierMath =
         overlay?.addEventListener("click", closeFilters);
 
         // Dynamic model selection and charts
-        const models = validModels;
-        let filteredModels = [...models]; // For search filtering
-        const selected = new Set(models.slice(0, 3).map((m) => m.id));
+        let modelsState = [...validModels];
+        let filteredModels = [...modelsState]; // For search filtering
+        const selected = new Set(modelsState.slice(0, 3).map((m) => m.id));
         const list = document.querySelector(".model-list");
         const countEl = document.querySelector(".selected-count");
         const priceChart = document.getElementById("price-chart");
@@ -1575,20 +1584,69 @@ const topFrontierMath =
           "performance-metric-title",
         );
 
-        // Benchmark display names mapping (from server)
-        const benchmarkNames = availableBenchmarks;
-
-        // Epoch scores by model (from server)
-        const epochScores = epochScoresByModel;
+        // Benchmark display names and epoch scores (mutable for live refresh)
+        let benchmarkNames = { ...availableBenchmarks };
+        let epochScores = { ...epochScoresByModel };
+        let epochRunsState = [];
+        let epochBenchmarksState = [];
         const sortToggle = document.getElementById("sort-toggle");
         const searchInput = document.getElementById("model-search");
+
+        const AA_BENCHMARK_NAMES = {
+          mmlu_pro: "MMLU Pro",
+          gpqa: "GPQA",
+          hle: "HumanEval",
+          aa_math_index: "Math Index",
+          aa_coding_index: "Coding Index",
+          aa_intelligence_index: "Intelligence Index",
+          livecodebench: "LiveCodeBench",
+          scicode: "SciCode",
+          math_500: "Math 500",
+          aime: "AIME",
+          elo: "ELO Rating",
+        };
+
+        const updateMetricSelectorOptions = () => {
+          if (!metricSelector) return;
+          const previousValue = metricSelector.value || "mmlu_pro";
+          const options = Object.entries(benchmarkNames).map(
+            ([value, label]) => `<option value="${value}">${sanitizeHTML(label)}</option>`,
+          );
+          metricSelector.innerHTML = options.join("");
+          metricSelector.value = benchmarkNames[previousValue]
+            ? previousValue
+            : Object.keys(benchmarkNames)[0] || "mmlu_pro";
+        };
+
+        const rebuildEpochScores = (runs) => {
+          const byModel = {};
+          runs.forEach((run) => {
+            if (!run.model_version || run.score === null || !run.benchmark_slug) return;
+            if (!byModel[run.model_version]) byModel[run.model_version] = {};
+            byModel[run.model_version][run.benchmark_slug] = Number(run.score) || 0;
+          });
+          return byModel;
+        };
+
+        const rebuildBenchmarkNames = (benchmarks, runs) => {
+          const names = { ...AA_BENCHMARK_NAMES };
+          const withData = benchmarks.filter((benchmark) =>
+            runs.some(
+              (run) => run.benchmark_slug === benchmark.slug && run.score !== null,
+            ),
+          );
+          withData.forEach((benchmark) => {
+            names[`epoch_${benchmark.slug}`] = `${benchmark.name} (Epoch)`;
+          });
+          return names;
+        };
 
         function applyFiltersAndSort() {
           const searchTerm = searchInput ? searchInput.value.toLowerCase() : "";
 
           // Filter by search term only
-          filteredModels = models.filter((model) =>
-            model.name.toLowerCase().includes(searchTerm),
+          filteredModels = modelsState.filter((model) =>
+            (model.name || "").toLowerCase().includes(searchTerm),
           );
         }
 
@@ -1601,7 +1659,7 @@ const topFrontierMath =
               (m) => `
             <div class="model-item">
               <input type="checkbox" id="model-${m.id}" data-id="${m.id}" ${selected.has(m.id) ? "checked" : ""} />
-              <label for="model-${m.id}">${sanitizeHTML(m.name)}</label>
+              <label for="model-${m.id}">${sanitizeHTML(m.name || "Unknown model")}</label>
             </div>
           `,
             )
@@ -1614,7 +1672,7 @@ const topFrontierMath =
         }
 
         function getSelected() {
-          return models.filter((m) => selected.has(m.id));
+          return modelsState.filter((m) => selected.has(m.id));
         }
 
         function updateInsights(models) {
@@ -1768,15 +1826,8 @@ const topFrontierMath =
             .querySelector("#performance-chart")
             .parentElement.querySelector(".chart-header h3");
           if (perfChartHeader) {
-            const metricDisplayNames = {
-              mmlu_pro: "MMLU PRO",
-              gpqa: "GPQA",
-              math: "MATH",
-              humaneval: "HumanEval",
-              drop: "DROP",
-            };
             const benchmarkName =
-              metricDisplayNames[metric] ||
+              benchmarkNames[metric] ||
               metric.toUpperCase().replace("_", " ");
             perfChartHeader.textContent = `${benchmarkName} Performance Comparison`;
           }
@@ -2114,6 +2165,37 @@ const topFrontierMath =
           }
         });
 
+        window.addEventListener("aistats:live-snapshot", (event) => {
+          const snapshot = event.detail;
+          if (!snapshot) return;
+
+          const nextModels = (snapshot.aaModels ?? []).filter((model) => {
+            const inputPrice = Number(model.price_1m_input_tokens);
+            const outputPrice = Number(model.price_1m_output_tokens);
+            return inputPrice > 0 && outputPrice > 0;
+          });
+
+          modelsState = nextModels;
+          epochRunsState = [...(snapshot.epochRuns ?? [])];
+          epochBenchmarksState = [...(snapshot.epochBenchmarks ?? [])];
+          epochScores = rebuildEpochScores(epochRunsState);
+          benchmarkNames = rebuildBenchmarkNames(epochBenchmarksState, epochRunsState);
+          updateMetricSelectorOptions();
+
+          const liveIds = new Set(modelsState.map((model) => model.id));
+          Array.from(selected).forEach((id) => {
+            if (!liveIds.has(id)) selected.delete(id);
+          });
+          if (selected.size === 0) {
+            modelsState.slice(0, 3).forEach((model) => selected.add(model.id));
+          }
+
+          renderModelList();
+          updateCount();
+          renderCharts();
+        });
+
+        updateMetricSelectorOptions();
         renderModelList();
         updateCount();
         try {
@@ -2226,6 +2308,38 @@ const topFrontierMath =
 
       // Handle Astro View Transitions - re-initialize after navigation
       document.addEventListener("astro:page-load", initialize);
+    </script>
+    <script>
+      import { fetchLiveSnapshot } from "../lib/live-data";
+
+      const scheduleLiveRefresh = () => {
+        const run = async () => {
+          const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+          if (connection?.saveData) return;
+
+          const snapshot = await fetchLiveSnapshot();
+          if (!snapshot) return;
+          window.dispatchEvent(
+            new CustomEvent("aistats:live-snapshot", { detail: snapshot }),
+          );
+        };
+
+        if ("requestIdleCallback" in window) {
+          window.requestIdleCallback(() => {
+            void run();
+          }, { timeout: 7000 });
+        } else {
+          setTimeout(() => {
+            void run();
+          }, 3500);
+        }
+      };
+
+      if (document.readyState === "complete") {
+        scheduleLiveRefresh();
+      } else {
+        window.addEventListener("load", scheduleLiveRefresh, { once: true });
+      }
     </script>
   </body>
 </html>

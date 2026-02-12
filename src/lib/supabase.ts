@@ -1,7 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { AA_MODEL_SELECT_COLUMNS } from './aa-model-columns';
 
 // Public client for server-side fetching (Astro on the server).
-// Uses anon key; RLS allows read on public.aa_models.
+// Uses anon key; RLS allows read on public tables.
 const SUPABASE_URL = import.meta.env.PUBLIC_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.PUBLIC_SUPABASE_ANON_KEY ?? '';
 
@@ -9,9 +10,14 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.warn('[supabase] Missing PUBLIC_SUPABASE_URL or PUBLIC_SUPABASE_ANON_KEY');
 }
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: false },
-});
+export const supabase: SupabaseClient | null =
+  SUPABASE_URL && SUPABASE_ANON_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { persistSession: false },
+      })
+    : null;
+
+export { AA_MODEL_SELECT_COLUMNS };
 
 // Epoch.ai types
 export type EpochModel = {
@@ -87,28 +93,12 @@ export type AaModel = {
  * Adds company_name derived from creator_name for the existing UI.
  */
 export async function getModels(): Promise<AaModel[]> {
-  // Select only required columns to minimize payload size
-  const select = [
-    'id',
-    'name',
-    'creator_name',
-    'aa_intelligence_index',
-    'aa_coding_index',
-    'aa_math_index',
-    'mmlu_pro',
-    'gpqa',
-    'hle',
-    'livecodebench',
-    'scicode',
-    'math_500',
-    'aime',
-    'price_1m_blended_3_to_1',
-    'price_1m_input_tokens',
-    'price_1m_output_tokens',
-    'median_output_tokens_per_second',
-    'median_time_to_first_token_seconds',
-    'median_time_to_first_answer_token',
-  ].join(',');
+  if (!supabase) {
+    console.warn('[supabase] Client unavailable, returning empty model list.');
+    return [];
+  }
+
+  const select = AA_MODEL_SELECT_COLUMNS.join(',');
 
   const { data, error } = await supabase
     .from('aa_models')
@@ -120,20 +110,22 @@ export async function getModels(): Promise<AaModel[]> {
     throw error;
   }
 
-  // Map and add derived fields
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const models = (data ?? []).map((model: any) => ({
+  return (data ?? []).map((model: any) => ({
     ...model,
     company_name: model.creator_name ?? null,
   })) as AaModel[];
-
-  return models;
 }
 
 /**
  * Fetches epoch.ai models sorted by ECI score
  */
 export async function getEpochModels(): Promise<EpochModel[]> {
+  if (!supabase) {
+    console.warn('[supabase] Client unavailable, returning empty epoch model list.');
+    return [];
+  }
+
   const { data, error } = await supabase
     .from('epoch_models')
     .select('*')
@@ -151,6 +143,11 @@ export async function getEpochModels(): Promise<EpochModel[]> {
  * Fetches all epoch.ai benchmark definitions
  */
 export async function getEpochBenchmarks(): Promise<EpochBenchmark[]> {
+  if (!supabase) {
+    console.warn('[supabase] Client unavailable, returning empty epoch benchmark list.');
+    return [];
+  }
+
   const { data, error } = await supabase
     .from('epoch_benchmarks')
     .select('*')
@@ -168,6 +165,11 @@ export async function getEpochBenchmarks(): Promise<EpochBenchmark[]> {
  * Fetches epoch.ai benchmark runs with benchmark names
  */
 export async function getEpochBenchmarkRuns(): Promise<EpochBenchmarkRun[]> {
+  if (!supabase) {
+    console.warn('[supabase] Client unavailable, returning empty epoch benchmark runs.');
+    return [];
+  }
+
   const { data, error } = await supabase
     .from('epoch_benchmark_runs')
     .select(`
@@ -191,7 +193,7 @@ export async function getEpochBenchmarkRuns(): Promise<EpochBenchmarkRun[]> {
     return [];
   }
 
-  // Flatten the nested benchmark data
+  // Flatten nested benchmark data.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data ?? []).map((run: any) => ({
     ...run,
@@ -203,7 +205,15 @@ export async function getEpochBenchmarkRuns(): Promise<EpochBenchmarkRun[]> {
 /**
  * Gets top models for a specific epoch benchmark
  */
-export async function getTopModelsByEpochBenchmark(benchmarkSlug: string, limit = 10): Promise<EpochBenchmarkRun[]> {
+export async function getTopModelsByEpochBenchmark(
+  benchmarkSlug: string,
+  limit = 10,
+): Promise<EpochBenchmarkRun[]> {
+  if (!supabase) {
+    console.warn('[supabase] Client unavailable, returning empty top-model query result.');
+    return [];
+  }
+
   const { data, error } = await supabase
     .from('epoch_benchmark_runs')
     .select(`

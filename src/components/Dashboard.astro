@@ -48,6 +48,7 @@ const validModels = models.filter((model: any) => {
 
 const totalModels = validModels.length;
 const INITIAL_VISIBLE_MODELS = Math.min(20, totalModels);
+const initialModels = validModels.slice(0, INITIAL_VISIBLE_MODELS);
 const avgInputPrice =
   validModels.reduce(
     (sum: number, m: any) => sum + Number(m.price_1m_input_tokens),
@@ -162,7 +163,7 @@ function getScoreClass(score: number | null | undefined): string {
             AI Stats
           </h1>
           <p class="mt-2 max-w-xl text-sm text-subtle sm:text-base">
-            {totalModels} LLM models tracked with pricing & performance benchmarks.
+            <span id="hero-model-count">{totalModels}</span> LLM models tracked with pricing & performance benchmarks.
             <br />
             Data sourced from ArtificialAnalysis.com & Epoch.ai
           </p>
@@ -185,12 +186,16 @@ function getScoreClass(score: number | null | undefined): string {
             <img
               src="/icons/Icon + Artificial Analysis - Horizontal SVG.svg"
               alt="Artificial Analysis"
+              width="140"
+              height="20"
               class="h-5 w-auto opacity-80"
             />
             <span class="text-subtle">+</span>
             <img
               src="/icons/epochaidata.svg"
               alt="Epoch AI"
+              width="88"
+              height="20"
               class="h-5 w-auto"
             />
           </div>
@@ -212,6 +217,8 @@ function getScoreClass(score: number | null | undefined): string {
               <img
                 src="/icons/Icon + Artificial Analysis - Horizontal SVG.svg"
                 alt="Artificial Analysis"
+                width="168"
+                height="24"
                 class="h-6 w-auto opacity-90"
               />
             </div>
@@ -222,6 +229,8 @@ function getScoreClass(score: number | null | undefined): string {
               <img
                 src="/icons/epochaidata.svg"
                 alt="Epoch AI"
+                width="106"
+                height="24"
                 class="h-6 w-auto"
               />
               <span class="text-[0.65rem] text-subtle">Epoch AI</span>
@@ -237,10 +246,10 @@ function getScoreClass(score: number | null | undefined): string {
         <Card class="flex items-center justify-between px-4 py-3 glow-ring stagger-item">
           <div class="text-subtle">Top MMLU model</div>
           <div class="text-right">
-            <div class="text-sm font-semibold text-text">
+            <div class="text-sm font-semibold text-text" id="top-mmlu-name">
               {topMmluModel ? topMmluModel.name : "—"}
             </div>
-            <div class="text-[0.7rem] text-subtle">
+            <div class="text-[0.7rem] text-subtle" id="top-mmlu-score">
               {topMmluModel ? formatScore(topMmluModel.mmlu_pro) : ""}
             </div>
           </div>
@@ -248,10 +257,10 @@ function getScoreClass(score: number | null | undefined): string {
         <Card class="flex items-center justify-between px-4 py-3 glow-ring stagger-item">
           <div class="text-subtle">Cheapest blended price (3:1)</div>
           <div class="text-right">
-            <div class="text-sm font-semibold text-text">
+            <div class="text-sm font-semibold text-text" id="cheapest-blended-name">
               {cheapestBlendedModel ? cheapestBlendedModel.name : "—"}
             </div>
-            <div class="text-[0.7rem] text-subtle">
+            <div class="text-[0.7rem] text-subtle" id="cheapest-blended-price">
               {
                 cheapestBlendedModel
                   ? formatPrice(
@@ -268,14 +277,14 @@ function getScoreClass(score: number | null | undefined): string {
         >
           <div class="text-subtle">Top ECI Score</div>
           <div class="text-right">
-            <div class="text-sm font-semibold text-text">
+            <div class="text-sm font-semibold text-text" id="top-eci-name">
               {
                 topEciModel
                   ? topEciModel.display_name || topEciModel.model_name
                   : "—"
               }
             </div>
-            <div class="text-[0.7rem] text-iris">
+            <div class="text-[0.7rem] text-iris" id="top-eci-score">
               {topEciModel ? topEciModel.eci_score?.toFixed(1) : ""} ECI
             </div>
           </div>
@@ -285,10 +294,10 @@ function getScoreClass(score: number | null | undefined): string {
         >
           <div class="text-subtle">Epoch.ai Models</div>
           <div class="text-right">
-            <div class="text-sm font-semibold text-text">
+            <div class="text-sm font-semibold text-text" id="epoch-models-count">
               {epochModels.length}
             </div>
-            <div class="text-[0.7rem] text-iris">
+            <div class="text-[0.7rem] text-iris" id="epoch-runs-count">
               {epochRuns.length} benchmark runs
             </div>
           </div>
@@ -307,7 +316,7 @@ function getScoreClass(score: number | null | undefined): string {
         <div class="text-[0.7rem] uppercase tracking-wide text-subtle">
           Total models
         </div>
-        <div class="mt-2 text-2xl font-semibold text-text">{totalModels}</div>
+        <div class="mt-2 text-2xl font-semibold text-text" id="summary-total-models">{totalModels}</div>
         <p class="mt-1 text-[0.7rem] text-muted">From ArtificialAnalysis.com</p>
       </Card>
       <Card
@@ -316,7 +325,7 @@ function getScoreClass(score: number | null | undefined): string {
         <div class="text-[0.7rem] uppercase tracking-wide text-subtle">
           Avg input price
         </div>
-        <div class="mt-2 text-2xl font-semibold text-text">
+        <div class="mt-2 text-2xl font-semibold text-text" id="summary-avg-input">
           {formatPrice(avgInputPrice, 3)}
         </div>
         <p class="mt-1 text-[0.7rem] text-muted">per 1M input tokens</p>
@@ -327,7 +336,7 @@ function getScoreClass(score: number | null | undefined): string {
         <div class="text-[0.7rem] uppercase tracking-wide text-subtle">
           Avg output price
         </div>
-        <div class="mt-2 text-2xl font-semibold text-text">
+        <div class="mt-2 text-2xl font-semibold text-text" id="summary-avg-output">
           {formatPrice(avgOutputPrice, 3)}
         </div>
         <p class="mt-1 text-[0.7rem] text-muted">per 1M output tokens</p>
@@ -340,7 +349,7 @@ function getScoreClass(score: number | null | undefined): string {
         class="overflow-hidden rounded-3xl bg-surface/95 shadow-xl shadow-black/40 gradient-border"
       >
         <header
-          class="flex flex-col gap-3 border-b border-highlight-low/80 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6"
+          class="relative z-20 flex flex-col gap-3 border-b border-highlight-low/80 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6"
         >
           <div>
             <h2 class="text-base font-semibold text-text md:text-lg">
@@ -350,7 +359,7 @@ function getScoreClass(score: number | null | undefined): string {
               Switch metrics to see different top-5 rankings.
             </p>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="relative z-30 flex items-center gap-2">
             <label
               for="leaderboard-metric"
               class="text-[0.7rem] font-medium text-subtle"
@@ -359,7 +368,7 @@ function getScoreClass(score: number | null | undefined): string {
             </label>
             <select
               id="leaderboard-metric"
-              class="rounded-md border border-highlight-med bg-surface px-2 py-1 text-[0.7rem] text-text shadow-sm focus:outline-none focus:ring-2 focus:ring-foam"
+              class="relative z-30 pointer-events-auto rounded-md border border-highlight-med bg-surface px-2 py-1 text-[0.7rem] text-text shadow-sm focus:outline-none focus:ring-2 focus:ring-foam"
             >
               {
                 benchmarkConfigs.map(({ key, label }) => (
@@ -372,7 +381,7 @@ function getScoreClass(score: number | null | undefined): string {
           </div>
         </header>
 
-        <div class="space-y-3 px-4 pb-4 pt-3 md:px-6 md:pb-6">
+        <div class="relative z-10 space-y-3 px-4 pb-4 pt-3 md:px-6 md:pb-6" id="leaderboard-panels">
           {
             benchmarkConfigs.map(({ key, source }) => {
               const list = topByBenchmark[key] ?? [];
@@ -406,7 +415,7 @@ function getScoreClass(score: number | null | undefined): string {
                         <li class="relative overflow-hidden transition-colors hover:bg-highlight-low/40">
                           {/* Background bar */}
                           <div
-                            class={`absolute inset-y-0 left-0 bg-gradient-to-r ${rankColors[index]} border-l-4`}
+                            class={`pointer-events-none absolute inset-y-0 left-0 bg-gradient-to-r ${rankColors[index]} border-l-4`}
                             style={`width: ${barWidth}%`}
                           />
 
@@ -612,7 +621,7 @@ function getScoreClass(score: number | null | undefined): string {
       </div>
 
       <div class="grid gap-3 md:grid-cols-2 stagger-container" id="models-grid">
-        {validModels.map((model: any) => <ModelCard model={model} />)}
+        {initialModels.map((model: any) => <ModelCard model={model} />)}
       </div>
 
       <!-- Table view (hidden by default) -->
@@ -636,7 +645,7 @@ function getScoreClass(score: number | null | undefined): string {
             id="models-table-body"
           >
             {
-              validModels.map((model: any) => (
+              initialModels.map((model: any) => (
                 <tr
                   class="cursor-pointer transition-colors hover:bg-highlight-low/50"
                   data-table-row
@@ -789,98 +798,99 @@ function getScoreClass(score: number | null | undefined): string {
 <script>
   // @ts-nocheck
   if (typeof window !== "undefined") {
-    // Animated number counter
-    const animateValue = (el, start, end, duration) => {
-      if (!el || start === end) return;
-      const range = end - start;
-      const startTime = performance.now();
-      const isDecimal = !Number.isInteger(end);
-
-      const update = (currentTime) => {
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
-        const current = start + range * eased;
-        el.textContent = isDecimal
-          ? current.toFixed(2)
-          : Math.round(current).toString();
-        if (progress < 1) requestAnimationFrame(update);
-      };
-      requestAnimationFrame(update);
-    };
-
-    // Animate summary stats on page load
-    document.querySelectorAll("[data-animate-number]").forEach((el) => {
-      const target = parseFloat(
-        el.textContent?.replace(/[^0-9.-]/g, "") || "0",
-      );
-      const prefix = el.textContent?.match(/^[^0-9]*/)?.[0] || "";
-      const suffix = el.textContent?.match(/[^0-9]*$/)?.[0] || "";
-      el.textContent = prefix + "0" + suffix;
-      setTimeout(() => {
-        animateValue(el, 0, target, 800);
-      }, 100);
-    });
-
-    const metricSelect = document.getElementById("leaderboard-metric");
-    const metricContainers = document.querySelectorAll("[data-metric]");
-
-    metricSelect?.addEventListener("change", (event) => {
-      const value = event.target.value;
-      metricContainers.forEach((el) => {
-        if (!(el instanceof HTMLElement)) return;
-        el.hidden = el.dataset.metric !== value;
-      });
-    });
-
     const PAGE_SIZE = 20;
-    let currentVisible = PAGE_SIZE;
-    let matchedTotal = 0;
+    const AA_BENCHMARKS = [
+      { key: "mmlu_pro", label: "MMLU Pro", source: "aa" },
+      { key: "gpqa", label: "GPQA", source: "aa" },
+      { key: "hle", label: "HLE", source: "aa" },
+      { key: "aime", label: "AIME", source: "aa" },
+      { key: "scicode", label: "SciCode", source: "aa" },
+      { key: "math_500", label: "Math 500", source: "aa" },
+      { key: "livecodebench", label: "LiveCodeBench", source: "aa" },
+      { key: "aa_math_index", label: "AA Math Index", source: "aa" },
+      { key: "aa_coding_index", label: "AA Coding Index", source: "aa" },
+      { key: "aa_intelligence_index", label: "AA Intelligence Index", source: "aa" },
+    ];
 
-    const searchInput = document.getElementById("model-search");
     const grid = document.getElementById("models-grid");
-    const cards = Array.from(document.querySelectorAll("[data-model-card]"));
-    const visibleCountEl = document.getElementById("visible-model-count");
-    const loadMoreBtn = document.getElementById("load-more-models");
+    const tableBody = document.getElementById("models-table-body");
+    const tableContainer = document.getElementById("models-table-container");
+    const searchInput = document.getElementById("model-search");
     const sortSelect = document.getElementById("model-sort");
     const sortDirectionSelect = document.getElementById("model-sort-direction");
+    const loadMoreBtn = document.getElementById("load-more-models");
+    const visibleCountEl = document.getElementById("visible-model-count");
+    const totalCountEl = document.getElementById("total-models-count");
+    const heroCountEl = document.getElementById("hero-model-count");
+    const summaryTotalEl = document.getElementById("summary-total-models");
+    const summaryAvgInputEl = document.getElementById("summary-avg-input");
+    const summaryAvgOutputEl = document.getElementById("summary-avg-output");
+    const topMmluNameEl = document.getElementById("top-mmlu-name");
+    const topMmluScoreEl = document.getElementById("top-mmlu-score");
+    const cheapestNameEl = document.getElementById("cheapest-blended-name");
+    const cheapestPriceEl = document.getElementById("cheapest-blended-price");
+    const epochModelsCountEl = document.getElementById("epoch-models-count");
+    const epochRunsCountEl = document.getElementById("epoch-runs-count");
+    const metricSelect = document.getElementById("leaderboard-metric");
+    const leaderboardPanels = document.getElementById("leaderboard-panels");
     const emptyState = document.getElementById("empty-state");
+    const viewCardsBtn = document.getElementById("view-cards");
+    const viewTableBtn = document.getElementById("view-table");
 
-    const updateVisibility = () => {
-      let visible = 0;
-      cards.forEach((card) => {
-        const match = card.dataset.match === "true";
-        if (match && visible < currentVisible) {
-          card.style.display = "";
-          visible++;
-        } else {
-          card.style.display = "none";
-        }
-      });
-      if (visibleCountEl) visibleCountEl.textContent = String(visible);
-      if (loadMoreBtn) loadMoreBtn.hidden = visible >= matchedTotal;
-      if (grid) grid.style.display = matchedTotal === 0 ? "none" : "";
-      if (emptyState) emptyState.classList.toggle("hidden", matchedTotal > 0);
+    let currentVisible = PAGE_SIZE;
+    let matchedTotal = 0;
+    let currentView = "cards";
+    let focusedCardIndex = -1;
+
+    const escapeHtml = (value) =>
+      String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+
+    const toDisplayName = (value, fallback = "—") => {
+      const str = String(value ?? "").trim();
+      return str || fallback;
     };
 
-    const applySearch = (resetVisible = false) => {
-      if (resetVisible) currentVisible = PAGE_SIZE;
-      const q = (searchInput?.value || "").toLowerCase().trim();
-      matchedTotal = 0;
-      cards.forEach((card) => {
-        const name = card.dataset.name || "";
-        const company = card.dataset.company || "";
-        const match = !q || name.includes(q) || company.includes(q);
-        card.dataset.match = match ? "true" : "false";
-        if (match) matchedTotal++;
-      });
-      updateVisibility();
+    const formatScore = (score) => {
+      const num = Number(score);
+      if (!Number.isFinite(num) || num <= 0) return "—";
+      const pct = num <= 1 ? num * 100 : num;
+      return `${pct.toFixed(1)}%`;
     };
 
-    loadMoreBtn?.addEventListener("click", () => {
-      currentVisible = Math.min(currentVisible + PAGE_SIZE, matchedTotal);
-      updateVisibility();
-    });
+    const formatPrice = (price, decimals = 3) => {
+      const num = Number(price);
+      if (!Number.isFinite(num) || num <= 0) return "—";
+      const factor = Math.pow(10, decimals);
+      const truncated = Math.trunc(num * factor) / factor;
+      return `$${truncated.toFixed(decimals)}`;
+    };
+
+    const formatTps = (tps) => {
+      const num = Number(tps);
+      if (!Number.isFinite(num) || num <= 0) return "—";
+      return num.toFixed(1);
+    };
+
+    const formatTtft = (ttft) => {
+      const num = Number(ttft);
+      if (!Number.isFinite(num) || num <= 0) return "—";
+      return `${num.toFixed(2)}s`;
+    };
+
+    const getScoreClass = (score) => {
+      const num = Number(score);
+      if (!Number.isFinite(num) || num <= 0) return "score-none";
+      const pct = num <= 1 ? num * 100 : num;
+      if (pct >= 80) return "score-high";
+      if (pct >= 60) return "score-mid";
+      if (pct >= 40) return "score-low";
+      return "score-poor";
+    };
 
     const sortAttrMap = {
       mmlu: "mmlu",
@@ -892,11 +902,362 @@ function getScoreClass(score: number | null | undefined): string {
       tps: "tps",
     };
 
+    const getCards = () => Array.from(document.querySelectorAll("[data-model-card]"));
+    const getTableRows = () => Array.from(document.querySelectorAll("[data-table-row]"));
+
+    const getValidModels = (models) =>
+      (models ?? []).filter((model) => {
+        const input = Number(model.price_1m_input_tokens);
+        const output = Number(model.price_1m_output_tokens);
+        return input > 0 && output > 0;
+      });
+
+    const getVisibleCards = () => getCards().filter((card) => card.style.display !== "none");
+
+    const updateModelCounts = (models) => {
+      const count = models.length;
+      if (heroCountEl) heroCountEl.textContent = String(count);
+      if (totalCountEl) totalCountEl.textContent = String(count);
+      if (summaryTotalEl) summaryTotalEl.textContent = String(count);
+    };
+
+    const updateSummaryStats = (models) => {
+      const total = models.length || 1;
+      const avgInput = models.reduce((sum, m) => sum + (Number(m.price_1m_input_tokens) || 0), 0) / total;
+      const avgOutput = models.reduce((sum, m) => sum + (Number(m.price_1m_output_tokens) || 0), 0) / total;
+      if (summaryAvgInputEl) summaryAvgInputEl.textContent = formatPrice(avgInput, 3);
+      if (summaryAvgOutputEl) summaryAvgOutputEl.textContent = formatPrice(avgOutput, 3);
+    };
+
+    const updateTopStrip = (models, epochRuns) => {
+      const topMmluModel =
+        [...models]
+          .filter((m) => Number(m.mmlu_pro) > 0)
+          .sort((a, b) => Number(b.mmlu_pro) - Number(a.mmlu_pro))[0] ?? null;
+
+      const cheapestBlended =
+        [...models]
+          .filter((m) => Number(m.price_1m_blended_3_to_1) > 0)
+          .sort(
+            (a, b) =>
+              Number(a.price_1m_blended_3_to_1) - Number(b.price_1m_blended_3_to_1),
+          )[0] ?? null;
+
+      if (topMmluNameEl) topMmluNameEl.textContent = topMmluModel ? toDisplayName(topMmluModel.name) : "—";
+      if (topMmluScoreEl) topMmluScoreEl.textContent = topMmluModel ? formatScore(topMmluModel.mmlu_pro) : "";
+      if (cheapestNameEl) cheapestNameEl.textContent = cheapestBlended ? toDisplayName(cheapestBlended.name) : "—";
+      if (cheapestPriceEl) {
+        cheapestPriceEl.textContent = cheapestBlended
+          ? formatPrice(cheapestBlended.price_1m_blended_3_to_1, 3)
+          : "";
+      }
+
+      if (Array.isArray(epochRuns) && epochRunsCountEl) {
+        epochRunsCountEl.textContent = `${epochRuns.length} benchmark runs`;
+      }
+      if (Array.isArray(epochRuns) && epochModelsCountEl) {
+        const modelCount = new Set(
+          epochRuns.map((run) => String(run.model_version || "").trim()).filter(Boolean),
+        ).size;
+        epochModelsCountEl.textContent = String(modelCount);
+      }
+    };
+
+    const buildTopByBenchmark = (models, epochBenchmarks, epochRuns) => {
+      const topByBenchmark = {};
+      const aaConfigs = [];
+      const epochConfigs = [];
+
+      AA_BENCHMARKS.forEach((config) => {
+        const list = [...models]
+          .filter((model) => Number(model[config.key]) > 0)
+          .sort((a, b) => Number(b[config.key]) - Number(a[config.key]))
+          .slice(0, 5);
+        if (!list.length) return;
+        topByBenchmark[config.key] = list;
+        aaConfigs.push(config);
+      });
+
+      epochBenchmarks.forEach((benchmark) => {
+        const key = `epoch_${benchmark.slug}`;
+        const list = epochRuns
+          .filter((run) => run.benchmark_slug === benchmark.slug && run.score !== null)
+          .sort((a, b) => Number(b.score) - Number(a.score))
+          .slice(0, 5)
+          .map((run) => ({
+            name: String(run.model_version || "").replace(/_/g, " ").replace(/-/g, " "),
+            company_name: run.organization ?? "Unknown provider",
+            score: Number(run.score) || 0,
+          }));
+        if (!list.length) return;
+        topByBenchmark[key] = list;
+        epochConfigs.push({
+          key,
+          label: `${benchmark.name} (Epoch)`,
+          source: "epoch",
+        });
+      });
+
+      return { benchmarkConfigs: [...aaConfigs, ...epochConfigs], topByBenchmark };
+    };
+
+    const renderLeaderboard = (models, epochBenchmarks, epochRuns) => {
+      if (!metricSelect || !leaderboardPanels) return;
+
+      const selectedMetric = metricSelect.value || "mmlu_pro";
+      const { benchmarkConfigs, topByBenchmark } = buildTopByBenchmark(
+        models,
+        epochBenchmarks ?? [],
+        epochRuns ?? [],
+      );
+
+      metricSelect.innerHTML = benchmarkConfigs
+        .map(
+          (config) =>
+            `<option value="${escapeHtml(config.key)}">${escapeHtml(config.label)}</option>`,
+        )
+        .join("");
+
+      const fallbackMetric = benchmarkConfigs[0]?.key ?? "mmlu_pro";
+      metricSelect.value = benchmarkConfigs.some((config) => config.key === selectedMetric)
+        ? selectedMetric
+        : fallbackMetric;
+
+      leaderboardPanels.innerHTML = benchmarkConfigs
+        .map((config) => {
+          const list = topByBenchmark[config.key] ?? [];
+          if (!list.length) return "";
+
+          const isEpoch = config.source === "epoch";
+          const getScore = (model) => (isEpoch ? Number(model.score) || 0 : Number(model[config.key]) || 0);
+          const formatBenchmarkScore = (score) => {
+            if (!Number.isFinite(score) || score <= 0) return "—";
+            if (!isEpoch) return formatScore(score);
+            const pct = score <= 1 ? score * 100 : score;
+            return `${pct.toFixed(1)}%`;
+          };
+          const maxScore = Math.max(...list.map(getScore), 0);
+          const rankColors = [
+            "from-amber-500/20 to-yellow-500/10 border-l-amber-400",
+            "from-slate-400/15 to-gray-400/5 border-l-slate-300",
+            "from-orange-600/15 to-amber-700/5 border-l-orange-500",
+            "from-transparent to-transparent border-l-highlight-med",
+            "from-transparent to-transparent border-l-highlight-med",
+          ];
+
+          const rows = list
+            .map((model, index) => {
+              const score = getScore(model);
+              const barWidth = maxScore > 0 ? (score / maxScore) * 100 : 0;
+              const scoreText = formatBenchmarkScore(score);
+              const name = escapeHtml(toDisplayName(model.name));
+              const company = escapeHtml(toDisplayName(model.company_name, "Unknown provider"));
+              const rankBadge =
+                index === 0
+                  ? '<div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 text-sm font-bold text-amber-900 shadow-lg shadow-amber-500/30">1</div>'
+                  : index === 1
+                    ? '<div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-slate-300 to-gray-400 text-sm font-bold text-slate-700 shadow-lg shadow-slate-400/30">2</div>'
+                    : index === 2
+                      ? '<div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-amber-600 text-sm font-bold text-orange-900 shadow-lg shadow-orange-500/30">3</div>'
+                      : `<div class="flex h-7 w-7 items-center justify-center rounded-full bg-highlight-med/60 text-xs font-semibold text-subtle">${index + 1}</div>`;
+
+              return `
+                <li class="relative overflow-hidden transition-colors hover:bg-highlight-low/40">
+                  <div class="pointer-events-none absolute inset-y-0 left-0 bg-gradient-to-r ${rankColors[index]} border-l-4" style="width: ${barWidth}%"></div>
+                  <div class="relative grid grid-cols-[2.5rem_1fr_auto] items-center gap-4 px-4 py-3.5">
+                    <div class="flex items-center justify-center">${rankBadge}</div>
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-2">
+                        <span class="truncate font-semibold ${index === 0 ? "text-text" : "text-text/90"}" title="${name}">${name}</span>
+                      </div>
+                      <div class="mt-0.5 text-[0.7rem] text-subtle">${company}</div>
+                    </div>
+                    <div class="text-right font-mono text-lg font-bold ${index === 0 ? "score-high" : index < 3 ? "text-text" : "text-subtle"}">${scoreText}</div>
+                  </div>
+                </li>
+              `;
+            })
+            .join("");
+
+          const hiddenAttr = config.key === metricSelect.value ? "" : " hidden";
+          return `
+            <div data-metric="${escapeHtml(config.key)}" class="overflow-hidden rounded-2xl border border-highlight-low/60"${hiddenAttr}>
+              <ul class="divide-y divide-highlight-low/40">${rows}</ul>
+            </div>
+          `;
+        })
+        .join("");
+
+      // Keep metric select and panel set in lockstep.
+      const panelKeys = new Set(
+        Array.from(document.querySelectorAll("[data-metric]"))
+          .map((el) => el.getAttribute("data-metric"))
+          .filter(Boolean),
+      );
+      Array.from(metricSelect.options).forEach((option) => {
+        if (!panelKeys.has(option.value)) option.remove();
+      });
+      if (!panelKeys.has(metricSelect.value)) {
+        metricSelect.value = metricSelect.options[0]?.value ?? "mmlu_pro";
+      }
+
+      Array.from(document.querySelectorAll("[data-metric]")).forEach((el) => {
+        if (!(el instanceof HTMLElement)) return;
+        const shouldHide = el.dataset.metric !== metricSelect.value;
+        el.hidden = shouldHide;
+        el.classList.toggle("hidden", shouldHide);
+      });
+    };
+
+    const createCardMarkup = (model) => {
+      const name = escapeHtml(toDisplayName(model.name));
+      const company = escapeHtml(toDisplayName(model.company_name, "Unknown provider"));
+      return `
+        <div
+          data-model-card
+          data-model-id="${escapeHtml(model.id)}"
+          data-model-json="${escapeHtml(JSON.stringify(model))}"
+          data-name="${escapeHtml(String(model.name ?? "").toLowerCase())}"
+          data-company="${escapeHtml(String(model.company_name ?? "").toLowerCase())}"
+          data-mmlu="${Number(model.mmlu_pro) || 0}"
+          data-gpqa="${Number(model.gpqa) || 0}"
+          data-hle="${Number(model.hle) || 0}"
+          data-aime="${Number(model.aime) || 0}"
+          data-input-price="${Number(model.price_1m_input_tokens) || 0}"
+          data-output-price="${Number(model.price_1m_output_tokens) || 0}"
+          data-tps="${Number(model.median_output_tokens_per_second) || 0}"
+          class="model-card group rounded-2xl border border-highlight-med bg-surface/95 px-4 py-4 text-sm shadow-md shadow-black/30 gradient-border stagger-item tilt-card"
+        >
+          <header class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <h3 class="truncate text-sm font-semibold text-text group-hover:text-foam transition-colors" title="${name}">${name}</h3>
+              <p class="mt-0.5 text-xs text-subtle">${company}</p>
+            </div>
+            <div class="text-right text-[0.65rem] text-subtle flex-shrink-0">
+              <div>Input: ${formatPrice(model.price_1m_input_tokens, 3)}</div>
+              <div>Output: ${formatPrice(model.price_1m_output_tokens, 3)}</div>
+            </div>
+          </header>
+          <div class="mt-3 grid gap-2 text-[0.7rem] text-subtle grid-cols-2">
+            <section class="rounded-lg border border-highlight-low/60 bg-overlay/50 px-3 py-2">
+              <div class="text-[0.55rem] uppercase tracking-wide text-muted">Benchmarks</div>
+              <dl class="mt-1.5 space-y-0.5 text-text text-[0.65rem]">
+                <div class="flex items-center justify-between"><dt>MMLU</dt><dd class="font-semibold ${getScoreClass(model.mmlu_pro)}">${formatScore(model.mmlu_pro)}</dd></div>
+                <div class="flex items-center justify-between"><dt>GPQA</dt><dd class="font-semibold ${getScoreClass(model.gpqa)}">${formatScore(model.gpqa)}</dd></div>
+                <div class="flex items-center justify-between"><dt>HLE</dt><dd class="font-semibold ${getScoreClass(model.hle)}">${formatScore(model.hle)}</dd></div>
+              </dl>
+            </section>
+            <section class="rounded-lg border border-highlight-low/60 bg-overlay/50 px-3 py-2">
+              <div class="text-[0.55rem] uppercase tracking-wide text-muted">Performance</div>
+              <dl class="mt-1.5 space-y-0.5 text-text text-[0.65rem]">
+                <div class="flex items-center justify-between"><dt>TPS</dt><dd class="font-semibold">${formatTps(model.median_output_tokens_per_second)}</dd></div>
+                <div class="flex items-center justify-between"><dt>TTFT</dt><dd class="font-semibold">${formatTtft(model.median_time_to_first_answer_token)}</dd></div>
+                <div class="flex items-center justify-between"><dt>Blended</dt><dd class="font-semibold">${formatPrice(model.price_1m_blended_3_to_1, 3)}</dd></div>
+              </dl>
+            </section>
+          </div>
+        </div>
+      `;
+    };
+
+    const createTableRowMarkup = (model) => `
+      <tr
+        class="cursor-pointer transition-colors hover:bg-highlight-low/50"
+        data-table-row
+        data-model-json="${escapeHtml(JSON.stringify(model))}"
+        data-name="${escapeHtml(String(model.name ?? "").toLowerCase())}"
+        data-company="${escapeHtml(String(model.company_name ?? "").toLowerCase())}"
+        data-mmlu="${Number(model.mmlu_pro) || 0}"
+        data-gpqa="${Number(model.gpqa) || 0}"
+        data-input-price="${Number(model.price_1m_input_tokens) || 0}"
+        data-output-price="${Number(model.price_1m_output_tokens) || 0}"
+        data-tps="${Number(model.median_output_tokens_per_second) || 0}"
+      >
+        <td class="px-4 py-3 font-medium text-text">${escapeHtml(toDisplayName(model.name))}</td>
+        <td class="px-4 py-3 text-subtle">${escapeHtml(toDisplayName(model.company_name, "-"))}</td>
+        <td class="px-4 py-3 text-right font-mono text-text">${formatPrice(model.price_1m_input_tokens, 3)}</td>
+        <td class="px-4 py-3 text-right font-mono text-text">${formatPrice(model.price_1m_output_tokens, 3)}</td>
+        <td class="px-4 py-3 text-right font-semibold ${getScoreClass(model.mmlu_pro)}">${formatScore(model.mmlu_pro)}</td>
+        <td class="px-4 py-3 text-right font-semibold ${getScoreClass(model.gpqa)}">${formatScore(model.gpqa)}</td>
+        <td class="px-4 py-3 text-right text-text">${formatTps(model.median_output_tokens_per_second)}</td>
+      </tr>
+    `;
+
+    const bindCardFocus = () => {
+      getCards().forEach((card) => {
+        card.setAttribute("tabindex", "0");
+        card.addEventListener("focus", () => {
+          focusedCardIndex = getVisibleCards().indexOf(card);
+        });
+      });
+    };
+
+    const bindTableRows = () => {
+      getTableRows().forEach((row) => {
+        row.addEventListener("click", () => {
+          const modelJson = row.dataset.modelJson;
+          if (!modelJson) return;
+          try {
+            const model = JSON.parse(modelJson);
+            window.dispatchEvent(new CustomEvent("open-model-drawer", { detail: model }));
+          } catch (error) {
+            console.warn("Failed to parse row model payload", error);
+          }
+        });
+      });
+    };
+
+    const updateVisibility = () => {
+      let visible = 0;
+      getCards().forEach((card) => {
+        const match = card.dataset.match === "true";
+        if (match && visible < currentVisible) {
+          card.style.display = "";
+          visible += 1;
+        } else {
+          card.style.display = "none";
+        }
+      });
+
+      if (visibleCountEl) visibleCountEl.textContent = String(visible);
+      if (loadMoreBtn) loadMoreBtn.hidden = visible >= matchedTotal;
+      if (grid && currentView === "cards") grid.style.display = matchedTotal === 0 ? "none" : "";
+      if (emptyState) emptyState.classList.toggle("hidden", matchedTotal > 0);
+    };
+
+    const applyTableSearch = () => {
+      const q = (searchInput?.value || "").toLowerCase().trim();
+      getTableRows().forEach((row) => {
+        const name = row.dataset.name || "";
+        const company = row.dataset.company || "";
+        row.style.display = !q || name.includes(q) || company.includes(q) ? "" : "none";
+      });
+    };
+
+    const applySearch = (resetVisible = false) => {
+      if (resetVisible) currentVisible = PAGE_SIZE;
+      const q = (searchInput?.value || "").toLowerCase().trim();
+      matchedTotal = 0;
+
+      getCards().forEach((card) => {
+        const name = card.dataset.name || "";
+        const company = card.dataset.company || "";
+        const match = !q || name.includes(q) || company.includes(q);
+        card.dataset.match = match ? "true" : "false";
+        if (match) matchedTotal += 1;
+      });
+
+      updateVisibility();
+      if (currentView === "table") applyTableSearch();
+    };
+
     const sortCards = () => {
       if (!grid) return;
       const metric = sortSelect?.value || "mmlu";
       const direction = sortDirectionSelect?.value || "desc";
       const attr = sortAttrMap[metric] ?? "mmlu";
+
+      const cards = getCards();
       cards.sort((a, b) => {
         const valA = Number(a.dataset[attr]) || 0;
         const valB = Number(b.dataset[attr]) || 0;
@@ -904,101 +1265,132 @@ function getScoreClass(score: number | null | undefined): string {
         return direction === "desc" ? valB - valA : valA - valB;
       });
       cards.forEach((card) => grid.appendChild(card));
+
+      const rows = getTableRows();
+      rows.sort((a, b) => {
+        const valA = Number(a.dataset[attr]) || 0;
+        const valB = Number(b.dataset[attr]) || 0;
+        if (valA === valB) return 0;
+        return direction === "desc" ? valB - valA : valA - valB;
+      });
+      rows.forEach((row) => tableBody?.appendChild(row));
+
       applySearch(true);
     };
-
-    sortSelect?.addEventListener("change", sortCards);
-    sortDirectionSelect?.addEventListener("change", sortCards);
-    searchInput?.addEventListener("input", () => applySearch(true));
-
-    // Keyboard navigation for model cards
-    let focusedCardIndex = -1;
-    const getVisibleCards = () =>
-      cards.filter((c) => c.style.display !== "none");
-
-    document.addEventListener("keydown", (e) => {
-      const visibleCards = getVisibleCards();
-      if (!visibleCards.length) return;
-
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-        e.preventDefault();
-        const delta = e.key === "ArrowDown" ? 1 : -1;
-        focusedCardIndex = Math.max(
-          0,
-          Math.min(visibleCards.length - 1, focusedCardIndex + delta),
-        );
-        visibleCards[focusedCardIndex]?.focus();
-      }
-    });
-
-    // Make cards focusable (but not clickable - they have expandable details instead)
-    cards.forEach((card) => {
-      card.setAttribute("tabindex", "0");
-      card.addEventListener("focus", () => {
-        focusedCardIndex = getVisibleCards().indexOf(card);
-      });
-    });
-
-    // View toggle (cards vs table)
-    const viewCardsBtn = document.getElementById("view-cards");
-    const viewTableBtn = document.getElementById("view-table");
-    const tableContainer = document.getElementById("models-table-container");
-    const tableRows = Array.from(document.querySelectorAll("[data-table-row]"));
-    let currentView = "cards";
 
     const setView = (view) => {
       currentView = view;
       if (view === "cards") {
-        grid.style.display = "";
+        if (grid) grid.style.display = matchedTotal === 0 ? "none" : "";
         tableContainer?.classList.add("hidden");
         viewCardsBtn?.classList.add("active");
         viewCardsBtn?.setAttribute("aria-pressed", "true");
         viewTableBtn?.classList.remove("active");
         viewTableBtn?.setAttribute("aria-pressed", "false");
-        loadMoreBtn.style.display = "";
+        if (loadMoreBtn) loadMoreBtn.style.display = "";
       } else {
-        grid.style.display = "none";
+        if (grid) grid.style.display = "none";
         tableContainer?.classList.remove("hidden");
         viewCardsBtn?.classList.remove("active");
         viewCardsBtn?.setAttribute("aria-pressed", "false");
         viewTableBtn?.classList.add("active");
         viewTableBtn?.setAttribute("aria-pressed", "true");
-        loadMoreBtn.style.display = "none";
+        if (loadMoreBtn) loadMoreBtn.style.display = "none";
         applyTableSearch();
       }
     };
 
-    const applyTableSearch = () => {
-      const q = (searchInput?.value || "").toLowerCase().trim();
-      tableRows.forEach((row) => {
-        const name = row.dataset.name || "";
-        const company = row.dataset.company || "";
-        const match = !q || name.includes(q) || company.includes(q);
-        row.style.display = match ? "" : "none";
-      });
+    const renderModels = (models) => {
+      if (!grid || !tableBody) return;
+      grid.innerHTML = models.map(createCardMarkup).join("");
+      tableBody.innerHTML = models.map(createTableRowMarkup).join("");
+      bindCardFocus();
+      bindTableRows();
+      sortCards();
+      setView(currentView);
     };
 
+    metricSelect?.addEventListener("change", () => {
+      const metric = metricSelect.value;
+      Array.from(document.querySelectorAll("[data-metric]")).forEach((el) => {
+        if (!(el instanceof HTMLElement)) return;
+        const shouldHide = el.dataset.metric !== metric;
+        el.hidden = shouldHide;
+        el.classList.toggle("hidden", shouldHide);
+      });
+    });
+
+    loadMoreBtn?.addEventListener("click", () => {
+      currentVisible = Math.min(currentVisible + PAGE_SIZE, matchedTotal);
+      updateVisibility();
+    });
+
+    sortSelect?.addEventListener("change", sortCards);
+    sortDirectionSelect?.addEventListener("change", sortCards);
+    searchInput?.addEventListener("input", () => applySearch(true));
     viewCardsBtn?.addEventListener("click", () => setView("cards"));
     viewTableBtn?.addEventListener("click", () => setView("table"));
 
-    // Also filter table on search
-    searchInput?.addEventListener("input", () => {
-      if (currentView === "table") applyTableSearch();
+    document.addEventListener("keydown", (event) => {
+      const visibleCards = getVisibleCards();
+      if (!visibleCards.length) return;
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      event.preventDefault();
+      const delta = event.key === "ArrowDown" ? 1 : -1;
+      focusedCardIndex = Math.max(
+        0,
+        Math.min(visibleCards.length - 1, focusedCardIndex + delta),
+      );
+      visibleCards[focusedCardIndex]?.focus();
     });
 
-    // Make table rows clickable
-    tableRows.forEach((row) => {
-      row.addEventListener("click", () => {
-        const modelJson = row.dataset.modelJson;
-        if (modelJson) {
-          const model = JSON.parse(modelJson);
-          window.dispatchEvent(
-            new CustomEvent("open-model-drawer", { detail: model }),
-          );
-        }
-      });
-    });
-
+    bindCardFocus();
+    bindTableRows();
     applySearch(true);
+
+    window.addEventListener("aistats:live-snapshot", (event) => {
+      const snapshot = event.detail;
+      if (!snapshot) return;
+
+      const liveModels = getValidModels(snapshot.aaModels ?? []);
+      const epochBenchmarks = snapshot.epochBenchmarks ?? [];
+      const epochRuns = snapshot.epochRuns ?? [];
+
+      updateModelCounts(liveModels);
+      updateSummaryStats(liveModels);
+      updateTopStrip(liveModels, epochRuns);
+      renderLeaderboard(liveModels, epochBenchmarks, epochRuns);
+      renderModels(liveModels);
+    });
+  }
+</script>
+
+<script>
+  import { fetchLiveSnapshot } from "../lib/live-data";
+
+  const scheduleLiveRefresh = () => {
+    const run = async () => {
+      const snapshot = await fetchLiveSnapshot({ includeEpoch: false });
+      if (!snapshot) return;
+      window.dispatchEvent(
+        new CustomEvent("aistats:live-snapshot", { detail: snapshot }),
+      );
+    };
+
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(() => {
+        void run();
+      }, { timeout: 5000 });
+    } else {
+      setTimeout(() => {
+        void run();
+      }, 2500);
+    }
+  };
+
+  if (document.readyState === "complete") {
+    scheduleLiveRefresh();
+  } else {
+    window.addEventListener("load", scheduleLiveRefresh, { once: true });
   }
 </script>
