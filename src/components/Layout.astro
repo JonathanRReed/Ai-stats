@@ -74,6 +74,7 @@ const robotsContent =
     <meta name="twitter:creator" content="@jonathanrayreed" />
 
     <!-- Structured Data (JSON-LD) -->
+    <!-- SoftwareApplication schema intentionally omitted to avoid invalid review/rating rich-result requirements. -->
     <script
       type="application/ld+json"
       set:html={JSON.stringify({
@@ -93,29 +94,6 @@ const robotsContent =
           "@type": "SearchAction",
           target: `${Astro.site?.href || canonicalURL}?q={search_term_string}`,
           "query-input": "required name=search_term_string",
-        },
-      })}
-    />
-    <script
-      type="application/ld+json"
-      set:html={JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        name: siteName,
-        applicationCategory: "BusinessApplication",
-        operatingSystem: "Web",
-        url: Astro.site?.href || canonicalURL,
-        description: description,
-        creator: {
-          "@type": "Person",
-          name: siteAuthor,
-          alternateName: "Jonathan R Reed",
-          url: "https://jonathanrreed.com",
-        },
-        offers: {
-          "@type": "Offer",
-          price: "0",
-          priceCurrency: "USD",
         },
       })}
     />
