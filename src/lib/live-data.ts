@@ -1,4 +1,9 @@
-import type { AaModel, EpochBenchmark, EpochBenchmarkRun } from './supabase';
+import type {
+  AaModel,
+  EpochBenchmark,
+  EpochBenchmarkRun,
+  EpochModel,
+} from './supabase';
 
 type FetchOpts = {
   supabaseUrl?: string;
@@ -8,6 +13,7 @@ type FetchOpts = {
 
 export type LiveSnapshot = {
   aaModels: AaModel[];
+  epochModels: EpochModel[];
   epochBenchmarks: EpochBenchmark[];
   epochRuns: EpochBenchmarkRun[];
 };
@@ -95,6 +101,21 @@ const normalizeEpochBenchmark = (row: Record<string, unknown>): EpochBenchmark =
   source_url: toStringOrNull(row.source_url),
 });
 
+const normalizeEpochModel = (row: Record<string, unknown>): EpochModel => ({
+  id: Number(row.id) || 0,
+  model_version: toStringOrEmpty(row.model_version),
+  model_name: toStringOrNull(row.model_name),
+  display_name: toStringOrNull(row.display_name),
+  organization: toStringOrNull(row.organization),
+  country: toStringOrNull(row.country),
+  model_accessibility: toStringOrNull(row.model_accessibility),
+  release_date: toStringOrNull(row.release_date),
+  eci_score: toNumberOrNull(row.eci_score),
+  training_compute_flop: toNumberOrNull(row.training_compute_flop),
+  training_compute_confidence: toStringOrNull(row.training_compute_confidence),
+  description: toStringOrNull(row.description),
+});
+
 const normalizeEpochRun = (
   row: Record<string, unknown>,
   benchmarkMap: Map<number, EpochBenchmark>,
@@ -140,6 +161,13 @@ export async function fetchLiveSnapshot(opts: FetchOpts = {}): Promise<LiveSnaps
   epochBenchmarksUrl.searchParams.set('select', 'id,slug,name,description,category,source_url');
   epochBenchmarksUrl.searchParams.set('order', 'name.asc');
 
+  const epochModelsUrl = new URL('/rest/v1/epoch_models', supabaseUrl);
+  epochModelsUrl.searchParams.set(
+    'select',
+    'id,model_version,model_name,display_name,organization,country,model_accessibility,release_date,eci_score,training_compute_flop,training_compute_confidence,description',
+  );
+  epochModelsUrl.searchParams.set('order', 'eci_score.desc.nullslast');
+
   const epochRunsUrl = new URL('/rest/v1/epoch_benchmark_runs', supabaseUrl);
   epochRunsUrl.searchParams.set(
     'select',
@@ -152,35 +180,40 @@ export async function fetchLiveSnapshot(opts: FetchOpts = {}): Promise<LiveSnaps
       fetch(aaModelsUrl.toString(), { headers, cache: 'no-store' }),
     ];
     if (includeEpoch) {
+      requests.push(fetch(epochModelsUrl.toString(), { headers, cache: 'no-store' }));
       requests.push(fetch(epochBenchmarksUrl.toString(), { headers, cache: 'no-store' }));
       requests.push(fetch(epochRunsUrl.toString(), { headers, cache: 'no-store' }));
     }
     const responses = await Promise.all(requests);
     const aaModelsRes = responses[0];
-    const epochBenchmarksRes = includeEpoch ? responses[1] : null;
-    const epochRunsRes = includeEpoch ? responses[2] : null;
+    const epochModelsRes = includeEpoch ? responses[1] : null;
+    const epochBenchmarksRes = includeEpoch ? responses[2] : null;
+    const epochRunsRes = includeEpoch ? responses[3] : null;
 
-    if (!aaModelsRes.ok || (epochBenchmarksRes && !epochBenchmarksRes.ok) || (epochRunsRes && !epochRunsRes.ok)) {
+    if (!aaModelsRes.ok || (epochModelsRes && !epochModelsRes.ok) || (epochBenchmarksRes && !epochBenchmarksRes.ok) || (epochRunsRes && !epochRunsRes.ok)) {
+      const epochModelsStatus = epochModelsRes ? epochModelsRes.status : 'skipped';
       const epochBenchmarksStatus = epochBenchmarksRes ? epochBenchmarksRes.status : 'skipped';
       const epochRunsStatus = epochRunsRes ? epochRunsRes.status : 'skipped';
       throw new Error(
-        `Live fetch failed: aa=${aaModelsRes.status} epochBenchmarks=${epochBenchmarksStatus} epochRuns=${epochRunsStatus}`,
+        `Live fetch failed: aa=${aaModelsRes.status} epochModels=${epochModelsStatus} epochBenchmarks=${epochBenchmarksStatus} epochRuns=${epochRunsStatus}`,
       );
     }
 
     const aaModelsRaw = (await aaModelsRes.json()) as Record<string, unknown>[];
     const aaModels = aaModelsRaw.map(normalizeAaModel);
     if (!includeEpoch) {
-      return { aaModels, epochBenchmarks: [], epochRuns: [] };
+      return { aaModels, epochModels: [], epochBenchmarks: [], epochRuns: [] };
     }
 
+    const epochModelsRaw = (await epochModelsRes!.json()) as Record<string, unknown>[];
     const epochBenchmarksRaw = (await epochBenchmarksRes!.json()) as Record<string, unknown>[];
     const epochRunsRaw = (await epochRunsRes!.json()) as Record<string, unknown>[];
+    const epochModels = epochModelsRaw.map(normalizeEpochModel);
     const epochBenchmarks = epochBenchmarksRaw.map(normalizeEpochBenchmark);
     const benchmarkMap = new Map(epochBenchmarks.map((benchmark) => [benchmark.id, benchmark]));
     const epochRuns = epochRunsRaw.map((row) => normalizeEpochRun(row, benchmarkMap));
 
-    return { aaModels, epochBenchmarks, epochRuns };
+    return { aaModels, epochModels, epochBenchmarks, epochRuns };
   } catch (error) {
     console.warn('[live-data] Failed to fetch live snapshot; using server snapshot.', error);
     return null;

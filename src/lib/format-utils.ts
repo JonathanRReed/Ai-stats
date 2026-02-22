@@ -5,12 +5,12 @@
 /**
  * Format a benchmark score as a percentage string
  * @param score - Score value (can be decimal 0-1 or already a percentage)
- * @returns Formatted score string with % symbol, or '—' if invalid
+ * @returns Formatted score string with % symbol, or 'N/A' if invalid
  */
 export function formatScore(score: string | number | null): string {
-  if (score === null || score === undefined) return '—';
+  if (score === null || score === undefined) return 'N/A';
   const num = Number(score);
-  if (!isFinite(num) || num <= 0) return '—';
+  if (!isFinite(num) || num <= 0) return 'N/A';
   const pct = num <= 1 ? num * 100 : num;
   return `${pct.toFixed(1)}%`;
 }

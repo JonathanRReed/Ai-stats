@@ -56,8 +56,7 @@ const { currentPage = 'dashboard' } = Astro.props;
 
 <style>
 .header {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 1000;
   background: linear-gradient(to right, var(--overlay), var(--surface));
   backdrop-filter: blur(20px);
@@ -287,6 +286,8 @@ const { currentPage = 'dashboard' } = Astro.props;
 
 <script is:inline>
   (function() {
+    var THEME_STORAGE_KEY = 'theme';
+
     function initHeader() {
       var menuToggle = document.getElementById('mobile-menu-toggle');
       var mobileNav = document.getElementById('mobile-nav');
@@ -294,14 +295,41 @@ const { currentPage = 'dashboard' } = Astro.props;
       var themeToggle = document.getElementById('theme-toggle');
       var themeToggleMobile = document.getElementById('theme-toggle-mobile');
 
-      function toggleMenu() {
-        var isOpen = mobileNav && mobileNav.classList.toggle('open');
+      function applyTheme(theme) {
+        var isLight = theme === 'light';
+        document.documentElement.classList.toggle('light', isLight);
+        var colorScheme = isLight ? 'light' : 'dark';
+        document.documentElement.style.colorScheme = colorScheme;
+        if (document.body) {
+          document.body.style.colorScheme = colorScheme;
+        }
+      }
+
+      function readStoredTheme() {
+        try {
+          var saved = localStorage.getItem(THEME_STORAGE_KEY);
+          if (saved === 'light' || saved === 'dark') return saved;
+        } catch (_error) {
+          // ignore storage read errors
+        }
+        return document.documentElement.classList.contains('light') ? 'light' : 'dark';
+      }
+
+      function persistTheme(theme) {
+        try {
+          localStorage.setItem(THEME_STORAGE_KEY, theme);
+        } catch (_error) {
+          // ignore storage write errors
+        }
+      }
+
+      function setMenuState(isOpen) {
+        if (mobileNav) mobileNav.classList.toggle('open', isOpen);
         if (menuToggle) menuToggle.classList.toggle('open', isOpen);
         if (overlay) overlay.classList.toggle('open', isOpen);
         if (menuToggle) menuToggle.setAttribute('aria-expanded', String(isOpen));
         if (mobileNav) {
           mobileNav.setAttribute('aria-hidden', String(!isOpen));
-          // Toggle tabindex on focusable children to prevent focus when hidden
           var navLinks = mobileNav.querySelectorAll('a');
           navLinks.forEach(function(link) {
             link.setAttribute('tabindex', isOpen ? '0' : '-1');
@@ -309,11 +337,16 @@ const { currentPage = 'dashboard' } = Astro.props;
         }
       }
 
+      function toggleMenu() {
+        var currentlyOpen = mobileNav ? mobileNav.classList.contains('open') : false;
+        setMenuState(!currentlyOpen);
+      }
+
       function toggleTheme() {
-        var isLight = document.documentElement.classList.contains('light');
-        var newTheme = isLight ? 'dark' : 'light';
-        document.documentElement.classList.toggle('light', newTheme === 'light');
-        localStorage.setItem('theme', newTheme);
+        var currentTheme = readStoredTheme();
+        var newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        applyTheme(newTheme);
+        persistTheme(newTheme);
       }
 
       // Remove old listeners by cloning elements
@@ -337,9 +370,27 @@ const { currentPage = 'dashboard' } = Astro.props;
         themeToggleMobile.parentNode.replaceChild(newThemeToggleMobile, themeToggleMobile);
         newThemeToggleMobile.addEventListener('click', toggleTheme);
       }
+
+      if (mobileNav) {
+        var mobileLinks = mobileNav.querySelectorAll('a');
+        mobileLinks.forEach(function(link) {
+          if (link.dataset.menuCloseBound === 'true') return;
+          link.dataset.menuCloseBound = 'true';
+          link.addEventListener('click', function() {
+            setMenuState(false);
+          });
+        });
+      }
+
+      setMenuState(false);
     }
 
     // Run on initial load and after View Transitions
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initHeader, { once: true });
+    } else {
+      initHeader();
+    }
     document.addEventListener('astro:page-load', initHeader);
   })();
 </script>

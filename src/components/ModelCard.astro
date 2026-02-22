@@ -1,5 +1,10 @@
 ---
-import { formatScore, formatPrice, formatTPS, formatTTFT } from '../lib/format-utils';
+import {
+  formatScore,
+  formatPrice,
+  formatTPS,
+  formatTTFT,
+} from "../lib/format-utils";
 
 interface Props {
   model: any;
@@ -9,76 +14,89 @@ const { model } = Astro.props;
 
 // Provider logo mapping
 const providerLogos: Record<string, string> = {
-  'openai': '/icons/providers/openai.svg',
-  'anthropic': '/icons/providers/anthropic.svg',
-  'claude': '/icons/providers/claude-color.svg',
-  'google': '/icons/providers/google.svg',
-  'gemini': '/icons/providers/gemini-color.svg',
-  'gemma': '/icons/providers/gemma-color.svg',
-  'meta': '/icons/providers/meta.svg',
-  'llama': '/icons/providers/meta.svg',
-  'mistral': '/icons/providers/mistral.svg',
-  'cohere': '/icons/providers/cohere-color.svg',
-  'deepseek': '/icons/providers/deepseek-color.svg',
-  'qwen': '/icons/providers/qwen-color.svg',
-  'alibaba': '/icons/providers/qwen-color.svg',
-  'xai': '/icons/providers/xai.svg',
-  'grok': '/icons/providers/grok.svg',
-  'nvidia': '/icons/providers/nvidia-color.svg',
-  'microsoft': '/icons/providers/microsoft.svg',
-  'moonshot': '/icons/providers/moonshot.svg',
-  'perplexity': '/icons/providers/perplexity.svg',
-  'bytedance': '/icons/providers/bytedance.svg',
-  'minimax': '/icons/providers/minimax.svg',
-  'zhipu': '/icons/providers/zai.svg',
-  'zai': '/icons/providers/zai.svg',
+  openai: "/icons/providers/openai.svg",
+  anthropic: "/icons/providers/anthropic.svg",
+  claude: "/icons/providers/claude-color.svg",
+  google: "/icons/providers/google.svg",
+  gemini: "/icons/providers/gemini-color.svg",
+  gemma: "/icons/providers/gemma-color.svg",
+  meta: "/icons/providers/meta.svg",
+  llama: "/icons/providers/meta.svg",
+  mistral: "/icons/providers/mistral.svg",
+  cohere: "/icons/providers/cohere-color.svg",
+  deepseek: "/icons/providers/deepseek-color.svg",
+  qwen: "/icons/providers/qwen-color.svg",
+  alibaba: "/icons/providers/qwen-color.svg",
+  xai: "/icons/providers/xai.svg",
+  grok: "/icons/providers/grok.svg",
+  nvidia: "/icons/providers/nvidia-color.svg",
+  microsoft: "/icons/providers/microsoft.svg",
+  moonshot: "/icons/providers/moonshot.svg",
+  perplexity: "/icons/providers/perplexity.svg",
+  bytedance: "/icons/providers/bytedance.svg",
+  minimax: "/icons/providers/minimax.svg",
+  zhipu: "/icons/providers/zai.svg",
+  zai: "/icons/providers/zai.svg",
 };
 
 // Logos that are dark/black and need a light background in dark mode
-const darkLogos = ['openai', 'anthropic', 'xai', 'grok', 'meta', 'llama', 'perplexity', 'bytedance'];
+const darkLogos = [
+  "openai",
+  "anthropic",
+  "xai",
+  "grok",
+  "meta",
+  "llama",
+  "perplexity",
+  "bytedance",
+];
 
-const companyLower = (model.company_name ?? '').toLowerCase();
-const modelNameLower = (model.name ?? '').toLowerCase();
+const companyLower = (model.company_name ?? "").toLowerCase();
+const modelNameLower = (model.name ?? "").toLowerCase();
 const searchStr = `${companyLower} ${modelNameLower}`;
-const matchedProvider = Object.entries(providerLogos).find(([key]) => searchStr.includes(key));
+const matchedProvider = Object.entries(providerLogos).find(([key]) =>
+  searchStr.includes(key),
+);
 const providerLogo = matchedProvider?.[1];
-const isDarkLogo = matchedProvider ? darkLogos.some(d => searchStr.includes(d)) : false;
+const isDarkLogo = matchedProvider
+  ? darkLogos.some((d) => searchStr.includes(d))
+  : false;
 
 // Get score color based on value (0-100 scale)
 function getScoreColor(score: number | null | undefined): string {
-  if (!score || score <= 0) return 'score-none';
+  if (!score || score <= 0) return "score-none";
   const pct = score <= 1 ? score * 100 : score;
-  if (pct >= 80) return 'score-high';
-  if (pct >= 60) return 'score-mid';
-  if (pct >= 40) return 'score-low';
-  return 'score-poor';
+  if (pct >= 80) return "score-high";
+  if (pct >= 60) return "score-mid";
+  if (pct >= 40) return "score-low";
+  return "score-poor";
 }
 
 function getScoreBg(score: number | null | undefined): string {
-  if (!score || score <= 0) return 'score-bg-none';
+  if (!score || score <= 0) return "score-bg-none";
   const pct = score <= 1 ? score * 100 : score;
-  if (pct >= 80) return 'score-bg-high';
-  if (pct >= 60) return 'score-bg-mid';
-  if (pct >= 40) return 'score-bg-low';
-  return 'score-bg-poor';
+  if (pct >= 80) return "score-bg-high";
+  if (pct >= 60) return "score-bg-mid";
+  if (pct >= 40) return "score-bg-low";
+  return "score-bg-poor";
 }
 
 // All benchmarks
 const allBenchmarks = [
-  ['MMLU Pro', model.mmlu_pro],
-  ['GPQA', model.gpqa],
-  ['HLE', model.hle],
-  ['AIME', model.aime],
-  ['LiveCodeBench', model.livecodebench],
-  ['SciCode', model.scicode],
-  ['Math 500', model.math_500],
+  ["MMLU Pro", model.mmlu_pro],
+  ["GPQA", model.gpqa],
+  ["HLE", model.hle],
+  ["AIME", model.aime],
+  ["LiveCodeBench", model.livecodebench],
+  ["SciCode", model.scicode],
+  ["Math 500", model.math_500],
 ];
 
 // AA Indexes
 const aaIndexes = [
-  ['Intelligence', model.aa_intelligence_index],
-  ['Coding', model.aa_coding_index],
-  ['Math', model.aa_math_index],
+  ["Intelligence", model.aa_intelligence_index],
+  ["Coding", model.aa_coding_index],
+  ["Math", model.aa_math_index],
 ];
 ---
 
@@ -86,8 +104,8 @@ const aaIndexes = [
   data-model-card
   data-model-id={model.id}
   data-model-json={JSON.stringify(model)}
-  data-name={(model.name ?? '').toLowerCase()}
-  data-company={(model.company_name ?? '').toLowerCase()}
+  data-name={(model.name ?? "").toLowerCase()}
+  data-company={(model.company_name ?? "").toLowerCase()}
   data-mmlu={Number(model.mmlu_pro) || 0}
   data-gpqa={Number(model.gpqa) || 0}
   data-hle={Number(model.hle) || 0}
@@ -95,131 +113,216 @@ const aaIndexes = [
   data-input-price={Number(model.price_1m_input_tokens) || 0}
   data-output-price={Number(model.price_1m_output_tokens) || 0}
   data-tps={Number(model.median_output_tokens_per_second) || 0}
-  class="model-card group rounded-2xl border border-highlight-med bg-surface/95 px-4 py-4 text-sm shadow-md shadow-black/30 gradient-border stagger-item tilt-card"
+  class="model-card brutalist-card group px-4 py-4 text-sm stagger-item"
 >
   <header class="flex items-start justify-between gap-2">
     <div class="flex items-center gap-2 min-w-0">
-      {providerLogo && (
-        <img 
-          src={providerLogo} 
-          alt="" 
-          width="20"
-          height="20"
-          class={`w-5 h-5 flex-shrink-0 ${isDarkLogo ? 'provider-logo-dark' : 'opacity-70'}`}
-          loading="lazy"
-        />
-      )}
+      {
+        providerLogo && (
+          <img
+            src={providerLogo}
+            alt=""
+            width="20"
+            height="20"
+            class={`w-5 h-5 flex-shrink-0 ${isDarkLogo ? "provider-logo-dark" : "opacity-70"}`}
+            loading="lazy"
+          />
+        )
+      }
       <div class="min-w-0">
-        <h3 class="truncate text-sm font-semibold text-text group-hover:text-foam transition-colors" title={model.name}>
+        <h3
+          class="truncate text-sm font-semibold text-text group-hover:text-foam transition-colors"
+          title={model.name}
+        >
           {model.name}
         </h3>
-        <p class="mt-0.5 text-xs text-subtle">{model.company_name ?? 'Unknown provider'}</p>
+        <p class="mt-0.5 text-xs text-subtle">
+          {model.company_name ?? "Unknown provider"}
+        </p>
       </div>
     </div>
     <div class="text-right text-[0.65rem] text-subtle flex-shrink-0">
-      <div>Input: {formatPrice(Number(model.price_1m_input_tokens) || 0, 3)}</div>
-      <div>Output: {formatPrice(Number(model.price_1m_output_tokens) || 0, 3)}</div>
+      <div>
+        Input: {formatPrice(Number(model.price_1m_input_tokens) || 0, 3)}
+      </div>
+      <div>
+        Output: {formatPrice(Number(model.price_1m_output_tokens) || 0, 3)}
+      </div>
     </div>
   </header>
 
   <div class="mt-3 grid gap-2 text-[0.7rem] text-subtle grid-cols-2">
-    <section class="rounded-lg border border-highlight-low/60 bg-overlay/50 px-3 py-2">
-      <div class="text-[0.55rem] uppercase tracking-wide text-muted">Pricing</div>
+    <section class="border-2 border-highlight-med bg-overlay/50 px-3 py-2">
+      <div class="text-[0.55rem] uppercase tracking-wide text-muted">
+        Pricing
+      </div>
       <dl class="mt-1.5 space-y-0.5 text-text text-[0.65rem]">
         <div class="flex items-center justify-between">
           <dt>Input (1M)</dt>
-          <dd class="font-semibold">{formatPrice(Number(model.price_1m_input_tokens) || 0, 3)}</dd>
+          <dd class="font-bold">
+            {formatPrice(Number(model.price_1m_input_tokens) || 0, 3)}
+          </dd>
         </div>
         <div class="flex items-center justify-between">
           <dt>Output (1M)</dt>
-          <dd class="font-semibold">{formatPrice(Number(model.price_1m_output_tokens) || 0, 3)}</dd>
+          <dd class="font-bold">
+            {formatPrice(Number(model.price_1m_output_tokens) || 0, 3)}
+          </dd>
         </div>
         <div class="flex items-center justify-between">
           <dt>Blended (3:1)</dt>
-          <dd class="font-semibold">{formatPrice(Number(model.price_1m_blended_3_to_1) || 0, 3)}</dd>
+          <dd class="font-bold">
+            {formatPrice(Number(model.price_1m_blended_3_to_1) || 0, 3)}
+          </dd>
         </div>
       </dl>
     </section>
 
-    <section class="rounded-lg border border-highlight-low/60 bg-overlay/50 px-3 py-2">
-      <div class="text-[0.55rem] uppercase tracking-wide text-muted">Performance</div>
+    <section class="border-2 border-highlight-med bg-overlay/50 px-3 py-2">
+      <div class="text-[0.55rem] uppercase tracking-wide text-muted">
+        Performance
+      </div>
       <dl class="mt-1.5 space-y-0.5 text-text text-[0.65rem]">
         <div class="flex items-center justify-between">
           <dt>Tokens / s</dt>
-          <dd class="font-semibold">{formatTPS(model.median_output_tokens_per_second)}</dd>
+          <dd class="font-bold">
+            {formatTPS(model.median_output_tokens_per_second)}
+          </dd>
         </div>
         <div class="flex items-center justify-between">
           <dt>TTFT (token)</dt>
-          <dd class="font-semibold">{formatTTFT(model.median_time_to_first_token_seconds)}</dd>
+          <dd class="font-bold">
+            {formatTTFT(model.median_time_to_first_token_seconds)}
+          </dd>
         </div>
         <div class="flex items-center justify-between">
           <dt>TTFT (answer)</dt>
-          <dd class="font-semibold">{formatTTFT(model.median_time_to_first_answer_token)}</dd>
+          <dd class="font-bold">
+            {formatTTFT(model.median_time_to_first_answer_token)}
+          </dd>
         </div>
       </dl>
     </section>
   </div>
 
   <!-- All Benchmarks -->
-  <section class="mt-2 rounded-lg border border-highlight-low/60 bg-overlay/50 px-3 py-2">
-    <div class="text-[0.55rem] uppercase tracking-wide text-muted">Benchmarks</div>
+  <section
+    class="mt-2 rounded-lg border border-highlight-low/60 bg-overlay/50 px-3 py-2"
+  >
+    <div class="text-[0.55rem] uppercase tracking-wide text-muted">
+      Benchmarks
+    </div>
     <div class="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-[0.65rem]">
-      {allBenchmarks.map(([label, value]) => (
-        <div class="flex items-center justify-between">
-          <span class="text-subtle">{label}</span>
-          <span class={`font-semibold ${getScoreColor(value as number)}`}>
-            {formatScore(value as number)}
-          </span>
-        </div>
-      ))}
+      {
+        allBenchmarks.map(([label, value]) => (
+          <div class="flex items-center justify-between">
+            <span class="text-subtle">{label}</span>
+            <span class={`font-semibold ${getScoreColor(value as number)}`}>
+              {formatScore(value as number)}
+            </span>
+          </div>
+        ))
+      }
     </div>
   </section>
 
   <!-- AA Indexes -->
-  <section class="mt-2 rounded-lg border border-highlight-low/60 bg-overlay/50 px-3 py-2">
-    <div class="text-[0.55rem] uppercase tracking-wide text-muted">AA Indexes</div>
+  <section
+    class="mt-2 rounded-lg border border-highlight-low/60 bg-overlay/50 px-3 py-2"
+  >
+    <div class="text-[0.55rem] uppercase tracking-wide text-muted">
+      AA Indexes
+    </div>
     <div class="mt-1.5 grid grid-cols-3 gap-1.5">
-      {aaIndexes.map(([label, value]) => (
-        <div class={`rounded-md border px-1.5 py-1.5 text-center ${getScoreBg(value as number)}`}>
-          <div class="text-[0.5rem] uppercase tracking-wide text-muted">{label}</div>
-          <div class={`text-xs font-bold ${getScoreColor(value as number)}`}>
-            {formatScore(value as number)}
+      {
+        aaIndexes.map(([label, value]) => (
+          <div
+            class={`rounded-md border px-1.5 py-1.5 text-center ${getScoreBg(value as number)}`}
+          >
+            <div class="text-[0.5rem] uppercase tracking-wide text-muted">
+              {label}
+            </div>
+            <div class={`text-xs font-bold ${getScoreColor(value as number)}`}>
+              {formatScore(value as number)}
+            </div>
           </div>
-        </div>
-      ))}
+        ))
+      }
     </div>
   </section>
 </div>
 
 <style>
   .model-card {
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
-                border-color 0.3s ease,
-                box-shadow 0.3s ease;
+    transition:
+      transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+      border-color 0.3s ease,
+      box-shadow 0.3s ease;
   }
-  
+
   .model-card:hover,
   .model-card:focus-visible {
     border-color: rgba(156, 207, 216, 0.5);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4),
-                0 0 0 1px rgba(156, 207, 216, 0.15),
-                0 0 30px rgba(156, 207, 216, 0.1);
+    box-shadow:
+      0 16px 40px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(156, 207, 216, 0.15),
+      0 0 30px rgba(156, 207, 216, 0.1);
   }
-  
+
   .model-card:active {
     transform: translateY(-1px);
   }
-  
+
   .model-card:focus-visible {
     outline: 2px solid var(--foam);
     outline-offset: 2px;
   }
-  
+
+  /* Keep AA index chips readable without over-saturated fills */
+  .score-bg-high,
+  .score-bg-mid,
+  .score-bg-low,
+  .score-bg-poor,
+  .score-bg-none {
+    border-width: 1px;
+    border-style: solid;
+  }
+
+  .score-bg-high {
+    background: rgba(86, 148, 159, 0.16);
+    border-color: rgba(86, 148, 159, 0.45);
+    color: var(--text);
+  }
+
+  .score-bg-mid {
+    background: rgba(234, 157, 52, 0.16);
+    border-color: rgba(234, 157, 52, 0.45);
+    color: var(--text);
+  }
+
+  .score-bg-low {
+    background: rgba(255, 153, 51, 0.14);
+    border-color: rgba(255, 153, 51, 0.4);
+    color: var(--text);
+  }
+
+  .score-bg-poor {
+    background: rgba(180, 99, 122, 0.16);
+    border-color: rgba(180, 99, 122, 0.45);
+    color: var(--text);
+  }
+
+  .score-bg-none {
+    background: rgba(130, 130, 150, 0.12);
+    border-color: rgba(130, 130, 150, 0.32);
+    color: var(--text);
+  }
+
   /* Hide default details marker */
   details summary::-webkit-details-marker {
     display: none;
   }
-  
+
   @media (prefers-reduced-motion: reduce) {
     .model-card {
       transition: none;
