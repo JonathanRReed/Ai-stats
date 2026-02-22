@@ -107,12 +107,8 @@
       }
     };
 
-    if (media) {
-      if (typeof media.addEventListener === 'function') {
-        media.addEventListener('change', handleSystemChange);
-      } else if (typeof media.addListener === 'function') {
-        media.addListener(handleSystemChange);
-      }
+    if (media && typeof media.addEventListener === 'function') {
+      media.addEventListener('change', handleSystemChange);
     }
 
     window.__aiTheme = {

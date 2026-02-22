@@ -25,7 +25,7 @@ interface ModelData {
 }
 
 function formatScore(value: number | null | undefined): string {
-  if (!value || value <= 0) return '-';
+  if (!value || value <= 0) return 'N/A';
   const num = Number(value);
   if (num <= 1) return (num * 100).toFixed(1) + '%';
   return num.toFixed(1);
