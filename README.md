@@ -1,6 +1,6 @@
 # AI Stats (Astro + Bun)
 
-This is a hobbyist project and is not intended to be used for any commercial purpose.
+This is a hobbyist project.
 Inspired by Theo Browne's [model-prices](https://model-prices.vercel.app/)
 
 The data is from [ArtificialAnalysis.com](https://artificialanalysis.ai) via their free API.
@@ -52,3 +52,9 @@ Notes:
 
 Citation/Thanks yous:
 Logo icons are from [lobe-icons](https://lobe-icons.dev/)
+
+## License
+
+The source code in this repository is licensed under MIT. Third-party data,
+logos, font files, and trademarks are excluded. See [`LICENSE`](./LICENSE) and
+[`NOTICE.md`](./NOTICE.md).
