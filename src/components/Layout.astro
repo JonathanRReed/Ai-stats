@@ -150,47 +150,50 @@ const robotsContent =
     </script>
     <style is:global>
       :root {
-        /* Neo-Brutalist (Dark) - Glass */
-        --base: #0f0d14; /* Deeper base */
-        --surface: rgba(31, 29, 46, 0.4); /* Translucent surface */
-        --overlay: rgba(38, 35, 58, 0.6);
-        --muted: #9490a8;
-        --subtle: #b0acbe;
-        --text: #e0def4;
-        --love: rgba(235, 111, 146, 0.9);
-        --gold: rgba(246, 193, 119, 0.9);
-        --rose: rgba(235, 188, 186, 0.9);
-        --pine: rgba(49, 116, 143, 0.9);
-        --foam: rgba(156, 207, 216, 0.9);
-        --iris: rgba(196, 167, 231, 0.9);
-        --highlight-low: rgba(33, 32, 46, 0.5);
-        --highlight-med: rgba(64, 61, 82, 0.5);
-        --highlight-high: rgba(82, 79, 103, 0.5);
-        --shadow-color: rgba(0, 0, 0, 0.4); /* Deeper shadow for contrast */
-        --border-color: rgba(255, 255, 255, 0.12); /* Subtle edge */
-        --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.1); /* Frosted top rim */
+        --base: #090b0d;
+        --surface: #101417;
+        --overlay: #171d20;
+        --muted: #858d90;
+        --subtle: #c5cbc8;
+        --text: #f2f1ea;
+        --love: #d86d4a;
+        --gold: #d0a85a;
+        --rose: #d8c6bd;
+        --pine: #89c8b6;
+        --foam: #e58a5f;
+        --iris: #b9b1c8;
+        --terminal-green: #9adf8f;
+        --highlight-low: rgba(242, 241, 234, 0.055);
+        --highlight-med: rgba(242, 241, 234, 0.13);
+        --highlight-high: rgba(242, 241, 234, 0.24);
+        --shadow-color: rgba(6, 8, 9, 0.36);
+        --border-color: rgba(242, 241, 234, 0.18);
+        --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.09);
+        --font-display:
+          "Geist", "Nebula Sans", "Arial Narrow", "Helvetica Neue", sans-serif;
+        --font-mono:
+          "JetBrains Mono", "SFMono-Regular", "Roboto Mono", Consolas, monospace;
       }
 
-      /* Neo-Brutalist (Light) - Glass */
       html.light {
-        --base: #f4f4f0;
-        --surface: rgba(255, 255, 255, 0.5);
-        --overlay: rgba(240, 240, 235, 0.6);
-        --muted: #888888;
-        --subtle: #555555;
-        --text: #191724;
-        --love: rgba(180, 99, 122, 0.8);
-        --gold: rgba(234, 157, 52, 0.8);
-        --rose: rgba(215, 130, 126, 0.8);
-        --pine: rgba(40, 105, 131, 0.8);
-        --foam: rgba(86, 148, 159, 0.8);
-        --iris: rgba(144, 122, 169, 0.8);
-        --highlight-low: rgba(244, 237, 232, 0.5);
-        --highlight-med: rgba(223, 218, 217, 0.5);
-        --highlight-high: rgba(206, 202, 205, 0.5);
-        --shadow-color: rgba(0, 0, 0, 0.1);
-        --border-color: rgba(0, 0, 0, 0.08);
-        --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        --base: #efede8;
+        --surface: #f8f6f1;
+        --overlay: #e3dfd6;
+        --muted: #6d6961;
+        --subtle: #393833;
+        --text: #101111;
+        --love: #b84f35;
+        --gold: #8f6723;
+        --rose: #514a45;
+        --pine: #214a42;
+        --foam: #a8462e;
+        --iris: #4f4a61;
+        --highlight-low: rgba(12, 13, 13, 0.055);
+        --highlight-med: rgba(12, 13, 13, 0.14);
+        --highlight-high: rgba(12, 13, 13, 0.24);
+        --shadow-color: rgba(33, 27, 22, 0.16);
+        --border-color: rgba(12, 13, 13, 0.2);
+        --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.3);
         color-scheme: light;
       }
 
@@ -212,18 +215,18 @@ const robotsContent =
       }
 
       .score-bg-high {
-        background: var(--pine);
-        color: #000;
+        background: var(--terminal-green);
+        color: #050505;
         border: 2px solid var(--border-color);
       }
       .score-bg-mid {
         background: var(--gold);
-        color: #000;
+        color: #050505;
         border: 2px solid var(--border-color);
       }
       .score-bg-low {
-        background: #ff9933;
-        color: #000;
+        background: #a86f1f;
+        color: #050505;
         border: 2px solid var(--border-color);
       }
       .score-bg-poor {
@@ -239,13 +242,46 @@ const robotsContent =
 
       /* Dark logo visibility */
       .provider-logo-dark {
-        padding: 4px;
-        background: #fff;
-        border: 2px solid #000;
+        padding: 3px;
+        background: #f6f3ea;
+        border: 1px solid rgba(0, 0, 0, 0.35);
+        border-radius: var(--radius-s);
       }
       html.light .provider-logo-dark {
-        background: transparent;
-        border: none;
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+      }
+
+      .provider-logo-frame {
+        width: 1.8rem;
+        height: 1.8rem;
+        display: inline-flex;
+        flex: 0 0 1.8rem;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-s);
+        background: color-mix(in srgb, var(--overlay) 82%, transparent);
+      }
+
+      .provider-logo-frame-light {
+        background: #f6f3ea;
+        border-color: color-mix(in srgb, var(--love) 32%, #f6f3ea);
+      }
+
+      .provider-logo-image {
+        width: 1.05rem;
+        height: 1.05rem;
+        object-fit: contain;
+        display: block;
+      }
+
+      .provider-logo-fallback {
+        color: var(--subtle);
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        font-weight: 800;
+        letter-spacing: 0;
       }
 
       /* Shared sizing & spacing */
@@ -260,9 +296,9 @@ const robotsContent =
         --accent-2: var(--pine);
 
         /* Sizing & spacing */
-        --radius-s: 0px;
-        --radius-m: 0px;
-        --radius-l: 0px;
+        --radius-s: 4px;
+        --radius-m: 6px;
+        --radius-l: 8px;
         --space-1: 0.25rem;
         --space-2: 0.5rem;
         --space-3: 0.75rem;
@@ -293,11 +329,7 @@ const robotsContent =
         -webkit-font-smoothing: antialiased;
         background-color: var(--base);
         color: var(--text);
-        font-family:
-          "Nebula Sans",
-          -apple-system,
-          BlinkMacSystemFont,
-          sans-serif;
+        font-family: var(--font-display);
         font-size: clamp(15px, 1.2vw, 16px);
         min-height: 100vh;
         color-scheme: dark;
@@ -305,53 +337,37 @@ const robotsContent =
         overflow-x: hidden;
       }
 
-      /* Vibrant mesh gradient background for glass refraction */
       body::before {
         content: "";
         position: fixed;
         inset: 0;
         z-index: -1;
         background-image:
-          radial-gradient(
-            circle at 15% 50%,
-            rgba(156, 207, 216, 0.12),
-            transparent 40%
-          ),
-          radial-gradient(
-            circle at 85% 30%,
-            rgba(196, 167, 231, 0.12),
-            transparent 40%
-          ),
-          radial-gradient(
-            circle at 50% 80%,
-            rgba(49, 116, 143, 0.1),
-            transparent 50%
+          linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+          repeating-linear-gradient(
+            0deg,
+            rgba(255, 255, 255, 0.035) 0,
+            rgba(255, 255, 255, 0.035) 1px,
+            transparent 1px,
+            transparent 4px
           );
-        filter: blur(40px);
-        opacity: 0.8;
+        background-size: 72px 72px, 72px 72px, 100% 4px;
+        opacity: 0.38;
         pointer-events: none;
       }
 
-      html.light body::before {
-        background-image:
-          radial-gradient(
-            circle at 15% 50%,
-            rgba(86, 148, 159, 0.08),
-            transparent 40%
-          ),
-          radial-gradient(
-            circle at 85% 30%,
-            rgba(144, 122, 169, 0.08),
-            transparent 40%
-          ),
-          radial-gradient(
-            circle at 50% 80%,
-            rgba(40, 105, 131, 0.06),
-            transparent 50%
-          );
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        opacity: 0.08;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)' opacity='0.65'/%3E%3C/svg%3E");
+        mix-blend-mode: screen;
       }
 
-      /* Typography */
       h1,
       h2,
       h3,
@@ -359,17 +375,17 @@ const robotsContent =
       h5,
       h6 {
         font-weight: 800;
-        text-transform: uppercase;
       }
       h1 {
-        font-size: clamp(2.5rem, 5vw, 4.5rem);
-        line-height: 1.05;
-        letter-spacing: -0.03em;
+        font-size: clamp(3rem, 7vw, 6.7rem);
+        line-height: 0.92;
+        letter-spacing: 0;
         text-wrap: balance;
       }
       h2 {
-        font-size: clamp(1.75rem, 3vw, 2.5rem);
-        line-height: 1.1;
+        font-size: clamp(2rem, 4vw, 4.25rem);
+        line-height: 1;
+        letter-spacing: 0;
       }
       h3 {
         font-size: clamp(1.25rem, 2vw, 1.5rem);
@@ -378,6 +394,19 @@ const robotsContent =
       p {
         color: var(--text);
         font-weight: 500;
+      }
+
+      code,
+      kbd,
+      samp,
+      data,
+      output,
+      select,
+      input,
+      table,
+      .mono {
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
       }
 
       .container {
@@ -397,7 +426,7 @@ const robotsContent =
       :focus-visible {
         outline: 4px solid var(--accent);
         outline-offset: 2px;
-        border-radius: 0;
+        border-radius: var(--radius-s);
       }
 
       #root,
@@ -423,25 +452,24 @@ const robotsContent =
         }
       }
 
-      /* --- Brutalist Helpers --- */
       .brutalist-card {
-        background: var(--surface);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
+        background: color-mix(in srgb, var(--surface) 94%, transparent);
         border: 1px solid var(--border-color);
         box-shadow:
-          4px 4px 0px var(--shadow-color),
+          0 18px 60px var(--shadow-color),
           var(--glass-edge);
-        border-radius: 6px; /* Smooth but structured */
+        border-radius: var(--radius-m);
         transition:
-          transform 0.1s ease,
-          box-shadow 0.1s ease;
+          transform 0.18s ease,
+          border-color 0.18s ease,
+          box-shadow 0.18s ease;
       }
 
       .brutalist-card:hover {
-        transform: translate(-1px, -1px);
+        border-color: color-mix(in srgb, var(--love) 65%, var(--border-color));
+        transform: translateY(-2px);
         box-shadow:
-          6px 6px 0px var(--shadow-color),
+          0 24px 76px var(--shadow-color),
           var(--glass-edge);
       }
 
@@ -449,51 +477,60 @@ const robotsContent =
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: var(--surface);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        color: var(--text);
-        border: 1px solid var(--border-color);
-        box-shadow:
-          3px 3px 0px var(--shadow-color),
-          var(--glass-edge);
-        border-radius: 6px;
-        font-weight: 700;
+        gap: 0.55rem;
+        min-height: 44px;
+        min-width: 0;
+        background: var(--love);
+        color: #ffffff;
+        border: 1px solid var(--love);
+        box-shadow: 0 12px 32px rgba(216, 109, 74, 0.22);
+        border-radius: var(--radius-s);
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0;
+        line-height: 1.1;
         text-transform: uppercase;
-        padding: 0.5rem 1.5rem;
+        padding: 0.7rem 1.35rem;
+        text-align: center;
+        text-decoration: none;
+        white-space: nowrap;
+        overflow-wrap: normal;
         cursor: pointer;
         transition:
-          transform 0.1s ease,
-          box-shadow 0.1s ease,
-          background 0.1s ease;
+          transform 0.18s ease,
+          box-shadow 0.18s ease,
+          background 0.18s ease;
       }
 
       .brutalist-button:hover {
-        transform: translate(-1px, -1px);
-        box-shadow:
-          5px 5px 0px var(--shadow-color),
-          var(--glass-edge);
-        background: var(--highlight-low);
+        transform: translateY(-2px);
+        box-shadow: 0 16px 42px rgba(216, 109, 74, 0.26);
+        background: #e27a55;
       }
 
       .brutalist-button:active {
-        transform: translate(2px, 2px);
-        box-shadow:
-          0px 0px 0px var(--shadow-color),
-          var(--glass-edge);
+        transform: translate(1px, 1px);
+        box-shadow: 0 6px 20px rgba(216, 109, 74, 0.2);
       }
 
-      /* Fade in animations */
       .fade-in-section,
       .stagger-item {
+        opacity: 1;
+        transform: none;
+      }
+
+      /* Fade in animations are progressive enhancement only. */
+      html.motion-ready .fade-in-section,
+      html.motion-ready .stagger-item {
         opacity: 0;
         transform: translateY(10px);
         transition:
           opacity 0.3s ease-out,
           transform 0.3s ease-out;
       }
-      .fade-in-section.is-visible,
-      .stagger-item.is-visible {
+      html.motion-ready .fade-in-section.is-visible,
+      html.motion-ready .stagger-item.is-visible {
         opacity: 1;
         transform: none;
       }
@@ -522,6 +559,8 @@ const robotsContent =
     <script is:inline>
       (function () {
         function initPremiumEffects(isNavigation) {
+          document.documentElement.classList.add("motion-ready");
+
           // If navigating via View Transitions, show elements immediately (skip animations)
           if (isNavigation) {
             document
@@ -530,6 +569,15 @@ const robotsContent =
                 el.classList.add("is-visible");
               });
           } else {
+            if (!("IntersectionObserver" in window)) {
+              document
+                .querySelectorAll(".fade-in-section, .stagger-item")
+                .forEach(function (el) {
+                  el.classList.add("is-visible");
+                });
+              return;
+            }
+
             // Scroll-triggered fade-in animations - only on initial load
             var fadeObserver = new IntersectionObserver(
               function (entries) {
@@ -573,6 +621,14 @@ const robotsContent =
                 staggerObserver.observe(el);
               });
           }
+
+          window.setTimeout(function () {
+            document
+              .querySelectorAll(".fade-in-section, .stagger-item")
+              .forEach(function (el) {
+                el.classList.add("is-visible");
+              });
+          }, 700);
 
           // Subtle 3D tilt on cards - always re-attach on navigation
           document.querySelectorAll(".tilt-card").forEach(function (card) {

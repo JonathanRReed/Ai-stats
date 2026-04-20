@@ -32,6 +32,7 @@ const providerLogos: Record<string, string> = {
   nvidia: "/icons/providers/nvidia-color.svg",
   microsoft: "/icons/providers/microsoft.svg",
   moonshot: "/icons/providers/moonshot.svg",
+  kimi: "/icons/providers/moonshot.svg",
   perplexity: "/icons/providers/perplexity.svg",
   bytedance: "/icons/providers/bytedance.svg",
   minimax: "/icons/providers/minimax.svg",
@@ -45,6 +46,10 @@ const darkLogos = [
   "anthropic",
   "xai",
   "grok",
+  "moonshot",
+  "kimi",
+  "zai",
+  "zhipu",
   "meta",
   "llama",
   "perplexity",
@@ -54,13 +59,21 @@ const darkLogos = [
 const companyLower = (model.company_name ?? "").toLowerCase();
 const modelNameLower = (model.name ?? "").toLowerCase();
 const searchStr = `${companyLower} ${modelNameLower}`;
+const normalizedSearchStr = searchStr.replace(/[^a-z0-9]+/g, "");
 const matchedProvider = Object.entries(providerLogos).find(([key]) =>
-  searchStr.includes(key),
+  normalizedSearchStr.includes(key.replace(/[^a-z0-9]+/g, "")),
 );
 const providerLogo = matchedProvider?.[1];
 const isDarkLogo = matchedProvider
-  ? darkLogos.some((d) => searchStr.includes(d))
+  ? darkLogos.some((d) => normalizedSearchStr.includes(d.replace(/[^a-z0-9]+/g, "")))
   : false;
+const providerName = model.company_name ?? "Unknown provider";
+const providerInitials = providerName
+  .split(/\s+/)
+  .filter(Boolean)
+  .slice(0, 2)
+  .map((part: string) => part[0]?.toUpperCase())
+  .join("") || "?";
 
 // Get score color based on value (0-100 scale)
 function getScoreColor(score: number | null | undefined): string {
@@ -98,6 +111,54 @@ const aaIndexes = [
   ["Coding", model.aa_coding_index],
   ["Math", model.aa_math_index],
 ];
+
+const formatContextLength = (value: number | null | undefined): string => {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return "-";
+  if (num >= 1_000_000) {
+    return `${(num / 1_000_000).toFixed(num % 1_000_000 === 0 ? 0 : 1)}M`;
+  }
+  if (num >= 1_000) return `${Math.round(num / 1_000)}K`;
+  return String(num);
+};
+
+const openRouterParameters = Array.isArray(model.openrouter_supported_parameters)
+  ? model.openrouter_supported_parameters
+  : [];
+const openRouterInputModalities = Array.isArray(model.openrouter_input_modalities)
+  ? model.openrouter_input_modalities
+  : [];
+const openRouterOutputModalities = Array.isArray(model.openrouter_output_modalities)
+  ? model.openrouter_output_modalities
+  : [];
+const hasOpenRouterData = Boolean(model.openrouter_id);
+const openRouterCaps = [
+  openRouterParameters.includes("tools") ? "Tools" : null,
+  openRouterInputModalities.includes("image") ? "Vision" : null,
+  openRouterOutputModalities.includes("image") ? "Image out" : null,
+]
+  .filter(Boolean)
+  .join(", ");
+const hasPositiveNumber = (value: number | null | undefined): boolean => {
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0;
+};
+const pricesAreClose = (
+  first: number | null | undefined,
+  second: number | null | undefined,
+): boolean => {
+  if (!hasPositiveNumber(first) || !hasPositiveNumber(second)) return false;
+  return Math.abs(Number(first) - Number(second)) < 0.001;
+};
+const hasOpenRouterPrice =
+  hasPositiveNumber(model.openrouter_prompt_price_1m) ||
+  hasPositiveNumber(model.openrouter_completion_price_1m);
+const openRouterPriceMatchesAa =
+  pricesAreClose(model.price_1m_input_tokens, model.openrouter_prompt_price_1m) &&
+  pricesAreClose(model.price_1m_output_tokens, model.openrouter_completion_price_1m);
+const showOpenRouterPricing = hasOpenRouterPrice && !openRouterPriceMatchesAa;
+const effectiveContextLength = model.openrouter_context_length || model.context_window;
+const dataSourceBadge = hasOpenRouterData ? "AA + OR" : "AA";
 ---
 
 <div
@@ -118,15 +179,21 @@ const aaIndexes = [
   <header class="flex items-start justify-between gap-2">
     <div class="flex items-center gap-2 min-w-0">
       {
-        providerLogo && (
-          <img
-            src={providerLogo}
-            alt=""
-            width="20"
-            height="20"
-            class={`w-5 h-5 flex-shrink-0 ${isDarkLogo ? "provider-logo-dark" : "opacity-70"}`}
-            loading="lazy"
-          />
+        providerLogo ? (
+          <span class={`provider-logo-frame ${isDarkLogo ? "provider-logo-frame-light" : ""}`}>
+            <img
+              src={providerLogo}
+              alt=""
+              width="20"
+              height="20"
+              class="provider-logo-image"
+              loading="lazy"
+            />
+          </span>
+        ) : (
+          <span class="provider-logo-frame provider-logo-fallback" aria-hidden="true">
+            {providerInitials}
+          </span>
         )
       }
       <div class="min-w-0">
@@ -137,23 +204,18 @@ const aaIndexes = [
           {model.name}
         </h3>
         <p class="mt-0.5 text-xs text-subtle">
-          {model.company_name ?? "Unknown provider"}
+          {providerName}
         </p>
       </div>
     </div>
-    <div class="text-right text-[0.65rem] text-subtle flex-shrink-0">
-      <div>
-        Input: {formatPrice(Number(model.price_1m_input_tokens) || 0, 3)}
-      </div>
-      <div>
-        Output: {formatPrice(Number(model.price_1m_output_tokens) || 0, 3)}
-      </div>
+    <div class="source-strip flex-shrink-0" title="Data coverage">
+      <span>{dataSourceBadge}</span>
     </div>
   </header>
 
-  <div class="mt-3 grid gap-2 text-[0.7rem] text-subtle grid-cols-2">
-    <section class="border-2 border-highlight-med bg-overlay/50 px-3 py-2">
-      <div class="text-[0.55rem] uppercase tracking-wide text-muted">
+  <div class="mt-3 grid gap-2 text-[0.7rem] text-subtle sm:grid-cols-2 xl:grid-cols-3">
+    <section class="card-metric-panel px-3 py-2">
+      <div class="text-[0.55rem] text-muted">
         Pricing
       </div>
       <dl class="mt-1.5 space-y-0.5 text-text text-[0.65rem]">
@@ -178,8 +240,8 @@ const aaIndexes = [
       </dl>
     </section>
 
-    <section class="border-2 border-highlight-med bg-overlay/50 px-3 py-2">
-      <div class="text-[0.55rem] uppercase tracking-wide text-muted">
+    <section class="card-metric-panel px-3 py-2">
+      <div class="text-[0.55rem] text-muted">
         Performance
       </div>
       <dl class="mt-1.5 space-y-0.5 text-text text-[0.65rem]">
@@ -203,13 +265,93 @@ const aaIndexes = [
         </div>
       </dl>
     </section>
+
+    <section class="card-metric-panel px-3 py-2">
+      <div class="text-[0.55rem] text-muted">
+        Specs
+      </div>
+      <dl class="mt-1.5 space-y-0.5 text-text text-[0.65rem]">
+        <div class="flex items-center justify-between">
+          <dt>Context</dt>
+          <dd class="font-bold">
+            {formatContextLength(effectiveContextLength)}
+          </dd>
+        </div>
+        <div class="flex items-center justify-between">
+          <dt>Max output</dt>
+          <dd class="font-bold">
+            {formatContextLength(model.max_output_tokens)}
+          </dd>
+        </div>
+        <div class="flex items-center justify-between">
+          <dt>Source</dt>
+          <dd class="font-bold">
+            {dataSourceBadge}
+          </dd>
+        </div>
+      </dl>
+    </section>
   </div>
+
+  {
+    hasOpenRouterData ? (
+      <section class="card-metric-panel mt-2 px-3 py-2">
+        <div class="text-[0.55rem] text-muted">OpenRouter catalog</div>
+        <dl class="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-[0.65rem] text-text">
+          <div class="flex items-center justify-between gap-2">
+            <dt class="text-subtle">Tools</dt>
+            <dd class="font-bold">
+              {openRouterParameters.includes("tools") ? "Yes" : "No"}
+            </dd>
+          </div>
+          <div class="flex items-center justify-between gap-2">
+            <dt class="text-subtle">Route</dt>
+            <dd class="font-bold">
+              {model.openrouter_is_free ? "Free" : "Paid"}
+            </dd>
+          </div>
+          {
+            showOpenRouterPricing ? (
+              <>
+                <div class="flex items-center justify-between gap-2">
+                  <dt class="text-subtle">OR input</dt>
+                  <dd class="font-bold">
+                    {formatPrice(model.openrouter_prompt_price_1m, 3)}
+                  </dd>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                  <dt class="text-subtle">OR output</dt>
+                  <dd class="font-bold">
+                    {formatPrice(model.openrouter_completion_price_1m, 3)}
+                  </dd>
+                </div>
+              </>
+            ) : null
+          }
+          <div class="col-span-2 flex items-center justify-between gap-3">
+            <dt class="text-subtle">Modalities</dt>
+            <dd class="min-w-0 truncate font-bold" title={`${openRouterInputModalities.join(", ")} to ${openRouterOutputModalities.join(", ")}`}>
+              {openRouterInputModalities.join(", ") || "text"}
+              {" -> "}
+              {openRouterOutputModalities.join(", ") || "text"}
+            </dd>
+          </div>
+          <div class="col-span-2 flex items-center justify-between gap-3">
+            <dt class="text-subtle">Capabilities</dt>
+            <dd class="min-w-0 truncate font-bold" title={openRouterCaps || "Text"}>
+              {openRouterCaps || "Text"}
+            </dd>
+          </div>
+        </dl>
+      </section>
+    ) : null
+  }
 
   <!-- All Benchmarks -->
   <section
-    class="mt-2 rounded-lg border border-highlight-low/60 bg-overlay/50 px-3 py-2"
+    class="card-metric-panel mt-2 px-3 py-2"
   >
-    <div class="text-[0.55rem] uppercase tracking-wide text-muted">
+    <div class="text-[0.55rem] text-muted">
       Benchmarks
     </div>
     <div class="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-[0.65rem]">
@@ -228,18 +370,18 @@ const aaIndexes = [
 
   <!-- AA Indexes -->
   <section
-    class="mt-2 rounded-lg border border-highlight-low/60 bg-overlay/50 px-3 py-2"
+    class="card-metric-panel mt-2 px-3 py-2"
   >
-    <div class="text-[0.55rem] uppercase tracking-wide text-muted">
+    <div class="text-[0.55rem] text-muted">
       AA Indexes
     </div>
     <div class="mt-1.5 grid grid-cols-3 gap-1.5">
       {
         aaIndexes.map(([label, value]) => (
           <div
-            class={`rounded-md border px-1.5 py-1.5 text-center ${getScoreBg(value as number)}`}
+            class={`border px-1.5 py-1.5 text-center ${getScoreBg(value as number)}`}
           >
-            <div class="text-[0.5rem] uppercase tracking-wide text-muted">
+            <div class="text-[0.5rem] uppercase text-muted">
               {label}
             </div>
             <div class={`text-xs font-bold ${getScoreColor(value as number)}`}>
@@ -262,11 +404,10 @@ const aaIndexes = [
 
   .model-card:hover,
   .model-card:focus-visible {
-    border-color: rgba(156, 207, 216, 0.5);
+    border-color: var(--love);
     box-shadow:
-      0 16px 40px rgba(0, 0, 0, 0.4),
-      0 0 0 1px rgba(156, 207, 216, 0.15),
-      0 0 30px rgba(156, 207, 216, 0.1);
+      0 18px 52px var(--shadow-color),
+      0 0 0 1px rgba(230, 25, 25, 0.2);
   }
 
   .model-card:active {
@@ -274,8 +415,63 @@ const aaIndexes = [
   }
 
   .model-card:focus-visible {
-    outline: 2px solid var(--foam);
+    outline: 2px solid var(--love);
     outline-offset: 2px;
+  }
+
+  .source-strip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-s);
+    background: color-mix(in srgb, var(--overlay) 82%, transparent);
+    min-height: 1.8rem;
+    padding: 0.35rem 0.55rem;
+    color: var(--subtle);
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    font-weight: 800;
+    line-height: 1.2;
+    text-align: right;
+  }
+
+  .provider-logo-frame {
+    width: 1.8rem;
+    height: 1.8rem;
+    display: inline-flex;
+    flex: 0 0 1.8rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-s);
+    background: color-mix(in srgb, var(--overlay) 82%, transparent);
+  }
+
+  .provider-logo-frame-light {
+    background: #f6f3ea;
+    border-color: color-mix(in srgb, var(--love) 32%, #f6f3ea);
+  }
+
+  .provider-logo-image {
+    width: 1.05rem;
+    height: 1.05rem;
+    object-fit: contain;
+    display: block;
+  }
+
+  .provider-logo-fallback {
+    color: var(--subtle);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0;
+  }
+
+  .card-metric-panel {
+    border: 1px solid var(--highlight-low);
+    border-radius: var(--radius-s);
+    background: color-mix(in srgb, var(--overlay) 62%, transparent);
   }
 
   /* Keep AA index chips readable without over-saturated fills */

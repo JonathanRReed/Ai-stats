@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // These use CSS variables so they respond to the Rosé Pine theme toggle
+        // These use CSS variables so they follow the active telemetry theme.
         base: 'var(--base)',
         surface: 'var(--surface)',
         overlay: 'var(--overlay)',
@@ -20,10 +20,9 @@ export default {
         pine: 'var(--pine)',
         foam: 'var(--foam)',
         iris: 'var(--iris)',
-        // Highlight colors stay static; we mainly use them for borders and accents
-        'highlight-low': '#21202e',
-        'highlight-med': '#403d52',
-        'highlight-high': '#524f67',
+        'highlight-low': 'var(--highlight-low)',
+        'highlight-med': 'var(--highlight-med)',
+        'highlight-high': 'var(--highlight-high)',
       },
     },
   },

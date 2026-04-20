@@ -2,12 +2,12 @@
 
 > AI Stats is a web application for comparing AI model pricing, performance benchmarks, and technical specifications. Built with Astro, TypeScript, and Supabase, it provides real-time data visualization for models including GPT-4, Claude, Gemini, Llama, and more.
 
-This project is a hobbyist tool inspired by Theo Browne's model-prices dashboard. All benchmark data is sourced from ArtificialAnalysis.com via their free API. The site uses NebulaSans custom font from Nebula.com.
+This project is a hobbyist tool inspired by Theo Browne's model-prices dashboard. Pricing, Artificial Analysis benchmark scores, speed, and latency metrics are sourced from Artificial Analysis via their free API. Epoch benchmark runs come from Epoch AI's AI Benchmarking Hub. OpenRouter public catalog data is used for model availability, modalities, context length, and route metadata. The site uses NebulaSans custom font from Nebula.com.
 
 Key features:
 - Interactive comparison of AI model pricing (input/output token costs)
 - Performance benchmarks including MMLU Pro, GPQA, HumanEval, and more
-- Real-time data updates from ArtificialAnalysis API
+- Real-time data updates from Artificial Analysis API
 - Responsive glassmorphism design with Rose Pine theme
 - Filter and sort capabilities for custom comparisons
 
@@ -22,11 +22,13 @@ Key features:
 - [Astro Documentation](https://docs.astro.build/): Static site generator used for the project
 - [Supabase Documentation](https://supabase.com/docs): Backend database for caching API data
 - [Chart.js Documentation](https://www.chartjs.org/docs/): Charting library for data visualization
-- [ArtificialAnalysis API](https://artificialanalysis.ai/): Primary data source for AI model benchmarks and pricing
+- [Artificial Analysis API](https://artificialanalysis.ai/): Primary data source for model pricing, Artificial Analysis benchmark scores, speed, and latency
 
 ## Data Sources
 
-- [ArtificialAnalysis.com](https://artificialanalysis.ai/): All benchmark data, pricing information, and performance metrics
+- [Artificial Analysis](https://artificialanalysis.ai/): Model pricing, Artificial Analysis benchmark scores, speed, and latency
+- [Epoch AI Benchmarking Hub](https://epoch.ai/benchmarks): Epoch benchmark runs
+- [OpenRouter](https://openrouter.ai/docs/api-reference/models/get-models): Public model catalog, modalities, context length, and route metadata
 
 ## Optional
 

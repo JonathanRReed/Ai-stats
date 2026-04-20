@@ -1,28 +1,71 @@
 import type { APIRoute } from 'astro';
-import { getModels } from '../../lib/supabase';
+import {
+  AA_MODEL_SELECT_COLUMNS,
+  enrichModelsWithOpenRouterData,
+  getOpenRouterModels,
+  normalizeAaModelsForDisplay,
+  supabase,
+  type AaModel,
+} from '../../lib/supabase';
+
+const SEARCH_MAX_LENGTH = 80;
+const BENCHMARK_COLUMNS = new Set<keyof AaModel>([
+  'mmlu_pro',
+  'gpqa',
+  'hle',
+  'aime',
+  'livecodebench',
+  'scicode',
+  'math_500',
+  'aa_intelligence_index',
+  'aa_coding_index',
+  'aa_math_index',
+]);
+
+const sanitizeSearchTerm = (value: string | null): string => {
+  return (value ?? '')
+    .trim()
+    .replace(/[%_*]/g, '')
+    .slice(0, SEARCH_MAX_LENGTH);
+};
 
 export const GET: APIRoute = async ({ url }) => {
   const searchParams = url.searchParams;
-  const search = searchParams.get('search');
+  const search = sanitizeSearchTerm(searchParams.get('search'));
   const benchmark = searchParams.get('benchmark');
 
   try {
-    const models = await getModels();
+    if (!supabase) {
+      throw new Error('Supabase client unavailable');
+    }
 
-    let filteredModels = models;
+    let query = supabase
+      .from('aa_models')
+      .select(AA_MODEL_SELECT_COLUMNS.join(','))
+      .order('aa_intelligence_index', { ascending: false, nullsFirst: false });
+
     if (search) {
-      const q = search.toLowerCase();
-      filteredModels = filteredModels.filter((model) =>
-        ((model.name ?? '').toLowerCase()).includes(q),
-      );
+      query = query.ilike('name', `%${search}%`);
     }
 
-    if (benchmark) {
-      filteredModels = filteredModels.filter((model) => {
-        const score = model[benchmark as keyof typeof model];
-        return score !== null && score !== undefined;
-      });
+    if (benchmark && BENCHMARK_COLUMNS.has(benchmark as keyof AaModel)) {
+      query = query.not(benchmark, 'is', null);
     }
+
+    const { data, error } = await query;
+    if (error) {
+      throw error;
+    }
+
+    const openRouterModels = await getOpenRouterModels();
+    const models = enrichModelsWithOpenRouterData(
+      normalizeAaModelsForDisplay((data ?? []) as unknown as AaModel[]),
+      openRouterModels,
+    );
+    const filteredModels = models.map((model) => ({
+      ...model,
+      company_name: model.creator_name ?? null,
+    }));
 
     return new Response(JSON.stringify(filteredModels), {
       status: 200,

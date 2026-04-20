@@ -3,9 +3,19 @@
 This is a hobbyist project.
 Inspired by Theo Browne's [model-prices](https://model-prices.vercel.app/)
 
-The data is from [ArtificialAnalysis.com](https://artificialanalysis.ai) via their free API.
-All data & benchmarking is created & owned internally by ArtificialAnalysis.com
-And Epoch AI, ‘AI Benchmarking Hub’. Published online at epoch.ai. Retrieved from ‘https://epoch.ai/benchmarks’ [online resource]. Accessed 28 Nov 2025.
+Pricing, Artificial Analysis benchmark scores, speed, and latency metrics are from [Artificial Analysis](https://artificialanalysis.ai) via their free API.
+Epoch benchmark runs are from Epoch AI, AI Benchmarking Hub, published online at [epoch.ai/benchmarks](https://epoch.ai/benchmarks), used under Creative Commons Attribution licensing with Apache 2.0 licensing for Aider Polyglot and Terminal Bench derived subsets.
+OpenRouter public model catalog data is used for model availability, provider coverage, modalities, context length, and route pricing metadata. OpenRouter usage rankings are not treated as benchmark scores.
+
+## OpenRouter catalog sync
+
+The Supabase migration in [`supabase/openrouter_catalog.sql`](./supabase/openrouter_catalog.sql) adds:
+
+- `public.openrouter_models`
+- `public.openrouter_model_endpoints`
+- `public.sync_openrouter_models()`
+
+The dashboard reads from `public.openrouter_models` when present. If that table has not been applied yet, it falls back to OpenRouter's public `/api/v1/models?output_modalities=all` endpoint so the catalog collection still renders.
 
 The font used is NebulaSans, which is a custom font created by [nebula.com](https://nebula.com) all rights reserved to them.
 
