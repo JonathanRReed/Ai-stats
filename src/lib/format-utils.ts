@@ -19,11 +19,11 @@ export function formatScore(score: string | number | null): string {
  * Format a price value with specified decimal places (truncates, doesn't round)
  * @param price - Price value to format
  * @param decimals - Number of decimal places (default: 3)
- * @returns Formatted price string with $ symbol, or '—' if invalid
+ * @returns Formatted price string with $ symbol, or '-' if invalid
  */
 export function formatPrice(price: number | null | undefined, decimals = 3): string {
-  if (price === null || price === undefined) return '—';
-  if (!price && price !== 0) return '—';
+  if (price === null || price === undefined) return '-';
+  if (!price && price !== 0) return '-';
   const factor = Math.pow(10, decimals);
   const truncated = Math.trunc(price * factor) / factor;
   return `$${truncated.toFixed(decimals)}`;
@@ -32,19 +32,19 @@ export function formatPrice(price: number | null | undefined, decimals = 3): str
 /**
  * Format tokens per second value
  * @param tps - Tokens per second value
- * @returns Formatted TPS string, or '—' if invalid
+ * @returns Formatted TPS string, or '-' if invalid
  */
 export function formatTPS(tps: number | null | undefined): string {
-  return tps && Number(tps) > 0 ? `${Number(tps).toFixed(1)}` : '—';
+  return tps && Number(tps) > 0 ? `${Number(tps).toFixed(1)}` : '-';
 }
 
 /**
  * Format time to first token value
  * @param ttft - Time to first token in seconds
- * @returns Formatted TTFT string with 's' suffix, or '—' if invalid
+ * @returns Formatted TTFT string with 's' suffix, or '-' if invalid
  */
 export function formatTTFT(ttft: number | null | undefined): string {
-  return ttft && Number(ttft) > 0 ? `${Number(ttft).toFixed(2)}s` : '—';
+  return ttft && Number(ttft) > 0 ? `${Number(ttft).toFixed(2)}s` : '-';
 }
 
 /**

@@ -4,6 +4,7 @@ import type {
   EpochBenchmarkRun,
   EpochModel,
 } from './supabase';
+import { dedupeAaModelsBySlug, hydrateEpochModelsFromRuns } from './data-integrity';
 
 type FetchOpts = {
   supabaseUrl?: string;
@@ -93,16 +94,15 @@ const normalizeAaModel = (row: Record<string, unknown>): AaModel => ({
 });
 
 const normalizeEpochBenchmark = (row: Record<string, unknown>): EpochBenchmark => ({
-  id: Number(row.id) || 0,
+  id: toStringOrEmpty(row.id),
   slug: toStringOrEmpty(row.slug),
   name: toStringOrEmpty(row.name),
   description: toStringOrNull(row.description),
-  category: toStringOrNull(row.category),
-  source_url: toStringOrNull(row.source_url),
+  source: toStringOrNull(row.source),
 });
 
 const normalizeEpochModel = (row: Record<string, unknown>): EpochModel => ({
-  id: Number(row.id) || 0,
+  id: toStringOrEmpty(row.id),
   model_version: toStringOrEmpty(row.model_version),
   model_name: toStringOrNull(row.model_name),
   display_name: toStringOrNull(row.display_name),
@@ -118,13 +118,13 @@ const normalizeEpochModel = (row: Record<string, unknown>): EpochModel => ({
 
 const normalizeEpochRun = (
   row: Record<string, unknown>,
-  benchmarkMap: Map<number, EpochBenchmark>,
+  benchmarkMap: Map<string, EpochBenchmark>,
 ): EpochBenchmarkRun => {
-  const benchmarkId = Number(row.benchmark_id) || 0;
+  const benchmarkId = toStringOrEmpty(row.benchmark_id);
   const benchmark = benchmarkMap.get(benchmarkId);
 
   return {
-    id: Number(row.id) || 0,
+    id: toStringOrEmpty(row.id),
     model_version: toStringOrEmpty(row.model_version),
     benchmark_id: benchmarkId,
     score: toNumberOrNull(row.score),
@@ -158,7 +158,7 @@ export async function fetchLiveSnapshot(opts: FetchOpts = {}): Promise<LiveSnaps
   aaModelsUrl.searchParams.set('order', 'aa_intelligence_index.desc.nullslast');
 
   const epochBenchmarksUrl = new URL('/rest/v1/epoch_benchmarks', supabaseUrl);
-  epochBenchmarksUrl.searchParams.set('select', 'id,slug,name,description,category,source_url');
+  epochBenchmarksUrl.searchParams.set('select', 'id,slug,name,description,source');
   epochBenchmarksUrl.searchParams.set('order', 'name.asc');
 
   const epochModelsUrl = new URL('/rest/v1/epoch_models', supabaseUrl);
@@ -200,7 +200,7 @@ export async function fetchLiveSnapshot(opts: FetchOpts = {}): Promise<LiveSnaps
     }
 
     const aaModelsRaw = (await aaModelsRes.json()) as Record<string, unknown>[];
-    const aaModels = aaModelsRaw.map(normalizeAaModel);
+    const aaModels = dedupeAaModelsBySlug(aaModelsRaw.map(normalizeAaModel));
     if (!includeEpoch) {
       return { aaModels, epochModels: [], epochBenchmarks: [], epochRuns: [] };
     }
@@ -208,10 +208,13 @@ export async function fetchLiveSnapshot(opts: FetchOpts = {}): Promise<LiveSnaps
     const epochModelsRaw = (await epochModelsRes!.json()) as Record<string, unknown>[];
     const epochBenchmarksRaw = (await epochBenchmarksRes!.json()) as Record<string, unknown>[];
     const epochRunsRaw = (await epochRunsRes!.json()) as Record<string, unknown>[];
-    const epochModels = epochModelsRaw.map(normalizeEpochModel);
     const epochBenchmarks = epochBenchmarksRaw.map(normalizeEpochBenchmark);
     const benchmarkMap = new Map(epochBenchmarks.map((benchmark) => [benchmark.id, benchmark]));
     const epochRuns = epochRunsRaw.map((row) => normalizeEpochRun(row, benchmarkMap));
+    const epochModels = hydrateEpochModelsFromRuns(
+      epochModelsRaw.map(normalizeEpochModel),
+      epochRuns,
+    );
 
     return { aaModels, epochModels, epochBenchmarks, epochRuns };
   } catch (error) {

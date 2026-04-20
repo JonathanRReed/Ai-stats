@@ -1,21 +1,26 @@
 ---
 import {
   getModels,
-  getEpochModels,
+  getHydratedEpochModels,
   getEpochBenchmarks,
   getEpochBenchmarkRuns,
+  getOpenRouterModels,
+  enrichModelsWithOpenRouterData,
 } from "../lib/supabase";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import ScrollToTop from "../components/ScrollToTop.astro";
 import Layout from "../components/Layout.astro";
 
-const models = await getModels();
-
-// Fetch epoch.ai benchmark data
-const epochModels = await getEpochModels();
-const epochBenchmarks = await getEpochBenchmarks();
-const epochRuns = await getEpochBenchmarkRuns();
+const [baseModels, openRouterModels, epochBenchmarks, epochRuns] =
+  await Promise.all([
+    getModels(),
+    getOpenRouterModels(),
+    getEpochBenchmarks(),
+    getEpochBenchmarkRuns(),
+  ]);
+const models = enrichModelsWithOpenRouterData(baseModels, openRouterModels);
+const epochModels = await getHydratedEpochModels(epochRuns);
 
 const normalizeModelKey = (value: string | null | undefined): string => {
   if (!value) return "";
@@ -86,6 +91,22 @@ const initialClientModels = validModels.slice(0, INITIAL_CLIENT_MODELS);
 const initialClientEpochScores = epochScoresByModel;
 
 const selectedModels = validModels.slice(0, 3);
+
+const formatContextLength = (value: number | null | undefined): string => {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return "-";
+  if (num >= 1_000_000) {
+    return `${(num / 1_000_000).toFixed(num % 1_000_000 === 0 ? 0 : 1)}M`;
+  }
+  if (num >= 1_000) return `${Math.round(num / 1_000)}K`;
+  return String(num);
+};
+
+const formatCatalogPrice = (value: number | null | undefined): string => {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return "-";
+  return `$${num.toFixed(3)}`;
+};
 
 const getWinner = (items: any[], key: string, isLowerBetter = false) => {
   const usable = items.filter((m) => Number(m[key]) > 0);
@@ -210,14 +231,14 @@ const topFrontierMath =
       overflow-x: hidden; /* Prevent horizontal overflow */
     }
     .smart-filter-rail {
-      width: 280px;
-      min-width: 280px;
+      width: 260px;
+      min-width: 260px;
       flex-shrink: 0;
-      background: var(--surface);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-right: 2px solid var(--border-color);
-      padding: 5rem 1.25rem 2rem;
+      background: color-mix(in srgb, var(--surface) 92%, transparent);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-right: 1px solid var(--border-color);
+      padding: 6.75rem 0.85rem 1rem;
       height: 100vh;
       overflow-y: auto;
       position: fixed;
@@ -227,7 +248,7 @@ const topFrontierMath =
       transform: translateX(0);
       transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       scrollbar-width: thin;
-      scrollbar-color: rgba(156, 207, 216, 0.3) transparent;
+      scrollbar-color: var(--highlight-med) transparent;
     }
 
     .smart-filter-rail::-webkit-scrollbar {
@@ -251,7 +272,7 @@ const topFrontierMath =
     .smart-filter-rail.closed {
       transform: translateX(-100%);
     }
-    @media (max-width: 800px) {
+    @media (max-width: 1100px) {
       .layout {
         flex-direction: column;
         padding: 0;
@@ -294,7 +315,7 @@ const topFrontierMath =
       }
       .chart-section {
         width: 100%;
-        max-width: 500px;
+        max-width: none;
         margin: 0 auto 1.5rem auto;
         padding: 1rem;
       }
@@ -339,13 +360,13 @@ const topFrontierMath =
         max-width: 70px;
       }
       .filter-toggle {
-        display: block;
+        display: inline-flex;
       }
     }
     .filter-section {
-      margin-bottom: 1.75rem;
-      padding-bottom: 1.5rem;
-      border-bottom: 1px solid rgba(156, 207, 216, 0.08);
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--highlight-low);
     }
 
     .filter-section:last-child {
@@ -356,10 +377,10 @@ const topFrontierMath =
     .filter-section h3 {
       margin-bottom: 0.75rem;
       font-size: 0.7rem;
-      font-weight: 600;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: #6e6a86;
+      letter-spacing: 0;
+      color: var(--muted);
     }
 
     html.light .filter-section h3 {
@@ -369,8 +390,8 @@ const topFrontierMath =
     .model-list {
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
-      max-height: 320px;
+      gap: 0.18rem;
+      max-height: calc(100vh - 21rem);
       overflow-y: auto;
       padding-right: 0.5rem;
       margin-right: -0.5rem;
@@ -393,16 +414,16 @@ const topFrontierMath =
 
     .model-item {
       display: flex;
-      align-items: center;
-      gap: 0.625rem;
-      padding: 0.5rem 0.625rem;
-      border-radius: 8px;
-      transition: background 0.2s ease;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.28rem 0.35rem;
+      border-radius: var(--radius-s);
+      transition: background 0.18s ease;
       cursor: pointer;
     }
 
     .model-item:hover {
-      background: rgba(156, 207, 216, 0.08);
+      background: var(--highlight-low);
     }
 
     .model-item input[type="checkbox"] {
@@ -410,18 +431,19 @@ const topFrontierMath =
       -webkit-appearance: none;
       width: 16px;
       height: 16px;
-      border: 2px solid rgba(156, 207, 216, 0.4);
-      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-s);
       background: transparent;
       cursor: pointer;
       flex-shrink: 0;
       transition: all 0.2s ease;
       position: relative;
+      margin-top: 0.08rem;
     }
 
     .model-item input[type="checkbox"]:checked {
-      background: linear-gradient(135deg, #9ccfd8, #7fb5c0);
-      border-color: #9ccfd8;
+      background: var(--love);
+      border-color: var(--love);
     }
 
     .model-item input[type="checkbox"]:checked::after {
@@ -431,16 +453,20 @@ const topFrontierMath =
       top: 1px;
       width: 4px;
       height: 8px;
-      border: solid #191724;
+      border: solid #fff;
       border-width: 0 2px 2px 0;
       transform: rotate(45deg);
     }
 
     .model-item label {
-      font-size: 0.8rem;
-      color: #e0def4;
+      font-size: 0.68rem;
+      color: var(--subtle);
       cursor: pointer;
-      line-height: 1.3;
+      line-height: 1.2;
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
     }
 
     html.light .model-item label {
@@ -448,34 +474,44 @@ const topFrontierMath =
     }
 
     .selected-count {
-      font-size: 0.75rem;
-      color: #9ccfd8;
+      font-size: 0.7rem;
+      color: var(--subtle);
       font-weight: 500;
-      margin-bottom: 0.75rem;
-      padding: 0.5rem 0.75rem;
-      background: rgba(156, 207, 216, 0.1);
-      border-radius: 6px;
-      border: 1px solid rgba(156, 207, 216, 0.15);
+      margin-bottom: 0.6rem;
+      padding: 0.45rem 0.55rem;
+      background: var(--highlight-low);
+      border-radius: var(--radius-s);
+      border: 1px solid var(--border-color);
     }
     .compare-main {
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 2rem;
+      gap: 1rem;
       min-width: 0;
-      width: calc(100% - 280px);
-      margin-left: 280px;
-      padding: 2rem;
+      width: calc(100% - 260px);
+      margin-left: 260px;
+      padding: 1.25rem;
       box-sizing: border-box;
       max-width: 100%;
       overflow-x: hidden; /* Prevent horizontal overflow */
     }
+    .compare-page-title {
+      max-width: 1320px;
+      width: 100%;
+      margin: 0 auto -0.25rem;
+      color: var(--text);
+      font-size: clamp(1.35rem, 2vw, 2rem);
+      line-height: 1.1;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
     .chart-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 2rem;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
       width: 100%;
-      max-width: 1200px;
+      max-width: 1320px;
       margin: 0 auto;
     }
     .chart-card {
@@ -487,10 +523,10 @@ const topFrontierMath =
       background: var(--surface);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
-      border-radius: 4px;
-      padding: 2rem;
-      border: 2px solid var(--border-color);
-      box-shadow: 4px 4px 0px var(--shadow-color);
+      border-radius: var(--radius-m);
+      padding: 1rem;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 16px 54px var(--shadow-color);
       width: 100%;
       transition:
         transform 0.1s ease,
@@ -501,14 +537,14 @@ const topFrontierMath =
     }
     html.light .chart-section {
       background: var(--surface);
-      border: 2px solid var(--border-color);
-      box-shadow: 4px 4px 0px var(--shadow-color);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 16px 54px var(--shadow-color);
     }
     @media (prefers-reduced-motion: no-preference) {
       .chart-section:hover {
-        transform: translate(-2px, -2px);
-        box-shadow: 6px 6px 0px var(--shadow-color);
-        border-color: var(--border-color);
+        transform: translateY(-2px);
+        box-shadow: 0 20px 64px var(--shadow-color);
+        border-color: color-mix(in srgb, var(--love) 55%, var(--border-color));
       }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -520,13 +556,13 @@ const topFrontierMath =
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 1.5rem;
+      margin-bottom: 0.75rem;
     }
     .chart-header h3 {
       margin: 0;
-      font-size: 1.2rem;
-      font-weight: 600;
-      color: #f8f8f8;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text);
     }
     html.light .chart-header h3 {
       color: #575279;
@@ -560,16 +596,15 @@ const topFrontierMath =
     .chart-container {
       display: block;
       width: 100%;
-      height: 360px;
-      min-height: 300px;
+      height: 300px;
+      min-height: 260px;
       position: relative;
       box-sizing: border-box;
       overflow: visible;
-      padding-top: 2rem;
       background: var(--highlight-low);
-      border-radius: 4px;
-      padding: 1rem;
-      border: 2px solid var(--border-color);
+      border-radius: var(--radius-s);
+      padding: 0.75rem;
+      border: 1px solid var(--border-color);
       position: relative;
       margin: 0 auto;
       scrollbar-width: thin;
@@ -760,10 +795,10 @@ const topFrontierMath =
     }
     .insights-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 1.5rem;
-      margin-top: 2rem;
-      max-width: 1200px;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0;
+      max-width: 1320px;
       margin-left: auto;
       margin-right: auto;
     }
@@ -771,24 +806,24 @@ const topFrontierMath =
       background: var(--surface);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
-      border-radius: 4px;
-      padding: 1.5rem;
-      border: 2px solid var(--border-color);
-      box-shadow: 4px 4px 0px var(--shadow-color);
+      border-radius: var(--radius-m);
+      padding: 0.8rem;
+      border: 1px solid var(--border-color);
+      box-shadow: none;
       transition:
         transform 0.1s ease,
         box-shadow 0.1s ease;
     }
     html.light .insight-card {
       background: var(--surface);
-      border: 2px solid var(--border-color);
-      box-shadow: 4px 4px 0px var(--shadow-color);
+      border: 1px solid var(--border-color);
+      box-shadow: none;
     }
     @media (prefers-reduced-motion: no-preference) {
       .insight-card:hover {
-        transform: translate(-2px, -2px);
-        box-shadow: 6px 6px 0px var(--shadow-color);
-        border-color: var(--border-color);
+        transform: translateY(-1px);
+        box-shadow: 0 12px 36px var(--shadow-color);
+        border-color: color-mix(in srgb, var(--love) 45%, var(--border-color));
       }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -798,22 +833,95 @@ const topFrontierMath =
     }
     .insight-card h4 {
       margin: 0 0 0.5rem 0;
-      font-size: 0.9rem;
-      color: rgba(248, 248, 248, 0.7);
+      font-size: 0.68rem;
+      color: var(--muted);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0;
     }
     html.light .insight-card h4 {
       color: #797593;
     }
     .insight-card p {
       margin: 0;
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: var(--text-primary);
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.25;
     }
     html.light .insight-card p {
       color: #575279;
+    }
+
+    .catalog-section {
+      width: 100%;
+      max-width: 1320px;
+      margin: 0 auto;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-m);
+      background: color-mix(in srgb, var(--surface) 92%, transparent);
+      overflow: hidden;
+    }
+
+    .catalog-section header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.85rem 1rem;
+    }
+
+    .catalog-section h3 {
+      margin: 0;
+      color: var(--text);
+      font-size: 0.92rem;
+      font-weight: 800;
+    }
+
+    .catalog-section p {
+      margin: 0;
+      color: var(--subtle);
+      font-size: 0.72rem;
+    }
+
+    .catalog-table {
+      overflow-x: auto;
+    }
+
+    .catalog-table table {
+      width: 100%;
+      min-width: 760px;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+    }
+
+    .catalog-table th,
+    .catalog-table td {
+      border-bottom: 1px solid var(--highlight-low);
+      padding: 0.65rem 0.8rem;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .catalog-table th {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .catalog-table td {
+      color: var(--text);
+    }
+
+    .catalog-table td:first-child {
+      font-weight: 800;
+    }
+
+    .catalog-table td:not(:first-child),
+    .catalog-table th:not(:first-child) {
+      text-align: right;
     }
 
     .no-data {
@@ -855,21 +963,26 @@ const topFrontierMath =
       color: var(--muted);
     }
     .filter-toggle {
-      position: fixed;
-      left: 1rem;
-      bottom: 1rem;
-      z-index: 60;
-      background: var(--surface);
+      position: relative;
+      top: auto;
+      left: auto;
+      bottom: auto;
+      z-index: 35;
+      background: var(--base);
       color: var(--text);
       border: 2px solid var(--border-color);
-      box-shadow: 4px 4px 0px var(--shadow-color);
+      box-shadow: 0 12px 32px var(--shadow-color);
       border-radius: 4px;
-      width: 48px;
-      height: 48px;
-      display: flex;
+      min-width: 6.5rem;
+      min-height: 42px;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
+      padding: 0.65rem 0.9rem;
       cursor: pointer;
+      opacity: 1;
+      pointer-events: auto;
+      margin: 0.85rem 1rem 0;
       transition: all 0.1s ease;
     }
 
@@ -884,14 +997,31 @@ const topFrontierMath =
       box-shadow: 2px 2px 0px var(--shadow-color);
     }
 
+    .filter-toggle[aria-expanded="true"] {
+      position: fixed;
+      top: calc(56px + 0.75rem);
+      left: 0.75rem;
+      z-index: 125;
+      background: var(--love);
+      border-color: var(--love);
+      color: #fff;
+      margin: 0;
+    }
+
     .filter-label {
-      font-size: 1.2rem;
-      font-weight: bold;
+      font-size: 0.72rem;
+      font-weight: 800;
       display: flex;
       align-items: center;
       justify-content: center;
       width: 100%;
       height: 100%;
+      font-family: var(--font-mono);
+      letter-spacing: 0;
+      line-height: 1;
+      text-transform: uppercase;
+      white-space: nowrap;
+      opacity: 1;
     }
 
     .filter-overlay {
@@ -903,7 +1033,7 @@ const topFrontierMath =
       transition: opacity 0.3s ease;
       z-index: 40;
     }
-    @media (max-width: 800px) {
+    @media (max-width: 1100px) {
       .layout {
         flex-direction: column;
         padding: 0;
@@ -975,14 +1105,15 @@ const topFrontierMath =
         grid-template-columns: 1fr;
       }
       .layout {
-        margin: 1rem auto;
+        margin: 0 auto;
       }
       .filter-toggle {
-        bottom: 5rem;
-        left: 1rem;
-        width: 42px;
-        height: 42px;
-        font-size: 0.9rem;
+        top: calc(56px + 0.65rem);
+        bottom: auto;
+        left: 0.75rem;
+        min-width: 5.5rem;
+        min-height: 42px;
+        font-size: 0.72rem;
       }
       .chart-container {
         padding: 0.5rem;
@@ -995,9 +1126,9 @@ const topFrontierMath =
     }
     .sort-toggle {
       background: var(--surface);
-      border: 2px solid var(--border-color);
-      box-shadow: 2px 2px 0px var(--shadow-color);
-      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      box-shadow: none;
+      border-radius: var(--radius-s);
       color: var(--text);
       padding: 0.625rem 1rem;
       width: 100%;
@@ -1022,9 +1153,9 @@ const topFrontierMath =
 
     .metric-dropdown {
       background: var(--surface);
-      border: 2px solid var(--border-color);
-      box-shadow: 2px 2px 0px var(--shadow-color);
-      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      box-shadow: none;
+      border-radius: var(--radius-s);
       color: var(--text);
       padding: 0.625rem 1rem;
       width: 100%;
@@ -1075,11 +1206,11 @@ const topFrontierMath =
     }
 
     .footer-wrapper {
-      margin-left: 280px;
-      width: calc(100% - 280px);
+      margin-left: 260px;
+      width: calc(100% - 260px);
     }
 
-    @media (max-width: 800px) {
+    @media (max-width: 1100px) {
       .footer-wrapper {
         margin-left: 0;
         width: 100%;
@@ -1101,6 +1232,137 @@ const topFrontierMath =
         animation: none;
       }
     }
+
+    .compare-container {
+      background: var(--base);
+      color: var(--text);
+    }
+
+    .charts-section,
+    .insights-section {
+      width: 100%;
+    }
+
+    .filter-toggle {
+      border: 1px solid var(--border-color);
+      box-shadow: 0 12px 32px var(--shadow-color);
+    }
+
+    .filter-label {
+      font-size: 0.78rem;
+      font-family: var(--font-mono);
+    }
+
+    .model-search,
+    .sort-toggle,
+    .metric-dropdown {
+      min-height: 40px;
+      padding-block: 0.52rem;
+      border-width: 1px;
+      box-shadow: none;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+    }
+
+    .model-search:focus,
+    .sort-toggle:hover,
+    .metric-dropdown:hover,
+    .metric-dropdown:focus {
+      transform: none;
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--love) 24%, transparent);
+      border-color: color-mix(in srgb, var(--love) 55%, var(--border-color));
+    }
+
+    .chart-section,
+    .insight-card {
+      background: color-mix(in srgb, var(--surface) 92%, transparent);
+    }
+
+    @media (max-width: 980px) {
+      .smart-filter-rail {
+        background: color-mix(in srgb, var(--surface) 96%, transparent);
+        padding: 4.5rem 0.85rem 1rem;
+      }
+
+      .compare-main {
+        padding: 1rem;
+      }
+
+      .chart-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    :global(body.compare-filters-open) {
+      overflow: hidden;
+    }
+
+    @media (max-width: 1100px) {
+      .filter-toggle {
+        position: relative;
+        top: auto;
+        bottom: auto;
+        left: auto;
+        z-index: 35;
+        display: inline-flex;
+        min-width: 6.5rem;
+        min-height: 42px;
+        margin: 0.85rem 1rem 0;
+      }
+
+      .filter-toggle[aria-expanded="true"] {
+        position: fixed;
+        top: calc(56px + 0.75rem);
+        left: 0.75rem;
+        z-index: 125;
+        margin: 0;
+      }
+
+      .filter-overlay {
+        top: 56px;
+        z-index: 105;
+      }
+
+      .smart-filter-rail {
+        top: 56px;
+        bottom: auto;
+        z-index: 115;
+        height: calc(100dvh - 56px);
+        max-height: calc(100dvh - 56px);
+        width: min(22rem, calc(100vw - 1.5rem));
+        max-width: none;
+        padding: 4.25rem 0.85rem 1rem;
+        transform: translateX(calc(-100% - 1rem));
+      }
+
+      .smart-filter-rail.open {
+        transform: translateX(0);
+      }
+
+      .compare-main {
+        padding-top: 1rem;
+      }
+    }
+
+    @media (max-width: 500px) {
+      .filter-toggle {
+        min-width: 6.25rem;
+      }
+
+      .filter-toggle[aria-expanded="true"] {
+        top: calc(56px + 0.65rem);
+        left: 0.75rem;
+      }
+
+      .smart-filter-rail {
+        width: calc(100vw - 1rem);
+        padding-top: 4rem;
+      }
+
+      .compare-main {
+        padding-top: 1rem;
+      }
+    }
   </style>
 <div
   class="compare-container"
@@ -1114,7 +1376,7 @@ const topFrontierMath =
     aria-expanded="false"
     aria-label="Toggle filters"
   >
-    <span class="filter-label">&lt;=&gt;</span>
+    <span class="filter-label">Filters</span>
   </button>
   <div class="filter-overlay" id="filter-overlay"></div>
 
@@ -1147,6 +1409,7 @@ const topFrontierMath =
       <div class="filter-section">
         <h3>Model Selection</h3>
         <div class="search-container">
+          <label for="model-search" class="sr-only">Search models</label>
           <input
             type="text"
             id="model-search"
@@ -1160,6 +1423,7 @@ const topFrontierMath =
     </aside>
 
     <main class="compare-main">
+      <h1 class="compare-page-title">Compare AI Models</h1>
       <section class="charts-section">
         <div class="chart-grid">
           <div class="chart-section">
@@ -1182,31 +1446,87 @@ const topFrontierMath =
         </div>
       </section>
 
+      <section class="catalog-section" aria-label="OpenRouter catalog comparison">
+        <header>
+          <div>
+            <h3>OpenRouter catalog metadata</h3>
+            <p>Matched public catalog fields for selected models.</p>
+          </div>
+        </header>
+        <div class="catalog-table" id="catalog-table">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Model</th>
+                <th scope="col">OR ID</th>
+                <th scope="col">Context</th>
+                <th scope="col">OR input</th>
+                <th scope="col">OR output</th>
+                <th scope="col">Capabilities</th>
+              </tr>
+            </thead>
+            <tbody>
+              {
+                selectedModels.map((model: any) => {
+                  const parameters = Array.isArray(model.openrouter_supported_parameters)
+                    ? model.openrouter_supported_parameters
+                    : [];
+                  const inputModalities = Array.isArray(model.openrouter_input_modalities)
+                    ? model.openrouter_input_modalities
+                    : [];
+                  const outputModalities = Array.isArray(model.openrouter_output_modalities)
+                    ? model.openrouter_output_modalities
+                    : [];
+                  const capabilities = [
+                    parameters.includes("tools") ? "tools" : null,
+                    inputModalities.includes("image") ? "vision" : null,
+                    outputModalities.includes("image") ? "image out" : null,
+                  ]
+                    .filter(Boolean)
+                    .join(", ");
+
+                  return (
+                    <tr>
+                      <td>{model.name}</td>
+                      <td>{model.openrouter_id ?? "-"}</td>
+                      <td>{formatContextLength(model.openrouter_context_length)}</td>
+                      <td>{formatCatalogPrice(model.openrouter_prompt_price_1m)}</td>
+                      <td>{formatCatalogPrice(model.openrouter_completion_price_1m)}</td>
+                      <td>{capabilities || "-"}</td>
+                    </tr>
+                  );
+                })
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <section class="insights-section">
         <div class="insights-grid">
           <div class="insight-card">
             <h4>Cheapest Tokens</h4>
-            <p>{cheapestTokensModel ? cheapestTokensModel.name : "—"}</p>
+            <p>{cheapestTokensModel ? cheapestTokensModel.name : "-"}</p>
           </div>
           <div class="insight-card">
             <h4>Cheapest Input</h4>
-            <p>{inputPriceWinner ? inputPriceWinner.name : "—"}</p>
+            <p>{inputPriceWinner ? inputPriceWinner.name : "-"}</p>
           </div>
           <div class="insight-card">
             <h4>Cheapest Output</h4>
-            <p>{outputPriceWinner ? outputPriceWinner.name : "—"}</p>
+            <p>{outputPriceWinner ? outputPriceWinner.name : "-"}</p>
           </div>
           <div class="insight-card">
             <h4>Highest TPS</h4>
-            <p>{tpsWinner ? tpsWinner.name : "—"}</p>
+            <p>{tpsWinner ? tpsWinner.name : "-"}</p>
           </div>
           <div class="insight-card">
             <h4>Fastest TTFT</h4>
-            <p>{ttftWinner ? ttftWinner.name : "—"}</p>
+            <p>{ttftWinner ? ttftWinner.name : "-"}</p>
           </div>
           <div class="insight-card">
             <h4 id="performance-metric-title">Top MMLU Pro</h4>
-            <p>{performanceWinner ? performanceWinner.name : "—"}</p>
+            <p>{performanceWinner ? performanceWinner.name : "-"}</p>
           </div>
           <div class="insight-card">
             <h4 style="color: var(--iris);">Top GPQA Diamond</h4>
@@ -1214,7 +1534,7 @@ const topFrontierMath =
               {
                 topGpqaDiamond
                   ? topGpqaDiamond.model_version.replace(/_/g, " ")
-                  : "—"
+                  : "-"
               }
             </p>
             <span style="font-size: 0.65rem; color: var(--muted);"
@@ -1231,7 +1551,7 @@ const topFrontierMath =
               {
                 topFrontierMath
                   ? topFrontierMath.model_version.replace(/_/g, " ")
-                  : "—"
+                  : "-"
               }
             </p>
             <span style="font-size: 0.65rem; color: var(--muted);"
@@ -1259,6 +1579,7 @@ const topFrontierMath =
     validModels: initialClientModels,
     epochScoresByModel: initialClientEpochScores,
     availableBenchmarks,
+    openRouterModels,
   }}
 >
   // Security: HTML sanitization function to prevent XSS attacks
@@ -1349,28 +1670,94 @@ const topFrontierMath =
     return __chartLibLoading;
   }
 
+  function getFilterControls() {
+    return {
+      rail: document.getElementById("smart-filter-rail"),
+      main: document.querySelector(".compare-main"),
+      toggle: document.getElementById("filter-toggle"),
+      overlay: document.getElementById("filter-overlay"),
+    };
+  }
+
+  function isCompactFilterLayout() {
+    return window.innerWidth <= 1100;
+  }
+
+  function setCompareFiltersOpen(nextOpen) {
+    const { rail, main, toggle, overlay } = getFilterControls();
+    if (!rail || !toggle) return;
+
+    const label = toggle.querySelector(".filter-label");
+    const isCompact = isCompactFilterLayout();
+
+    if (isCompact) {
+      rail.classList.remove("closed");
+      rail.classList.toggle("open", nextOpen);
+      overlay?.classList.toggle("active", nextOpen);
+      document.body.classList.toggle("compare-filters-open", nextOpen);
+      if (main) {
+        main.style.marginLeft = "";
+        main.style.width = "";
+      }
+    } else {
+      rail.classList.remove("open");
+      rail.classList.toggle("closed", !nextOpen);
+      overlay?.classList.remove("active");
+      document.body.classList.remove("compare-filters-open");
+
+      if (main) {
+        main.style.marginLeft = nextOpen ? "260px" : "0";
+        main.style.width = nextOpen ? "calc(100% - 260px)" : "100%";
+      }
+    }
+
+    toggle.setAttribute("aria-expanded", String(nextOpen));
+    if (label) label.textContent = nextOpen ? "Close" : "Filters";
+  }
+
+  function getCompareFiltersOpen() {
+    const { rail } = getFilterControls();
+    if (!rail) return false;
+    return isCompactFilterLayout()
+      ? rail.classList.contains("open")
+      : !rail.classList.contains("closed");
+  }
+
+  function toggleCompareFilters() {
+    setCompareFiltersOpen(!getCompareFiltersOpen());
+  }
+
+  window.__setCompareFiltersOpen = setCompareFiltersOpen;
+  window.__toggleCompareFilters = toggleCompareFilters;
+
+  window.__compareFilterClickController?.abort();
+  window.__compareFilterClickController = new AbortController();
+  document.addEventListener(
+    "click",
+    (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      if (target.closest("#filter-toggle")) {
+        event.preventDefault();
+        event.stopPropagation();
+        window.__toggleCompareFilters?.();
+        return;
+      }
+
+      if (target.closest("#filter-overlay")) {
+        event.preventDefault();
+        event.stopPropagation();
+        window.__setCompareFiltersOpen?.(false);
+      }
+    },
+    { capture: true, signal: window.__compareFilterClickController.signal },
+  );
+
   async function initCompare() {
     // Initialize sidebar state based on screen size
     const initializeLayout = () => {
-      const isMobile = window.innerWidth <= 800;
-      const rail = document.getElementById("smart-filter-rail");
-      const main = document.querySelector(".compare-main");
-      const toggle = document.getElementById("filter-toggle");
-      const label = toggle?.querySelector(".filter-label");
-
-      if (isMobile) {
-        rail?.classList.remove("closed");
-        rail?.classList.remove("open");
-        if (label) label.innerHTML = "&lt;=&gt;";
-      } else {
-        // Default to showing sidebar on desktop
-        rail?.classList.remove("closed");
-        if (main) {
-          main.style.marginLeft = "280px";
-          main.style.width = "calc(100% - 280px)";
-        }
-        if (label) label.innerHTML = "&times;";
-      }
+      setCompareFiltersOpen(!isCompactFilterLayout());
     };
 
     // Call initially and on resize
@@ -1379,62 +1766,6 @@ const topFrontierMath =
     registerCleanup(() =>
       window.removeEventListener("resize", initializeLayout),
     );
-
-    const toggle = document.getElementById("filter-toggle");
-    const rail = document.getElementById("smart-filter-rail");
-    const overlay = document.getElementById("filter-overlay");
-
-    function closeFilters() {
-      const isMobile = window.innerWidth <= 800;
-
-      if (isMobile) {
-        rail.classList.remove("open");
-        overlay.classList.remove("active");
-        toggle.setAttribute("aria-expanded", "false");
-        const label = toggle.querySelector(".filter-label");
-        if (label) label.innerHTML = "&lt;=&gt;";
-      } else {
-        rail.classList.add("closed");
-        toggle.setAttribute("aria-expanded", "false");
-        const label = toggle.querySelector(".filter-label");
-        if (label) label.innerHTML = "&lt;=&gt;";
-
-        // Adjust main content area
-        const main = document.querySelector(".compare-main");
-        if (main) {
-          main.style.marginLeft = "0";
-          main.style.width = "100%";
-        }
-      }
-    }
-
-    toggle?.addEventListener("click", () => {
-      // For mobile, we use 'open' class to show the sidebar
-      // For desktop, we use 'closed' class to hide the sidebar
-      const isMobile = window.innerWidth <= 800;
-
-      if (isMobile) {
-        const isOpen = rail.classList.toggle("open");
-        overlay.classList.toggle("active", isOpen);
-        toggle.setAttribute("aria-expanded", isOpen.toString());
-        const label = toggle.querySelector(".filter-label");
-        if (label) label.innerHTML = isOpen ? "&times;" : "&lt;=&gt;";
-      } else {
-        const isClosed = rail.classList.toggle("closed");
-        toggle.setAttribute("aria-expanded", (!isClosed).toString());
-        const label = toggle.querySelector(".filter-label");
-        if (label) label.innerHTML = isClosed ? "&lt;=&gt;" : "&times;";
-
-        // Also adjust the main content area when sidebar is toggled
-        const main = document.querySelector(".compare-main");
-        if (main) {
-          main.style.marginLeft = isClosed ? "0" : "280px";
-          main.style.width = isClosed ? "100%" : "calc(100% - 280px)";
-        }
-      }
-    });
-
-    overlay?.addEventListener("click", closeFilters);
 
     // Dynamic model selection and charts
     let modelsState = [...validModels];
@@ -1446,6 +1777,7 @@ const topFrontierMath =
     const perfChart = document.getElementById("performance-chart");
     const priceCanvas = document.getElementById("price-canvas");
     const perfCanvas = document.getElementById("perf-canvas");
+    const catalogTable = document.getElementById("catalog-table");
     let priceChartInstance = null;
     let perfChartInstance = null;
     const metricSelector = document.getElementById("metric-selector");
@@ -1461,12 +1793,133 @@ const topFrontierMath =
     let epochBenchmarksState = [];
     const sortToggle = document.getElementById("sort-toggle");
     const searchInput = document.getElementById("model-search");
+    const compareParams = new URLSearchParams(window.location.search);
+    const requestedMetric = compareParams.get("metric");
+    const requestedModel = compareParams.get("model");
+    let metricDeepLinkApplied = false;
+    let modelDeepLinkApplied = false;
 
     const normalizeModelKey = (value) =>
       String(value || "")
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, " ")
         .trim();
+
+    const normalizeOpenRouterKey = (value) =>
+      String(value || "")
+        .toLowerCase()
+        .replace(/^(openai|anthropic|google|meta|mistral|moonshotai|moonshot|alibaba|qwen|xai|deepseek|minimax|nvidia|cohere|perplexity):\s*/i, "")
+        .replace(/\([^)]*\)/g, " ")
+        .replace(/:free$/i, "")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+
+    const openRouterLookup = (() => {
+      const lookup = new Map();
+      (openRouterModels || []).forEach((model) => {
+        const candidates = [
+          model.openrouter_id,
+          model.openrouter_id?.split("/").slice(1).join("/"),
+          model.canonical_slug,
+          model.model_slug,
+          model.name,
+          model.name?.includes(":") ? model.name.split(":").slice(1).join(":") : model.name,
+        ];
+        candidates.forEach((candidate) => {
+          const normalized = normalizeOpenRouterKey(candidate);
+          if (!normalized) return;
+          if (!lookup.has(normalized)) lookup.set(normalized, model);
+          const compact = normalized.replace(/\s+/g, "");
+          if (!lookup.has(compact)) lookup.set(compact, model);
+        });
+      });
+      return lookup;
+    })();
+
+    const enrichWithOpenRouter = (models) =>
+      (models || []).map((model) => {
+        const candidates = [
+          model.slug,
+          model.name,
+          String(model.name || "").replace(/\([^)]*\)/g, ""),
+          model.company_name && model.name
+            ? `${model.company_name} ${model.name}`
+            : null,
+          model.creator_slug && model.slug
+            ? `${model.creator_slug} ${model.slug}`
+            : null,
+        ];
+        const match = candidates
+          .flatMap((candidate) => {
+            const normalized = normalizeOpenRouterKey(candidate);
+            return normalized ? [normalized, normalized.replace(/\s+/g, "")] : [];
+          })
+          .map((key) => openRouterLookup.get(key))
+          .find(Boolean);
+        if (!match) return model;
+        return {
+          ...model,
+          openrouter_id: match.openrouter_id,
+          openrouter_name: match.name,
+          openrouter_context_length: match.context_length,
+          openrouter_prompt_price_1m: match.prompt_price_1m,
+          openrouter_completion_price_1m: match.completion_price_1m,
+          openrouter_supported_parameters: match.supported_parameters || [],
+          openrouter_input_modalities: match.input_modalities || [],
+          openrouter_output_modalities: match.output_modalities || [],
+          openrouter_is_free: match.is_free,
+        };
+      });
+
+    const formatContextLength = (value) => {
+      const num = Number(value);
+      if (!Number.isFinite(num) || num <= 0) return "-";
+      if (num >= 1000000) {
+        return `${(num / 1000000).toFixed(num % 1000000 === 0 ? 0 : 1)}M`;
+      }
+      if (num >= 1000) return `${Math.round(num / 1000)}K`;
+      return String(num);
+    };
+
+    const formatCatalogPrice = (value) => {
+      const num = Number(value);
+      if (!Number.isFinite(num) || num <= 0) return "-";
+      return `$${num.toFixed(3)}`;
+    };
+
+    const applyDeepLinkHints = () => {
+      if (
+        requestedMetric &&
+        !metricDeepLinkApplied &&
+        metricSelector &&
+        benchmarkNames[requestedMetric]
+      ) {
+        metricSelector.value = requestedMetric;
+        metricDeepLinkApplied = true;
+      }
+
+      if (!requestedModel || modelDeepLinkApplied) return;
+      const requestedModelKey = normalizeModelKey(requestedModel);
+      if (!requestedModelKey) return;
+      const matchedModel =
+        modelsState.find((model) => {
+          const nameKey = normalizeModelKey(model.name);
+          const slugKey = normalizeModelKey(model.slug);
+          return nameKey === requestedModelKey || slugKey === requestedModelKey;
+        }) ||
+        modelsState.find((model) => {
+          const nameKey = normalizeModelKey(model.name);
+          return (
+            nameKey.includes(requestedModelKey) ||
+            requestedModelKey.includes(nameKey)
+          );
+        });
+      if (!matchedModel?.id) return;
+      selected.clear();
+      selected.add(matchedModel.id);
+      if (searchInput instanceof HTMLInputElement) searchInput.value = "";
+      modelDeepLinkApplied = true;
+    };
 
     const collectLookupKeys = (model) => {
       const keys = new Set();
@@ -1649,6 +2102,58 @@ const topFrontierMath =
       return modelsState.filter((m) => selected.has(m.id));
     }
 
+    function renderCatalogTable(models) {
+      if (!catalogTable) return;
+      const rows = models
+        .map((model) => {
+          const parameters = Array.isArray(model.openrouter_supported_parameters)
+            ? model.openrouter_supported_parameters
+            : [];
+          const inputModalities = Array.isArray(model.openrouter_input_modalities)
+            ? model.openrouter_input_modalities
+            : [];
+          const outputModalities = Array.isArray(model.openrouter_output_modalities)
+            ? model.openrouter_output_modalities
+            : [];
+          const capabilities =
+            [
+              parameters.includes("tools") ? "tools" : null,
+              inputModalities.includes("image") ? "vision" : null,
+              outputModalities.includes("image") ? "image out" : null,
+            ]
+              .filter(Boolean)
+              .join(", ") || "-";
+
+          return `
+            <tr>
+              <td>${sanitizeHTML(model.name || "-")}</td>
+              <td>${sanitizeHTML(model.openrouter_id || "-")}</td>
+              <td>${formatContextLength(model.openrouter_context_length)}</td>
+              <td>${formatCatalogPrice(model.openrouter_prompt_price_1m)}</td>
+              <td>${formatCatalogPrice(model.openrouter_completion_price_1m)}</td>
+              <td>${sanitizeHTML(capabilities)}</td>
+            </tr>
+          `;
+        })
+        .join("");
+
+      catalogTable.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Model</th>
+              <th scope="col">OR ID</th>
+              <th scope="col">Context</th>
+              <th scope="col">OR input</th>
+              <th scope="col">OR output</th>
+              <th scope="col">Capabilities</th>
+            </tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="6">Select models to compare</td></tr>'}</tbody>
+        </table>
+      `;
+    }
+
     function updateInsights(models) {
       if (models.length === 0) return;
 
@@ -1738,15 +2243,15 @@ const topFrontierMath =
       if (insightCards.length >= 6) {
         insightCards[0].textContent = cheapestTokensModel
           ? cheapestTokensModel.name
-          : "—";
+          : "-";
         insightCards[1].textContent = cheapestInputModel.name;
         insightCards[2].textContent = cheapestOutputModel.name;
         insightCards[3].textContent = tpsWinnerModel
           ? tpsWinnerModel.name
-          : "—";
+          : "-";
         insightCards[4].textContent = ttftWinnerModel
           ? ttftWinnerModel.name
-          : "—";
+          : "-";
         insightCards[5].textContent = topPerformerModel.name;
       }
     }
@@ -1762,6 +2267,7 @@ const topFrontierMath =
 
       // Update insights section
       updateInsights(chosen);
+      renderCatalogTable(chosen);
 
       // Clear any existing "no data" messages but preserve the container structure
       const existingNoData = priceChart.querySelector(".no-data");
@@ -1947,8 +2453,10 @@ const topFrontierMath =
               x: {
                 ticks: {
                   color: "#eae9f0",
-                  maxRotation: 45,
-                  minRotation: 45,
+                  autoSkip: true,
+                  maxRotation: 28,
+                  minRotation: 0,
+                  font: { size: 10 },
                 },
                 grid: { display: false },
               },
@@ -1957,6 +2465,7 @@ const topFrontierMath =
                 suggestedMax: Math.max(...inputData, ...outputData) * 1.2,
                 ticks: {
                   color: "#eae9f0",
+                  font: { size: 10 },
                   callback: (v) => `$${Number(v).toFixed(0)}`,
                 },
                 grid: {
@@ -2042,8 +2551,10 @@ const topFrontierMath =
               x: {
                 ticks: {
                   color: "#eae9f0",
-                  maxRotation: 45,
-                  minRotation: 45,
+                  autoSkip: true,
+                  maxRotation: 28,
+                  minRotation: 0,
+                  font: { size: 10 },
                 },
                 grid: { display: false },
               },
@@ -2052,6 +2563,7 @@ const topFrontierMath =
                 suggestedMax: maxScore * 1.2,
                 ticks: {
                   color: "#eae9f0",
+                  font: { size: 10 },
                   callback: (v) => `${Number(v).toFixed(3)}%`,
                 },
                 grid: {
@@ -2116,11 +2628,11 @@ const topFrontierMath =
       const snapshot = event.detail;
       if (!snapshot) return;
 
-      const nextModels = (snapshot.aaModels ?? []).filter((model) => {
+      const nextModels = enrichWithOpenRouter((snapshot.aaModels ?? []).filter((model) => {
         const inputPrice = Number(model.price_1m_input_tokens);
         const outputPrice = Number(model.price_1m_output_tokens);
         return inputPrice > 0 && outputPrice > 0;
-      });
+      }));
 
       modelsState = nextModels;
       epochRunsState = [...(snapshot.epochRuns ?? [])];
@@ -2134,6 +2646,7 @@ const topFrontierMath =
         epochRunsState,
       );
       updateMetricSelectorOptions();
+      applyDeepLinkHints();
 
       const liveIds = new Set(modelsState.map((model) => model.id));
       Array.from(selected).forEach((id) => {
@@ -2149,6 +2662,7 @@ const topFrontierMath =
     });
 
     updateMetricSelectorOptions();
+    applyDeepLinkHints();
     renderModelList();
     updateCount();
     try {

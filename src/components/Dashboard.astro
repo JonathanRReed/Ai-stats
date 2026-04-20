@@ -1,9 +1,11 @@
 ---
 import {
   getModels,
-  getEpochModels,
+  getHydratedEpochModels,
   getEpochBenchmarks,
   getEpochBenchmarkRuns,
+  getOpenRouterModels,
+  enrichModelsWithOpenRouterData,
 } from "../lib/supabase";
 import Header from "./Header.astro";
 import Footer from "./Footer.astro";
@@ -11,12 +13,15 @@ import ScrollToTop from "./ScrollToTop.astro";
 import { formatScore, formatPrice } from "../lib/format-utils";
 import ModelCard from "./ModelCard.astro";
 
-const models = await getModels();
-
-// Fetch epoch.ai data
-const epochModels = await getEpochModels();
-const epochBenchmarks = await getEpochBenchmarks();
-const epochRuns = await getEpochBenchmarkRuns();
+const [baseModels, epochBenchmarks, epochRuns, openRouterModels] =
+  await Promise.all([
+    getModels(),
+    getEpochBenchmarks(),
+    getEpochBenchmarkRuns(),
+    getOpenRouterModels(),
+  ]);
+const epochModels = await getHydratedEpochModels(epochRuns);
+const models = enrichModelsWithOpenRouterData(baseModels, openRouterModels);
 
 // Key epoch benchmarks to display
 const keyEpochBenchmarks = [
@@ -212,6 +217,101 @@ const cheapestBlendedModel =
         Number(a.price_1m_blended_3_to_1) - Number(b.price_1m_blended_3_to_1),
     )[0] ?? null;
 
+const openRouterToolModels = openRouterModels.filter((model) =>
+  model.supported_parameters.includes("tools"),
+);
+const openRouterVisionModels = openRouterModels.filter((model) =>
+  model.input_modalities.includes("image"),
+);
+const openRouterLongContextModels = [...openRouterModels]
+  .filter((model) => Number(model.context_length) > 0)
+  .sort((a, b) => Number(b.context_length) - Number(a.context_length));
+const openRouterProviderSummary = Object.values(
+  openRouterModels.reduce(
+    (summary, model) => {
+      const provider = model.author_slug ?? "unknown";
+      if (!summary[provider]) {
+        summary[provider] = {
+          provider,
+          total: 0,
+          tools: 0,
+          vision: 0,
+          maxContext: 0,
+        };
+      }
+      summary[provider].total += 1;
+      if (model.supported_parameters.includes("tools")) {
+        summary[provider].tools += 1;
+      }
+      if (model.input_modalities.includes("image")) {
+        summary[provider].vision += 1;
+      }
+      summary[provider].maxContext = Math.max(
+        summary[provider].maxContext,
+        Number(model.context_length) || 0,
+      );
+      return summary;
+    },
+    {} as Record<
+      string,
+      {
+        provider: string;
+        total: number;
+        tools: number;
+        vision: number;
+        maxContext: number;
+      }
+    >,
+  ),
+)
+  .sort((a, b) => b.total - a.total)
+  .slice(0, 6);
+
+const openRouterRankOptions = [
+  { key: "catalog", label: "Catalog coverage" },
+  { key: "tools", label: "Tool-ready routes" },
+  { key: "vision", label: "Vision coverage" },
+  { key: "context", label: "Max context" },
+  { key: "input_price", label: "Lowest input price" },
+  { key: "output_price", label: "Lowest output price" },
+] as const;
+
+const clientOpenRouterModels = openRouterModels.map((model) => ({
+  openrouter_id: model.openrouter_id,
+  canonical_slug: model.canonical_slug,
+  author_slug: model.author_slug,
+  model_slug: model.model_slug,
+  name: model.name,
+  context_length: model.context_length,
+  prompt_price_1m: model.prompt_price_1m,
+  completion_price_1m: model.completion_price_1m,
+  supported_parameters: model.supported_parameters,
+  input_modalities: model.input_modalities,
+  output_modalities: model.output_modalities,
+  is_free: model.is_free,
+}));
+
+const formatContextLength = (value: number | null | undefined): string => {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return "-";
+  if (num >= 1_000_000) {
+    return `${(num / 1_000_000).toFixed(num % 1_000_000 === 0 ? 0 : 1)}M`;
+  }
+  if (num >= 1_000) {
+    return `${Math.round(num / 1_000)}K`;
+  }
+  return String(num);
+};
+
+const formatOpenRouterPrice = (
+  value: number | null | undefined,
+  decimals = 3,
+): string => {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num < 0) return "-";
+  return formatPrice(num, decimals);
+};
+
 // Helper for score coloring
 function getScoreClass(score: number | null | undefined): string {
   if (!score || score <= 0) return "score-none";
@@ -223,265 +323,199 @@ function getScoreClass(score: number | null | undefined): string {
 }
 ---
 
-<div class="min-h-screen bg-base text-text">
+<div class="site-shell min-h-screen bg-base text-text">
   <Header currentPage="dashboard" />
 
   <main
-    class="mx-auto flex max-w-6xl flex-col gap-10 px-4 pb-16 pt-8 md:gap-12 md:pt-10"
+    class="telemetry-main mx-auto flex w-full max-w-7xl flex-col gap-14 px-4 pb-24 pt-10 md:gap-16 md:px-6 md:pt-16"
   >
-    <!-- Hero (simplified, no large card) -->
-    <section aria-label="AI Stats overview" class="mt-2 fade-in-section">
-      <div
-        class="mx-auto flex max-w-4xl flex-col gap-5 md:flex-row md:items-start md:justify-between"
-      >
-        <div class="text-left">
-          <div
-            class="inline-flex items-center gap-2 rounded-full border border-highlight-med/60 bg-overlay/70 px-3 py-1 text-[0.65rem] font-medium uppercase tracking-wide text-subtle"
-          >
-            <span class="h-1.5 w-1.5 rounded-full bg-foam live-pulse"></span>
-            <span>Live AI model pricing & benchmarks</span>
-          </div>
-          <h1
-            class="mt-3 text-4xl font-black uppercase text-text/90 sm:text-5xl md:text-6xl"
-          >
-            AI Stats
-          </h1>
-          <p class="mt-2 max-w-xl text-sm text-subtle sm:text-base">
-            <span id="hero-model-count">{totalModels}</span> LLM models tracked in
-            one open-source dashboard to compare pricing, intelligence, and speed.
-            Data sourced from ArtificialAnalysis.ai.
-          </p>
-          <p class="byline mt-3 max-w-xl">
-            <span class="byline-text">Built by</span>
-            <a
-              href="https://jonathanrreed.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="byline-name">Jonathan R Reed</a
-            >
-            <span class="byline-text"
-              >to compare model pricing, context limits and performance in one
-              place.</span
-            >
-          </p>
-
-          <!-- Mobile data partners -->
-          <div class="mt-3 flex items-center gap-3 md:hidden">
-            <img
-              src="/icons/Icon + Artificial Analysis - Horizontal SVG.svg"
-              alt="Artificial Analysis"
-              width="140"
-              height="20"
-              class="h-5 w-auto opacity-80"
-            />
-            <span class="text-subtle">+</span>
-            <img
-              src="/icons/epochaidata.svg"
-              alt="Epoch AI"
-              width="88"
-              height="20"
-              class="h-5 w-auto"
-            />
-          </div>
-        </div>
-
-        <!-- Desktop data partners -->
-        <div
-          class="hidden flex-col items-end gap-3 text-[0.65rem] text-subtle md:flex"
-        >
-          <span
-            class="text-[0.55rem] font-semibold uppercase tracking-wide text-muted"
-            >Data Partners</span
-          >
-          <div class="flex flex-col items-end gap-2">
-            <div
-              class="inline-flex items-center gap-2 text-xs font-semibold text-text"
-              aria-label="Artificial Analysis"
-            >
-              <img
-                src="/icons/Icon + Artificial Analysis - Horizontal SVG.svg"
-                alt="Artificial Analysis"
-                width="168"
-                height="24"
-                class="h-6 w-auto opacity-90"
-              />
-            </div>
-            <div
-              class="inline-flex items-center gap-2 text-xs font-semibold text-text"
-              aria-label="Epoch AI"
-            >
-              <img
-                src="/icons/epochaidata.svg"
-                alt="Epoch AI"
-                width="106"
-                height="24"
-                class="h-6 w-auto"
-              />
-              <span class="text-[0.65rem] text-subtle">Epoch AI</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Top model strip -->
-      <div
-        class="mx-auto mt-4 grid max-w-4xl gap-4 text-xs sm:text-sm md:grid-cols-2 lg:grid-cols-4 stagger-container"
-      >
-        <div
-          class="flex flex-col justify-between p-4 brutalist-card stagger-item"
-        >
-          <div
-            class="text-subtle font-bold uppercase text-[0.65rem] tracking-wider mb-2"
-          >
-            Top AA Avg model
-          </div>
-          <div class="text-left mt-auto">
-            <div class="text-base font-black text-text" id="top-mmlu-name">
-              {topAaAverageModel ? topAaAverageModel.model.name : "—"}
-            </div>
-            <div
-              class="text-[0.7rem] font-bold text-pine mt-1"
-              id="top-mmlu-score"
-            >
-              {
-                topAaAverageModel
-                  ? `${formatScore(topAaAverageModel.avgScore)} avg`
-                  : "N/A"
-              }
-            </div>
-          </div>
-        </div>
-        <div
-          class="flex flex-col justify-between p-4 brutalist-card stagger-item"
-        >
-          <div
-            class="text-subtle font-bold uppercase text-[0.65rem] tracking-wider mb-2"
-          >
-            Cheapest blended price (3:1)
-          </div>
-          <div class="text-left mt-auto">
-            <div
-              class="text-base font-black text-text"
-              id="cheapest-blended-name"
-            >
-              {cheapestBlendedModel ? cheapestBlendedModel.name : "—"}
-            </div>
-            <div
-              class="text-[0.7rem] font-bold text-foam mt-1"
-              id="cheapest-blended-price"
-            >
-              {
-                cheapestBlendedModel
-                  ? formatPrice(
-                      Number(cheapestBlendedModel.price_1m_blended_3_to_1) || 0,
-                      3,
-                    )
-                  : ""
-              }
-            </div>
-          </div>
-        </div>
-        <div
-          class="flex flex-col justify-between p-4 brutalist-card stagger-item"
-        >
-          <div
-            class="text-subtle font-bold uppercase text-[0.65rem] tracking-wider mb-2"
-          >
-            Top Epoch Avg
-          </div>
-          <div class="text-left mt-auto">
-            <div class="text-base font-black text-text" id="top-eci-name">
-              {
-                topEciModel
-                  ? topEciModel.display_name || topEciModel.model_name
-                  : "—"
-              }
-            </div>
-            <div
-              class="text-[0.7rem] font-bold text-iris mt-1"
-              id="top-eci-score"
-            >
-              {
-                topEciAverageScore !== null
-                  ? `${topEciAverageScore.toFixed(1)}% avg`
-                  : topEciModel && Number(topEciModel.eci_score) > 0
-                    ? `${Number(topEciModel.eci_score).toFixed(1)} ECI`
-                    : "N/A"
-              }
-            </div>
-          </div>
-        </div>
-        <div
-          class="flex flex-col justify-between p-4 brutalist-card stagger-item"
-        >
-          <div
-            class="text-subtle font-bold uppercase text-[0.65rem] tracking-wider mb-2"
-          >
-            Epoch.ai Models
-          </div>
-          <div class="text-left mt-auto">
-            <div class="text-base font-black text-text" id="epoch-models-count">
-              {epochModels.length}
-            </div>
-            <div
-              class="text-[0.7rem] font-bold text-rose mt-1"
-              id="epoch-runs-count"
-            >
-              {epochRuns.length} benchmark runs
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Summary stats -->
+    <h1 class="sr-only">AI model pricing and benchmark dashboard</h1>
     <section
-      aria-label="Summary stats"
-      class="mx-auto grid w-full max-w-4xl gap-6 md:grid-cols-3 fade-in-section stagger-container"
+      aria-label="Operational metrics"
+      class="telemetry-bento grid-flow-dense fade-in-section stagger-container"
     >
-      <div class="brutalist-card p-6 text-center stagger-item">
-        <div
-          class="text-[0.7rem] font-bold uppercase tracking-wider text-subtle"
-        >
-          Total models
+      <article class="bento-cell stagger-item">
+        <span class="console-label">Tracked models</span>
+        <data id="hero-model-count" value={totalModels}>{totalModels}</data>
+        <p>Priced models from the Artificial Analysis feed.</p>
+      </article>
+      <article class="bento-cell stagger-item">
+        <span class="console-label">AA average leader</span>
+        <output id="top-mmlu-name">
+          {topAaAverageModel ? topAaAverageModel.model.name : "-"}
+        </output>
+        <samp id="top-mmlu-score">
+          {
+            topAaAverageModel
+              ? `${formatScore(topAaAverageModel.avgScore)} avg`
+              : "N/A"
+          }
+        </samp>
+      </article>
+      <article class="bento-cell stagger-item">
+        <span class="console-label">Cheapest blended</span>
+        <output id="cheapest-blended-name">
+          {cheapestBlendedModel ? cheapestBlendedModel.name : "-"}
+        </output>
+        <samp id="cheapest-blended-price">
+          {
+            cheapestBlendedModel
+              ? formatPrice(
+                  Number(cheapestBlendedModel.price_1m_blended_3_to_1) || 0,
+                  3,
+                )
+              : ""
+          }
+        </samp>
+      </article>
+      <article class="bento-cell stagger-item">
+        <span class="console-label">Epoch signal</span>
+        <output id="top-eci-name">
+          {
+            topEciModel
+              ? topEciModel.display_name || topEciModel.model_name
+              : "-"
+          }
+        </output>
+        <samp id="top-eci-score">
+          {
+            topEciAverageScore !== null
+              ? `${topEciAverageScore.toFixed(1)}% avg`
+              : topEciModel && Number(topEciModel.eci_score) > 0
+                ? `${Number(topEciModel.eci_score).toFixed(1)} ECI`
+                : "N/A"
+          }
+        </samp>
+      </article>
+      <article class="bento-cell stagger-item">
+        <span class="console-label">Epoch coverage</span>
+        <data id="epoch-models-count" value={epochModels.length}>
+          {epochModels.length}
+        </data>
+        <p><span id="epoch-runs-count">{epochRuns.length} benchmark runs</span></p>
+      </article>
+      <article class="bento-cell stagger-item">
+        <span class="console-label">Token averages</span>
+        <div class="metric-pair">
+          <span>
+            <small>Input</small>
+            <data id="summary-avg-input">{formatPrice(avgInputPrice, 3)}</data>
+          </span>
+          <span>
+            <small>Output</small>
+            <data id="summary-avg-output">{formatPrice(avgOutputPrice, 3)}</data>
+          </span>
         </div>
-        <div
-          class="mt-2 text-4xl font-black text-text"
-          id="summary-total-models"
-        >
-          {totalModels}
-        </div>
-        <p class="mt-2 text-[0.7rem] font-bold text-muted">
-          From ArtificialAnalysis
-        </p>
-      </div>
-      <div class="brutalist-card p-6 text-center stagger-item">
-        <div
-          class="text-[0.7rem] font-bold uppercase tracking-wider text-subtle"
-        >
-          Avg input price
-        </div>
-        <div class="mt-2 text-4xl font-black text-text" id="summary-avg-input">
-          {formatPrice(avgInputPrice, 3)}
-        </div>
-        <p class="mt-2 text-[0.7rem] font-bold text-muted">
-          per 1M input tokens
-        </p>
-      </div>
-      <div class="brutalist-card p-6 text-center stagger-item">
-        <div
-          class="text-[0.7rem] font-bold uppercase tracking-wider text-subtle"
-        >
-          Avg output price
-        </div>
-        <div class="mt-2 text-4xl font-black text-text" id="summary-avg-output">
-          {formatPrice(avgOutputPrice, 3)}
-        </div>
-        <p class="mt-2 text-[0.7rem] font-bold text-muted">
-          per 1M output tokens
-        </p>
-      </div>
+        <p>Mean price per 1M tokens across priced models.</p>
+      </article>
     </section>
+
+    {
+      openRouterModels.length ? (
+        <section
+          aria-label="OpenRouter collections"
+          class="openrouter-panel fade-in-section"
+        >
+          <header class="openrouter-header">
+            <div>
+              <p class="console-label">OpenRouter source</p>
+              <h2>Public catalog data</h2>
+            </div>
+            <div class="openrouter-actions">
+              <label for="openrouter-rank-metric">Rank by</label>
+              <div class="openrouter-select-wrap">
+                <select id="openrouter-rank-metric" class="openrouter-rank-select">
+                  {openRouterRankOptions.map((option) => (
+                    <option value={option.key}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+              <a
+                href="https://openrouter.ai/rankings/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="toolbar-control px-3 py-2 text-[0.7rem] font-bold uppercase text-text"
+              >
+                View rankings
+              </a>
+            </div>
+          </header>
+          <div class="openrouter-grid">
+            <div class="openrouter-stats" aria-label="OpenRouter catalog totals">
+              <dl>
+                <div>
+                  <dt>Total catalog</dt>
+                  <dd>{openRouterModels.length}</dd>
+                </div>
+                <div>
+                  <dt>Tool-ready</dt>
+                  <dd>{openRouterToolModels.length}</dd>
+                </div>
+                <div>
+                  <dt>Vision input</dt>
+                  <dd>{openRouterVisionModels.length}</dd>
+                </div>
+                <div>
+                  <dt>Max context</dt>
+                  <dd>{formatContextLength(openRouterLongContextModels[0]?.context_length)}</dd>
+                </div>
+              </dl>
+              <p>
+                Public OpenRouter metadata for availability, modalities, context,
+                and route pricing. Benchmark scores remain AA and Epoch.
+              </p>
+            </div>
+            <div class="openrouter-table" aria-label="OpenRouter provider leaderboard">
+              <div class="openrouter-table-meta">
+                <span id="openrouter-board-title">Provider coverage</span>
+                <small id="openrouter-board-note">OpenRouter catalog ranking</small>
+              </div>
+              <div class="openrouter-table-head" aria-hidden="true">
+                <span>Provider</span>
+                <span>Leader</span>
+                <span>Score</span>
+                <span>Models</span>
+                <span>Max ctx</span>
+              </div>
+              <ul id="openrouter-provider-board">
+                {openRouterProviderSummary.map((provider) => (
+                  <li>
+                    <button
+                      type="button"
+                      class="openrouter-provider-row"
+                      data-openrouter-provider={provider.provider}
+                      data-openrouter-provider-query={provider.provider}
+                    >
+                      <span class="openrouter-model" title={provider.provider}>
+                        {provider.provider}
+                      </span>
+                      <span class="openrouter-leader">{provider.tools} tool-ready</span>
+                      <span class="openrouter-score">{provider.total}</span>
+                      <span>{provider.total}</span>
+                      <span>{formatContextLength(provider.maxContext)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div class="openrouter-long-context">
+              <span class="console-label">Longest context</span>
+              <strong>{openRouterLongContextModels[0]?.name ?? "-"}</strong>
+              <span>
+                {formatContextLength(openRouterLongContextModels[0]?.context_length)}
+                {" tokens"}
+              </span>
+              <small>
+                Input {formatOpenRouterPrice(openRouterLongContextModels[0]?.prompt_price_1m)}
+                {" / "}
+                output {formatOpenRouterPrice(openRouterLongContextModels[0]?.completion_price_1m)}
+                {" per 1M"}
+              </small>
+            </div>
+          </div>
+        </section>
+      ) : null
+    }
 
     <!-- Leaderboard -->
     <section aria-label="Leaderboard" class="space-y-4 fade-in-section">
@@ -497,7 +531,14 @@ function getScoreClass(score: number | null | undefined): string {
               Switch metrics to see different top-5 rankings.
             </p>
           </div>
-          <div class="relative z-30 flex items-center gap-2">
+          <div class="leaderboard-controls relative z-30">
+            <a
+              id="leaderboard-compare-link"
+              href="/compare?metric=mmlu_pro"
+              class="toolbar-control px-3 py-1 text-[0.7rem] font-bold uppercase text-text"
+            >
+              Open compare
+            </a>
             <label
               for="leaderboard-metric"
               class="text-[0.7rem] font-medium text-subtle"
@@ -506,7 +547,7 @@ function getScoreClass(score: number | null | undefined): string {
             </label>
             <select
               id="leaderboard-metric"
-              class="relative z-30 pointer-events-auto rounded-md border border-border-color bg-surface/50 backdrop-blur-md px-2 py-1 text-[0.7rem] font-bold uppercase text-text shadow-sm focus:outline-none focus:ring-1 focus:ring-highlight-med active:translate-y-px transition-all"
+              class="toolbar-control relative z-30 pointer-events-auto px-3 py-1 text-[0.7rem] font-bold uppercase text-text active:translate-y-px"
             >
               {
                 benchmarkConfigs.map(({ key, label }) => (
@@ -536,7 +577,7 @@ function getScoreClass(score: number | null | undefined): string {
               return (
                 <div
                   data-metric={key}
-                  class="overflow-hidden rounded-2xl border border-highlight-low/60"
+                  class="overflow-hidden border border-highlight-low/60"
                   hidden={key !== "mmlu_pro"}
                 >
                   <ul class="divide-y divide-highlight-low/40">
@@ -545,67 +586,76 @@ function getScoreClass(score: number | null | undefined): string {
                       const barWidth =
                         maxScore > 0 ? (score / maxScore) * 100 : 0;
                       const rankColors = [
-                        "from-amber-500/20 to-yellow-500/10 border-l-amber-400",
-                        "from-slate-400/15 to-gray-400/5 border-l-slate-300",
-                        "from-orange-600/15 to-amber-700/5 border-l-orange-500",
-                        "from-transparent to-transparent border-l-highlight-med",
-                        "from-transparent to-transparent border-l-highlight-med",
+                        "bg-[rgba(230,25,25,0.18)] border-l-[var(--love)]",
+                        "bg-highlight-low border-l-highlight-high",
+                        "bg-highlight-low border-l-highlight-med",
+                        "bg-transparent border-l-highlight-med",
+                        "bg-transparent border-l-highlight-med",
                       ];
 
                       return (
                         <li class="relative overflow-hidden transition-colors hover:bg-highlight-low/40">
-                          {/* Background bar */}
-                          <div
-                            class={`pointer-events-none absolute inset-y-0 left-0 bg-gradient-to-r ${rankColors[index]} border-l-4`}
-                            style={`width: ${barWidth}%`}
-                          />
-
-                          <div class="relative grid grid-cols-[2.5rem_1fr_auto] items-center gap-4 px-4 py-3.5">
-                            {/* Rank */}
-                            <div class="flex items-center justify-center">
-                              {index === 0 ? (
-                                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 text-sm font-bold text-amber-900 shadow-lg shadow-amber-500/30">
-                                  1
-                                </div>
-                              ) : index === 1 ? (
-                                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-slate-300 to-gray-400 text-sm font-bold text-slate-700 shadow-lg shadow-slate-400/30">
-                                  2
-                                </div>
-                              ) : index === 2 ? (
-                                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-amber-600 text-sm font-bold text-orange-900 shadow-lg shadow-orange-500/30">
-                                  3
-                                </div>
-                              ) : (
-                                <div class="flex h-7 w-7 items-center justify-center rounded-full bg-highlight-med/60 text-xs font-semibold text-subtle">
-                                  {index + 1}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Model info */}
-                            <div class="min-w-0">
-                              <div class="flex items-center gap-2">
-                                <span
-                                  class={`truncate font-semibold ${index === 0 ? "text-text" : "text-text/90"}`}
-                                  title={model.name}
-                                >
-                                  {model.name}
-                                </span>
-                              </div>
-                              <div class="mt-0.5 text-[0.7rem] text-subtle">
-                                {model.company_name ?? "Unknown provider"}
-                              </div>
-                            </div>
-
-                            {/* Score */}
+                          <button
+                            type="button"
+                            class="leaderboard-row relative block w-full overflow-hidden text-left"
+                            data-leaderboard-row
+                            data-model-json={isEpoch ? undefined : JSON.stringify(model)}
+                            data-compare-url={isEpoch ? `/compare?metric=${key}&model=${encodeURIComponent(model.name ?? "")}` : undefined}
+                            aria-label={isEpoch ? `Open ${model.name} in compare` : `Open ${model.name} details`}
+                          >
+                            {/* Background bar */}
                             <div
-                              class={`text-right font-mono text-lg font-bold ${index === 0 ? "score-high" : index < 3 ? "text-text" : "text-subtle"}`}
-                            >
-                              {isEpoch
-                                ? `${(score * 100).toFixed(1)}%`
-                                : formatScore(model[key])}
+                              class={`pointer-events-none absolute inset-y-0 left-0 ${rankColors[index]} border-l-4`}
+                              style={`width: ${barWidth}%`}
+                            />
+
+                            <div class="relative grid grid-cols-[2.5rem_1fr_auto] items-center gap-4 px-4 py-3.5">
+                              {/* Rank */}
+                              <div class="flex items-center justify-center">
+                                {index === 0 ? (
+                                  <div class="flex h-8 w-8 items-center justify-center border border-love bg-love text-sm font-bold text-white">
+                                    1
+                                  </div>
+                                ) : index === 1 ? (
+                                  <div class="flex h-8 w-8 items-center justify-center border border-highlight-high bg-highlight-low text-sm font-bold text-text">
+                                    2
+                                  </div>
+                                ) : index === 2 ? (
+                                  <div class="flex h-8 w-8 items-center justify-center border border-highlight-med bg-overlay text-sm font-bold text-text">
+                                    3
+                                  </div>
+                                ) : (
+                                  <div class="flex h-7 w-7 items-center justify-center border border-highlight-med bg-highlight-low text-xs font-semibold text-subtle">
+                                    {index + 1}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Model info */}
+                              <div class="min-w-0">
+                                <div class="flex items-center gap-2">
+                                  <span
+                                    class={`truncate font-semibold ${index === 0 ? "text-text" : "text-text/90"}`}
+                                    title={model.name}
+                                  >
+                                    {model.name}
+                                  </span>
+                                </div>
+                                <div class="mt-0.5 text-[0.7rem] text-subtle">
+                                  {model.company_name ?? "Unknown provider"}
+                                </div>
+                              </div>
+
+                              {/* Score */}
+                              <div
+                                class={`text-right font-mono text-lg font-bold ${index === 0 ? "score-high" : index < 3 ? "text-text" : "text-subtle"}`}
+                              >
+                                {isEpoch
+                                  ? `${(score * 100).toFixed(1)}%`
+                                  : formatScore(model[key])}
+                              </div>
                             </div>
-                          </div>
+                          </button>
                         </li>
                       );
                     })}
@@ -619,7 +669,7 @@ function getScoreClass(score: number | null | undefined): string {
     </section>
 
     <!-- All models -->
-    <section aria-label="All models" class="space-y-4 fade-in-section">
+    <section id="model-browser" aria-label="All models" class="space-y-4 fade-in-section">
       <header
         class="flex flex-col gap-2 md:flex-row md:items-baseline md:justify-between"
       >
@@ -637,7 +687,7 @@ function getScoreClass(score: number | null | undefined): string {
       </header>
 
       <div
-        class="sticky top-0 z-20 rounded-xl border border-highlight-low/70 bg-overlay/85 px-4 py-3 shadow-md shadow-black/20 backdrop-blur-md flex flex-col gap-3 md:flex-row md:items-start md:justify-between"
+        class="sticky top-[56px] z-20 border border-highlight-low/70 bg-overlay px-4 py-3 flex flex-col gap-3 md:flex-row md:items-start md:justify-between"
       >
         <div class="w-full md:max-w-xs">
           <label
@@ -650,7 +700,7 @@ function getScoreClass(score: number | null | undefined): string {
             id="model-search"
             type="text"
             placeholder="Search by name or company..."
-            class="toolbar-control mt-1 w-full rounded-md px-3 py-2 text-sm font-bold text-text placeholder:text-muted placeholder:font-normal"
+            class="toolbar-control mt-1 w-full px-3 py-2 text-sm font-bold text-text placeholder:text-muted placeholder:font-normal"
           />
         </div>
 
@@ -665,7 +715,7 @@ function getScoreClass(score: number | null | undefined): string {
             <div class="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
               <select
                 id="model-sort"
-                class="toolbar-control w-full rounded-md px-3 py-2 text-sm font-bold uppercase text-text active:translate-y-px"
+                class="toolbar-control w-full px-3 py-2 text-sm font-bold uppercase text-text active:translate-y-px"
               >
                 <option value="mmlu">MMLU Pro</option>
                 <option value="gpqa">GPQA</option>
@@ -681,7 +731,7 @@ function getScoreClass(score: number | null | undefined): string {
               <select
                 id="model-sort-direction"
                 aria-label="Sort direction"
-                class="toolbar-control w-full rounded-md px-3 py-2 text-sm font-bold uppercase text-text active:translate-y-px sm:w-32"
+                class="toolbar-control w-full px-3 py-2 text-sm font-bold uppercase text-text active:translate-y-px sm:w-32"
               >
                 <option value="desc">Top first</option>
                 <option value="asc">Lowest first</option>
@@ -691,12 +741,12 @@ function getScoreClass(score: number | null | undefined): string {
 
           <!-- View toggle -->
           <div
-            class="view-toggle flex items-center gap-1 rounded-lg p-1"
+            class="view-toggle flex items-center gap-1 p-1"
           >
             <button
               id="view-cards"
               type="button"
-              class="view-toggle-btn active rounded-md px-3 py-1.5 text-xs font-medium"
+              class="view-toggle-btn active px-3 py-1.5 text-xs font-medium"
               aria-pressed="true"
               title="Card view"
             >
@@ -717,7 +767,7 @@ function getScoreClass(score: number | null | undefined): string {
             <button
               id="view-table"
               type="button"
-              class="view-toggle-btn rounded-md px-3 py-1.5 text-xs font-medium"
+              class="view-toggle-btn px-3 py-1.5 text-xs font-medium"
               aria-pressed="false"
               title="Table view"
             >
@@ -739,8 +789,7 @@ function getScoreClass(score: number | null | undefined): string {
         </div>
       </div>
 
-      <!-- Empty state -->
-      <div id="empty-state" class="hidden py-16 text-center">
+      <div id="empty-state" class="hidden rounded-lg border border-highlight-low bg-surface/80 py-16 text-center">
         <svg
           class="mx-auto h-12 w-12 text-muted"
           fill="none"
@@ -765,19 +814,20 @@ function getScoreClass(score: number | null | undefined): string {
       </div>
 
       <!-- Table view (hidden by default) -->
-      <div id="models-table-container" class="hidden overflow-x-auto">
-        <table class="w-full min-w-[800px] text-left text-sm">
+      <div id="models-table-container" class="hidden overflow-x-auto rounded-lg border border-highlight-low bg-surface/70">
+        <table class="w-full min-w-[900px] text-left text-sm">
           <thead
             class="border-b border-highlight-med bg-overlay/50 text-xs uppercase text-subtle"
           >
             <tr>
-              <th class="px-4 py-3 font-semibold">Model</th>
-              <th class="px-4 py-3 font-semibold">Provider</th>
-              <th class="px-4 py-3 font-semibold text-right">Input</th>
-              <th class="px-4 py-3 font-semibold text-right">Output</th>
-              <th class="px-4 py-3 font-semibold text-right">MMLU</th>
-              <th class="px-4 py-3 font-semibold text-right">GPQA</th>
-              <th class="px-4 py-3 font-semibold text-right">TPS</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Model</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Provider</th>
+              <th scope="col" class="px-4 py-3 font-semibold text-right">Context</th>
+              <th scope="col" class="px-4 py-3 font-semibold text-right">Input</th>
+              <th scope="col" class="px-4 py-3 font-semibold text-right">Output</th>
+              <th scope="col" class="px-4 py-3 font-semibold text-right">MMLU</th>
+              <th scope="col" class="px-4 py-3 font-semibold text-right">GPQA</th>
+              <th scope="col" class="px-4 py-3 font-semibold text-right">TPS</th>
             </tr>
           </thead>
           <tbody
@@ -789,6 +839,9 @@ function getScoreClass(score: number | null | undefined): string {
                 <tr
                   class="cursor-pointer transition-colors hover:bg-highlight-low/50"
                   data-table-row
+                  tabindex="0"
+                  role="button"
+                  aria-label={`Open ${model.name} details`}
                   data-model-json={JSON.stringify(model)}
                   data-name={(model.name ?? "").toLowerCase()}
                   data-company={(model.company_name ?? "").toLowerCase()}
@@ -798,9 +851,12 @@ function getScoreClass(score: number | null | undefined): string {
                   data-output-price={Number(model.price_1m_output_tokens) || 0}
                   data-tps={Number(model.median_output_tokens_per_second) || 0}
                 >
-                  <td class="px-4 py-3 font-medium text-text">{model.name}</td>
+                  <th scope="row" class="px-4 py-3 font-medium text-text">{model.name}</th>
                   <td class="px-4 py-3 text-subtle">
                     {model.company_name ?? "-"}
+                  </td>
+                  <td class="px-4 py-3 text-right font-mono text-text">
+                    {formatContextLength(model.openrouter_context_length)}
                   </td>
                   <td class="px-4 py-3 text-right font-mono text-text">
                     {formatPrice(Number(model.price_1m_input_tokens) || 0, 3)}
@@ -843,6 +899,372 @@ function getScoreClass(score: number | null | undefined): string {
 </div>
 
 <style>
+  .site-shell {
+    position: relative;
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .telemetry-main {
+    isolation: isolate;
+    overflow-x: hidden;
+  }
+
+  .console-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    color: var(--subtle);
+  }
+
+  .bento-cell {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    padding: clamp(1rem, 1.7vw, 1.25rem);
+  }
+
+  .bento-cell data,
+  .bento-cell output {
+    display: block;
+    margin-top: 0.7rem;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: clamp(1.3rem, 2.6vw, 2.6rem);
+    font-weight: 800;
+    line-height: 1;
+    overflow-wrap: anywhere;
+  }
+
+  .bento-cell samp {
+    display: block;
+    margin-top: 0.35rem;
+    color: var(--foam);
+    font-size: 0.85rem;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  .telemetry-bento {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
+    grid-auto-flow: dense;
+    background: var(--border-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-l);
+    overflow: hidden;
+  }
+
+  .bento-cell {
+    min-height: 11rem;
+    box-shadow: none;
+  }
+
+  .bento-cell:hover {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--love) 70%, transparent);
+    transform: none;
+  }
+
+  .bento-cell p {
+    max-width: 22rem;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0;
+    line-height: 1.4;
+    text-transform: uppercase;
+  }
+
+  .metric-pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+  }
+
+  .metric-pair > span {
+    min-width: 0;
+  }
+
+  .metric-pair small {
+    display: block;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  .metric-pair data {
+    font-size: clamp(1rem, 1.6vw, 1.45rem);
+    overflow: visible;
+    white-space: nowrap;
+  }
+
+  .openrouter-panel {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-l);
+    background: color-mix(in srgb, var(--surface) 90%, transparent);
+    overflow: hidden;
+  }
+
+  .openrouter-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem 1.25rem;
+  }
+
+  .openrouter-header h2 {
+    margin-top: 0.35rem;
+    color: var(--text);
+    font-size: clamp(1.1rem, 2vw, 1.55rem);
+    font-weight: 800;
+    line-height: 1.05;
+  }
+
+  .openrouter-actions {
+    display: flex;
+    align-items: end;
+    gap: 0.75rem;
+  }
+
+  .openrouter-actions label {
+    align-self: center;
+    color: var(--subtle);
+    font-size: 0.72rem;
+    line-height: 1;
+  }
+
+  .openrouter-select-wrap {
+    position: relative;
+    min-width: min(18rem, 42vw);
+  }
+
+  .openrouter-select-wrap::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-bottom: 2px solid var(--subtle);
+    border-right: 2px solid var(--subtle);
+    transform: translateY(-65%) rotate(45deg);
+  }
+
+  .openrouter-rank-select {
+    width: 100%;
+    min-height: 2.7rem;
+    appearance: none;
+    border: 1px solid var(--highlight-med);
+    border-radius: var(--radius-s);
+    background: var(--surface);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 800;
+    line-height: 1.1;
+    padding: 0.75rem 2.75rem 0.75rem 0.9rem;
+    text-transform: uppercase;
+  }
+
+  .openrouter-rank-select:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  .openrouter-grid {
+    display: grid;
+    grid-template-columns: minmax(15rem, 0.8fr) minmax(0, 1.45fr) minmax(14rem, 0.75fr);
+    gap: 1px;
+    background: var(--border-color);
+  }
+
+  .openrouter-stats,
+  .openrouter-table,
+  .openrouter-long-context {
+    min-width: 0;
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    padding: 1rem 1.25rem;
+  }
+
+  .openrouter-stats dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    background: var(--highlight-low);
+    border: 1px solid var(--highlight-low);
+  }
+
+  .openrouter-stats dl > div {
+    min-width: 0;
+    background: var(--surface);
+    padding: 0.8rem;
+  }
+
+  .openrouter-stats dt,
+  .openrouter-table-head,
+  .openrouter-table-meta small,
+  .openrouter-long-context small {
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.25;
+    text-transform: uppercase;
+  }
+
+  .openrouter-stats dd {
+    margin-top: 0.4rem;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 1.55rem;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .openrouter-stats p {
+    margin-top: 0.9rem;
+    color: var(--subtle);
+    font-size: 0.75rem;
+    line-height: 1.45;
+  }
+
+  .openrouter-table-meta {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.7rem;
+  }
+
+  .openrouter-table-meta span {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text);
+    font-size: 0.92rem;
+    font-weight: 850;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .openrouter-table-meta small {
+    flex: 0 0 auto;
+    text-align: right;
+  }
+
+  .openrouter-table-head,
+  .openrouter-provider-row {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr) minmax(3.8rem, 0.45fr) minmax(3.6rem, 0.38fr) minmax(4.8rem, 0.44fr);
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .openrouter-table-head {
+    border-bottom: 1px solid var(--highlight-low);
+    padding-bottom: 0.55rem;
+  }
+
+  .openrouter-table ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .openrouter-table li {
+    border-bottom: 1px solid var(--highlight-low);
+  }
+
+  .openrouter-table li:last-child {
+    border-bottom: 0;
+  }
+
+  .openrouter-provider-row {
+    width: 100%;
+    min-height: 2.7rem;
+    border: 0;
+    background: transparent;
+    color: var(--subtle);
+    cursor: pointer;
+    font-size: 0.73rem;
+    padding: 0;
+    text-align: left;
+    transition:
+      background-color 0.18s ease,
+      color 0.18s ease;
+  }
+
+  .openrouter-provider-row:hover,
+  .openrouter-provider-row:focus-visible {
+    background: var(--highlight-low);
+    color: var(--text);
+  }
+
+  .openrouter-provider-row:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+  }
+
+  .openrouter-model {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text);
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .openrouter-leader {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .openrouter-score {
+    color: var(--foam);
+    font-family: var(--font-mono);
+    font-weight: 900;
+  }
+
+  .openrouter-long-context {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.45rem;
+  }
+
+  .openrouter-long-context strong {
+    color: var(--text);
+    font-size: 1.05rem;
+    font-weight: 900;
+    line-height: 1.15;
+  }
+
+  .openrouter-long-context > span:not(.console-label) {
+    color: var(--foam);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
   .model-card {
     transition:
       transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
@@ -852,15 +1274,37 @@ function getScoreClass(score: number | null | undefined): string {
 
   .model-card:hover {
     transform: translateY(-3px);
-    border-color: rgba(156, 207, 216, 0.5);
+    border-color: var(--love);
     box-shadow:
-      0 12px 28px rgba(0, 0, 0, 0.4),
-      0 0 0 1px rgba(156, 207, 216, 0.1),
-      0 0 20px rgba(156, 207, 216, 0.08);
+      8px 8px 0 var(--shadow-color),
+      0 0 0 1px rgba(230, 25, 25, 0.2);
   }
 
   .model-card:active {
     transform: translateY(-1px);
+  }
+
+  .source-strip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-s);
+    background: color-mix(in srgb, var(--overlay) 82%, transparent);
+    min-height: 1.8rem;
+    padding: 0.35rem 0.55rem;
+    color: var(--subtle);
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    font-weight: 800;
+    line-height: 1.2;
+    text-align: right;
+  }
+
+  .card-metric-panel {
+    border: 1px solid var(--highlight-low);
+    border-radius: var(--radius-s);
+    background: color-mix(in srgb, var(--overlay) 62%, transparent);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -874,35 +1318,151 @@ function getScoreClass(score: number | null | undefined): string {
 
   /* View toggle buttons */
   .toolbar-control {
-    border: 1px solid var(--highlight-med);
-    background: color-mix(in srgb, var(--surface) 78%, transparent);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    background: var(--surface);
+    border-radius: var(--radius-s);
+    box-shadow: none;
+    font-family: var(--font-mono);
+    line-height: 1.1;
+    text-decoration: none;
+    white-space: nowrap;
     transition:
       border-color 0.2s ease,
-      box-shadow 0.2s ease,
       background-color 0.2s ease;
   }
 
+  select.toolbar-control {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 20 20' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%23c5cbc8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-position: right 0.9rem center;
+    background-repeat: no-repeat;
+    background-size: 0.875rem;
+    padding-right: 2.75rem;
+  }
+
+  #model-sort,
+  #model-sort-direction {
+    padding-right: 3.25rem;
+  }
+
+  #model-sort-direction {
+    min-width: 10.5rem;
+  }
+
+  :global(#openrouter-provider-board > li) {
+    border-bottom: 1px solid var(--highlight-low);
+  }
+
+  :global(#openrouter-provider-board > li:last-child) {
+    border-bottom: 0;
+  }
+
+  :global(.openrouter-provider-row) {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr) minmax(3.8rem, 0.45fr) minmax(3.6rem, 0.38fr) minmax(4.8rem, 0.44fr);
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    min-height: 2.7rem;
+    border: 0;
+    background: transparent;
+    color: var(--subtle);
+    cursor: pointer;
+    font-size: 0.73rem;
+    padding: 0;
+    text-align: left;
+    transition:
+      background-color 0.18s ease,
+      color 0.18s ease;
+  }
+
+  :global(.openrouter-provider-row:hover),
+  :global(.openrouter-provider-row:focus-visible) {
+    background: var(--highlight-low);
+    color: var(--text);
+  }
+
+  :global(.openrouter-provider-row:focus-visible) {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+  }
+
+  :global(.openrouter-model),
+  :global(.openrouter-leader) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  :global(.openrouter-model) {
+    color: var(--text);
+    font-weight: 800;
+  }
+
+  :global(.openrouter-score) {
+    color: var(--foam);
+    font-family: var(--font-mono);
+    font-weight: 900;
+  }
+
+  .leaderboard-controls {
+    display: grid;
+    grid-template-columns: max-content max-content minmax(11rem, 22rem);
+    align-items: center;
+    gap: 0.55rem;
+  }
+
+  .leaderboard-controls label {
+    white-space: nowrap;
+  }
+
+  .leaderboard-controls select {
+    width: 100%;
+  }
+
   .toolbar-control:hover {
-    border-color: color-mix(in srgb, var(--foam) 55%, var(--highlight-med));
+    border-color: var(--love);
   }
 
   .toolbar-control:focus-visible {
     outline: none;
-    border-color: color-mix(in srgb, var(--foam) 75%, var(--highlight-med));
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--foam) 20%, transparent);
+    border-color: var(--love);
+    box-shadow: 0 0 0 2px rgba(230, 25, 25, 0.25);
+  }
+
+  .leaderboard-row {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .leaderboard-row:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--love) 58%, transparent);
   }
 
   .view-toggle {
-    border: 1px solid var(--highlight-med);
-    background: color-mix(in srgb, var(--surface) 80%, transparent);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+    border: 1px solid var(--border-color);
+    background: var(--surface);
+    border-radius: var(--radius-s);
+    box-shadow: none;
   }
 
   .view-toggle-btn {
     color: var(--muted);
     border: 1px solid transparent;
-    min-width: 2.25rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    border-radius: var(--radius-s);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -914,64 +1474,89 @@ function getScoreClass(score: number | null | undefined): string {
   }
   .view-toggle-btn:hover {
     color: var(--text);
-    background: color-mix(in srgb, var(--highlight-low) 75%, transparent);
+    background: var(--highlight-low);
   }
   .view-toggle-btn.active {
-    color: var(--text);
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--foam) 20%, transparent),
-      color-mix(in srgb, var(--foam) 10%, transparent)
-    );
-    border-color: color-mix(in srgb, var(--foam) 45%, var(--highlight-med));
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--foam) 18%, transparent) inset;
+    color: #ffffff;
+    background: var(--love);
+    border-color: var(--love);
+    box-shadow: none;
   }
 
-  /* Byline styles */
-  .byline {
-    display: inline-flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.5rem 1rem;
-    background: rgba(156, 207, 216, 0.06);
-    border: 1px solid rgba(156, 207, 216, 0.12);
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-style: italic;
+  @media (max-width: 980px) {
+    .telemetry-bento {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .openrouter-grid {
+      grid-template-columns: 1fr;
+    }
   }
 
-  .byline-text {
-    color: var(--muted);
-  }
+  @media (max-width: 640px) {
+    .telemetry-main {
+      gap: 5rem;
+    }
 
-  .byline-name {
-    font-style: normal;
-    font-weight: 600;
-    background: linear-gradient(135deg, var(--foam), var(--iris));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    text-decoration: none;
-    transition: opacity 0.2s ease;
-  }
+    .leaderboard-controls {
+      width: 100%;
+      grid-template-columns: 1fr;
+      align-items: stretch;
+    }
 
-  .byline-name:hover {
-    opacity: 0.8;
-  }
+    .leaderboard-controls label {
+      margin-top: 0.25rem;
+    }
 
-  :global(html.light) .byline {
-    background: rgba(40, 105, 131, 0.06);
-    border: 1px solid rgba(40, 105, 131, 0.12);
-  }
+    .openrouter-header {
+      align-items: stretch;
+      flex-direction: column;
+    }
 
-  :global(html.light) .byline-name {
-    background: linear-gradient(135deg, var(--pine), var(--iris));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    .openrouter-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      align-items: stretch;
+    }
+
+    .openrouter-actions label {
+      align-self: auto;
+    }
+
+    .openrouter-select-wrap {
+      min-width: 0;
+    }
+
+    .openrouter-header .toolbar-control {
+      width: 100%;
+    }
+
+    .openrouter-stats dl {
+      grid-template-columns: 1fr;
+    }
+
+    .openrouter-table {
+      overflow-x: auto;
+    }
+
+    .openrouter-table-head,
+    .openrouter-provider-row {
+      min-width: 38rem;
+    }
+
+    :global(.openrouter-provider-row) {
+      min-width: 38rem;
+    }
+
+    .telemetry-bento {
+      grid-template-columns: 1fr;
+    }
   }
 </style>
+
+<script is:inline define:vars={{ clientOpenRouterModels }}>
+  window.__aistatsOpenRouterModels = clientOpenRouterModels;
+</script>
 
 <script>
   // @ts-nocheck
@@ -1016,7 +1601,6 @@ function getScoreClass(score: number | null | undefined): string {
     const visibleCountEl = document.getElementById("visible-model-count");
     const totalCountEl = document.getElementById("total-models-count");
     const heroCountEl = document.getElementById("hero-model-count");
-    const summaryTotalEl = document.getElementById("summary-total-models");
     const summaryAvgInputEl = document.getElementById("summary-avg-input");
     const summaryAvgOutputEl = document.getElementById("summary-avg-output");
     const topMmluNameEl = document.getElementById("top-mmlu-name");
@@ -1029,6 +1613,19 @@ function getScoreClass(score: number | null | undefined): string {
     const epochRunsCountEl = document.getElementById("epoch-runs-count");
     const metricSelect = document.getElementById("leaderboard-metric");
     const leaderboardPanels = document.getElementById("leaderboard-panels");
+    const leaderboardCompareLink = document.getElementById(
+      "leaderboard-compare-link",
+    );
+    const openRouterRankSelect = document.getElementById(
+      "openrouter-rank-metric",
+    );
+    const openRouterProviderBoard = document.getElementById(
+      "openrouter-provider-board",
+    );
+    const openRouterBoardTitle = document.getElementById(
+      "openrouter-board-title",
+    );
+    const openRouterBoardNote = document.getElementById("openrouter-board-note");
     const emptyState = document.getElementById("empty-state");
     const viewCardsBtn = document.getElementById("view-cards");
     const viewTableBtn = document.getElementById("view-table");
@@ -1038,6 +1635,15 @@ function getScoreClass(score: number | null | undefined): string {
     let currentView = "cards";
     let focusedCardIndex = -1;
 
+    const updateLeaderboardCompareLink = () => {
+      if (!leaderboardCompareLink || !metricSelect) return;
+      const metric = metricSelect.value || "mmlu_pro";
+      leaderboardCompareLink.setAttribute(
+        "href",
+        `/compare?metric=${encodeURIComponent(metric)}`,
+      );
+    };
+
     const escapeHtml = (value) =>
       String(value ?? "")
         .replace(/&/g, "&amp;")
@@ -1046,7 +1652,7 @@ function getScoreClass(score: number | null | undefined): string {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;");
 
-    const toDisplayName = (value, fallback = "—") => {
+    const toDisplayName = (value, fallback = "-") => {
       const str = String(value ?? "").trim();
       return str || fallback;
     };
@@ -1060,7 +1666,7 @@ function getScoreClass(score: number | null | undefined): string {
 
     const formatPrice = (price, decimals = 3) => {
       const num = Number(price);
-      if (!Number.isFinite(num) || num <= 0) return "—";
+      if (!Number.isFinite(num) || num <= 0) return "-";
       const factor = Math.pow(10, decimals);
       const truncated = Math.trunc(num * factor) / factor;
       return `$${truncated.toFixed(decimals)}`;
@@ -1068,15 +1674,91 @@ function getScoreClass(score: number | null | undefined): string {
 
     const formatTps = (tps) => {
       const num = Number(tps);
-      if (!Number.isFinite(num) || num <= 0) return "—";
+      if (!Number.isFinite(num) || num <= 0) return "-";
       return num.toFixed(1);
     };
 
     const formatTtft = (ttft) => {
       const num = Number(ttft);
-      if (!Number.isFinite(num) || num <= 0) return "—";
+      if (!Number.isFinite(num) || num <= 0) return "-";
       return `${num.toFixed(2)}s`;
     };
+
+    const formatContextLength = (value) => {
+      const num = Number(value);
+      if (!Number.isFinite(num) || num <= 0) return "-";
+      if (num >= 1000000) {
+        return `${(num / 1000000).toFixed(num % 1000000 === 0 ? 0 : 1)}M`;
+      }
+      if (num >= 1000) return `${Math.round(num / 1000)}K`;
+      return String(num);
+    };
+
+    const normalizeOpenRouterKey = (value) =>
+      String(value || "")
+        .toLowerCase()
+        .replace(/^(openai|anthropic|google|meta|mistral|moonshotai|moonshot|alibaba|qwen|xai|deepseek|minimax|nvidia|cohere|perplexity):\s*/i, "")
+        .replace(/\([^)]*\)/g, " ")
+        .replace(/:free$/i, "")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+
+    const openRouterLookup = (() => {
+      const lookup = new Map();
+      (window.__aistatsOpenRouterModels || []).forEach((model) => {
+        const candidates = [
+          model.openrouter_id,
+          model.openrouter_id?.split("/").slice(1).join("/"),
+          model.canonical_slug,
+          model.model_slug,
+          model.name,
+          model.name?.includes(":") ? model.name.split(":").slice(1).join(":") : model.name,
+        ];
+        candidates.forEach((candidate) => {
+          const normalized = normalizeOpenRouterKey(candidate);
+          if (!normalized) return;
+          if (!lookup.has(normalized)) lookup.set(normalized, model);
+          const compact = normalized.replace(/\s+/g, "");
+          if (!lookup.has(compact)) lookup.set(compact, model);
+        });
+      });
+      return lookup;
+    })();
+
+    const enrichWithOpenRouter = (models) =>
+      (models || []).map((model) => {
+        const candidates = [
+          model.slug,
+          model.name,
+          String(model.name || "").replace(/\([^)]*\)/g, ""),
+          model.company_name && model.name
+            ? `${model.company_name} ${model.name}`
+            : null,
+          model.creator_slug && model.slug
+            ? `${model.creator_slug} ${model.slug}`
+            : null,
+        ];
+        const match = candidates
+          .flatMap((candidate) => {
+            const normalized = normalizeOpenRouterKey(candidate);
+            return normalized ? [normalized, normalized.replace(/\s+/g, "")] : [];
+          })
+          .map((key) => openRouterLookup.get(key))
+          .find(Boolean);
+        if (!match) return model;
+        return {
+          ...model,
+          openrouter_id: match.openrouter_id,
+          openrouter_name: match.name,
+          openrouter_context_length: match.context_length,
+          openrouter_prompt_price_1m: match.prompt_price_1m,
+          openrouter_completion_price_1m: match.completion_price_1m,
+          openrouter_supported_parameters: match.supported_parameters || [],
+          openrouter_input_modalities: match.input_modalities || [],
+          openrouter_output_modalities: match.output_modalities || [],
+          openrouter_is_free: match.is_free,
+        };
+      });
 
     const getScoreClass = (score) => {
       const num = Number(score);
@@ -1164,6 +1846,230 @@ function getScoreClass(score: number | null | undefined): string {
         return input > 0 && output > 0;
       });
 
+    const getOpenRouterProvider = (model) => {
+      const idProvider = String(model?.openrouter_id || "")
+        .split("/")[0]
+        .trim();
+      return idProvider || String(model?.author_slug || "unknown").trim() || "unknown";
+    };
+
+    const OPENROUTER_PROVIDER_SEARCH = {
+      "meta-llama": "llama",
+      "mistralai": "mistral",
+      "moonshotai": "kimi",
+      "x-ai": "grok",
+      "qwen": "qwen",
+      "google": "google",
+      "openai": "openai",
+      "anthropic": "anthropic",
+      "deepseek": "deepseek",
+      "minimax": "minimax",
+    };
+
+    const OPENROUTER_RANK_METRICS = [
+      { key: "catalog", label: "Catalog coverage", note: "OpenRouter catalog", kind: "catalog", direction: "desc" },
+      { key: "tools", label: "Tool-ready routes", note: "OpenRouter supported parameters", kind: "tools", direction: "desc" },
+      { key: "vision", label: "Vision coverage", note: "OpenRouter input modalities", kind: "vision", direction: "desc" },
+      { key: "context", label: "Max context", note: "OpenRouter context windows", kind: "context", direction: "desc" },
+      { key: "input_price", label: "Lowest input price", note: "OpenRouter route pricing", kind: "input_price", direction: "asc" },
+      { key: "output_price", label: "Lowest output price", note: "OpenRouter route pricing", kind: "output_price", direction: "asc" },
+    ];
+
+    const getOpenRouterRankMetric = (key) =>
+      OPENROUTER_RANK_METRICS.find((metric) => metric.key === key) ??
+      OPENROUTER_RANK_METRICS[0];
+
+    const getProviderSearchValue = (provider) =>
+      OPENROUTER_PROVIDER_SEARCH[String(provider || "").toLowerCase()] ||
+      String(provider || "").replace(/-/g, " ");
+
+    const buildOpenRouterProviderGroups = () => {
+      const groups = new Map();
+      const ensureGroup = (provider) => {
+        const key = String(provider || "unknown").trim() || "unknown";
+        if (!groups.has(key)) {
+          groups.set(key, {
+            provider: key,
+            total: 0,
+            tools: 0,
+            vision: 0,
+            maxContext: 0,
+            maxContextModel: null,
+            catalogModels: [],
+          });
+        }
+        return groups.get(key);
+      };
+
+      (window.__aistatsOpenRouterModels || []).forEach((model) => {
+        const provider = getOpenRouterProvider(model);
+        const group = ensureGroup(provider);
+        const context = Number(model?.context_length) || 0;
+        group.catalogModels.push(model);
+        group.total += 1;
+        if ((model?.supported_parameters || []).includes("tools")) group.tools += 1;
+        if ((model?.input_modalities || []).includes("image")) group.vision += 1;
+        if (context > group.maxContext) {
+          group.maxContext = context;
+          group.maxContextModel = model;
+        }
+      });
+
+      return Array.from(groups.values());
+    };
+
+    const getBestOpenRouterPriceModel = (models, key) => {
+      const priceKey =
+        key === "output_price" ? "completion_price_1m" : "prompt_price_1m";
+      const candidates = (models || [])
+        .map((model) => ({
+          model,
+          score: Number(model?.[priceKey]),
+        }))
+        .filter((entry) => Number.isFinite(entry.score) && entry.score > 0);
+      if (!candidates.length) return null;
+      candidates.sort((a, b) => a.score - b.score);
+      return candidates[0];
+    };
+
+    const renderOpenRouterProviderLeaderboard = () => {
+      if (!openRouterRankSelect || !openRouterProviderBoard) return;
+
+      const metric = getOpenRouterRankMetric(openRouterRankSelect.value);
+      const groups = buildOpenRouterProviderGroups();
+      const rows = groups
+        .map((group) => {
+          const base = {
+            ...group,
+            leaderName:
+              group.maxContextModel?.name ||
+              `${group.tools} tool-ready, ${group.vision} vision`,
+            displayScore: String(group.total),
+            scoreValue: group.total,
+            model: null,
+          };
+
+          if (metric.kind === "tools") {
+            return {
+              ...base,
+              leaderName: `${group.vision} vision routes`,
+              displayScore: String(group.tools),
+              scoreValue: group.tools,
+            };
+          }
+
+          if (metric.kind === "vision") {
+            return {
+              ...base,
+              leaderName: `${group.tools} tool-ready routes`,
+              displayScore: String(group.vision),
+              scoreValue: group.vision,
+            };
+          }
+
+          if (metric.kind === "context") {
+            return {
+              ...base,
+              leaderName: group.maxContextModel?.name || "No context data",
+              displayScore: formatContextLength(group.maxContext),
+              scoreValue: group.maxContext,
+            };
+          }
+
+          if (metric.kind === "input_price" || metric.kind === "output_price") {
+            const best = getBestOpenRouterPriceModel(
+              group.catalogModels,
+              metric.kind,
+            );
+            if (!best) {
+              return {
+                ...base,
+                leaderName: "No route price",
+                displayScore: "N/A",
+                scoreValue: Number.POSITIVE_INFINITY,
+              };
+            }
+            return {
+              ...base,
+              leaderName: toDisplayName(best.model?.name),
+              displayScore: formatPrice(best.score, 3),
+              scoreValue: best.score,
+            };
+          }
+
+          return base;
+        })
+        .filter((row) => Number.isFinite(row.scoreValue))
+        .sort((a, b) =>
+          metric.direction === "asc"
+            ? a.scoreValue - b.scoreValue
+            : b.scoreValue - a.scoreValue,
+        )
+        .slice(0, 8);
+
+      if (openRouterBoardTitle) openRouterBoardTitle.textContent = metric.label;
+      if (openRouterBoardNote) openRouterBoardNote.textContent = metric.note;
+
+      openRouterProviderBoard.innerHTML = rows
+        .map((row) => {
+          const provider = escapeHtml(row.provider);
+          const leaderName = escapeHtml(row.leaderName);
+          const modelPayload = row.model
+            ? ` data-model-json="${escapeHtml(JSON.stringify(row.model))}"`
+            : "";
+          const providerQuery = escapeHtml(getProviderSearchValue(row.provider));
+          return `
+            <li>
+              <button
+                type="button"
+                class="openrouter-provider-row"
+                data-openrouter-provider="${provider}"
+                data-openrouter-provider-query="${providerQuery}"
+                ${modelPayload}
+              >
+                <span class="openrouter-model" title="${provider}">${provider}</span>
+                <span class="openrouter-leader" title="${leaderName}">${leaderName}</span>
+                <span class="openrouter-score">${escapeHtml(row.displayScore)}</span>
+                <span>${row.total}</span>
+                <span>${formatContextLength(row.maxContext)}</span>
+              </button>
+            </li>
+          `;
+        })
+        .join("");
+      bindOpenRouterProviderRows();
+    };
+
+    const openOpenRouterProviderRow = (row) => {
+      if (row.dataset.modelJson) {
+        openModelDrawerFromElement(row);
+        return;
+      }
+      const query = row.dataset.openrouterProviderQuery;
+      if (!query || !searchInput) return;
+      searchInput.value = query;
+      applySearch(true);
+      setView("cards");
+      document.getElementById("model-browser")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    };
+
+    const bindOpenRouterProviderRows = () => {
+      document.querySelectorAll("[data-openrouter-provider]").forEach((row) => {
+        if (!(row instanceof HTMLElement)) return;
+        if (row.dataset.providerBound === "true") return;
+        row.dataset.providerBound = "true";
+        row.addEventListener("click", () => openOpenRouterProviderRow(row));
+        row.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          openOpenRouterProviderRow(row);
+        });
+      });
+    };
+
     const getVisibleCards = () =>
       getCards().filter((card) => card.style.display !== "none");
 
@@ -1171,7 +2077,6 @@ function getScoreClass(score: number | null | undefined): string {
       const count = models.length;
       if (heroCountEl) heroCountEl.textContent = String(count);
       if (totalCountEl) totalCountEl.textContent = String(count);
-      if (summaryTotalEl) summaryTotalEl.textContent = String(count);
     };
 
     const updateSummaryStats = (models) => {
@@ -1224,7 +2129,7 @@ function getScoreClass(score: number | null | undefined): string {
       if (topMmluNameEl)
         topMmluNameEl.textContent = topAaAverageModel
           ? toDisplayName(topAaAverageModel.model?.name)
-          : "—";
+          : "-";
       if (topMmluScoreEl)
         topMmluScoreEl.textContent = topAaAverageModel
           ? `${formatScore(topAaAverageModel.avgScore)} avg`
@@ -1232,7 +2137,7 @@ function getScoreClass(score: number | null | undefined): string {
       if (topEciNameEl)
         topEciNameEl.textContent = topEciModel
           ? toDisplayName(topEciModel.display_name || topEciModel.model_name)
-          : "—";
+          : "-";
       if (topEciScoreEl)
         topEciScoreEl.textContent =
           topEpochAverage !== null
@@ -1243,7 +2148,7 @@ function getScoreClass(score: number | null | undefined): string {
       if (cheapestNameEl)
         cheapestNameEl.textContent = cheapestBlended
           ? toDisplayName(cheapestBlended.name)
-          : "—";
+          : "-";
       if (cheapestPriceEl) {
         cheapestPriceEl.textContent = cheapestBlended
           ? formatPrice(cheapestBlended.price_1m_blended_3_to_1, 3)
@@ -1351,11 +2256,11 @@ function getScoreClass(score: number | null | undefined): string {
           };
           const maxScore = Math.max(...list.map(getScore), 0);
           const rankColors = [
-            "from-amber-500/20 to-yellow-500/10 border-l-amber-400",
-            "from-slate-400/15 to-gray-400/5 border-l-slate-300",
-            "from-orange-600/15 to-amber-700/5 border-l-orange-500",
-            "from-transparent to-transparent border-l-highlight-med",
-            "from-transparent to-transparent border-l-highlight-med",
+            "bg-[rgba(230,25,25,0.18)] border-l-[var(--love)]",
+            "bg-highlight-low border-l-highlight-high",
+            "bg-highlight-low border-l-highlight-med",
+            "bg-transparent border-l-highlight-med",
+            "bg-transparent border-l-highlight-med",
           ];
 
           const rows = list
@@ -1367,28 +2272,37 @@ function getScoreClass(score: number | null | undefined): string {
               const company = escapeHtml(
                 toDisplayName(model.company_name, "Unknown provider"),
               );
+              const modelName = toDisplayName(model.name);
+              const rowAction = isEpoch
+                ? `data-compare-url="/compare?metric=${encodeURIComponent(config.key)}&model=${encodeURIComponent(modelName)}"`
+                : `data-model-json="${escapeHtml(JSON.stringify(model))}"`;
+              const ariaLabel = isEpoch
+                ? `Open ${modelName} in compare`
+                : `Open ${modelName} details`;
               const rankBadge =
                 index === 0
-                  ? '<div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 text-sm font-bold text-amber-900 shadow-lg shadow-amber-500/30">1</div>'
+                  ? '<div class="flex h-8 w-8 items-center justify-center border border-love bg-love text-sm font-bold text-white">1</div>'
                   : index === 1
-                    ? '<div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-slate-300 to-gray-400 text-sm font-bold text-slate-700 shadow-lg shadow-slate-400/30">2</div>'
+                    ? '<div class="flex h-8 w-8 items-center justify-center border border-highlight-high bg-highlight-low text-sm font-bold text-text">2</div>'
                     : index === 2
-                      ? '<div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-amber-600 text-sm font-bold text-orange-900 shadow-lg shadow-orange-500/30">3</div>'
-                      : `<div class="flex h-7 w-7 items-center justify-center rounded-full bg-highlight-med/60 text-xs font-semibold text-subtle">${index + 1}</div>`;
+                      ? '<div class="flex h-8 w-8 items-center justify-center border border-highlight-med bg-overlay text-sm font-bold text-text">3</div>'
+                      : `<div class="flex h-7 w-7 items-center justify-center border border-highlight-med bg-highlight-low text-xs font-semibold text-subtle">${index + 1}</div>`;
 
               return `
                 <li class="relative overflow-hidden transition-colors hover:bg-highlight-low/40">
-                  <div class="pointer-events-none absolute inset-y-0 left-0 bg-gradient-to-r ${rankColors[index]} border-l-4" style="width: ${barWidth}%"></div>
-                  <div class="relative grid grid-cols-[2.5rem_1fr_auto] items-center gap-4 px-4 py-3.5">
-                    <div class="flex items-center justify-center">${rankBadge}</div>
-                    <div class="min-w-0">
-                      <div class="flex items-center gap-2">
-                        <span class="truncate font-semibold ${index === 0 ? "text-text" : "text-text/90"}" title="${name}">${name}</span>
+                  <button type="button" class="leaderboard-row relative block w-full overflow-hidden text-left" data-leaderboard-row ${rowAction} aria-label="${escapeHtml(ariaLabel)}">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 ${rankColors[index]} border-l-4" style="width: ${barWidth}%"></div>
+                    <div class="relative grid grid-cols-[2.5rem_1fr_auto] items-center gap-4 px-4 py-3.5">
+                      <div class="flex items-center justify-center">${rankBadge}</div>
+                      <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                          <span class="truncate font-semibold ${index === 0 ? "text-text" : "text-text/90"}" title="${name}">${name}</span>
+                        </div>
+                        <div class="mt-0.5 text-[0.7rem] text-subtle">${company}</div>
                       </div>
-                      <div class="mt-0.5 text-[0.7rem] text-subtle">${company}</div>
+                      <div class="text-right font-mono text-lg font-bold ${index === 0 ? "score-high" : index < 3 ? "text-text" : "text-subtle"}">${scoreText}</div>
                     </div>
-                    <div class="text-right font-mono text-lg font-bold ${index === 0 ? "score-high" : index < 3 ? "text-text" : "text-subtle"}">${scoreText}</div>
-                  </div>
+                  </button>
                 </li>
               `;
             })
@@ -1396,7 +2310,7 @@ function getScoreClass(score: number | null | undefined): string {
 
           const hiddenAttr = config.key === metricSelect.value ? "" : " hidden";
           return `
-            <div data-metric="${escapeHtml(config.key)}" class="overflow-hidden rounded-2xl border border-highlight-low/60"${hiddenAttr}>
+            <div data-metric="${escapeHtml(config.key)}" class="overflow-hidden border border-highlight-low/60"${hiddenAttr}>
               <ul class="divide-y divide-highlight-low/40">${rows}</ul>
             </div>
           `;
@@ -1415,6 +2329,7 @@ function getScoreClass(score: number | null | undefined): string {
       if (!panelKeys.has(metricSelect.value)) {
         metricSelect.value = metricSelect.options[0]?.value ?? "mmlu_pro";
       }
+      updateLeaderboardCompareLink();
 
       Array.from(document.querySelectorAll("[data-metric]")).forEach((el) => {
         if (!(el instanceof HTMLElement)) return;
@@ -1422,6 +2337,7 @@ function getScoreClass(score: number | null | undefined): string {
         el.hidden = shouldHide;
         el.classList.toggle("hidden", shouldHide);
       });
+      bindLeaderboardRows();
     };
 
     const createCardMarkup = (model) => {
@@ -1429,6 +2345,61 @@ function getScoreClass(score: number | null | undefined): string {
       const company = escapeHtml(
         toDisplayName(model.company_name, "Unknown provider"),
       );
+      const openRouterParameters = Array.isArray(model.openrouter_supported_parameters)
+        ? model.openrouter_supported_parameters
+        : [];
+      const openRouterInputModalities = Array.isArray(model.openrouter_input_modalities)
+        ? model.openrouter_input_modalities
+        : [];
+      const openRouterOutputModalities = Array.isArray(model.openrouter_output_modalities)
+        ? model.openrouter_output_modalities
+        : [];
+      const hasOpenRouterData = Boolean(model.openrouter_id);
+      const hasPositiveNumber = (value) => {
+        const num = Number(value);
+        return Number.isFinite(num) && num > 0;
+      };
+      const pricesAreClose = (first, second) => {
+        if (!hasPositiveNumber(first) || !hasPositiveNumber(second)) return false;
+        return Math.abs(Number(first) - Number(second)) < 0.001;
+      };
+      const hasOpenRouterPrice =
+        hasPositiveNumber(model.openrouter_prompt_price_1m) ||
+        hasPositiveNumber(model.openrouter_completion_price_1m);
+      const openRouterPriceMatchesAa =
+        pricesAreClose(model.price_1m_input_tokens, model.openrouter_prompt_price_1m) &&
+        pricesAreClose(model.price_1m_output_tokens, model.openrouter_completion_price_1m);
+      const showOpenRouterPricing = hasOpenRouterPrice && !openRouterPriceMatchesAa;
+      const effectiveContextLength =
+        model.openrouter_context_length || model.context_window;
+      const dataSourceBadge = hasOpenRouterData ? "AA + OR" : "AA";
+      const openRouterCaps =
+        [
+          openRouterParameters.includes("tools") ? "Tools" : null,
+          openRouterInputModalities.includes("image") ? "Vision" : null,
+          openRouterOutputModalities.includes("image") ? "Image out" : null,
+        ]
+          .filter(Boolean)
+          .join(", ") || "Text";
+      const catalogMarkup = hasOpenRouterData
+        ? `
+          <section class="card-metric-panel mt-2 px-3 py-2">
+            <div class="text-[0.55rem] text-muted">OpenRouter catalog</div>
+            <dl class="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-[0.65rem] text-text">
+              <div class="flex items-center justify-between gap-2"><dt class="text-subtle">Tools</dt><dd class="font-bold">${openRouterParameters.includes("tools") ? "Yes" : "No"}</dd></div>
+              <div class="flex items-center justify-between gap-2"><dt class="text-subtle">Route</dt><dd class="font-bold">${model.openrouter_is_free ? "Free" : "Paid"}</dd></div>
+              ${
+                showOpenRouterPricing
+                  ? `<div class="flex items-center justify-between gap-2"><dt class="text-subtle">OR input</dt><dd class="font-bold">${formatPrice(model.openrouter_prompt_price_1m, 3)}</dd></div>
+                     <div class="flex items-center justify-between gap-2"><dt class="text-subtle">OR output</dt><dd class="font-bold">${formatPrice(model.openrouter_completion_price_1m, 3)}</dd></div>`
+                  : ""
+              }
+              <div class="col-span-2 flex items-center justify-between gap-3"><dt class="text-subtle">Modalities</dt><dd class="min-w-0 truncate font-bold">${escapeHtml(openRouterInputModalities.join(", ") || "text")} -&gt; ${escapeHtml(openRouterOutputModalities.join(", ") || "text")}</dd></div>
+              <div class="col-span-2 flex items-center justify-between gap-3"><dt class="text-subtle">Capabilities</dt><dd class="min-w-0 truncate font-bold">${escapeHtml(openRouterCaps)}</dd></div>
+            </dl>
+          </section>
+        `
+        : "";
       return `
         <div
           data-model-card
@@ -1443,36 +2414,64 @@ function getScoreClass(score: number | null | undefined): string {
           data-input-price="${Number(model.price_1m_input_tokens) || 0}"
           data-output-price="${Number(model.price_1m_output_tokens) || 0}"
           data-tps="${Number(model.median_output_tokens_per_second) || 0}"
-          class="model-card group rounded-2xl border border-highlight-med bg-surface/95 px-4 py-4 text-sm shadow-md shadow-black/30 gradient-border stagger-item tilt-card"
+          class="model-card brutalist-card group border border-highlight-med bg-surface px-4 py-4 text-sm stagger-item tilt-card"
         >
           <header class="flex items-start justify-between gap-2">
             <div class="min-w-0">
               <h3 class="truncate text-sm font-semibold text-text group-hover:text-foam transition-colors" title="${name}">${name}</h3>
               <p class="mt-0.5 text-xs text-subtle">${company}</p>
             </div>
-            <div class="text-right text-[0.65rem] text-subtle flex-shrink-0">
-              <div>Input: ${formatPrice(model.price_1m_input_tokens, 3)}</div>
-              <div>Output: ${formatPrice(model.price_1m_output_tokens, 3)}</div>
+            <div class="source-strip flex-shrink-0" title="Data coverage">
+              <span>${dataSourceBadge}</span>
             </div>
           </header>
-          <div class="mt-3 grid gap-2 text-[0.7rem] text-subtle grid-cols-2">
-            <section class="rounded-lg border border-highlight-low/60 bg-overlay/50 px-3 py-2">
-              <div class="text-[0.55rem] uppercase tracking-wide text-muted">Benchmarks</div>
+          <div class="mt-3 grid gap-2 text-[0.7rem] text-subtle sm:grid-cols-2 xl:grid-cols-3">
+            <section class="card-metric-panel px-3 py-2">
+              <div class="text-[0.55rem] text-muted">Pricing</div>
               <dl class="mt-1.5 space-y-0.5 text-text text-[0.65rem]">
-                <div class="flex items-center justify-between"><dt>MMLU</dt><dd class="font-semibold ${getScoreClass(model.mmlu_pro)}">${formatScore(model.mmlu_pro)}</dd></div>
-                <div class="flex items-center justify-between"><dt>GPQA</dt><dd class="font-semibold ${getScoreClass(model.gpqa)}">${formatScore(model.gpqa)}</dd></div>
-                <div class="flex items-center justify-between"><dt>HLE</dt><dd class="font-semibold ${getScoreClass(model.hle)}">${formatScore(model.hle)}</dd></div>
-              </dl>
-            </section>
-            <section class="rounded-lg border border-highlight-low/60 bg-overlay/50 px-3 py-2">
-              <div class="text-[0.55rem] uppercase tracking-wide text-muted">Performance</div>
-              <dl class="mt-1.5 space-y-0.5 text-text text-[0.65rem]">
-                <div class="flex items-center justify-between"><dt>TPS</dt><dd class="font-semibold">${formatTps(model.median_output_tokens_per_second)}</dd></div>
-                <div class="flex items-center justify-between"><dt>TTFT</dt><dd class="font-semibold">${formatTtft(model.median_time_to_first_answer_token)}</dd></div>
+                <div class="flex items-center justify-between"><dt>Input</dt><dd class="font-semibold">${formatPrice(model.price_1m_input_tokens, 3)}</dd></div>
+                <div class="flex items-center justify-between"><dt>Output</dt><dd class="font-semibold">${formatPrice(model.price_1m_output_tokens, 3)}</dd></div>
                 <div class="flex items-center justify-between"><dt>Blended</dt><dd class="font-semibold">${formatPrice(model.price_1m_blended_3_to_1, 3)}</dd></div>
               </dl>
             </section>
+            <section class="card-metric-panel px-3 py-2">
+              <div class="text-[0.55rem] text-muted">Performance</div>
+              <dl class="mt-1.5 space-y-0.5 text-text text-[0.65rem]">
+                <div class="flex items-center justify-between"><dt>TPS</dt><dd class="font-semibold">${formatTps(model.median_output_tokens_per_second)}</dd></div>
+                <div class="flex items-center justify-between"><dt>TTFT token</dt><dd class="font-semibold">${formatTtft(model.median_time_to_first_token_seconds)}</dd></div>
+                <div class="flex items-center justify-between"><dt>TTFT answer</dt><dd class="font-semibold">${formatTtft(model.median_time_to_first_answer_token)}</dd></div>
+              </dl>
+            </section>
+            <section class="card-metric-panel px-3 py-2">
+              <div class="text-[0.55rem] text-muted">Specs</div>
+              <dl class="mt-1.5 space-y-0.5 text-text text-[0.65rem]">
+                <div class="flex items-center justify-between"><dt>Context</dt><dd class="font-semibold">${formatContextLength(effectiveContextLength)}</dd></div>
+                <div class="flex items-center justify-between"><dt>Max output</dt><dd class="font-semibold">${formatContextLength(model.max_output_tokens)}</dd></div>
+                <div class="flex items-center justify-between"><dt>Source</dt><dd class="font-semibold">${dataSourceBadge}</dd></div>
+              </dl>
+            </section>
           </div>
+          <section class="card-metric-panel mt-2 px-3 py-2">
+            <div class="text-[0.55rem] text-muted">Benchmarks</div>
+            <div class="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-[0.65rem]">
+              <div class="flex items-center justify-between"><span class="text-subtle">MMLU</span><span class="font-semibold ${getScoreClass(model.mmlu_pro)}">${formatScore(model.mmlu_pro)}</span></div>
+              <div class="flex items-center justify-between"><span class="text-subtle">GPQA</span><span class="font-semibold ${getScoreClass(model.gpqa)}">${formatScore(model.gpqa)}</span></div>
+              <div class="flex items-center justify-between"><span class="text-subtle">HLE</span><span class="font-semibold ${getScoreClass(model.hle)}">${formatScore(model.hle)}</span></div>
+              <div class="flex items-center justify-between"><span class="text-subtle">AIME</span><span class="font-semibold ${getScoreClass(model.aime)}">${formatScore(model.aime)}</span></div>
+              <div class="flex items-center justify-between"><span class="text-subtle">LiveCodeBench</span><span class="font-semibold ${getScoreClass(model.livecodebench)}">${formatScore(model.livecodebench)}</span></div>
+              <div class="flex items-center justify-between"><span class="text-subtle">SciCode</span><span class="font-semibold ${getScoreClass(model.scicode)}">${formatScore(model.scicode)}</span></div>
+              <div class="flex items-center justify-between"><span class="text-subtle">Math 500</span><span class="font-semibold ${getScoreClass(model.math_500)}">${formatScore(model.math_500)}</span></div>
+            </div>
+          </section>
+          <section class="card-metric-panel mt-2 px-3 py-2">
+            <div class="text-[0.55rem] text-muted">AA indexes</div>
+            <div class="mt-1.5 grid grid-cols-3 gap-1.5 text-center text-[0.65rem]">
+              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[0.5rem] uppercase text-muted">Intelligence</div><div class="font-bold ${getScoreClass(model.aa_intelligence_index)}">${formatScore(model.aa_intelligence_index)}</div></div>
+              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[0.5rem] uppercase text-muted">Coding</div><div class="font-bold ${getScoreClass(model.aa_coding_index)}">${formatScore(model.aa_coding_index)}</div></div>
+              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[0.5rem] uppercase text-muted">Math</div><div class="font-bold ${getScoreClass(model.aa_math_index)}">${formatScore(model.aa_math_index)}</div></div>
+            </div>
+          </section>
+          ${catalogMarkup}
         </div>
       `;
     };
@@ -1481,6 +2480,9 @@ function getScoreClass(score: number | null | undefined): string {
       <tr
         class="cursor-pointer transition-colors hover:bg-highlight-low/50"
         data-table-row
+        tabindex="0"
+        role="button"
+        aria-label="Open ${escapeHtml(toDisplayName(model.name))} details"
         data-model-json="${escapeHtml(JSON.stringify(model))}"
         data-name="${escapeHtml(String(model.name ?? "").toLowerCase())}"
         data-company="${escapeHtml(String(model.company_name ?? "").toLowerCase())}"
@@ -1490,8 +2492,9 @@ function getScoreClass(score: number | null | undefined): string {
         data-output-price="${Number(model.price_1m_output_tokens) || 0}"
         data-tps="${Number(model.median_output_tokens_per_second) || 0}"
       >
-        <td class="px-4 py-3 font-medium text-text">${escapeHtml(toDisplayName(model.name))}</td>
+        <th scope="row" class="px-4 py-3 font-medium text-text">${escapeHtml(toDisplayName(model.name))}</th>
         <td class="px-4 py-3 text-subtle">${escapeHtml(toDisplayName(model.company_name, "-"))}</td>
+        <td class="px-4 py-3 text-right font-mono text-text">${formatContextLength(model.openrouter_context_length)}</td>
         <td class="px-4 py-3 text-right font-mono text-text">${formatPrice(model.price_1m_input_tokens, 3)}</td>
         <td class="px-4 py-3 text-right font-mono text-text">${formatPrice(model.price_1m_output_tokens, 3)}</td>
         <td class="px-4 py-3 text-right font-semibold ${getScoreClass(model.mmlu_pro)}">${formatScore(model.mmlu_pro)}</td>
@@ -1532,7 +2535,37 @@ function getScoreClass(score: number | null | undefined): string {
 
     const bindTableRows = () => {
       getTableRows().forEach((row) => {
+        if (row.dataset.drawerBound === "true") return;
+        row.dataset.drawerBound = "true";
         row.addEventListener("click", () => openModelDrawerFromElement(row));
+        row.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          openModelDrawerFromElement(row);
+        });
+      });
+    };
+
+    const openLeaderboardRow = (row) => {
+      if (row.dataset.modelJson) {
+        openModelDrawerFromElement(row);
+        return;
+      }
+      const compareUrl = row.dataset.compareUrl;
+      if (compareUrl) window.location.href = compareUrl;
+    };
+
+    const bindLeaderboardRows = () => {
+      document.querySelectorAll("[data-leaderboard-row]").forEach((row) => {
+        if (!(row instanceof HTMLElement)) return;
+        if (row.dataset.leaderboardBound === "true") return;
+        row.dataset.leaderboardBound = "true";
+        row.addEventListener("click", () => openLeaderboardRow(row));
+        row.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          openLeaderboardRow(row);
+        });
       });
     };
 
@@ -1643,12 +2676,17 @@ function getScoreClass(score: number | null | undefined): string {
 
     metricSelect?.addEventListener("change", () => {
       const metric = metricSelect.value;
+      updateLeaderboardCompareLink();
       Array.from(document.querySelectorAll("[data-metric]")).forEach((el) => {
         if (!(el instanceof HTMLElement)) return;
         const shouldHide = el.dataset.metric !== metric;
         el.hidden = shouldHide;
         el.classList.toggle("hidden", shouldHide);
       });
+    });
+
+    openRouterRankSelect?.addEventListener("change", () => {
+      renderOpenRouterProviderLeaderboard();
     });
 
     loadMoreBtn?.addEventListener("click", () => {
@@ -1682,19 +2720,23 @@ function getScoreClass(score: number | null | undefined): string {
 
     bindCardFocus();
     bindTableRows();
+    bindLeaderboardRows();
+    renderOpenRouterProviderLeaderboard();
+    updateLeaderboardCompareLink();
     applySearch(true);
 
     window.addEventListener("aistats:live-snapshot", (event) => {
       const snapshot = event.detail;
       if (!snapshot) return;
 
-      const liveModels = getValidModels(snapshot.aaModels ?? []);
+      const liveModels = enrichWithOpenRouter(getValidModels(snapshot.aaModels ?? []));
       const epochBenchmarks = snapshot.epochBenchmarks ?? [];
       const epochRuns = snapshot.epochRuns ?? [];
 
       updateModelCounts(liveModels);
       updateSummaryStats(liveModels);
       updateTopStrip(liveModels, snapshot.epochModels ?? [], epochRuns);
+      renderOpenRouterProviderLeaderboard();
       renderLeaderboard(liveModels, epochBenchmarks, epochRuns);
       renderModels(liveModels);
     });
