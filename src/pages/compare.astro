@@ -860,6 +860,7 @@ const topFrontierMath =
       border-radius: var(--radius-m);
       background: color-mix(in srgb, var(--surface) 92%, transparent);
       overflow: hidden;
+      container: catalog-section / inline-size;
     }
 
     .catalog-section header {
@@ -886,27 +887,33 @@ const topFrontierMath =
 
     .catalog-table {
       overflow-x: auto;
+      scrollbar-width: thin;
     }
 
     .catalog-table table {
       width: 100%;
-      min-width: 760px;
+      min-width: 860px;
       border-collapse: collapse;
-      font-size: 0.78rem;
+      table-layout: fixed;
+      font-size: 0.62rem;
     }
 
     .catalog-table th,
     .catalog-table td {
       border-bottom: 1px solid var(--highlight-low);
-      padding: 0.65rem 0.8rem;
+      padding: 0.56rem 0.62rem;
       text-align: left;
       vertical-align: top;
+      line-height: 1.25;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .catalog-table th {
       color: var(--muted);
       font-family: var(--font-mono);
-      font-size: 0.62rem;
+      font-size: 0.58rem;
       font-weight: 900;
       text-transform: uppercase;
     }
@@ -922,6 +929,24 @@ const topFrontierMath =
     .catalog-table td:not(:first-child),
     .catalog-table th:not(:first-child) {
       text-align: right;
+    }
+
+    .catalog-table th:nth-child(1) {
+      width: 26%;
+    }
+
+    .catalog-table th:nth-child(2) {
+      width: 24%;
+    }
+
+    .catalog-table th:nth-child(3),
+    .catalog-table th:nth-child(4),
+    .catalog-table th:nth-child(5) {
+      width: 12%;
+    }
+
+    .catalog-table th:nth-child(6) {
+      width: 14%;
     }
 
     .no-data {
@@ -1363,6 +1388,309 @@ const topFrontierMath =
         padding-top: 1rem;
       }
     }
+
+    .smart-filter-rail {
+      top: 56px;
+      height: calc(100dvh - 56px);
+      max-height: calc(100dvh - 56px);
+      padding: 0.85rem;
+      z-index: 90;
+    }
+
+    .filter-drawer-header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin: -0.85rem -0.85rem 0.9rem;
+      padding: 0.85rem;
+      border-bottom: 1px solid var(--border-color);
+      background: color-mix(in srgb, var(--surface) 96%, transparent);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .filter-drawer-title {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      font-weight: 900;
+      letter-spacing: 0;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .filter-close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 5.75rem;
+      min-height: 2.5rem;
+      border: 1px solid color-mix(in srgb, var(--love) 70%, var(--border-color));
+      border-radius: var(--radius-s);
+      background: var(--love);
+      color: #ffffff;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 900;
+      letter-spacing: 0;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .filter-close:hover,
+    .filter-close:focus-visible {
+      background: color-mix(in srgb, var(--love) 88%, #ffffff);
+      outline: 2px solid color-mix(in srgb, var(--love) 42%, transparent);
+      outline-offset: 2px;
+    }
+
+    .filter-toggle[aria-expanded="true"] {
+      display: none;
+    }
+
+    .footer-wrapper {
+      margin-left: 0;
+      width: 100%;
+      transition:
+        margin-left 0.25s ease,
+        width 0.25s ease;
+    }
+
+    .footer-wrapper.filters-closed {
+      margin-left: 0;
+      width: 100%;
+    }
+
+    @media (min-width: 1101px) {
+      .layout {
+        overflow: visible;
+      }
+
+      .smart-filter-rail {
+        position: sticky;
+        top: 56px;
+        left: auto;
+        bottom: auto;
+        flex: 0 0 260px;
+        width: 260px;
+        min-width: 0;
+        height: calc(100dvh - 56px);
+        max-height: calc(100dvh - 56px);
+        padding: 0.85rem;
+        transform: none;
+        transition:
+          flex-basis 0.25s ease,
+          width 0.25s ease,
+          padding 0.25s ease,
+          opacity 0.2s ease;
+      }
+
+      .smart-filter-rail.closed {
+        flex-basis: 0;
+        width: 0;
+        min-width: 0;
+        padding-right: 0;
+        padding-left: 0;
+        border-right: 0;
+        opacity: 0;
+        pointer-events: none;
+        transform: none;
+      }
+
+      .smart-filter-rail.closed > * {
+        visibility: hidden;
+      }
+
+      .compare-main {
+        flex: 1 1 0;
+        width: auto !important;
+        margin-left: 0 !important;
+      }
+
+      .footer-wrapper {
+        margin-left: 0 !important;
+        width: 100% !important;
+      }
+    }
+
+    @media (max-width: 1100px) {
+      .smart-filter-rail {
+        position: fixed;
+        top: 56px;
+        left: 0;
+        bottom: auto;
+        height: calc(100dvh - 56px);
+        max-height: calc(100dvh - 56px);
+        width: min(360px, calc(100vw - 16px));
+        padding: 0.85rem;
+        z-index: 160;
+        pointer-events: auto;
+        transform: translateX(calc(-100% - 1rem));
+      }
+
+      .smart-filter-rail.closed {
+        transform: translateX(calc(-100% - 1rem));
+      }
+
+      .smart-filter-rail.open {
+        transform: translateX(0);
+      }
+
+      .filter-overlay {
+        top: 56px;
+        z-index: 140;
+      }
+
+      .footer-wrapper {
+        margin-left: 0;
+        width: 100%;
+      }
+
+      .catalog-section header {
+        padding: 0.8rem 0.85rem;
+      }
+
+      .catalog-table {
+        overflow-x: visible;
+      }
+
+      .catalog-table table,
+      .catalog-table thead,
+      .catalog-table tbody,
+      .catalog-table tr,
+      .catalog-table td {
+        display: block;
+        width: 100%;
+      }
+
+      .catalog-table table {
+        min-width: 0;
+      }
+
+      .catalog-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+
+      .catalog-table tbody {
+        display: grid;
+        gap: 0.55rem;
+        padding: 0.75rem;
+      }
+
+      .catalog-table tr {
+        border: 1px solid var(--highlight-low);
+        border-radius: var(--radius-s);
+        background: color-mix(in srgb, var(--base) 58%, transparent);
+        padding: 0.58rem;
+      }
+
+      .catalog-table td {
+        display: grid;
+        grid-template-columns: minmax(5.6rem, 34%) minmax(0, 1fr);
+        gap: 0.75rem;
+        align-items: baseline;
+        border-bottom: 0;
+        padding: 0.22rem 0;
+        text-align: left !important;
+        font-size: 0.7rem;
+      }
+
+      .catalog-table td::before {
+        content: attr(data-label);
+        color: var(--muted);
+        font-family: var(--font-mono);
+        font-size: 0.58rem;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .catalog-table td:first-child {
+        font-size: 0.78rem;
+      }
+    }
+
+    @container catalog-section (max-width: 920px) {
+      .catalog-section header {
+        padding: 0.8rem 0.85rem;
+      }
+
+      .catalog-table {
+        overflow-x: visible;
+      }
+
+      .catalog-table table,
+      .catalog-table thead,
+      .catalog-table tbody,
+      .catalog-table tr,
+      .catalog-table td {
+        display: block;
+        width: 100%;
+      }
+
+      .catalog-table table {
+        min-width: 0;
+      }
+
+      .catalog-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+
+      .catalog-table tbody {
+        display: grid;
+        gap: 0.55rem;
+        padding: 0.75rem;
+      }
+
+      .catalog-table tr {
+        border: 1px solid var(--highlight-low);
+        border-radius: var(--radius-s);
+        background: color-mix(in srgb, var(--base) 58%, transparent);
+        padding: 0.58rem;
+      }
+
+      .catalog-table td {
+        display: grid;
+        grid-template-columns: minmax(5.6rem, 34%) minmax(0, 1fr);
+        gap: 0.75rem;
+        align-items: baseline;
+        border-bottom: 0;
+        padding: 0.22rem 0;
+        text-align: left !important;
+        font-size: 0.7rem;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        overflow-wrap: anywhere;
+      }
+
+      .catalog-table td::before {
+        content: attr(data-label);
+        color: var(--muted);
+        font-family: var(--font-mono);
+        font-size: 0.58rem;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .catalog-table td:first-child {
+        font-size: 0.78rem;
+      }
+    }
   </style>
 <div
   class="compare-container"
@@ -1382,6 +1710,12 @@ const topFrontierMath =
 
   <div class="layout">
     <aside class="smart-filter-rail" id="smart-filter-rail">
+      <div class="filter-drawer-header">
+        <span class="filter-drawer-title">Filters</span>
+        <button type="button" class="filter-close" id="filter-close">
+          Close
+        </button>
+      </div>
       <div class="filter-section">
         <label for="metric-selector" class="filter-label">
           <h3>Performance Metric</h3>
@@ -1487,12 +1821,12 @@ const topFrontierMath =
 
                   return (
                     <tr>
-                      <td>{model.name}</td>
-                      <td>{model.openrouter_id ?? "-"}</td>
-                      <td>{formatContextLength(model.openrouter_context_length)}</td>
-                      <td>{formatCatalogPrice(model.openrouter_prompt_price_1m)}</td>
-                      <td>{formatCatalogPrice(model.openrouter_completion_price_1m)}</td>
-                      <td>{capabilities || "-"}</td>
+                      <td data-label="Model">{model.name}</td>
+                      <td data-label="OR ID">{model.openrouter_id ?? "-"}</td>
+                      <td data-label="Context">{formatContextLength(model.openrouter_context_length)}</td>
+                      <td data-label="OR input">{formatCatalogPrice(model.openrouter_prompt_price_1m)}</td>
+                      <td data-label="OR output">{formatCatalogPrice(model.openrouter_completion_price_1m)}</td>
+                      <td data-label="Capabilities">{capabilities || "-"}</td>
                     </tr>
                   );
                 })
@@ -1675,7 +2009,9 @@ const topFrontierMath =
       rail: document.getElementById("smart-filter-rail"),
       main: document.querySelector(".compare-main"),
       toggle: document.getElementById("filter-toggle"),
+      close: document.getElementById("filter-close"),
       overlay: document.getElementById("filter-overlay"),
+      footer: document.querySelector(".footer-wrapper"),
     };
   }
 
@@ -1684,7 +2020,7 @@ const topFrontierMath =
   }
 
   function setCompareFiltersOpen(nextOpen) {
-    const { rail, main, toggle, overlay } = getFilterControls();
+    const { rail, main, toggle, overlay, footer } = getFilterControls();
     if (!rail || !toggle) return;
 
     const label = toggle.querySelector(".filter-label");
@@ -1699,6 +2035,11 @@ const topFrontierMath =
         main.style.marginLeft = "";
         main.style.width = "";
       }
+      if (footer) {
+        footer.style.marginLeft = "";
+        footer.style.width = "";
+        footer.classList.remove("filters-closed");
+      }
     } else {
       rail.classList.remove("open");
       rail.classList.toggle("closed", !nextOpen);
@@ -1706,13 +2047,18 @@ const topFrontierMath =
       document.body.classList.remove("compare-filters-open");
 
       if (main) {
-        main.style.marginLeft = nextOpen ? "260px" : "0";
-        main.style.width = nextOpen ? "calc(100% - 260px)" : "100%";
+        main.style.marginLeft = "";
+        main.style.width = "";
+      }
+      if (footer) {
+        footer.style.marginLeft = "";
+        footer.style.width = "";
+        footer.classList.toggle("filters-closed", !nextOpen);
       }
     }
 
     toggle.setAttribute("aria-expanded", String(nextOpen));
-    if (label) label.textContent = nextOpen ? "Close" : "Filters";
+    if (label) label.textContent = "Filters";
   }
 
   function getCompareFiltersOpen() {
@@ -1742,6 +2088,13 @@ const topFrontierMath =
         event.preventDefault();
         event.stopPropagation();
         window.__toggleCompareFilters?.();
+        return;
+      }
+
+      if (target.closest("#filter-close")) {
+        event.preventDefault();
+        event.stopPropagation();
+        window.__setCompareFiltersOpen?.(false);
         return;
       }
 
@@ -2126,12 +2479,12 @@ const topFrontierMath =
 
           return `
             <tr>
-              <td>${sanitizeHTML(model.name || "-")}</td>
-              <td>${sanitizeHTML(model.openrouter_id || "-")}</td>
-              <td>${formatContextLength(model.openrouter_context_length)}</td>
-              <td>${formatCatalogPrice(model.openrouter_prompt_price_1m)}</td>
-              <td>${formatCatalogPrice(model.openrouter_completion_price_1m)}</td>
-              <td>${sanitizeHTML(capabilities)}</td>
+              <td data-label="Model">${sanitizeHTML(model.name || "-")}</td>
+              <td data-label="OR ID">${sanitizeHTML(model.openrouter_id || "-")}</td>
+              <td data-label="Context">${formatContextLength(model.openrouter_context_length)}</td>
+              <td data-label="OR input">${formatCatalogPrice(model.openrouter_prompt_price_1m)}</td>
+              <td data-label="OR output">${formatCatalogPrice(model.openrouter_completion_price_1m)}</td>
+              <td data-label="Capabilities">${sanitizeHTML(capabilities)}</td>
             </tr>
           `;
         })
@@ -2149,7 +2502,7 @@ const topFrontierMath =
               <th scope="col">Capabilities</th>
             </tr>
           </thead>
-          <tbody>${rows || '<tr><td colspan="6">Select models to compare</td></tr>'}</tbody>
+          <tbody>${rows || '<tr><td data-label="Status" colspan="6">Select models to compare</td></tr>'}</tbody>
         </table>
       `;
     }
