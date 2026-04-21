@@ -1718,7 +1718,7 @@ const topFrontierMath =
       </div>
       <div class="filter-section">
         <label for="metric-selector" class="filter-label">
-          <h3>Performance Metric</h3>
+          <h2>Performance Metric</h2>
         </label>
         <select
           id="metric-selector"
@@ -1735,13 +1735,13 @@ const topFrontierMath =
         </select>
       </div>
       <div class="filter-section">
-        <h3>Sort Order</h3>
+        <h2>Sort Order</h2>
         <button id="sort-toggle" class="sort-toggle" data-order="desc">
           <span class="sort-text">High to Low</span>
         </button>
       </div>
       <div class="filter-section">
-        <h3>Model Selection</h3>
+        <h2>Model Selection</h2>
         <div class="search-container">
           <label for="model-search" class="sr-only">Search models</label>
           <input
@@ -1762,7 +1762,7 @@ const topFrontierMath =
         <div class="chart-grid">
           <div class="chart-section">
             <div class="chart-header">
-              <h3>Price Comparison</h3>
+              <h2>Price Comparison</h2>
             </div>
             <div class="chart-container" id="price-chart">
               <canvas id="price-canvas"></canvas>
@@ -1771,7 +1771,7 @@ const topFrontierMath =
 
           <div class="chart-section">
             <div class="chart-header">
-              <h3>Performance Comparison</h3>
+              <h2>Performance Comparison</h2>
             </div>
             <div class="chart-container" id="performance-chart">
               <canvas id="perf-canvas"></canvas>
@@ -1783,7 +1783,7 @@ const topFrontierMath =
       <section class="catalog-section" aria-label="OpenRouter catalog comparison">
         <header>
           <div>
-            <h3>OpenRouter catalog metadata</h3>
+            <h2>OpenRouter catalog metadata</h2>
             <p>Matched public catalog fields for selected models.</p>
           </div>
         </header>
@@ -1839,31 +1839,31 @@ const topFrontierMath =
       <section class="insights-section">
         <div class="insights-grid">
           <div class="insight-card">
-            <h4>Cheapest Tokens</h4>
+            <h3>Cheapest Tokens</h3>
             <p>{cheapestTokensModel ? cheapestTokensModel.name : "-"}</p>
           </div>
           <div class="insight-card">
-            <h4>Cheapest Input</h4>
+            <h3>Cheapest Input</h3>
             <p>{inputPriceWinner ? inputPriceWinner.name : "-"}</p>
           </div>
           <div class="insight-card">
-            <h4>Cheapest Output</h4>
+            <h3>Cheapest Output</h3>
             <p>{outputPriceWinner ? outputPriceWinner.name : "-"}</p>
           </div>
           <div class="insight-card">
-            <h4>Highest TPS</h4>
+            <h3>Highest TPS</h3>
             <p>{tpsWinner ? tpsWinner.name : "-"}</p>
           </div>
           <div class="insight-card">
-            <h4>Fastest TTFT</h4>
+            <h3>Fastest TTFT</h3>
             <p>{ttftWinner ? ttftWinner.name : "-"}</p>
           </div>
           <div class="insight-card">
-            <h4 id="performance-metric-title">Top MMLU Pro</h4>
+            <h3 id="performance-metric-title">Top MMLU Pro</h3>
             <p>{performanceWinner ? performanceWinner.name : "-"}</p>
           </div>
           <div class="insight-card">
-            <h4 style="color: var(--iris);">Top GPQA Diamond</h4>
+            <h3 style="color: var(--iris);">Top GPQA Diamond</h3>
             <p>
               {
                 topGpqaDiamond
@@ -1880,7 +1880,7 @@ const topFrontierMath =
             >
           </div>
           <div class="insight-card">
-            <h4 style="color: var(--iris);">Top FrontierMath</h4>
+            <h3 style="color: var(--iris);">Top FrontierMath</h3>
             <p>
               {
                 topFrontierMath
