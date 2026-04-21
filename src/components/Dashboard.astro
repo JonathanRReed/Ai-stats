@@ -729,7 +729,6 @@ function getScoreClass(score: number | null | undefined): string {
               >
               <select
                 id="model-sort-direction"
-                aria-label="Sort direction"
                 class="toolbar-control w-full px-3 py-2 text-sm font-bold uppercase text-text active:translate-y-px sm:w-32"
               >
                 <option value="desc">Top first</option>
@@ -847,7 +846,7 @@ function getScoreClass(score: number | null | undefined): string {
                   data-output-price={Number(model.price_1m_output_tokens) || 0}
                   data-tps={Number(model.median_output_tokens_per_second) || 0}
                 >
-                  <th scope="row" class="px-4 py-3 font-medium text-text">{model.name}</th>
+                  <td class="px-4 py-3 font-medium text-text">{model.name}</td>
                   <td class="px-4 py-3 text-subtle">
                     {model.company_name ?? "-"}
                   </td>
@@ -2478,7 +2477,7 @@ function getScoreClass(score: number | null | undefined): string {
         data-output-price="${Number(model.price_1m_output_tokens) || 0}"
         data-tps="${Number(model.median_output_tokens_per_second) || 0}"
       >
-        <th scope="row" class="px-4 py-3 font-medium text-text">${escapeHtml(toDisplayName(model.name))}</th>
+        <td class="px-4 py-3 font-medium text-text">${escapeHtml(toDisplayName(model.name))}</td>
         <td class="px-4 py-3 text-subtle">${escapeHtml(toDisplayName(model.company_name, "-"))}</td>
         <td class="px-4 py-3 text-right font-mono text-text">${formatContextLength(model.openrouter_context_length)}</td>
         <td class="px-4 py-3 text-right font-mono text-text">${formatPrice(model.price_1m_input_tokens, 3)}</td>
