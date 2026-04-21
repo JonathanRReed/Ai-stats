@@ -839,9 +839,6 @@ function getScoreClass(score: number | null | undefined): string {
                 <tr
                   class="cursor-pointer transition-colors hover:bg-highlight-low/50"
                   data-table-row
-                  tabindex="0"
-                  role="button"
-                  aria-label={`Open ${model.name} details`}
                   data-model-json={JSON.stringify(model)}
                   data-name={(model.name ?? "").toLowerCase()}
                   data-company={(model.company_name ?? "").toLowerCase()}
@@ -2480,9 +2477,6 @@ function getScoreClass(score: number | null | undefined): string {
       <tr
         class="cursor-pointer transition-colors hover:bg-highlight-low/50"
         data-table-row
-        tabindex="0"
-        role="button"
-        aria-label="Open ${escapeHtml(toDisplayName(model.name))} details"
         data-model-json="${escapeHtml(JSON.stringify(model))}"
         data-name="${escapeHtml(String(model.name ?? "").toLowerCase())}"
         data-company="${escapeHtml(String(model.company_name ?? "").toLowerCase())}"
@@ -2518,7 +2512,7 @@ function getScoreClass(score: number | null | undefined): string {
       getCards().forEach((card) => {
         card.setAttribute("tabindex", "0");
         card.setAttribute("role", "button");
-        card.setAttribute("aria-label", "Open model details");
+        card.removeAttribute("aria-label");
         card.addEventListener("focus", () => {
           focusedCardIndex = getVisibleCards().indexOf(card);
         });
