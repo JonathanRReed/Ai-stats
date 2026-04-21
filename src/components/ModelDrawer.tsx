@@ -259,7 +259,13 @@ export default function ModelDrawer() {
           <div className="flex min-w-0 items-start gap-3">
             {provider.logo ? (
               <span className={`provider-logo-frame ${provider.isDarkLogo ? 'provider-logo-frame-light' : ''}`}>
-                <img className="provider-logo-image" src={provider.logo} alt="" width="20" height="20" />
+                <img
+                  className="provider-logo-image"
+                  src={provider.logo}
+                  alt={`${provider.providerName} logo`}
+                  width="20"
+                  height="20"
+                />
               </span>
             ) : (
               <span className="provider-logo-frame provider-logo-fallback" aria-hidden="true">
