@@ -130,7 +130,7 @@ const validModels = models.filter((model: any) => {
 });
 
 const totalModels = validModels.length;
-const INITIAL_VISIBLE_MODELS = Math.min(20, totalModels);
+const INITIAL_VISIBLE_MODELS = Math.min(8, totalModels);
 const initialModels = validModels.slice(0, INITIAL_VISIBLE_MODELS);
 const avgInputPrice =
   validModels.reduce(
@@ -601,7 +601,6 @@ function getScoreClass(score: number | null | undefined): string {
                             data-leaderboard-row
                             data-model-json={isEpoch ? undefined : JSON.stringify(model)}
                             data-compare-url={isEpoch ? `/compare?metric=${key}&model=${encodeURIComponent(model.name ?? "")}` : undefined}
-                            aria-label={isEpoch ? `Open ${model.name} in compare` : `Open ${model.name} details`}
                           >
                             {/* Background bar */}
                             <div
@@ -1558,7 +1557,7 @@ function getScoreClass(score: number | null | undefined): string {
 <script>
   // @ts-nocheck
   if (typeof window !== "undefined") {
-    const PAGE_SIZE = 20;
+    const PAGE_SIZE = 12;
     const AA_BENCHMARKS = [
       { key: "mmlu_pro", label: "MMLU Pro", source: "aa" },
       { key: "gpqa", label: "GPQA", source: "aa" },
@@ -2269,9 +2268,6 @@ function getScoreClass(score: number | null | undefined): string {
               const rowAction = isEpoch
                 ? `data-compare-url="/compare?metric=${encodeURIComponent(config.key)}&model=${encodeURIComponent(modelName)}"`
                 : `data-model-json="${escapeHtml(JSON.stringify(model))}"`;
-              const ariaLabel = isEpoch
-                ? `Open ${modelName} in compare`
-                : `Open ${modelName} details`;
               const rankBadge =
                 index === 0
                   ? '<div class="flex h-8 w-8 items-center justify-center border border-love bg-love text-sm font-bold text-white">1</div>'
@@ -2283,7 +2279,7 @@ function getScoreClass(score: number | null | undefined): string {
 
               return `
                 <li class="relative overflow-hidden transition-colors hover:bg-highlight-low/40">
-                  <button type="button" class="leaderboard-row relative block w-full overflow-hidden text-left" data-leaderboard-row ${rowAction} aria-label="${escapeHtml(ariaLabel)}">
+                  <button type="button" class="leaderboard-row relative block w-full overflow-hidden text-left" data-leaderboard-row ${rowAction}>
                     <div class="pointer-events-none absolute inset-y-0 left-0 ${rankColors[index]} border-l-4" style="width: ${barWidth}%"></div>
                     <div class="relative grid grid-cols-[2.5rem_1fr_auto] items-center gap-4 px-4 py-3.5">
                       <div class="flex items-center justify-center">${rankBadge}</div>

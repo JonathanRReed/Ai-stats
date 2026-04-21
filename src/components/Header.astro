@@ -48,7 +48,7 @@ const { currentPage = 'dashboard' } = Astro.props;
   
   <!-- Mobile nav overlay -->
   <div id="mobile-nav-overlay" class="mobile-nav-overlay"></div>
-  <nav id="mobile-nav" class="mobile-nav" aria-hidden="true" inert>
+  <nav id="mobile-nav" class="mobile-nav" inert>
     <a href="/" class={`mobile-nav-item ${currentPage === 'dashboard' ? 'active' : ''}`} tabindex="-1">Stats</a>
     <a href="/compare" class={`mobile-nav-item ${currentPage === 'compare' ? 'active' : ''}`} tabindex="-1">Compare</a>
     <a href="/about" class={`mobile-nav-item ${currentPage === 'about' ? 'active' : ''}`} tabindex="-1">About</a>
@@ -373,7 +373,6 @@ const { currentPage = 'dashboard' } = Astro.props;
         if (overlay) overlay.classList.toggle('open', isOpen);
         if (menuToggle) menuToggle.setAttribute('aria-expanded', String(isOpen));
         if (mobileNav) {
-          mobileNav.setAttribute('aria-hidden', String(!isOpen));
           if (isOpen) {
             mobileNav.removeAttribute('inert');
           } else {
