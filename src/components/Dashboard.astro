@@ -534,7 +534,7 @@ function getScoreClass(score: number | null | undefined): string {
           <div class="leaderboard-controls relative z-30">
             <a
               id="leaderboard-compare-link"
-              href="/compare?metric=mmlu_pro"
+              href="/compare"
               class="toolbar-control px-3 py-1 text-[0.7rem] font-bold uppercase text-text"
             >
               Open compare
@@ -1634,11 +1634,7 @@ function getScoreClass(score: number | null | undefined): string {
 
     const updateLeaderboardCompareLink = () => {
       if (!leaderboardCompareLink || !metricSelect) return;
-      const metric = metricSelect.value || "mmlu_pro";
-      leaderboardCompareLink.setAttribute(
-        "href",
-        `/compare?metric=${encodeURIComponent(metric)}`,
-      );
+      leaderboardCompareLink.setAttribute("href", "/compare");
     };
 
     const escapeHtml = (value) =>
