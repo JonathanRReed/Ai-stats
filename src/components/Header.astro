@@ -17,6 +17,7 @@ const { currentPage = 'dashboard' } = Astro.props;
       <a href="/" class={`nav-item ${currentPage === 'dashboard' ? 'active' : ''}`}>Stats</a>
       <a href="/compare" class={`nav-item ${currentPage === 'compare' ? 'active' : ''}`}>Compare</a>
       <a href="/about" class={`nav-item ${currentPage === 'about' ? 'active' : ''}`}>About</a>
+      <a href="/contact" class={`nav-item ${currentPage === 'contact' ? 'active' : ''}`}>Contact</a>
       <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark theme">
         <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
@@ -47,10 +48,11 @@ const { currentPage = 'dashboard' } = Astro.props;
   
   <!-- Mobile nav overlay -->
   <div id="mobile-nav-overlay" class="mobile-nav-overlay"></div>
-  <nav id="mobile-nav" class="mobile-nav" aria-hidden="true">
+  <nav id="mobile-nav" class="mobile-nav" aria-hidden="true" inert>
     <a href="/" class={`mobile-nav-item ${currentPage === 'dashboard' ? 'active' : ''}`} tabindex="-1">Stats</a>
     <a href="/compare" class={`mobile-nav-item ${currentPage === 'compare' ? 'active' : ''}`} tabindex="-1">Compare</a>
     <a href="/about" class={`mobile-nav-item ${currentPage === 'about' ? 'active' : ''}`} tabindex="-1">About</a>
+    <a href="/contact" class={`mobile-nav-item ${currentPage === 'contact' ? 'active' : ''}`} tabindex="-1">Contact</a>
   </nav>
 </header>
 
@@ -372,6 +374,11 @@ const { currentPage = 'dashboard' } = Astro.props;
         if (menuToggle) menuToggle.setAttribute('aria-expanded', String(isOpen));
         if (mobileNav) {
           mobileNav.setAttribute('aria-hidden', String(!isOpen));
+          if (isOpen) {
+            mobileNav.removeAttribute('inert');
+          } else {
+            mobileNav.setAttribute('inert', '');
+          }
           var navLinks = mobileNav.querySelectorAll('a');
           navLinks.forEach(function(link) {
             link.setAttribute('tabindex', isOpen ? '0' : '-1');

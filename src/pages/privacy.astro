@@ -1,0 +1,42 @@
+---
+import Layout from "../components/Layout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import ScrollToTop from "../components/ScrollToTop.astro";
+
+const title = "AI Stats Privacy Policy | Model Data Dashboard";
+const description =
+  "Privacy policy for AI Stats, including how model pricing data, benchmark data, public source links, and basic site interactions are handled.";
+---
+
+<Layout title={title} description={description}>
+  <Header currentPage="privacy" />
+  <main class="mx-auto min-h-[calc(100vh-7rem)] w-full max-w-5xl px-6 py-16">
+    <p class="text-xs font-bold uppercase tracking-[0.16em] text-foam">Privacy policy</p>
+    <h1 class="mt-5 max-w-4xl text-4xl font-black leading-tight text-text md:text-6xl">
+      AI Stats publishes public model data for comparison.
+    </h1>
+    <div class="mt-10 grid gap-4 md:grid-cols-3">
+      <section class="rounded-lg border border-highlight-med bg-surface p-6">
+        <h2 class="text-lg font-bold text-text">Data sources</h2>
+        <p class="mt-4 leading-7 text-subtle">
+          The dashboard displays public model pricing, benchmark, speed, context, and routing metadata from third-party sources.
+        </p>
+      </section>
+      <section class="rounded-lg border border-highlight-med bg-surface p-6">
+        <h2 class="text-lg font-bold text-text">User accounts</h2>
+        <p class="mt-4 leading-7 text-subtle">
+          AI Stats does not require account creation, login, or payment information to browse comparison pages.
+        </p>
+      </section>
+      <section class="rounded-lg border border-highlight-med bg-surface p-6">
+        <h2 class="text-lg font-bold text-text">Questions</h2>
+        <p class="mt-4 leading-7 text-subtle">
+          Privacy questions and correction requests can be sent through Jonathan Reed's portfolio contact channels.
+        </p>
+      </section>
+    </div>
+  </main>
+  <Footer />
+  <ScrollToTop />
+</Layout>

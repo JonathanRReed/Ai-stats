@@ -1,0 +1,39 @@
+---
+import Layout from "../components/Layout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import ScrollToTop from "../components/ScrollToTop.astro";
+
+const title = "Contact AI Stats | AI Model Comparison Support";
+const description =
+  "Contact Jonathan Reed about AI Stats, AI model pricing data, benchmark coverage, source corrections, privacy questions, and product feedback.";
+---
+
+<Layout title={title} description={description}>
+  <Header currentPage="contact" />
+  <main class="mx-auto min-h-[calc(100vh-7rem)] w-full max-w-5xl px-6 py-16">
+    <p class="text-xs font-bold uppercase tracking-[0.16em] text-foam">Contact</p>
+    <h1 class="mt-5 max-w-4xl text-4xl font-black leading-tight text-text md:text-6xl">
+      Send AI Stats feedback, data corrections, or source questions.
+    </h1>
+    <div class="mt-10 grid gap-4 md:grid-cols-2">
+      <section class="rounded-lg border border-highlight-med bg-surface p-6">
+        <h2 class="text-lg font-bold text-text">Project contact</h2>
+        <p class="mt-4 leading-7 text-subtle">
+          AI Stats is maintained by Jonathan Reed. Use the portfolio contact page for corrections, collaboration questions, or bug reports.
+        </p>
+        <a class="mt-6 inline-flex rounded border border-highlight-med px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.12em] text-text hover:bg-highlight-low" href="https://jonathanrreed.com/" target="_blank" rel="noopener noreferrer">
+          Jonathan Reed
+        </a>
+      </section>
+      <section class="rounded-lg border border-highlight-med bg-surface p-6">
+        <h2 class="text-lg font-bold text-text">What to include</h2>
+        <p class="mt-4 leading-7 text-subtle">
+          Include the affected model name, provider, source URL, expected value, and the page where the issue appears. This keeps pricing and benchmark updates auditable.
+        </p>
+      </section>
+    </div>
+  </main>
+  <Footer />
+  <ScrollToTop />
+</Layout>
