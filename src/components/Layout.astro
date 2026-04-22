@@ -25,10 +25,56 @@ const {
   robots = "index, follow",
 } = Astro.props;
 
-const canonicalURL = new URL(Astro.url.pathname, Astro.site).href;
+const canonicalPathname = Astro.url.pathname
+  .replace(/\/index\.html$/, "/")
+  .replace(/\.html$/, "");
+const canonicalURL = new URL(canonicalPathname, Astro.site).href;
 const ogImageURL = new URL(image, Astro.site).href;
 const robotsContent =
   robots || (noindex ? "noindex, nofollow" : "index, follow");
+const pageSchema = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${Astro.site?.href || canonicalURL}#website`,
+      name: siteName,
+      description:
+        "Compare AI model pricing, performance benchmarks, and technical specifications",
+      url: Astro.site?.href || canonicalURL,
+      author: {
+        "@type": "Person",
+        name: siteAuthor,
+        alternateName: "Jonathan R Reed",
+        url: "https://jonathanrreed.com",
+      },
+      potentialAction: {
+        "@type": "SearchAction",
+        target: `${Astro.site?.href || canonicalURL}?q={search_term_string}`,
+        "query-input": "required name=search_term_string",
+      },
+    },
+    {
+      "@type": "WebPage",
+      "@id": `${canonicalURL}#webpage`,
+      url: canonicalURL,
+      name: title,
+      description,
+      isPartOf: {
+        "@id": `${Astro.site?.href || canonicalURL}#website`,
+      },
+      author: {
+        "@type": "Person",
+        name: siteAuthor,
+        alternateName: "Jonathan R Reed",
+        url: "https://jonathanrreed.com",
+      },
+      datePublished: "2026-04-21",
+      dateModified: "2026-04-21",
+      inLanguage: "en-US",
+    },
+  ],
+};
 ---
 
 <html lang="en" transition:animate="none">
@@ -36,6 +82,9 @@ const robotsContent =
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/webp" href="/favicon.webp" />
+    {image === "/jonathan.avif" && (
+      <link rel="preload" href="/jonathan.avif" as="image" fetchpriority="high" />
+    )}
 
     <!-- Preload critical font to improve LCP -->
     <link
@@ -75,29 +124,7 @@ const robotsContent =
 
     <!-- Structured Data (JSON-LD) -->
     <!-- SoftwareApplication schema intentionally omitted to avoid invalid review/rating rich-result requirements. -->
-    <script
-      type="application/ld+json"
-      is:inline
-      set:html={JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        name: siteName,
-        description:
-          "Compare AI model pricing, performance benchmarks, and technical specifications",
-        url: Astro.site?.href || canonicalURL,
-        author: {
-          "@type": "Person",
-          name: siteAuthor,
-          alternateName: "Jonathan R Reed",
-          url: "https://jonathanrreed.com",
-        },
-        potentialAction: {
-          "@type": "SearchAction",
-          target: `${Astro.site?.href || canonicalURL}?q={search_term_string}`,
-          "query-input": "required name=search_term_string",
-        },
-      })}
-    />
+    <script type="application/ld+json" is:inline set:html={JSON.stringify(pageSchema)} />
 
     <ClientRouter />
 
