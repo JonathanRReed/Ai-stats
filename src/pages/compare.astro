@@ -108,59 +108,6 @@ const formatCatalogPrice = (value: number | null | undefined): string => {
   return `$${num.toFixed(3)}`;
 };
 
-const getWinner = (items: any[], key: string, isLowerBetter = false) => {
-  const usable = items.filter((m) => Number(m[key]) > 0);
-  if (usable.length === 0) return null;
-  return usable.sort((a, b) => {
-    const valA = Number(a[key]);
-    const valB = Number(b[key]);
-    return isLowerBetter ? valA - valB : valB - valA;
-  })[0];
-};
-
-const inputPriceWinner = getWinner(
-  selectedModels,
-  "price_1m_input_tokens",
-  true,
-);
-const outputPriceWinner = getWinner(
-  selectedModels,
-  "price_1m_output_tokens",
-  true,
-);
-const performanceWinner = getWinner(selectedModels, "mmlu_pro");
-const tpsWinner = getWinner(selectedModels, "median_output_tokens_per_second");
-const ttftWinner = getWinner(
-  selectedModels,
-  "median_time_to_first_answer_token",
-  true,
-);
-
-const getCheapestTokensModel = () => {
-  if (selectedModels.length === 0) return null;
-  const modelsWithBlendedPrice = selectedModels.filter((model) => {
-    const blendedPrice = model.price_1m_blended_3_to_1;
-    const priceNum = Number(blendedPrice);
-    return (
-      blendedPrice !== null &&
-      blendedPrice !== undefined &&
-      !isNaN(priceNum) &&
-      priceNum > 0
-    );
-  });
-  if (modelsWithBlendedPrice.length === 0) return null;
-
-  const sorted = modelsWithBlendedPrice.sort((a, b) => {
-    const priceA = Number(a.price_1m_blended_3_to_1);
-    const priceB = Number(b.price_1m_blended_3_to_1);
-    return priceA - priceB; // Lower price is better
-  });
-
-  return sorted[0];
-};
-
-const cheapestTokensModel = getCheapestTokensModel();
-
 // SEO Configuration is now handled by Layout.astro
 
 // Dynamic benchmark mapping - Combined AA and Epoch benchmarks
@@ -184,16 +131,6 @@ epochBenchmarksWithData.forEach((b) => {
   availableBenchmarks[`epoch_${b.slug}`] = `${b.name} (Epoch)`;
 });
 
-// Top epoch benchmark performers for insights
-const topGpqaDiamond =
-  epochRuns
-    .filter((r) => r.benchmark_slug === "gpqa_diamond" && r.score !== null)
-    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0] ?? null;
-
-const topFrontierMath =
-  epochRuns
-    .filter((r) => r.benchmark_slug === "frontiermath" && r.score !== null)
-    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0] ?? null;
 ---
 
 <Layout
@@ -801,8 +738,8 @@ const topFrontierMath =
     }
     .insights-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 0.75rem;
+      grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+      gap: 0.45rem;
       margin-top: 0;
       max-width: 1320px;
       margin-left: auto;
@@ -813,7 +750,8 @@ const topFrontierMath =
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       border-radius: var(--radius-m);
-      padding: 0.8rem;
+      min-height: 4rem;
+      padding: 0.52rem 0.6rem;
       border: 1px solid var(--border-color);
       box-shadow: none;
       transition:
@@ -837,22 +775,38 @@ const topFrontierMath =
         border-color: var(--border-color);
       }
     }
+    .insight-card h3,
     .insight-card h4 {
-      margin: 0 0 0.5rem 0;
-      font-size: 0.68rem;
+      margin: 0 0 0.35rem 0;
+      font-family: var(--font-mono);
+      font-size: 0.5rem;
+      font-weight: 900;
       color: var(--muted);
       text-transform: uppercase;
       letter-spacing: 0;
+      line-height: 1.1;
     }
+    html.light .insight-card h3,
     html.light .insight-card h4 {
       color: #797593;
     }
     .insight-card p {
       margin: 0;
-      font-size: 0.88rem;
+      font-size: 0.62rem;
       font-weight: 700;
       color: var(--text);
-      line-height: 1.25;
+      line-height: 1.2;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow-wrap: anywhere;
+    }
+    .insight-card span {
+      display: block;
+      margin-top: 0.25rem;
+      font-size: 0.54rem !important;
+      color: var(--muted) !important;
     }
     html.light .insight-card p {
       color: #575279;
@@ -875,14 +829,14 @@ const topFrontierMath =
       justify-content: space-between;
       gap: 1rem;
       border-bottom: 1px solid var(--border-color);
-      padding: 0.85rem 1rem;
+      padding: 0.68rem 0.82rem;
     }
 
     .catalog-section h2,
     .catalog-section h3 {
       margin: 0;
       color: var(--text);
-      font-size: 0.92rem;
+      font-size: 0.82rem;
       font-weight: 800;
       line-height: 1.15;
     }
@@ -893,6 +847,60 @@ const topFrontierMath =
       font-size: 0.72rem;
     }
 
+    .catalog-disclosure summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      cursor: pointer;
+      list-style: none;
+      padding: 0.68rem 0.82rem;
+      user-select: none;
+    }
+
+    .catalog-disclosure summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .catalog-disclosure summary span {
+      display: block;
+    }
+
+    .catalog-disclosure .catalog-summary-label {
+      color: var(--text);
+      font-size: 0.82rem;
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    .catalog-disclosure .catalog-summary-note {
+      color: var(--subtle);
+      font-size: 0.72rem;
+      line-height: 1.35;
+      margin-top: 0.16rem;
+    }
+
+    .catalog-disclosure .catalog-summary-action {
+      flex-shrink: 0;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.56rem;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .catalog-disclosure[open] summary {
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .catalog-disclosure[open] .catalog-summary-action::before {
+      content: "Hide table";
+    }
+
+    .catalog-disclosure:not([open]) .catalog-summary-action::before {
+      content: "Show table";
+    }
+
     .catalog-table {
       overflow-x: auto;
       scrollbar-width: thin;
@@ -900,19 +908,19 @@ const topFrontierMath =
 
     .catalog-table table {
       width: 100%;
-      min-width: 860px;
+      min-width: 700px;
       border-collapse: collapse;
       table-layout: fixed;
-      font-size: 0.62rem;
+      font-size: 0.58rem;
     }
 
     .catalog-table th,
     .catalog-table td {
       border-bottom: 1px solid var(--highlight-low);
-      padding: 0.56rem 0.62rem;
+      padding: 0.34rem 0.42rem;
       text-align: left;
       vertical-align: top;
-      line-height: 1.25;
+      line-height: 1.18;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -921,17 +929,20 @@ const topFrontierMath =
     .catalog-table th {
       color: var(--muted);
       font-family: var(--font-mono);
-      font-size: 0.58rem;
+      font-size: 0.5rem;
       font-weight: 900;
       text-transform: uppercase;
     }
 
     .catalog-table td {
       color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 0.58rem;
     }
 
     .catalog-table td:first-child {
       font-weight: 800;
+      white-space: normal;
     }
 
     .catalog-table td:not(:first-child),
@@ -940,21 +951,27 @@ const topFrontierMath =
     }
 
     .catalog-table th:nth-child(1) {
-      width: 26%;
+      width: 30%;
     }
 
     .catalog-table th:nth-child(2) {
-      width: 24%;
+      width: 22%;
     }
 
     .catalog-table th:nth-child(3),
     .catalog-table th:nth-child(4),
     .catalog-table th:nth-child(5) {
-      width: 12%;
+      width: 11%;
     }
 
     .catalog-table th:nth-child(6) {
-      width: 14%;
+      width: 15%;
+    }
+
+    .catalog-table td:nth-child(2),
+    .catalog-table td:nth-child(6) {
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
 
     .no-data {
@@ -1699,6 +1716,62 @@ const topFrontierMath =
         font-size: 0.78rem;
       }
     }
+
+    :global(.compare-container .catalog-table table) {
+      font-size: 10px !important;
+    }
+
+    :global(.compare-container .catalog-table th) {
+      font-size: 9px !important;
+      line-height: 1.15 !important;
+      padding: 6px 8px !important;
+    }
+
+    :global(.compare-container .catalog-table td) {
+      font-size: 10px !important;
+      line-height: 1.2 !important;
+      padding: 6px 8px !important;
+    }
+
+    :global(.compare-container .insights-grid) {
+      gap: 8px !important;
+      grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)) !important;
+    }
+
+    :global(.compare-container .insight-card) {
+      min-height: 64px !important;
+      padding: 8px 10px !important;
+    }
+
+    :global(.compare-container .insight-card h3) {
+      color: var(--muted) !important;
+      font-family: var(--font-mono) !important;
+      font-size: 10px !important;
+      font-weight: 900 !important;
+      line-height: 1.05 !important;
+      margin: 0 0 6px !important;
+      text-transform: uppercase !important;
+    }
+
+    :global(.compare-container .insight-card p) {
+      display: -webkit-box !important;
+      -webkit-box-orient: vertical !important;
+      -webkit-line-clamp: 2 !important;
+      color: var(--text) !important;
+      font-size: 11px !important;
+      font-weight: 700 !important;
+      line-height: 1.15 !important;
+      margin: 0 !important;
+      overflow: hidden !important;
+      overflow-wrap: anywhere !important;
+    }
+
+    :global(.compare-container .insight-card span) {
+      color: var(--muted) !important;
+      display: block !important;
+      font-size: 9px !important;
+      margin-top: 4px !important;
+    }
   </style>
 <div
   class="compare-container"
@@ -1787,13 +1860,14 @@ const topFrontierMath =
         </div>
       </section>
 
-      <section class="catalog-section" aria-label="OpenRouter catalog comparison">
-        <header>
+      <details class="catalog-section catalog-disclosure" aria-label="OpenRouter catalog comparison">
+        <summary>
           <div>
-            <h2>OpenRouter catalog metadata</h2>
-            <p>Matched public catalog fields for selected models.</p>
+            <span class="catalog-summary-label">OpenRouter catalog metadata</span>
+            <span class="catalog-summary-note">Matched public catalog fields for selected models.</span>
           </div>
-        </header>
+          <span class="catalog-summary-action" aria-hidden="true"></span>
+        </summary>
         <div class="catalog-table" id="catalog-table">
           <table>
             <thead>
@@ -1841,70 +1915,7 @@ const topFrontierMath =
             </tbody>
           </table>
         </div>
-      </section>
-
-      <section class="insights-section">
-        <div class="insights-grid">
-          <div class="insight-card">
-            <h3>Cheapest Tokens</h3>
-            <p>{cheapestTokensModel ? cheapestTokensModel.name : "-"}</p>
-          </div>
-          <div class="insight-card">
-            <h3>Cheapest Input</h3>
-            <p>{inputPriceWinner ? inputPriceWinner.name : "-"}</p>
-          </div>
-          <div class="insight-card">
-            <h3>Cheapest Output</h3>
-            <p>{outputPriceWinner ? outputPriceWinner.name : "-"}</p>
-          </div>
-          <div class="insight-card">
-            <h3>Highest TPS</h3>
-            <p>{tpsWinner ? tpsWinner.name : "-"}</p>
-          </div>
-          <div class="insight-card">
-            <h3>Fastest TTFT</h3>
-            <p>{ttftWinner ? ttftWinner.name : "-"}</p>
-          </div>
-          <div class="insight-card">
-            <h3 id="performance-metric-title">Top MMLU Pro</h3>
-            <p>{performanceWinner ? performanceWinner.name : "-"}</p>
-          </div>
-          <div class="insight-card">
-            <h3 style="color: var(--iris);">Top GPQA Diamond</h3>
-            <p>
-              {
-                topGpqaDiamond
-                  ? topGpqaDiamond.model_version.replace(/_/g, " ")
-                  : "-"
-              }
-            </p>
-            <span style="font-size: 0.65rem; color: var(--muted);"
-              >{
-                topGpqaDiamond
-                  ? `${(topGpqaDiamond.score! * 100).toFixed(1)}%`
-                  : ""
-              }</span
-            >
-          </div>
-          <div class="insight-card">
-            <h3 style="color: var(--iris);">Top FrontierMath</h3>
-            <p>
-              {
-                topFrontierMath
-                  ? topFrontierMath.model_version.replace(/_/g, " ")
-                  : "-"
-              }
-            </p>
-            <span style="font-size: 0.65rem; color: var(--muted);"
-              >{
-                topFrontierMath
-                  ? `${(topFrontierMath.score! * 100).toFixed(1)}%`
-                  : ""
-              }</span
-            >
-          </div>
-        </div>
-      </section>
+      </details>
     </main>
   </div>
 </div>
