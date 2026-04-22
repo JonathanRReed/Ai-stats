@@ -374,6 +374,7 @@ const topFrontierMath =
       margin-bottom: 0;
     }
 
+    .filter-section h2,
     .filter-section h3 {
       margin-bottom: 0.75rem;
       font-size: 0.7rem;
@@ -381,8 +382,10 @@ const topFrontierMath =
       text-transform: uppercase;
       letter-spacing: 0;
       color: var(--muted);
+      line-height: 1.1;
     }
 
+    html.light .filter-section h2,
     html.light .filter-section h3 {
       color: #797593;
     }
@@ -499,20 +502,12 @@ const topFrontierMath =
     .compare-page-title {
       max-width: 1320px;
       width: 100%;
-      margin: 0 auto -0.25rem;
+      margin: 0 auto;
       color: var(--text);
       font-size: clamp(1.35rem, 2vw, 2rem);
       line-height: 1.1;
       font-weight: 800;
       letter-spacing: 0;
-    }
-    .compare-page-intro {
-      max-width: 1320px;
-      width: 100%;
-      margin: 0 auto 0.25rem;
-      color: var(--subtle);
-      font-size: 0.95rem;
-      line-height: 1.65;
     }
     .chart-grid {
       display: grid;
@@ -566,12 +561,15 @@ const topFrontierMath =
       align-items: center;
       margin-bottom: 0.75rem;
     }
+    .chart-header h2,
     .chart-header h3 {
       margin: 0;
       font-size: 0.9rem;
       font-weight: 700;
       color: var(--text);
+      line-height: 1.15;
     }
+    html.light .chart-header h2,
     html.light .chart-header h3 {
       color: #575279;
     }
@@ -880,11 +878,13 @@ const topFrontierMath =
       padding: 0.85rem 1rem;
     }
 
+    .catalog-section h2,
     .catalog-section h3 {
       margin: 0;
       color: var(--text);
       font-size: 0.92rem;
       font-weight: 800;
+      line-height: 1.15;
     }
 
     .catalog-section p {
@@ -1765,19 +1765,6 @@ const topFrontierMath =
 
     <main class="compare-main">
       <h1 class="compare-page-title">Compare AI Models</h1>
-      <p class="compare-page-intro">
-        Compare pricing, benchmark performance, response speed, context limits,
-        and OpenRouter catalog metadata for selected AI models. The page is
-        built for practical model shortlisting, so cost, latency, capability,
-        and source coverage stay visible while you adjust filters.
-        Use it to narrow candidates before checking provider documentation,
-        availability, safety terms, and deployment requirements for your own
-        application. The comparison is not a substitute for a full eval suite,
-        but it helps separate models that are expensive, slow to respond, or
-        poorly matched to the context window and output shape your product needs.
-        Re-run checks when providers change pricing, add new model versions, or
-        update catalog metadata.
-      </p>
       <section class="charts-section">
         <div class="chart-grid">
           <div class="chart-section">
@@ -2677,7 +2664,7 @@ const topFrontierMath =
       // Update performance chart title with benchmark name
       const perfChartHeader = document
         .querySelector("#performance-chart")
-        .parentElement.querySelector(".chart-header h3");
+        .parentElement.querySelector(".chart-header h2, .chart-header h3");
       if (perfChartHeader) {
         const benchmarkName =
           benchmarkNames[metric] || metric.toUpperCase().replace("_", " ");
