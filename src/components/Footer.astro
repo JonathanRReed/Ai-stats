@@ -6,7 +6,7 @@ const currentYear = new Date().getFullYear();
   <div class="footer-glow"></div>
   <div class="footer-container">
     <div class="footer-brand">
-      <span class="footer-logo">AI Stats</span>
+      <img src="/logo-footer.png" alt="AI Stats" class="footer-logo" width="140" height="36" />
       <span class="footer-tagline">Open-source AI model comparison tool</span>
     </div>
 
@@ -192,21 +192,10 @@ const currentYear = new Date().getFullYear();
   }
 
   .footer-logo {
-    font-size: 1.125rem;
-    font-family: var(--font-mono);
-    font-weight: 900;
-    color: var(--text);
-    text-transform: none;
-  }
-
-  .footer-logo::before {
-    content: "[ ";
-    color: var(--love);
-  }
-
-  .footer-logo::after {
-    content: " ]";
-    color: var(--love);
+    display: block;
+    height: 36px;
+    width: auto;
+    object-fit: contain;
   }
 
   .footer-tagline {
@@ -460,10 +449,6 @@ const currentYear = new Date().getFullYear();
 
   :global(html.light) .footer-glow {
     background: var(--love);
-  }
-
-  :global(html.light) .footer-logo {
-    color: var(--text);
   }
 
   :global(html.light) .footer-tagline,
