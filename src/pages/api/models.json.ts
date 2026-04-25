@@ -1,8 +1,8 @@
 import type { APIRoute } from 'astro';
 import {
   AA_MODEL_SELECT_COLUMNS,
-  enrichModelsWithOpenRouterData,
-  getOpenRouterModels,
+  enrichModelsWithPublicCatalogData,
+  getPublicCatalogModels,
   normalizeAaModelsForDisplay,
   supabase,
   type AaModel,
@@ -57,10 +57,10 @@ export const GET: APIRoute = async ({ url }) => {
       throw error;
     }
 
-    const openRouterModels = await getOpenRouterModels();
-    const models = enrichModelsWithOpenRouterData(
+    const publicCatalogs = await getPublicCatalogModels();
+    const models = enrichModelsWithPublicCatalogData(
       normalizeAaModelsForDisplay((data ?? []) as unknown as AaModel[]),
-      openRouterModels,
+      publicCatalogs,
     );
     const filteredModels = models.map((model) => ({
       ...model,

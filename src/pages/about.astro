@@ -391,7 +391,8 @@ const description =
 						Aider Polyglot and Terminal Bench derived subsets.
 					</p>
 					<p>
-						Model availability, routing metadata, modalities,
+						Model availability, routing metadata, provider directory
+						data, usage rankings, embedding models, modalities,
 						context length, and route pricing are also sourced from
 						<a
 							href="https://openrouter.ai/"
@@ -400,8 +401,27 @@ const description =
 						>
 							OpenRouter
 						</a>
-						public catalog data. OpenRouter usage rankings are treated
-						as routing demand signals, not benchmark scores.
+						public catalog data, with additional public catalog
+						signals from
+						<a
+							href="https://huggingface.co/models"
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							Hugging Face
+						</a>
+						and
+						<a
+							href="https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json"
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							LiteLLM
+						</a>
+						for popularity, tags, pricing, context, and capability
+						checks. Public catalog usage rankings and route metadata
+						are treated as routing or availability signals, not
+						benchmark scores.
 					</p>
 					<p>
 						The goal is to make practical model selection easier:

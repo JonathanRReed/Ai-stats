@@ -2,14 +2,14 @@
 
 > AI Stats is a web application for comparing AI model pricing, performance benchmarks, and technical specifications. Built with Astro, TypeScript, and Supabase, it provides real-time data visualization for models including GPT-4, Claude, Gemini, Llama, and more.
 
-This project is a hobbyist tool inspired by Theo Browne's model-prices dashboard. Pricing, Artificial Analysis benchmark scores, speed, and latency metrics are sourced from Artificial Analysis via their free API. Epoch benchmark runs come from Epoch AI's AI Benchmarking Hub. OpenRouter public catalog data is used for model availability, modalities, context length, and route metadata. The site uses NebulaSans custom font from Nebula.com.
+This project is a hobbyist tool inspired by Theo Browne's model-prices dashboard. Pricing, Artificial Analysis benchmark scores, speed, and latency metrics are sourced from Artificial Analysis via their free API. Epoch benchmark runs come from Epoch AI's AI Benchmarking Hub. OpenRouter public catalog data is used for model availability, usage rankings, provider directory data, embedding models, endpoint route detail, modalities, context length, and route metadata. Hugging Face Hub public model data is used for public repo popularity and tags. LiteLLM public catalog data is used for additional pricing, context, and capability checks. The site uses NebulaSans custom font from Nebula.com.
 
 Key features:
-- Interactive comparison of AI model pricing (input/output token costs)
-- Performance benchmarks including MMLU Pro, GPQA, HumanEval, and more
-- Real-time data updates from Artificial Analysis API
-- Responsive glassmorphism design with Rose Pine theme
-- Filter and sort capabilities for custom comparisons
+- Interactive comparison of AI model pricing, context, and latency
+- Public benchmark coverage from Artificial Analysis and Epoch AI
+- Public catalog coverage from OpenRouter, Hugging Face Hub, and LiteLLM
+- Responsive dark-mode-first model selection workbench
+- Filter, sort, and side-by-side comparison tools
 
 ## Pages
 
@@ -28,7 +28,9 @@ Key features:
 
 - [Artificial Analysis](https://artificialanalysis.ai/): Model pricing, Artificial Analysis benchmark scores, speed, and latency
 - [Epoch AI Benchmarking Hub](https://epoch.ai/benchmarks): Epoch benchmark runs
-- [OpenRouter](https://openrouter.ai/docs/api-reference/models/get-models): Public model catalog, modalities, context length, and route metadata
+- [OpenRouter](https://openrouter.ai/openapi.json): Public model catalog, usage rankings, provider directory data, embeddings, modalities, context length, and route metadata
+- [Hugging Face Hub](https://huggingface.co/docs/hub/api): Public model repository popularity and tags
+- [LiteLLM model prices and context](https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json): Public pricing, context, and model capability metadata
 
 ## Optional
 

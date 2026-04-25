@@ -1,13 +1,13 @@
-# robots.txt – https://aistats.jonathanrreed.com/
+# robots.txt - https://aistats.jonathanrreed.com/
 
 # LLM-friendly content guide
 # See https://llmstxt.org for specification
 # llms.txt: https://aistats.jonathanrreed.com/llms.txt
 
 
-# Generated 2025‑05‑07 · SEO‑optimised, AI‑scraper‑aware
+# Generated 2026-04-25. SEO-friendly and AI-crawler-aware.
 # ------------------------------------------------------------------
-# ███ 1. MAJOR SEARCH ENGINES (full access) ███
+# 1. Major search engines
 User-agent: Googlebot
 Allow: /*.js$
 Allow: /*.css$
@@ -24,23 +24,23 @@ Disallow: /*?s=
 Disallow: /*?q=
 Crawl-delay: 5
 
-User-agent: DuckDuckBot               # DuckDuckGo
+User-agent: DuckDuckBot
 Allow: /*.js$
 Allow: /*.css$
 Disallow: /search/
 Disallow: /*?s=
 Disallow: /*?q=
 
-# ███ 2. SOCIAL‑PREVIEW BOTS (OG/meta only) ███
+# 2. Social preview bots
 User-agent: FacebookBot
 User-agent: meta-externalagent
 User-agent: LinkedInBot
 Allow: /
 
-# ███ 3. MODEL‑TRAINING & BULK‑AI SCRAPERS ███
-User-agent: GPTBot                     # OpenAI model‑training
+# 3. Model training and assistant crawlers
+User-agent: GPTBot
 Allow: /
-User-agent: OAI-SearchBot              # OpenAI retrieval indexer
+User-agent: OAI-SearchBot
 Allow: /
 User-agent: ChatGPT-User
 User-agent: ChatGPT-User/2.0
@@ -56,38 +56,34 @@ Allow: /
 User-agent: Perplexity-User/1.0
 Allow: /
 
-User-agent: Google-Extended            # Gemini training
+User-agent: Google-Extended
 Allow: /
 
-User-agent: Amazonbot                  # Alexa / AI tasks
+User-agent: Amazonbot
 Allow: /
-User-agent: Applebot-Extended          # Apple AI training
-Allow: /
-
-User-agent: Bytespider                 # ByteDance / TikTok AI
+User-agent: Applebot-Extended
 Allow: /
 
-User-agent: MistralAI-User/1.0         # Mistral “Le Chat” crawler
+User-agent: Bytespider
 Allow: /
 
-User-agent: AI2Bot                     # Allen AI / Semantic Scholar
+User-agent: MistralAI-User/1.0
 Allow: /
 
-User-agent: CCBot                      # Common Crawl
+User-agent: AI2Bot
 Allow: /
 
-User-agent: cohere-ai                  # Cohere
+User-agent: CCBot
 Allow: /
 
-# Placeholder — xAI Grok crawler (token unknown as of May‑2025)
-# User-agent: GrokBot
-# Disallow: /
-
-# ███ 4. OTHER SEARCH/ASSIST BOTS (optional block) ███
-User-agent: Applebot                   # Siri / Spotlight search
+User-agent: cohere-ai
 Allow: /
 
-# ███ 5. CATCH‑ALL ███
+# 4. Other search and assistant bots
+User-agent: Applebot
+Allow: /
+
+# 5. Catch-all
 User-agent: *
 Disallow: /cgi-bin/
 Disallow: /wp-admin/

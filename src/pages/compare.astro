@@ -4,23 +4,52 @@ import {
   getHydratedEpochModels,
   getEpochBenchmarks,
   getEpochBenchmarkRuns,
-  getOpenRouterModels,
-  enrichModelsWithOpenRouterData,
+  getPublicCatalogModels,
+  enrichModelsWithPublicCatalogData,
 } from "../lib/supabase";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import ScrollToTop from "../components/ScrollToTop.astro";
 import Layout from "../components/Layout.astro";
+import {
+  VALUABLE_FREE_BENCHMARK_SLUGS,
+  EPOCH_BENCHMARK_LABELS,
+  AA_BENCHMARK_ATTRIBUTION,
+  getEpochBenchmarkAttribution,
+  getEpochBenchmarksWithRuns,
+  getEpochBenchmarkLabel,
+} from "../lib/benchmark-catalog";
+import { getPublicEpochSnapshot } from "../lib/epoch-snapshot";
 
-const [baseModels, openRouterModels, epochBenchmarks, epochRuns] =
+const [baseModels, publicCatalogs, initialEpochBenchmarks, initialEpochRuns] =
   await Promise.all([
     getModels(),
-    getOpenRouterModels(),
+    getPublicCatalogModels(),
     getEpochBenchmarks(),
     getEpochBenchmarkRuns(),
   ]);
-const models = enrichModelsWithOpenRouterData(baseModels, openRouterModels);
-const epochModels = await getHydratedEpochModels(epochRuns);
+const {
+  openRouterModels,
+  huggingFaceModels,
+  liteLlmModels,
+  openRouterUsageRankings,
+  openRouterEndpointSummaries,
+} = publicCatalogs;
+const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs);
+const initialEpochModels = await getHydratedEpochModels(initialEpochRuns);
+const publicEpochSnapshot = await getPublicEpochSnapshot();
+const usePublicEpochSnapshot =
+  publicEpochSnapshot &&
+  publicEpochSnapshot.epochRuns.length > initialEpochRuns.length;
+const epochBenchmarks = usePublicEpochSnapshot
+  ? publicEpochSnapshot.epochBenchmarks
+  : initialEpochBenchmarks;
+const epochRuns = usePublicEpochSnapshot
+  ? publicEpochSnapshot.epochRuns
+  : initialEpochRuns;
+const epochModels = usePublicEpochSnapshot
+  ? publicEpochSnapshot.epochModels
+  : initialEpochModels;
 
 const normalizeModelKey = (value: string | null | undefined): string => {
   if (!value) return "";
@@ -47,10 +76,31 @@ epochModels.forEach((model) => {
   }
 });
 
-// Keep only epoch benchmarks that have at least one scored run
-const epochBenchmarksWithData = epochBenchmarks.filter((b) =>
-  epochRuns.some((run) => run.benchmark_slug === b.slug && run.score !== null),
+const epochBenchmarksWithData = getEpochBenchmarksWithRuns(
+  epochBenchmarks,
+  epochRuns,
 );
+const preferredEpochBenchmarkSlugs = [...VALUABLE_FREE_BENCHMARK_SLUGS];
+const epochBenchmarkLabels = EPOCH_BENCHMARK_LABELS;
+const benchmarkAttributions: Record<string, any> = {
+  mmlu_pro: AA_BENCHMARK_ATTRIBUTION,
+  gpqa: AA_BENCHMARK_ATTRIBUTION,
+  hle: AA_BENCHMARK_ATTRIBUTION,
+  aa_math_index: AA_BENCHMARK_ATTRIBUTION,
+  aa_coding_index: AA_BENCHMARK_ATTRIBUTION,
+  aa_intelligence_index: AA_BENCHMARK_ATTRIBUTION,
+  livecodebench: AA_BENCHMARK_ATTRIBUTION,
+  scicode: AA_BENCHMARK_ATTRIBUTION,
+  math_500: AA_BENCHMARK_ATTRIBUTION,
+  aime: AA_BENCHMARK_ATTRIBUTION,
+  elo: AA_BENCHMARK_ATTRIBUTION,
+};
+epochBenchmarksWithData.forEach((benchmark) => {
+  benchmarkAttributions[`epoch_${benchmark.slug}`] = getEpochBenchmarkAttribution(
+    benchmark,
+    epochRuns,
+  );
+});
 
 // Create a map of epoch benchmark scores keyed by normalized aliases.
 const epochScoresByModel: Record<string, Record<string, number>> = {};
@@ -89,8 +139,74 @@ const validModels = models.filter((model: any) => {
 const INITIAL_CLIENT_MODELS = Math.min(40, validModels.length);
 const initialClientModels = validModels.slice(0, INITIAL_CLIENT_MODELS);
 const initialClientEpochScores = epochScoresByModel;
+const initialClientEpochScoreMetrics: Record<string, string> = {};
+epochRuns.forEach((run) => {
+  if (!run.benchmark_slug || !run.score_metric) return;
+  initialClientEpochScoreMetrics[run.benchmark_slug] ??= run.score_metric;
+});
 
 const selectedModels = validModels.slice(0, 3);
+const clientOpenRouterModels = openRouterModels.map((model) => ({
+  openrouter_id: model.openrouter_id,
+  canonical_slug: model.canonical_slug,
+  model_slug: model.model_slug,
+  name: model.name,
+  context_length: model.context_length,
+  prompt_price_1m: model.prompt_price_1m,
+  completion_price_1m: model.completion_price_1m,
+  supported_parameters: model.supported_parameters,
+  input_modalities: model.input_modalities,
+  output_modalities: model.output_modalities,
+  is_free: model.is_free,
+}));
+const clientHuggingFaceModels = huggingFaceModels.map((model) => ({
+  model_id: model.model_id,
+  author: model.author,
+  downloads: model.downloads,
+  likes: model.likes,
+  pipeline_tag: model.pipeline_tag,
+  library_name: model.library_name,
+  last_modified: model.last_modified,
+  tags: model.tags,
+}));
+const clientLiteLlmModels = liteLlmModels.map((model) => ({
+  model_id: model.model_id,
+  provider: model.provider,
+  mode: model.mode,
+  max_input_tokens: model.max_input_tokens,
+  max_output_tokens: model.max_output_tokens,
+  input_price_1m: model.input_price_1m,
+  output_price_1m: model.output_price_1m,
+  supports_vision: model.supports_vision,
+  supports_function_calling: model.supports_function_calling,
+  supports_reasoning: model.supports_reasoning,
+  supports_prompt_caching: model.supports_prompt_caching,
+  supports_system_messages: model.supports_system_messages,
+  supports_web_search: model.supports_web_search,
+}));
+const clientOpenRouterUsageRankings = openRouterUsageRankings.map((ranking) => ({
+  model_permaslug: ranking.model_permaslug,
+  variant_permaslug: ranking.variant_permaslug,
+  provider: ranking.provider,
+  variant: ranking.variant,
+  rank: ranking.rank,
+  total_tokens: ranking.total_tokens,
+  request_count: ranking.request_count,
+  tool_calls: ranking.tool_calls,
+  tool_call_errors: ranking.tool_call_errors,
+  usage_share: ranking.usage_share,
+  change: ranking.change,
+  date: ranking.date,
+}));
+const clientOpenRouterEndpointSummaries = openRouterEndpointSummaries.map((summary) => ({
+  openrouter_id: summary.openrouter_id,
+  provider_count: summary.provider_count,
+  providers: summary.providers,
+  quantizations: summary.quantizations,
+  max_context_length: summary.max_context_length,
+  min_prompt_price_1m: summary.min_prompt_price_1m,
+  min_completion_price_1m: summary.min_completion_price_1m,
+}));
 
 const formatContextLength = (value: number | null | undefined): string => {
   const num = Number(value);
@@ -108,6 +224,41 @@ const formatCatalogPrice = (value: number | null | undefined): string => {
   return `$${num.toFixed(3)}`;
 };
 
+const formatCompactNumber = (value: number | null | undefined): string => {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return "-";
+  return new Intl.NumberFormat("en", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(num);
+};
+
+const getUsefulCapabilities = (model: any): string => {
+  const openRouterParameters = Array.isArray(model.openrouter_supported_parameters)
+    ? model.openrouter_supported_parameters
+    : [];
+  const openRouterInputModalities = Array.isArray(model.openrouter_input_modalities)
+    ? model.openrouter_input_modalities
+    : [];
+  const openRouterOutputModalities = Array.isArray(model.openrouter_output_modalities)
+    ? model.openrouter_output_modalities
+    : [];
+  return [
+    openRouterParameters.includes("tools") || model.litellm_supports_function_calling
+      ? "tools"
+      : null,
+    openRouterInputModalities.includes("image") || model.litellm_supports_vision
+      ? "vision"
+      : null,
+    openRouterOutputModalities.includes("image") ? "image out" : null,
+    model.litellm_supports_reasoning ? "reasoning" : null,
+    model.litellm_supports_prompt_caching ? "cache" : null,
+    model.litellm_supports_web_search ? "web" : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+};
+
 // SEO Configuration is now handled by Layout.astro
 
 // Dynamic benchmark mapping - Combined AA and Epoch benchmarks
@@ -115,7 +266,7 @@ const availableBenchmarks: Record<string, string> = {
   // AA Benchmarks
   mmlu_pro: "MMLU Pro",
   gpqa: "GPQA",
-  hle: "HumanEval",
+  hle: "HLE",
   aa_math_index: "Math Index",
   aa_coding_index: "Coding Index",
   aa_intelligence_index: "Intelligence Index",
@@ -128,7 +279,7 @@ const availableBenchmarks: Record<string, string> = {
 
 // Add Epoch.ai benchmarks to the dropdown (only those with data)
 epochBenchmarksWithData.forEach((b) => {
-  availableBenchmarks[`epoch_${b.slug}`] = `${b.name} (Epoch)`;
+  availableBenchmarks[`epoch_${b.slug}`] = `${getEpochBenchmarkLabel(b)} (Epoch)`;
 });
 
 ---
@@ -165,7 +316,7 @@ epochBenchmarksWithData.forEach((b) => {
       width: 100%;
       min-height: 100vh;
       position: relative;
-      overflow-x: hidden; /* Prevent horizontal overflow */
+      overflow-x: hidden;
     }
     .smart-filter-rail {
       width: 260px;
@@ -231,7 +382,7 @@ epochBenchmarksWithData.forEach((b) => {
         box-shadow: 4px 0px 0px var(--shadow-color);
         height: 100vh;
         padding: 1rem 1.5rem;
-        padding-top: 5rem; /* Adjusted padding for mobile */
+        padding-top: 5rem;
         transition: transform 0.3s ease;
       }
       .smart-filter-rail.open {
@@ -242,6 +393,12 @@ epochBenchmarksWithData.forEach((b) => {
         padding: 1rem;
         max-width: 100%;
         width: 100%;
+      }
+      .compare-hero {
+        grid-template-columns: 1fr;
+      }
+      .compare-hero-stats {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
       }
       .chart-grid {
         display: flex;
@@ -298,6 +455,18 @@ epochBenchmarksWithData.forEach((b) => {
       }
       .filter-toggle {
         display: inline-flex;
+      }
+    }
+    @media (max-width: 640px) {
+      .compare-hero {
+        padding: 0.95rem;
+      }
+      .compare-page-title {
+        max-width: 12ch;
+        font-size: clamp(2.25rem, 15vw, 4rem);
+      }
+      .compare-hero-stats {
+        grid-template-columns: 1fr;
       }
     }
     .filter-section {
@@ -427,36 +596,169 @@ epochBenchmarksWithData.forEach((b) => {
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 1.15rem;
       min-width: 0;
       width: calc(100% - 260px);
       margin-left: 260px;
       padding: 1.25rem;
       box-sizing: border-box;
       max-width: 100%;
-      overflow-x: hidden; /* Prevent horizontal overflow */
+      overflow-x: hidden;
+    }
+    .compare-hero {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.28fr);
+      gap: 1rem;
+      width: 100%;
+      max-width: 1320px;
+      margin: 0 auto;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-l);
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--surface) 95%, transparent), color-mix(in srgb, var(--overlay) 86%, transparent)),
+        radial-gradient(circle at 86% 16%, color-mix(in srgb, var(--pine) 20%, transparent), transparent 22rem);
+      box-shadow: 0 22px 72px color-mix(in srgb, var(--shadow-color) 70%, transparent);
+      overflow: hidden;
+      padding: clamp(1rem, 2.4vw, 1.45rem);
+    }
+    .compare-hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(90deg, color-mix(in srgb, var(--border-color) 44%, transparent) 1px, transparent 1px),
+        linear-gradient(color-mix(in srgb, var(--border-color) 36%, transparent) 1px, transparent 1px);
+      background-size: 38px 38px;
+      opacity: 0.18;
+    }
+    .compare-hero > * {
+      position: relative;
+      z-index: 1;
+    }
+    .compare-hero-kicker {
+      display: inline-flex;
+      color: var(--subtle);
+      font-family: var(--font-mono);
+      font-size: 0.64rem;
+      font-weight: 900;
+      text-transform: uppercase;
     }
     .compare-page-title {
-      max-width: 1320px;
+      max-width: 16ch;
       width: 100%;
-      margin: 0 auto;
+      margin: 0.45rem 0 0;
       color: var(--text);
-      font-size: clamp(1.35rem, 2vw, 2rem);
-      line-height: 1.1;
-      font-weight: 800;
+      font-size: clamp(2.45rem, 6vw, 5.4rem);
+      line-height: 0.9;
+      font-weight: 950;
       letter-spacing: 0;
     }
     .compare-page-lede {
-      max-width: 1320px;
+      max-width: 58rem;
       width: 100%;
-      margin: -0.35rem auto 0;
-      color: var(--muted);
+      margin: 0.75rem 0 0;
+      color: var(--subtle);
       font-size: 0.95rem;
       line-height: 1.65;
     }
     .compare-page-lede strong {
       color: var(--subtle);
       font-weight: 700;
+    }
+    .compare-hero-stats {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1px;
+      align-self: start;
+      border: 1px solid var(--highlight-low);
+      background: var(--highlight-low);
+    }
+    .compare-hero-stats div {
+      background: color-mix(in srgb, var(--base) 42%, transparent);
+      padding: 0.78rem;
+    }
+    .compare-hero-stats dt {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.58rem;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+    .compare-hero-stats dd {
+      margin-top: 0.25rem;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: clamp(1.35rem, 2.8vw, 2rem);
+      font-weight: 950;
+      line-height: 1;
+    }
+    .compare-guide {
+      grid-column: 1 / -1;
+      max-width: 1320px;
+      width: 100%;
+      margin: 0.2rem auto 0;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-m);
+      background: color-mix(in srgb, var(--base) 34%, transparent);
+      box-shadow: none;
+      overflow: hidden;
+    }
+    .compare-guide summary {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.75rem 0.95rem;
+      color: var(--text);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      list-style: none;
+      text-transform: uppercase;
+      user-select: none;
+    }
+    .compare-guide summary::-webkit-details-marker {
+      display: none;
+    }
+    .compare-guide summary::after {
+      content: "+";
+      display: grid;
+      place-items: center;
+      width: 1.5rem;
+      height: 1.5rem;
+      flex: 0 0 auto;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-s);
+      color: var(--subtle);
+      background: var(--highlight-low);
+      transition: transform 0.18s ease, background-color 0.18s ease;
+    }
+    .compare-guide[open] summary::after {
+      content: "-";
+      transform: rotate(180deg);
+      background: var(--highlight-med);
+    }
+    .compare-guide summary:hover {
+      background: var(--highlight-low);
+    }
+    .compare-guide summary:focus-visible {
+      outline: 2px solid color-mix(in srgb, var(--love) 70%, white);
+      outline-offset: -2px;
+    }
+    .compare-guide-body {
+      display: grid;
+      gap: 0.8rem;
+      padding: 0 0.95rem 0.95rem;
+      border-top: 1px solid var(--border-color);
+    }
+    .compare-guide .compare-page-lede {
+      margin: 0;
+      color: var(--muted);
     }
     .chart-grid {
       display: grid;
@@ -466,19 +768,17 @@ epochBenchmarksWithData.forEach((b) => {
       max-width: 1320px;
       margin: 0 auto;
     }
-    .chart-card {
-      background: var(--glass);
-      border-radius: 8px;
-      padding: 1rem;
-    }
     .chart-section {
-      background: var(--surface);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--surface) 96%, transparent), color-mix(in srgb, var(--overlay) 84%, transparent));
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       border-radius: var(--radius-m);
       padding: 1rem;
       border: 1px solid var(--border-color);
-      box-shadow: 0 16px 54px var(--shadow-color);
+      box-shadow:
+        0 18px 58px var(--shadow-color),
+        var(--glass-edge);
       width: 100%;
       transition:
         transform 0.1s ease,
@@ -553,7 +853,6 @@ epochBenchmarksWithData.forEach((b) => {
       width: 100%;
       height: 300px;
       min-height: 260px;
-      position: relative;
       box-sizing: border-box;
       overflow: visible;
       background: var(--highlight-low);
@@ -1257,6 +1556,273 @@ epochBenchmarksWithData.forEach((b) => {
       padding: 10px;
     }
 
+    .native-benchmark-select {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .benchmark-picker {
+      position: relative;
+      width: 100%;
+      z-index: 20;
+    }
+
+    .benchmark-picker-trigger {
+      min-height: 48px;
+      width: 100%;
+      display: grid;
+      gap: 0.2rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-s);
+      background: color-mix(in srgb, var(--surface) 92%, black);
+      color: var(--text);
+      cursor: pointer;
+      padding: 0.62rem 2.25rem 0.62rem 0.72rem;
+      position: relative;
+      text-align: left;
+      transition:
+        border-color 0.16s ease,
+        background-color 0.16s ease,
+        box-shadow 0.16s ease;
+    }
+
+    .benchmark-picker-trigger::after {
+      content: "";
+      position: absolute;
+      right: 0.82rem;
+      top: 50%;
+      width: 0.55rem;
+      height: 0.55rem;
+      border-bottom: 2px solid var(--subtle);
+      border-right: 2px solid var(--subtle);
+      transform: translateY(-65%) rotate(45deg);
+      transition: transform 0.16s ease;
+    }
+
+    .benchmark-picker.open .benchmark-picker-trigger::after {
+      transform: translateY(-25%) rotate(225deg);
+    }
+
+    .benchmark-picker-trigger:hover,
+    .benchmark-picker-trigger:focus-visible {
+      border-color: color-mix(in srgb, var(--love) 58%, var(--border-color));
+      background: var(--highlight-low);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--love) 22%, transparent);
+      outline: none;
+    }
+
+    .benchmark-picker-kicker {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.58rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .benchmark-picker-value {
+      overflow: hidden;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      font-weight: 900;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .benchmark-picker-popover {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 0.42rem);
+      z-index: 70;
+      display: grid;
+      gap: 0.45rem;
+      max-height: min(28rem, 72vh);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-s);
+      background: color-mix(in srgb, var(--base) 97%, black);
+      box-shadow: 0 24px 60px color-mix(in srgb, var(--shadow-color) 85%, black);
+      padding: 0.5rem;
+    }
+
+    .benchmark-picker-popover[hidden] {
+      display: none;
+    }
+
+    .benchmark-picker-search {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-s);
+      background: var(--surface);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.55rem 0.65rem;
+    }
+
+    .benchmark-picker-search:focus {
+      outline: none;
+      border-color: color-mix(in srgb, var(--love) 58%, var(--border-color));
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--love) 20%, transparent);
+    }
+
+    .benchmark-picker-list {
+      display: grid;
+      gap: 0.25rem;
+      max-height: 21rem;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding-right: 0.15rem;
+    }
+
+    .benchmark-picker-group {
+      margin: 0.35rem 0 0.15rem;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.58rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .benchmark-picker-option {
+      min-height: 38px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.55rem;
+      border: 1px solid transparent;
+      border-radius: var(--radius-s);
+      background: transparent;
+      color: var(--subtle);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 0.5rem 0.55rem;
+      text-align: left;
+      text-transform: uppercase;
+    }
+
+    .benchmark-picker-option:hover,
+    .benchmark-picker-option:focus-visible {
+      border-color: var(--border-color);
+      background: var(--highlight-low);
+      color: var(--text);
+      outline: none;
+    }
+
+    .benchmark-picker-option[aria-selected="true"] {
+      border-color: color-mix(in srgb, var(--love) 55%, var(--border-color));
+      background: color-mix(in srgb, var(--love) 16%, var(--highlight-low));
+      color: var(--text);
+    }
+
+    .benchmark-picker-source {
+      color: var(--muted);
+      font-size: 0.56rem;
+      letter-spacing: 0.06em;
+    }
+
+    .benchmark-picker-empty {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      padding: 0.7rem;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    :global(.benchmark-picker-group) {
+      margin: 0.35rem 0 0.15rem;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.58rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    :global(.benchmark-picker-option) {
+      min-height: 38px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.55rem;
+      border: 1px solid transparent;
+      border-radius: var(--radius-s);
+      background: transparent;
+      color: var(--subtle);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 0.5rem 0.55rem;
+      text-align: left;
+      text-transform: uppercase;
+    }
+
+    :global(.benchmark-picker-option span:first-child) {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    :global(.benchmark-picker-option:hover),
+    :global(.benchmark-picker-option:focus-visible) {
+      border-color: var(--border-color);
+      background: var(--highlight-low);
+      color: var(--text);
+      outline: none;
+    }
+
+    :global(.benchmark-picker-option[aria-selected="true"]) {
+      border-color: color-mix(in srgb, var(--love) 55%, var(--border-color));
+      background: color-mix(in srgb, var(--love) 16%, var(--highlight-low));
+      color: var(--text);
+    }
+
+    :global(.benchmark-picker-source) {
+      color: var(--muted);
+      font-size: 0.56rem;
+      letter-spacing: 0.06em;
+    }
+
+    :global(.benchmark-picker-empty) {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      padding: 0.7rem;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .benchmark-attribution {
+      margin-top: 0.65rem;
+      color: var(--subtle);
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      line-height: 1.5;
+      text-transform: uppercase;
+    }
+
+    .benchmark-attribution a {
+      color: var(--text);
+      text-decoration: underline;
+      text-decoration-color: var(--highlight-med);
+      text-underline-offset: 3px;
+    }
+
     html.light .metric-dropdown {
       background-color: var(--surface);
       border: 2px solid var(--border-color);
@@ -1437,7 +2003,7 @@ epochBenchmarksWithData.forEach((b) => {
     .filter-drawer-header {
       position: sticky;
       top: 0;
-      z-index: 2;
+      z-index: 90;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -1477,6 +2043,10 @@ epochBenchmarksWithData.forEach((b) => {
       letter-spacing: 0;
       line-height: 1;
       text-transform: uppercase;
+    }
+
+    .smart-filter-rail .benchmark-picker.open {
+      z-index: 40;
     }
 
     .filter-close:hover,
@@ -1825,6 +2395,49 @@ epochBenchmarksWithData.forEach((b) => {
             ))
           }
         </select>
+        <div
+          class="benchmark-picker"
+          data-benchmark-picker
+          data-target-select="metric-selector"
+          hidden
+        >
+          <button
+            type="button"
+            class="benchmark-picker-trigger"
+            aria-haspopup="listbox"
+            aria-expanded="false"
+          >
+            <span class="benchmark-picker-kicker">Selected metric</span>
+            <span class="benchmark-picker-value">MMLU Pro</span>
+          </button>
+          <div class="benchmark-picker-popover" hidden>
+            <label class="sr-only" for="benchmark-picker-search">
+              Search benchmarks
+            </label>
+            <input
+              id="benchmark-picker-search"
+              class="benchmark-picker-search"
+              type="search"
+              placeholder="Search benchmarks..."
+              autocomplete="off"
+            />
+            <div
+              class="benchmark-picker-list"
+              role="listbox"
+              aria-label="Performance metric"
+            ></div>
+          </div>
+        </div>
+        <p id="benchmark-attribution" class="benchmark-attribution">
+          Source:
+          <a
+            href={benchmarkAttributions.mmlu_pro.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {benchmarkAttributions.mmlu_pro.sourceName}
+          </a>
+        </p>
       </div>
       <div class="filter-section">
         <h2>Sort Order</h2>
@@ -1849,20 +2462,48 @@ epochBenchmarksWithData.forEach((b) => {
     </aside>
 
     <main class="compare-main">
-      <h1 class="compare-page-title">Compare AI Models</h1>
-      <p class="compare-page-lede">
-        Compare model cost and benchmark movement before choosing a production default. Start with a performance metric,
-        select comparable models, then read price beside score so a cheaper model, faster model, or larger-context model
-        can be judged against the job it needs to handle. <strong>AI Stats</strong> keeps the comparison focused on
-        pricing, context length, catalog capabilities, and public benchmark data instead of a single leaderboard rank.
-      </p>
-      <p class="compare-page-lede">
-        For a practical shortlist, compare models from the same task family first. Coding, math, reasoning, long-context
-        review, and agent tool use can point to different winners. The charts are meant to narrow the field before a
-        live test, not replace evaluation with your own prompts, latency needs, and budget limits. Recheck candidates
-        when providers update pricing, context limits, or benchmark submissions because small catalog changes can shift
-        the best default. Treat each result as a deployment shortlist, not a trophy.
-      </p>
+      <section class="compare-hero" aria-label="Compare workbench overview">
+        <div>
+          <span class="compare-hero-kicker">Selection lab</span>
+          <h1 class="compare-page-title">Compare AI Models</h1>
+          <p class="compare-page-lede">
+            Build a practical shortlist by reading benchmark movement, price,
+            latency, context, and public catalog coverage in the same view.
+          </p>
+        </div>
+        <dl class="compare-hero-stats" aria-label="Initial compare coverage">
+          <div>
+            <dt>Loaded</dt>
+            <dd>{validModels.length}</dd>
+          </div>
+          <div>
+            <dt>Selected</dt>
+            <dd>{selectedModels.length}</dd>
+          </div>
+          <div>
+            <dt>Metrics</dt>
+            <dd>{Object.keys(availableBenchmarks).length}</dd>
+          </div>
+        </dl>
+        <details class="compare-guide">
+          <summary>How to read this view</summary>
+          <div class="compare-guide-body">
+            <p class="compare-page-lede">
+              Compare model cost and benchmark movement before choosing a production default. Start with a performance metric,
+              select comparable models, then read price beside score so a cheaper model, faster model, or larger-context model
+              can be judged against the job it needs to handle. <strong>AI Stats</strong> keeps the comparison focused on
+              pricing, context length, catalog capabilities, and public benchmark data instead of a single leaderboard rank.
+            </p>
+            <p class="compare-page-lede">
+              For a practical shortlist, compare models from the same task family first. Coding, math, reasoning, long-context
+              review, and agent tool use can point to different winners. The charts are meant to narrow the field before a
+              live test, not replace evaluation with your own prompts, latency needs, and budget limits. Recheck candidates
+              when providers update pricing, context limits, or benchmark submissions because small catalog changes can shift
+              the best default. Treat each result as a deployment shortlist, not a trophy.
+            </p>
+          </div>
+        </details>
+      </section>
       <section class="charts-section">
         <div class="chart-grid">
           <div class="chart-section">
@@ -1885,11 +2526,11 @@ epochBenchmarksWithData.forEach((b) => {
         </div>
       </section>
 
-      <details class="catalog-section catalog-disclosure" aria-label="OpenRouter catalog comparison">
+      <details class="catalog-section catalog-disclosure" aria-label="Public catalog comparison">
         <summary>
           <div>
-            <span class="catalog-summary-label">OpenRouter catalog metadata</span>
-            <span class="catalog-summary-note">Matched public catalog fields for selected models.</span>
+            <span class="catalog-summary-label">Public catalog metadata</span>
+            <span class="catalog-summary-note">Matched OpenRouter usage, route detail, Hugging Face, and LiteLLM fields for selected models.</span>
           </div>
           <span class="catalog-summary-action" aria-hidden="true"></span>
         </summary>
@@ -1898,40 +2539,52 @@ epochBenchmarksWithData.forEach((b) => {
             <thead>
               <tr>
                 <th scope="col">Model</th>
-                <th scope="col">OR ID</th>
+                <th scope="col">Catalog match</th>
                 <th scope="col">Context</th>
-                <th scope="col">OR input</th>
-                <th scope="col">OR output</th>
+                <th scope="col">Public price</th>
+                <th scope="col">OR usage/routes</th>
+                <th scope="col">HF signal</th>
                 <th scope="col">Capabilities</th>
               </tr>
             </thead>
             <tbody>
               {
                 selectedModels.map((model: any) => {
-                  const parameters = Array.isArray(model.openrouter_supported_parameters)
-                    ? model.openrouter_supported_parameters
-                    : [];
-                  const inputModalities = Array.isArray(model.openrouter_input_modalities)
-                    ? model.openrouter_input_modalities
-                    : [];
-                  const outputModalities = Array.isArray(model.openrouter_output_modalities)
-                    ? model.openrouter_output_modalities
-                    : [];
-                  const capabilities = [
-                    parameters.includes("tools") ? "tools" : null,
-                    inputModalities.includes("image") ? "vision" : null,
-                    outputModalities.includes("image") ? "image out" : null,
-                  ]
-                    .filter(Boolean)
-                    .join(", ");
+                  const capabilities = getUsefulCapabilities(model);
+                  const context =
+                    model.openrouter_context_length ||
+                    model.litellm_max_input_tokens ||
+                    null;
+                  const publicPrice =
+                    model.openrouter_prompt_price_1m ||
+                    model.litellm_input_price_1m ||
+                    null;
+                  const catalogMatch =
+                    model.openrouter_id ||
+                    model.hf_model_id ||
+                    model.litellm_model_id ||
+                    "-";
+                  const hfSignal = model.hf_model_id
+                    ? `${formatCompactNumber(model.hf_downloads)} dl / ${formatCompactNumber(model.hf_likes)} likes`
+                    : "-";
+                  const openRouterUsage = Number(model.openrouter_usage_tokens) > 0
+                    ? `${formatCompactNumber(model.openrouter_usage_tokens)} tokens`
+                    : "-";
+                  const openRouterRouteDetail =
+                    Number(model.openrouter_endpoint_provider_count) > 0
+                      ? `${model.openrouter_endpoint_provider_count} routes`
+                      : "-";
 
                   return (
                     <tr>
                       <td data-label="Model">{model.name}</td>
-                      <td data-label="OR ID">{model.openrouter_id ?? "-"}</td>
-                      <td data-label="Context">{formatContextLength(model.openrouter_context_length)}</td>
-                      <td data-label="OR input">{formatCatalogPrice(model.openrouter_prompt_price_1m)}</td>
-                      <td data-label="OR output">{formatCatalogPrice(model.openrouter_completion_price_1m)}</td>
+                      <td data-label="Catalog match">{catalogMatch}</td>
+                      <td data-label="Context">{formatContextLength(context)}</td>
+                      <td data-label="Public price">{formatCatalogPrice(publicPrice)}</td>
+                      <td data-label="OR usage/routes">
+                        {openRouterUsage === "-" ? openRouterRouteDetail : `${openRouterUsage} / ${openRouterRouteDetail}`}
+                      </td>
+                      <td data-label="HF signal">{hfSignal}</td>
                       <td data-label="Capabilities">{capabilities || "-"}</td>
                     </tr>
                   );
@@ -1950,13 +2603,24 @@ epochBenchmarksWithData.forEach((b) => {
 </div>
 <ScrollToTop />
 
+<script is:inline define:vars={{ epochBenchmarkLabels, benchmarkAttributions }}>
+  window.__epochBenchmarkLabels = epochBenchmarkLabels;
+  window.__benchmarkAttributions = benchmarkAttributions;
+</script>
+
 <script
   is:inline
   define:vars={{
     validModels: initialClientModels,
     epochScoresByModel: initialClientEpochScores,
     availableBenchmarks,
-    openRouterModels,
+    openRouterModels: clientOpenRouterModels,
+    huggingFaceModels: clientHuggingFaceModels,
+    liteLlmModels: clientLiteLlmModels,
+    openRouterUsageRankings: clientOpenRouterUsageRankings,
+    openRouterEndpointSummaries: clientOpenRouterEndpointSummaries,
+    preferredBenchmarkSlugs: preferredEpochBenchmarkSlugs,
+    initialClientEpochScoreMetrics,
   }}
 >
   // Security: HTML sanitization function to prevent XSS attacks
@@ -2066,6 +2730,10 @@ epochBenchmarksWithData.forEach((b) => {
     const { rail, main, toggle, overlay, footer } = getFilterControls();
     if (!rail || !toggle) return;
 
+    if (!nextOpen) {
+      window.__setCompareMetricPickerOpen?.(false);
+    }
+
     const label = toggle.querySelector(".filter-label");
     const isCompact = isCompactFilterLayout();
 
@@ -2150,6 +2818,15 @@ epochBenchmarksWithData.forEach((b) => {
     { capture: true, signal: window.__compareFilterClickController.signal },
   );
 
+  document.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key !== "Escape" || !getCompareFiltersOpen()) return;
+      window.__setCompareFiltersOpen?.(false);
+    },
+    { signal: window.__compareFilterClickController.signal },
+  );
+
   async function initCompare() {
     // Initialize sidebar state based on screen size
     const initializeLayout = () => {
@@ -2177,8 +2854,29 @@ epochBenchmarksWithData.forEach((b) => {
     let priceChartInstance = null;
     let perfChartInstance = null;
     const metricSelector = document.getElementById("metric-selector");
+    const benchmarkAttributionEl = document.getElementById(
+      "benchmark-attribution",
+    );
     const performanceMetricTitle = document.getElementById(
       "performance-metric-title",
+    );
+    const metricPicker = document.querySelector(
+      '[data-benchmark-picker][data-target-select="metric-selector"]',
+    );
+    const metricPickerTrigger = metricPicker?.querySelector(
+      ".benchmark-picker-trigger",
+    );
+    const metricPickerValue = metricPicker?.querySelector(
+      ".benchmark-picker-value",
+    );
+    const metricPickerPopover = metricPicker?.querySelector(
+      ".benchmark-picker-popover",
+    );
+    const metricPickerSearch = metricPicker?.querySelector(
+      ".benchmark-picker-search",
+    );
+    const metricPickerList = metricPicker?.querySelector(
+      ".benchmark-picker-list",
     );
 
     // Benchmark display names and epoch scores (mutable for live refresh)
@@ -2187,6 +2885,171 @@ epochBenchmarksWithData.forEach((b) => {
     let epochAliasesByVersion = {};
     let epochRunsState = [];
     let epochBenchmarksState = [];
+    let epochScoreMetrics = { ...initialClientEpochScoreMetrics };
+    let metricAttributions = { ...(window.__benchmarkAttributions || {}) };
+    const preferredEpochBenchmarkRank = new Map(
+      (preferredBenchmarkSlugs || []).map((slug, index) => [slug, index]),
+    );
+    const EPOCH_BENCHMARK_LABELS = window.__epochBenchmarkLabels || {};
+    const sortEpochBenchmarksByValue = (benchmarks) =>
+      [...(benchmarks ?? [])].sort((a, b) => {
+        const aRank = preferredEpochBenchmarkRank.get(a.slug) ?? Number.POSITIVE_INFINITY;
+        const bRank = preferredEpochBenchmarkRank.get(b.slug) ?? Number.POSITIVE_INFINITY;
+        if (aRank !== bRank) return aRank - bRank;
+        return String(a.name || a.slug).localeCompare(String(b.name || b.slug));
+      });
+    const getBenchmarkGroup = (value) => {
+      if (value.startsWith("epoch_")) return "Epoch benchmark pool";
+      if (value.startsWith("aa_")) return "Artificial Analysis indexes";
+      return "Artificial Analysis benchmarks";
+    };
+
+    const syncMetricPickerValue = () => {
+      if (!metricSelector || !metricPickerValue) return;
+      metricPickerValue.textContent =
+        benchmarkNames[metricSelector.value] || metricSelector.value || "Select metric";
+    };
+
+    const setMetricPickerOpen = (open) => {
+      if (!metricPicker || !metricPickerTrigger || !metricPickerPopover) return;
+      metricPicker.classList.toggle("open", open);
+      metricPickerTrigger.setAttribute("aria-expanded", String(open));
+      metricPickerPopover.hidden = !open;
+      if (open) {
+        renderMetricPickerOptions();
+        if (metricPickerSearch instanceof HTMLInputElement) {
+          metricPickerSearch.value = "";
+          window.requestAnimationFrame(() => metricPickerSearch.focus());
+        }
+      }
+    };
+    window.__setCompareMetricPickerOpen = setMetricPickerOpen;
+    registerCleanup(() => {
+      if (window.__setCompareMetricPickerOpen === setMetricPickerOpen) {
+        delete window.__setCompareMetricPickerOpen;
+      }
+    });
+
+    const selectMetric = (value) => {
+      if (!metricSelector || !benchmarkNames[value]) return;
+      metricSelector.value = value;
+      syncMetricPickerValue();
+      setMetricPickerOpen(false);
+      metricSelector.dispatchEvent(new Event("change", { bubbles: true }));
+      if (isCompactFilterLayout()) setCompareFiltersOpen(false);
+      metricPickerTrigger?.focus();
+    };
+
+    const renderMetricPickerOptions = () => {
+      if (!metricSelector || !metricPickerList) return;
+      const query =
+        metricPickerSearch instanceof HTMLInputElement
+          ? metricPickerSearch.value.trim().toLowerCase()
+          : "";
+      const entries = Object.entries(benchmarkNames).filter(([value, label]) => {
+        const haystack = `${label} ${value}`.toLowerCase();
+        return !query || haystack.includes(query);
+      });
+      if (!entries.length) {
+        metricPickerList.innerHTML =
+          '<div class="benchmark-picker-empty">No matching benchmarks</div>';
+        return;
+      }
+
+      let lastGroup = "";
+      metricPickerList.innerHTML = entries
+        .map(([value, label]) => {
+          const group = getBenchmarkGroup(value);
+          const groupHtml =
+            group !== lastGroup
+              ? `<div class="benchmark-picker-group">${sanitizeHTML(group)}</div>`
+              : "";
+          lastGroup = group;
+          const source = value.startsWith("epoch_") ? "Epoch" : "AA";
+          return `${groupHtml}<button type="button" class="benchmark-picker-option" role="option" data-metric-value="${sanitizeHTML(value)}" aria-selected="${String(metricSelector.value === value)}"><span>${sanitizeHTML(label)}</span><span class="benchmark-picker-source">${source}</span></button>`;
+        })
+        .join("");
+    };
+
+    let metricPickerPointerHandled = false;
+    const toggleMetricPicker = () => {
+      setMetricPickerOpen(!metricPicker?.classList.contains("open"));
+    };
+
+    metricPickerTrigger?.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      metricPickerPointerHandled = true;
+      toggleMetricPicker();
+      window.setTimeout(() => {
+        metricPickerPointerHandled = false;
+      }, 0);
+    });
+
+    metricPickerTrigger?.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (metricPickerPointerHandled) return;
+      toggleMetricPicker();
+    });
+
+    metricPickerTrigger?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      event.stopPropagation();
+      toggleMetricPicker();
+    });
+
+    metricPickerPopover?.addEventListener("click", (event) => {
+      event.stopPropagation();
+    });
+
+    metricPickerSearch?.addEventListener("input", renderMetricPickerOptions);
+
+    metricPickerList?.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const option = target.closest("[data-metric-value]");
+      if (!(option instanceof HTMLElement)) return;
+      selectMetric(option.dataset.metricValue || "");
+    });
+
+    metricPicker?.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        setMetricPickerOpen(false);
+        metricPickerTrigger?.focus();
+      }
+    });
+
+    const handleMetricPickerDocumentClick = (event) => {
+      if (!metricPicker || !event.target) return;
+      if (metricPicker.contains(event.target)) return;
+      setMetricPickerOpen(false);
+    };
+    document.addEventListener("click", handleMetricPickerDocumentClick);
+    registerCleanup(() =>
+      document.removeEventListener("click", handleMetricPickerDocumentClick),
+    );
+
+    const renderBenchmarkAttribution = (metricKey) => {
+      if (!benchmarkAttributionEl) return;
+      const attribution = metricAttributions[metricKey];
+      if (!attribution) {
+        benchmarkAttributionEl.textContent = "";
+        return;
+      }
+
+      const sourceName = sanitizeHTML(attribution.sourceName || "Source");
+      const sourceUrl = sanitizeHTML(attribution.sourceUrl || "#");
+      const viaName = sanitizeHTML(attribution.viaName || "");
+      const viaUrl = sanitizeHTML(attribution.viaUrl || "");
+      const viaText =
+        viaName && viaUrl
+          ? ` via <a href="${viaUrl}" target="_blank" rel="noopener noreferrer">${viaName}</a>`
+          : "";
+
+      benchmarkAttributionEl.innerHTML = `Source: <a href="${sourceUrl}" target="_blank" rel="noopener noreferrer">${sourceName}</a>${viaText}`;
+    };
     const sortToggle = document.getElementById("sort-toggle");
     const searchInput = document.getElementById("model-search");
     const compareParams = new URLSearchParams(window.location.search);
@@ -2201,7 +3064,7 @@ epochBenchmarksWithData.forEach((b) => {
         .replace(/[^a-z0-9]+/g, " ")
         .trim();
 
-    const normalizeOpenRouterKey = (value) =>
+    const normalizePublicCatalogKey = (value) =>
       String(value || "")
         .toLowerCase()
         .replace(/^(openai|anthropic|google|meta|mistral|moonshotai|moonshot|alibaba|qwen|xai|deepseek|minimax|nvidia|cohere|perplexity):\s*/i, "")
@@ -2209,6 +3072,14 @@ epochBenchmarksWithData.forEach((b) => {
         .replace(/:free$/i, "")
         .replace(/[^a-z0-9]+/g, " ")
         .trim();
+
+    const addCatalogLookupEntry = (lookup, candidate, model) => {
+      const normalized = normalizePublicCatalogKey(candidate);
+      if (!normalized) return;
+      if (!lookup.has(normalized)) lookup.set(normalized, model);
+      const compact = normalized.replace(/\s+/g, "");
+      if (!lookup.has(compact)) lookup.set(compact, model);
+    };
 
     const openRouterLookup = (() => {
       const lookup = new Map();
@@ -2221,18 +3092,73 @@ epochBenchmarksWithData.forEach((b) => {
           model.name,
           model.name?.includes(":") ? model.name.split(":").slice(1).join(":") : model.name,
         ];
-        candidates.forEach((candidate) => {
-          const normalized = normalizeOpenRouterKey(candidate);
-          if (!normalized) return;
-          if (!lookup.has(normalized)) lookup.set(normalized, model);
-          const compact = normalized.replace(/\s+/g, "");
-          if (!lookup.has(compact)) lookup.set(compact, model);
-        });
+        candidates.forEach((candidate) => addCatalogLookupEntry(lookup, candidate, model));
       });
       return lookup;
     })();
 
-    const enrichWithOpenRouter = (models) =>
+    const huggingFaceLookup = (() => {
+      const lookup = new Map();
+      (huggingFaceModels || []).forEach((model) => {
+        const slug = String(model.model_id || "").split("/").slice(1).join("/");
+        [
+          model.model_id,
+          slug,
+          slug.replace(/-/g, " "),
+          model.author && slug ? `${model.author} ${slug}` : null,
+        ].forEach((candidate) => addCatalogLookupEntry(lookup, candidate, model));
+      });
+      return lookup;
+    })();
+
+    const liteLlmLookup = (() => {
+      const lookup = new Map();
+      (liteLlmModels || []).forEach((model) => {
+        const withoutProvider = String(model.model_id || "").includes("/")
+          ? String(model.model_id || "").split("/").slice(1).join("/")
+          : model.model_id;
+        [
+          model.model_id,
+          withoutProvider,
+          String(withoutProvider || "").replace(/-/g, " "),
+          model.provider && withoutProvider ? `${model.provider} ${withoutProvider}` : null,
+        ].forEach((candidate) => addCatalogLookupEntry(lookup, candidate, model));
+      });
+      return lookup;
+    })();
+
+    const openRouterUsageLookup = (() => {
+      const lookup = new Map();
+      (openRouterUsageRankings || []).forEach((ranking) => {
+        const withoutProvider = String(ranking.model_permaslug || "").includes("/")
+          ? String(ranking.model_permaslug || "").split("/").slice(1).join("/")
+          : ranking.model_permaslug;
+        const withoutDateSuffix = String(withoutProvider || "").replace(/-\d{8}$/g, "");
+        [
+          ranking.model_permaslug,
+          ranking.variant_permaslug,
+          withoutProvider,
+          String(withoutProvider || "").replace(/-/g, " "),
+          withoutDateSuffix,
+          withoutDateSuffix.replace(/-/g, " "),
+          ranking.provider && withoutProvider ? `${ranking.provider} ${withoutProvider}` : null,
+        ].forEach((candidate) => addCatalogLookupEntry(lookup, candidate, ranking));
+      });
+      return lookup;
+    })();
+
+    const openRouterEndpointLookup = (() => {
+      const lookup = new Map();
+      (openRouterEndpointSummaries || []).forEach((summary) => {
+        [
+          summary.openrouter_id,
+          String(summary.openrouter_id || "").split("/").slice(1).join("/"),
+        ].forEach((candidate) => addCatalogLookupEntry(lookup, candidate, summary));
+      });
+      return lookup;
+    })();
+
+    const enrichWithPublicCatalog = (models) =>
       (models || []).map((model) => {
         const candidates = [
           model.slug,
@@ -2245,25 +3171,101 @@ epochBenchmarksWithData.forEach((b) => {
             ? `${model.creator_slug} ${model.slug}`
             : null,
         ];
-        const match = candidates
+        const lookupKeys = candidates
           .flatMap((candidate) => {
-            const normalized = normalizeOpenRouterKey(candidate);
+            const normalized = normalizePublicCatalogKey(candidate);
             return normalized ? [normalized, normalized.replace(/\s+/g, "")] : [];
-          })
+          });
+        const openRouterMatch = lookupKeys
           .map((key) => openRouterLookup.get(key))
           .find(Boolean);
-        if (!match) return model;
+        const huggingFaceMatch = lookupKeys
+          .map((key) => huggingFaceLookup.get(key))
+          .find(Boolean);
+        const liteLlmMatch = lookupKeys
+          .map((key) => liteLlmLookup.get(key))
+          .find(Boolean);
+        const openRouterUsageMatch = lookupKeys
+          .map((key) => openRouterUsageLookup.get(key))
+          .find(Boolean);
+        const endpointKeys = [
+          openRouterMatch?.openrouter_id,
+          openRouterMatch?.model_slug,
+          ...candidates,
+        ].flatMap((candidate) => {
+          const normalized = normalizePublicCatalogKey(candidate);
+          return normalized ? [normalized, normalized.replace(/\s+/g, "")] : [];
+        });
+        const openRouterEndpointMatch = endpointKeys
+          .map((key) => openRouterEndpointLookup.get(key))
+          .find(Boolean);
         return {
           ...model,
-          openrouter_id: match.openrouter_id,
-          openrouter_name: match.name,
-          openrouter_context_length: match.context_length,
-          openrouter_prompt_price_1m: match.prompt_price_1m,
-          openrouter_completion_price_1m: match.completion_price_1m,
-          openrouter_supported_parameters: match.supported_parameters || [],
-          openrouter_input_modalities: match.input_modalities || [],
-          openrouter_output_modalities: match.output_modalities || [],
-          openrouter_is_free: match.is_free,
+          ...(openRouterUsageMatch
+            ? {
+                openrouter_usage_rank: openRouterUsageMatch.rank,
+                openrouter_usage_tokens: openRouterUsageMatch.total_tokens,
+                openrouter_usage_requests: openRouterUsageMatch.request_count,
+                openrouter_usage_share: openRouterUsageMatch.usage_share,
+                openrouter_usage_variant: openRouterUsageMatch.variant,
+                openrouter_usage_change: openRouterUsageMatch.change,
+              }
+            : {}),
+          ...(openRouterEndpointMatch
+            ? {
+                openrouter_endpoint_provider_count:
+                  openRouterEndpointMatch.provider_count,
+                openrouter_endpoint_providers: openRouterEndpointMatch.providers || [],
+                openrouter_endpoint_quantizations:
+                  openRouterEndpointMatch.quantizations || [],
+                openrouter_endpoint_min_prompt_price_1m:
+                  openRouterEndpointMatch.min_prompt_price_1m,
+                openrouter_endpoint_min_completion_price_1m:
+                  openRouterEndpointMatch.min_completion_price_1m,
+              }
+            : {}),
+          ...(openRouterMatch
+            ? {
+                openrouter_id: openRouterMatch.openrouter_id,
+                openrouter_name: openRouterMatch.name,
+                openrouter_context_length: openRouterMatch.context_length,
+                openrouter_prompt_price_1m: openRouterMatch.prompt_price_1m,
+                openrouter_completion_price_1m: openRouterMatch.completion_price_1m,
+                openrouter_supported_parameters: openRouterMatch.supported_parameters || [],
+                openrouter_input_modalities: openRouterMatch.input_modalities || [],
+                openrouter_output_modalities: openRouterMatch.output_modalities || [],
+                openrouter_is_free: openRouterMatch.is_free,
+              }
+            : {}),
+          ...(huggingFaceMatch
+            ? {
+                hf_model_id: huggingFaceMatch.model_id,
+                hf_author: huggingFaceMatch.author,
+                hf_downloads: huggingFaceMatch.downloads,
+                hf_likes: huggingFaceMatch.likes,
+                hf_pipeline_tag: huggingFaceMatch.pipeline_tag,
+                hf_library_name: huggingFaceMatch.library_name,
+                hf_last_modified: huggingFaceMatch.last_modified,
+                hf_tags: huggingFaceMatch.tags || [],
+              }
+            : {}),
+          ...(liteLlmMatch
+            ? {
+                litellm_model_id: liteLlmMatch.model_id,
+                litellm_provider: liteLlmMatch.provider,
+                litellm_mode: liteLlmMatch.mode,
+                litellm_max_input_tokens: liteLlmMatch.max_input_tokens,
+                litellm_max_output_tokens: liteLlmMatch.max_output_tokens,
+                litellm_input_price_1m: liteLlmMatch.input_price_1m,
+                litellm_output_price_1m: liteLlmMatch.output_price_1m,
+                litellm_supports_vision: liteLlmMatch.supports_vision,
+                litellm_supports_function_calling: liteLlmMatch.supports_function_calling,
+                litellm_supports_reasoning: liteLlmMatch.supports_reasoning,
+                litellm_supports_prompt_caching: liteLlmMatch.supports_prompt_caching,
+                litellm_supports_system_messages: liteLlmMatch.supports_system_messages,
+                litellm_supports_web_search: liteLlmMatch.supports_web_search,
+              }
+            : {}),
         };
       });
 
@@ -2281,6 +3283,41 @@ epochBenchmarksWithData.forEach((b) => {
       const num = Number(value);
       if (!Number.isFinite(num) || num <= 0) return "-";
       return `$${num.toFixed(3)}`;
+    };
+
+    const formatCompactNumber = (value) => {
+      const num = Number(value);
+      if (!Number.isFinite(num) || num <= 0) return "-";
+      return new Intl.NumberFormat("en", {
+        notation: "compact",
+        maximumFractionDigits: 1,
+      }).format(num);
+    };
+
+    const getUsefulCapabilities = (model) => {
+      const parameters = Array.isArray(model.openrouter_supported_parameters)
+        ? model.openrouter_supported_parameters
+        : [];
+      const inputModalities = Array.isArray(model.openrouter_input_modalities)
+        ? model.openrouter_input_modalities
+        : [];
+      const outputModalities = Array.isArray(model.openrouter_output_modalities)
+        ? model.openrouter_output_modalities
+        : [];
+      return [
+        parameters.includes("tools") || model.litellm_supports_function_calling
+          ? "tools"
+          : null,
+        inputModalities.includes("image") || model.litellm_supports_vision
+          ? "vision"
+          : null,
+        outputModalities.includes("image") ? "image out" : null,
+        model.litellm_supports_reasoning ? "reasoning" : null,
+        model.litellm_supports_prompt_caching ? "cache" : null,
+        model.litellm_supports_web_search ? "web" : null,
+      ]
+        .filter(Boolean)
+        .join(", ");
     };
 
     const applyDeepLinkHints = () => {
@@ -2374,7 +3411,7 @@ epochBenchmarksWithData.forEach((b) => {
     const AA_BENCHMARK_NAMES = {
       mmlu_pro: "MMLU Pro",
       gpqa: "GPQA",
-      hle: "HumanEval",
+      hle: "HLE",
       aa_math_index: "Math Index",
       aa_coding_index: "Coding Index",
       aa_intelligence_index: "Intelligence Index",
@@ -2396,6 +3433,9 @@ epochBenchmarksWithData.forEach((b) => {
       metricSelector.value = benchmarkNames[previousValue]
         ? previousValue
         : Object.keys(benchmarkNames)[0] || "mmlu_pro";
+      renderBenchmarkAttribution(metricSelector.value);
+      syncMetricPickerValue();
+      renderMetricPickerOptions();
     };
 
     const rebuildEpochScores = (runs, aliasesByVersion = {}) => {
@@ -2428,12 +3468,23 @@ epochBenchmarksWithData.forEach((b) => {
       }
 
       const epochSlug = metricKey.replace("epoch_", "");
+      const metricName = String(epochScoreMetrics?.[epochSlug] || "").toLowerCase();
+      const isPercentMetric =
+        metricName.includes("%") ||
+        metricName.includes("percent") ||
+        metricName.includes("accuracy") ||
+        metricName.includes("score") ||
+        metricName.includes("average") ||
+        metricName.includes("correct") ||
+        metricName.includes("resolved");
+      const normalizeEpochMetricScore = (score) =>
+        isPercentMetric && score <= 1 ? score * 100 : score;
       const { keys, tokens } = collectLookupKeys(model);
 
       for (const key of keys) {
         const exactScore = Number(epochScores?.[key]?.[epochSlug]);
         if (Number.isFinite(exactScore) && exactScore > 0) {
-          return exactScore <= 1 ? exactScore * 100 : exactScore;
+          return normalizeEpochMetricScore(exactScore);
         }
       }
 
@@ -2448,20 +3499,91 @@ epochBenchmarksWithData.forEach((b) => {
         });
       }
 
-      return fallbackScore <= 1 ? fallbackScore * 100 : fallbackScore;
+      return normalizeEpochMetricScore(fallbackScore);
+    };
+
+    const formatMetricValue = (value, metricKey) => {
+      const num = Number(value);
+      if (!Number.isFinite(num) || num <= 0) return "N/A";
+      if (!metricKey.startsWith("epoch_")) return `${num.toFixed(3)}%`;
+
+      const epochSlug = metricKey.replace("epoch_", "");
+      const metricName = String(epochScoreMetrics?.[epochSlug] || "").toLowerCase();
+      const isPercentMetric =
+        metricName.includes("%") ||
+        metricName.includes("percent") ||
+        metricName.includes("accuracy") ||
+        metricName.includes("score") ||
+        metricName.includes("average") ||
+        metricName.includes("correct") ||
+        metricName.includes("resolved");
+      if (isPercentMetric) return `${num.toFixed(3)}%`;
+      return num >= 100
+        ? num.toLocaleString(undefined, { maximumFractionDigits: 3 })
+        : num.toFixed(3);
     };
 
     const rebuildBenchmarkNames = (benchmarks, runs) => {
       const names = { ...AA_BENCHMARK_NAMES };
-      const withData = benchmarks.filter((benchmark) =>
-        runs.some(
-          (run) => run.benchmark_slug === benchmark.slug && run.score !== null,
+      const withData = sortEpochBenchmarksByValue(
+        benchmarks.filter((benchmark) =>
+          runs.some(
+            (run) => run.benchmark_slug === benchmark.slug && run.score !== null,
+          ),
         ),
       );
       withData.forEach((benchmark) => {
-        names[`epoch_${benchmark.slug}`] = `${benchmark.name} (Epoch)`;
+        const label = EPOCH_BENCHMARK_LABELS[benchmark.slug] || benchmark.name;
+        names[`epoch_${benchmark.slug}`] = `${label} (Epoch)`;
       });
       return names;
+    };
+
+    const cleanSourceUrl = (value) => {
+      const text = String(value || "").trim();
+      return /^https?:\/\//.test(text) ? text : null;
+    };
+
+    const cleanSourceName = (value) => {
+      const text = String(value || "").trim();
+      if (!text || /^https?:\/\//.test(text)) return null;
+      return text;
+    };
+
+    const rebuildBenchmarkAttributions = (benchmarks, runs) => {
+      const attributions = { ...metricAttributions };
+      (benchmarks || []).forEach((benchmark) => {
+        const key = `epoch_${benchmark.slug}`;
+        if (attributions[key]) return;
+
+        const source = (runs || [])
+          .filter((run) => run.benchmark_slug === benchmark.slug)
+          .map((run) => ({
+            sourceName: cleanSourceName(run.source_name),
+            sourceUrl:
+              cleanSourceUrl(run.source_link) ?? cleanSourceUrl(run.source_name),
+          }))
+          .find((candidate) => candidate.sourceName || candidate.sourceUrl);
+
+        attributions[key] = {
+          sourceName:
+            source?.sourceName ||
+            `${EPOCH_BENCHMARK_LABELS[benchmark.slug] || benchmark.name} source`,
+          sourceUrl: source?.sourceUrl || "https://epoch.ai/benchmarks",
+          viaName: "Epoch AI Benchmarking Hub",
+          viaUrl: "https://epoch.ai/benchmarks",
+        };
+      });
+      return attributions;
+    };
+
+    const rebuildEpochScoreMetrics = (runs) => {
+      const metrics = {};
+      (runs || []).forEach((run) => {
+        if (!run.benchmark_slug || !run.score_metric) return;
+        metrics[run.benchmark_slug] ||= run.score_metric;
+      });
+      return metrics;
     };
 
     function applyFiltersAndSort() {
@@ -2502,31 +3624,41 @@ epochBenchmarksWithData.forEach((b) => {
       if (!catalogTable) return;
       const rows = models
         .map((model) => {
-          const parameters = Array.isArray(model.openrouter_supported_parameters)
-            ? model.openrouter_supported_parameters
-            : [];
-          const inputModalities = Array.isArray(model.openrouter_input_modalities)
-            ? model.openrouter_input_modalities
-            : [];
-          const outputModalities = Array.isArray(model.openrouter_output_modalities)
-            ? model.openrouter_output_modalities
-            : [];
-          const capabilities =
-            [
-              parameters.includes("tools") ? "tools" : null,
-              inputModalities.includes("image") ? "vision" : null,
-              outputModalities.includes("image") ? "image out" : null,
-            ]
-              .filter(Boolean)
-              .join(", ") || "-";
+          const capabilities = getUsefulCapabilities(model) || "-";
+          const context =
+            model.openrouter_context_length ||
+            model.litellm_max_input_tokens ||
+            null;
+          const publicPrice =
+            model.openrouter_prompt_price_1m ||
+            model.litellm_input_price_1m ||
+            null;
+          const catalogMatch =
+            model.openrouter_id ||
+            model.hf_model_id ||
+            model.litellm_model_id ||
+            "-";
+          const hfSignal = model.hf_model_id
+            ? `${formatCompactNumber(model.hf_downloads)} dl / ${formatCompactNumber(model.hf_likes)} likes`
+            : "-";
+          const openRouterUsage = Number(model.openrouter_usage_tokens) > 0
+            ? `${formatCompactNumber(model.openrouter_usage_tokens)} tokens`
+            : "-";
+          const openRouterRoutes =
+            Number(model.openrouter_endpoint_provider_count) > 0
+              ? `${Number(model.openrouter_endpoint_provider_count)} routes`
+              : "-";
+          const openRouterUsageRoutes =
+            openRouterUsage === "-" ? openRouterRoutes : `${openRouterUsage} / ${openRouterRoutes}`;
 
           return `
             <tr>
               <td data-label="Model">${sanitizeHTML(model.name || "-")}</td>
-              <td data-label="OR ID">${sanitizeHTML(model.openrouter_id || "-")}</td>
-              <td data-label="Context">${formatContextLength(model.openrouter_context_length)}</td>
-              <td data-label="OR input">${formatCatalogPrice(model.openrouter_prompt_price_1m)}</td>
-              <td data-label="OR output">${formatCatalogPrice(model.openrouter_completion_price_1m)}</td>
+              <td data-label="Catalog match">${sanitizeHTML(catalogMatch)}</td>
+              <td data-label="Context">${formatContextLength(context)}</td>
+              <td data-label="Public price">${formatCatalogPrice(publicPrice)}</td>
+              <td data-label="OR usage/routes">${sanitizeHTML(openRouterUsageRoutes)}</td>
+              <td data-label="HF signal">${sanitizeHTML(hfSignal)}</td>
               <td data-label="Capabilities">${sanitizeHTML(capabilities)}</td>
             </tr>
           `;
@@ -2538,14 +3670,15 @@ epochBenchmarksWithData.forEach((b) => {
           <thead>
             <tr>
               <th scope="col">Model</th>
-              <th scope="col">OR ID</th>
+              <th scope="col">Catalog match</th>
               <th scope="col">Context</th>
-              <th scope="col">OR input</th>
-              <th scope="col">OR output</th>
+              <th scope="col">Public price</th>
+              <th scope="col">OR usage/routes</th>
+              <th scope="col">HF signal</th>
               <th scope="col">Capabilities</th>
             </tr>
           </thead>
-          <tbody>${rows || '<tr><td data-label="Status" colspan="6">Select models to compare</td></tr>'}</tbody>
+          <tbody>${rows || '<tr><td data-label="Status" colspan="7">Select models to compare</td></tr>'}</tbody>
         </table>
       `;
     }
@@ -2920,7 +4053,7 @@ epochBenchmarksWithData.forEach((b) => {
                     const y = ctx.parsed.y ?? 0;
                     if (!Number.isFinite(y) || y <= 0) return "N/A";
                     const t = Math.trunc(y * 1000) / 1000; // truncate, no rounding
-                    return `${t.toFixed(3)}%`;
+                    return formatMetricValue(t, metric);
                   },
                 },
               },
@@ -2939,7 +4072,7 @@ epochBenchmarksWithData.forEach((b) => {
                 formatter: (v) => {
                   if (!Number.isFinite(Number(v)) || Number(v) <= 0) return "N/A";
                   const t = Math.trunc(Number(v) * 1000) / 1000; // truncate
-                  return `${t.toFixed(3)}%`;
+                  return formatMetricValue(t, metric);
                 },
               },
             },
@@ -2960,7 +4093,7 @@ epochBenchmarksWithData.forEach((b) => {
                 ticks: {
                   color: "#eae9f0",
                   font: { size: 10 },
-                  callback: (v) => `${Number(v).toFixed(3)}%`,
+                  callback: (v) => formatMetricValue(Number(v), metric),
                 },
                 grid: {
                   color: "rgba(255,255,255,0.08)",
@@ -2994,6 +4127,9 @@ epochBenchmarksWithData.forEach((b) => {
       if (performanceMetricTitle) {
         performanceMetricTitle.textContent = `Top ${displayName}`;
       }
+      renderBenchmarkAttribution(selectedMetric);
+      syncMetricPickerValue();
+      renderMetricPickerOptions();
 
       // Re-render charts with new metric
       renderCharts();
@@ -3024,7 +4160,7 @@ epochBenchmarksWithData.forEach((b) => {
       const snapshot = event.detail;
       if (!snapshot) return;
 
-      const nextModels = enrichWithOpenRouter((snapshot.aaModels ?? []).filter((model) => {
+      const nextModels = enrichWithPublicCatalog((snapshot.aaModels ?? []).filter((model) => {
         const inputPrice = Number(model.price_1m_input_tokens);
         const outputPrice = Number(model.price_1m_output_tokens);
         return inputPrice > 0 && outputPrice > 0;
@@ -3036,8 +4172,13 @@ epochBenchmarksWithData.forEach((b) => {
       epochAliasesByVersion = rebuildEpochAliasesByVersion(
         snapshot.epochModels ?? [],
       );
+      epochScoreMetrics = rebuildEpochScoreMetrics(epochRunsState);
       epochScores = rebuildEpochScores(epochRunsState, epochAliasesByVersion);
       benchmarkNames = rebuildBenchmarkNames(
+        epochBenchmarksState,
+        epochRunsState,
+      );
+      metricAttributions = rebuildBenchmarkAttributions(
         epochBenchmarksState,
         epochRunsState,
       );
@@ -3059,6 +4200,7 @@ epochBenchmarksWithData.forEach((b) => {
 
     updateMetricSelectorOptions();
     applyDeepLinkHints();
+    renderBenchmarkAttribution(metricSelector?.value || "mmlu_pro");
     renderModelList();
     updateCount();
     try {

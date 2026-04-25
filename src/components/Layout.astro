@@ -157,28 +157,6 @@ const pageSchema = {
       document.addEventListener("astro:after-swap", applyTheme);
     </script>
 
-    <!-- Developer console easter egg -->
-    <script is:inline>
-      (function () {
-        if (typeof window === "undefined") return;
-
-        const ascii = `
-    ___  ________  ________     
-   |\\  \\|\\   __  \\|\\   __  \\    
-   \\ \\  \\ \\  \\|\\  \\ \\  \\|\\  \\   
- __ \\ \\  \\ \\   _  _\\ \\   _  _\\  
-|\\  \\\\_\\  \\ \\  \\\\  \\\\ \\  \\\\  \\|
-\\ \\________\\ \\__\\\\ _\\\\ \\__\\\\ _\\
- \\|________|\\|__|\\|__|\\|__|\\|__|
-                                
-        `;
-
-        console.log(ascii);
-        console.log("Hey there. Interested in code?");
-        console.log("Check out my GitHub: https://github.com/JonathanRReed");
-        console.log("Most of my sites repos are open source.");
-      })();
-    </script>
     <style is:global>
       :root {
         --base: #090b0d;
@@ -586,13 +564,11 @@ const pageSchema = {
     <slot />
     <ModelDrawer client:idle />
 
-    <!-- Premium effects initialization -->
     <script is:inline>
       (function () {
-        function initPremiumEffects(isNavigation) {
+        function initPageMotion(isNavigation) {
           document.documentElement.classList.add("motion-ready");
 
-          // If navigating via View Transitions, show elements immediately (skip animations)
           if (isNavigation) {
             document
               .querySelectorAll(".fade-in-section, .stagger-item")
@@ -609,7 +585,6 @@ const pageSchema = {
               return;
             }
 
-            // Scroll-triggered fade-in animations - only on initial load
             var fadeObserver = new IntersectionObserver(
               function (entries) {
                 entries.forEach(function (entry) {
@@ -627,7 +602,6 @@ const pageSchema = {
                 fadeObserver.observe(el);
               });
 
-            // Staggered card animations - only on initial load
             var staggerObserver = new IntersectionObserver(
               function (entries) {
                 entries.forEach(function (entry) {
@@ -661,9 +635,7 @@ const pageSchema = {
               });
           }, 700);
 
-          // Subtle 3D tilt on cards - always re-attach on navigation
           document.querySelectorAll(".tilt-card").forEach(function (card) {
-            // Remove old listeners by cloning
             var newCard = card.cloneNode(true);
             card.parentNode.replaceChild(newCard, card);
 
@@ -686,18 +658,16 @@ const pageSchema = {
           });
         }
 
-        // Run on initial load (with animations)
         if (document.readyState === "loading") {
           document.addEventListener("DOMContentLoaded", function () {
-            initPremiumEffects(false);
+            initPageMotion(false);
           });
         } else {
-          initPremiumEffects(false);
+          initPageMotion(false);
         }
 
-        // On View Transition navigation, skip animations and show immediately
         document.addEventListener("astro:page-load", function () {
-          initPremiumEffects(true);
+          initPageMotion(true);
         });
       })();
     </script>
