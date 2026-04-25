@@ -9,7 +9,7 @@ const { currentPage = 'dashboard' } = Astro.props;
 <header class="header">
   <div class="header-container">
     <a href="/" class="logo-link">
-      <div class="logo">AI Stats</div>
+      <img src="/logo.png" alt="AI Stats" class="logo" width="120" height="32" />
     </a>
     
     <!-- Desktop nav -->
@@ -99,22 +99,10 @@ const { currentPage = 'dashboard' } = Astro.props;
 }
 
 .logo {
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: 0.95rem;
-  font-weight: 900;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.logo::before {
-  content: "[ ";
-  color: var(--love);
-}
-
-.logo::after {
-  content: " ]";
-  color: var(--love);
+  display: block;
+  height: 32px;
+  width: auto;
+  object-fit: contain;
 }
 
 .nav {

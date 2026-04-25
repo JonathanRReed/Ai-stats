@@ -81,7 +81,11 @@ const pageSchema = {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" type="image/webp" href="/favicon.webp" />
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
     {image === "/jonathan.avif" && (
       <link rel="preload" href="/jonathan.avif" as="image" fetchpriority="high" />
     )}
@@ -580,7 +584,7 @@ const pageSchema = {
   </head>
   <body>
     <slot />
-    <ModelDrawer client:load />
+    <ModelDrawer client:idle />
 
     <!-- Premium effects initialization -->
     <script is:inline>

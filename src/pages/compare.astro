@@ -446,6 +446,18 @@ epochBenchmarksWithData.forEach((b) => {
       font-weight: 800;
       letter-spacing: 0;
     }
+    .compare-page-lede {
+      max-width: 1320px;
+      width: 100%;
+      margin: -0.35rem auto 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.65;
+    }
+    .compare-page-lede strong {
+      color: var(--subtle);
+      font-weight: 700;
+    }
     .chart-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1838,6 +1850,19 @@ epochBenchmarksWithData.forEach((b) => {
 
     <main class="compare-main">
       <h1 class="compare-page-title">Compare AI Models</h1>
+      <p class="compare-page-lede">
+        Compare model cost and benchmark movement before choosing a production default. Start with a performance metric,
+        select comparable models, then read price beside score so a cheaper model, faster model, or larger-context model
+        can be judged against the job it needs to handle. <strong>AI Stats</strong> keeps the comparison focused on
+        pricing, context length, catalog capabilities, and public benchmark data instead of a single leaderboard rank.
+      </p>
+      <p class="compare-page-lede">
+        For a practical shortlist, compare models from the same task family first. Coding, math, reasoning, long-context
+        review, and agent tool use can point to different winners. The charts are meant to narrow the field before a
+        live test, not replace evaluation with your own prompts, latency needs, and budget limits. Recheck candidates
+        when providers update pricing, context limits, or benchmark submissions because small catalog changes can shift
+        the best default. Treat each result as a deployment shortlist, not a trophy.
+      </p>
       <section class="charts-section">
         <div class="chart-grid">
           <div class="chart-section">
