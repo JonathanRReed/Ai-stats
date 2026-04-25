@@ -41,6 +41,7 @@ Desktop.ini
 # Temporary folders
 tmp/
 temp/
+supabase/.temp/
 
 # Runtime data
 pids

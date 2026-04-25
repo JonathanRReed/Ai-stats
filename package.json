@@ -21,7 +21,10 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "lint": "eslint . --ext .astro,.ts"
+    "lint": "eslint . --ext .astro,.ts",
+    "check:epoch": "bun scripts/check-epoch-smoke.ts",
+    "sync:epoch": "node scripts/sync-epoch-data.mjs",
+    "snapshot:epoch": "node scripts/sync-epoch-data.mjs --dry-run --write-public-snapshot public/data/epoch-benchmark-snapshot.json"
   },
   "dependencies": {
     "@astrojs/check": "0.9.8",

@@ -134,7 +134,7 @@ const currentYear = new Date().getFullYear();
           </span>
         </a>
         <a
-          href="https://openrouter.ai/docs/api-reference/models/get-models"
+          href="https://openrouter.ai/openapi.json"
           target="_blank"
           rel="noopener noreferrer"
           class="source-card"
@@ -144,7 +144,31 @@ const currentYear = new Date().getFullYear();
           </span>
           <span class="source-copy">
             <strong>OpenRouter</strong>
-            <small>Catalog, context, route metadata</small>
+            <small>Catalog, usage, providers, route metadata</small>
+          </span>
+        </a>
+        <a
+          href="https://huggingface.co/docs/hub/api"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="source-card"
+        >
+          <span class="source-logo source-logo-text">HF</span>
+          <span class="source-copy">
+            <strong>Hugging Face</strong>
+            <small>Public model popularity and tags</small>
+          </span>
+        </a>
+        <a
+          href="https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="source-card"
+        >
+          <span class="source-logo source-logo-text">LLM</span>
+          <span class="source-copy">
+            <strong>LiteLLM</strong>
+            <small>Public pricing and capability catalog</small>
           </span>
         </a>
       </div>
@@ -341,6 +365,15 @@ const currentYear = new Date().getFullYear();
 
   .source-logo-openrouter img {
     filter: invert(1);
+  }
+
+  .source-logo-text {
+    background: color-mix(in srgb, var(--surface) 82%, var(--foam));
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
   }
 
   .source-copy {

@@ -132,10 +132,19 @@ const openRouterOutputModalities = Array.isArray(model.openrouter_output_modalit
   ? model.openrouter_output_modalities
   : [];
 const hasOpenRouterData = Boolean(model.openrouter_id);
+const hasHuggingFaceData = Boolean(model.hf_model_id);
+const hasLiteLlmData = Boolean(model.litellm_model_id);
 const openRouterCaps = [
-  openRouterParameters.includes("tools") ? "Tools" : null,
-  openRouterInputModalities.includes("image") ? "Vision" : null,
+  openRouterParameters.includes("tools") || model.litellm_supports_function_calling
+    ? "Tools"
+    : null,
+  openRouterInputModalities.includes("image") || model.litellm_supports_vision
+    ? "Vision"
+    : null,
   openRouterOutputModalities.includes("image") ? "Image out" : null,
+  model.litellm_supports_reasoning ? "Reasoning" : null,
+  model.litellm_supports_prompt_caching ? "Cache" : null,
+  model.litellm_supports_web_search ? "Web" : null,
 ]
   .filter(Boolean)
   .join(", ");
@@ -157,8 +166,35 @@ const openRouterPriceMatchesAa =
   pricesAreClose(model.price_1m_input_tokens, model.openrouter_prompt_price_1m) &&
   pricesAreClose(model.price_1m_output_tokens, model.openrouter_completion_price_1m);
 const showOpenRouterPricing = hasOpenRouterPrice && !openRouterPriceMatchesAa;
-const effectiveContextLength = model.openrouter_context_length || model.context_window;
-const dataSourceBadge = hasOpenRouterData ? "AA + OR" : "AA";
+const effectiveContextLength =
+  model.openrouter_context_length ||
+  model.litellm_max_input_tokens ||
+  model.context_window;
+const publicSourceCount = [
+  hasOpenRouterData,
+  Number(model.openrouter_usage_tokens) > 0,
+  Number(model.openrouter_endpoint_provider_count) > 0,
+  hasHuggingFaceData,
+  hasLiteLlmData,
+].filter(Boolean).length;
+const dataSourceBadge =
+  publicSourceCount > 1
+    ? `AA + ${publicSourceCount} catalogs`
+    : hasOpenRouterData
+      ? "AA + OR"
+      : hasHuggingFaceData
+        ? "AA + HF"
+        : hasLiteLlmData
+          ? "AA + LiteLLM"
+          : "AA";
+const formatCompactNumber = (value: number | null | undefined): string => {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return "-";
+  return new Intl.NumberFormat("en", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(num);
+};
 ---
 
 <div
@@ -294,20 +330,20 @@ const dataSourceBadge = hasOpenRouterData ? "AA + OR" : "AA";
   </div>
 
   {
-    hasOpenRouterData ? (
+    hasOpenRouterData || hasHuggingFaceData || hasLiteLlmData ? (
       <section class="card-metric-panel mt-2 px-3 py-2">
-        <div class="text-[0.55rem] text-muted">OpenRouter catalog</div>
+        <div class="text-[0.55rem] text-muted">Public catalog</div>
         <dl class="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-[0.65rem] text-text">
           <div class="flex items-center justify-between gap-2">
             <dt class="text-subtle">Tools</dt>
             <dd class="font-bold">
-              {openRouterParameters.includes("tools") ? "Yes" : "No"}
+              {openRouterParameters.includes("tools") || model.litellm_supports_function_calling ? "Yes" : "No"}
             </dd>
           </div>
           <div class="flex items-center justify-between gap-2">
             <dt class="text-subtle">Route</dt>
             <dd class="font-bold">
-              {model.openrouter_is_free ? "Free" : "Paid"}
+              {hasOpenRouterData ? (model.openrouter_is_free ? "Free" : "Paid") : "-"}
             </dd>
           </div>
           {
@@ -329,11 +365,37 @@ const dataSourceBadge = hasOpenRouterData ? "AA + OR" : "AA";
             ) : null
           }
           <div class="col-span-2 flex items-center justify-between gap-3">
-            <dt class="text-subtle">Modalities</dt>
-            <dd class="min-w-0 truncate font-bold" title={`${openRouterInputModalities.join(", ")} to ${openRouterOutputModalities.join(", ")}`}>
-              {openRouterInputModalities.join(", ") || "text"}
-              {" -> "}
-              {openRouterOutputModalities.join(", ") || "text"}
+            <dt class="text-subtle">HF signal</dt>
+            <dd class="min-w-0 truncate font-bold" title={model.hf_model_id || ""}>
+              {hasHuggingFaceData
+                ? `${formatCompactNumber(model.hf_downloads)} downloads, ${formatCompactNumber(model.hf_likes)} likes`
+                : "-"}
+            </dd>
+          </div>
+          <div class="col-span-2 flex items-center justify-between gap-3">
+            <dt class="text-subtle">OR usage</dt>
+            <dd class="min-w-0 truncate font-bold">
+              {
+                Number(model.openrouter_usage_tokens) > 0
+                  ? `${formatCompactNumber(model.openrouter_usage_tokens)} tokens, ${formatCompactNumber(model.openrouter_usage_requests)} req`
+                  : "-"
+              }
+            </dd>
+          </div>
+          <div class="col-span-2 flex items-center justify-between gap-3">
+            <dt class="text-subtle">OR routes</dt>
+            <dd class="min-w-0 truncate font-bold" title={(model.openrouter_endpoint_providers || []).join(", ")}>
+              {
+                Number(model.openrouter_endpoint_provider_count) > 0
+                  ? `${model.openrouter_endpoint_provider_count} providers`
+                  : "-"
+              }
+            </dd>
+          </div>
+          <div class="col-span-2 flex items-center justify-between gap-3">
+            <dt class="text-subtle">Context</dt>
+            <dd class="min-w-0 truncate font-bold">
+              {formatContextLength(effectiveContextLength)}
             </dd>
           </div>
           <div class="col-span-2 flex items-center justify-between gap-3">
