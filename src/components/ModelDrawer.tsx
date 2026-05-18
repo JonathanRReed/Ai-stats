@@ -145,7 +145,6 @@ const darkLogoKeys = new Set([
   'perplexity',
   'bytedance',
 ]);
-
 function getProviderIdentity(model: ModelData) {
   const providerName = model.company_name || 'Unknown provider';
   const search = `${providerName} ${model.name}`.toLowerCase();
@@ -185,8 +184,8 @@ export default function ModelDrawer() {
       document.body.style.overflow = '';
     };
 
-    window.addEventListener('open-model-drawer' as any, handleOpen);
-    window.addEventListener('close-model-drawer' as any, handleClose);
+    window.addEventListener('open-model-drawer', handleOpen as EventListener);
+    window.addEventListener('close-model-drawer', handleClose as EventListener);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) handleClose();
@@ -194,8 +193,8 @@ export default function ModelDrawer() {
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      window.removeEventListener('open-model-drawer' as any, handleOpen);
-      window.removeEventListener('close-model-drawer' as any, handleClose);
+      window.removeEventListener('open-model-drawer', handleOpen as EventListener);
+      window.removeEventListener('close-model-drawer', handleClose as EventListener);
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen]);
