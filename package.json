@@ -14,7 +14,7 @@
     "picomatch": ">=2.3.2",
     "rollup": ">=4.59.0",
     "smol-toml": ">=1.6.1",
-    "postcss": ">=8.5.10"
+    "postcss": "$postcss"
   },
   "scripts": {
     "dev": "astro dev",
@@ -47,6 +47,8 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.59.0",
     "@typescript-eslint/parser": "^8.59.0",
     "eslint": "^8.57.1",
