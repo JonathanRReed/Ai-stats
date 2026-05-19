@@ -67,6 +67,7 @@ Install dependencies (generates `bun.lockb`):
 
 ```sh
 bun install
+cp .env.example .env
 ```
 
 Run the dev server:
@@ -100,3 +101,8 @@ Logo icons are from [lobe-icons](https://lobe-icons.dev/)
 The source code in this repository is licensed under MIT. Third-party data,
 logos, font files, and trademarks are excluded. See [`LICENSE`](./LICENSE) and
 [`NOTICE.md`](./NOTICE.md).
+
+
+## Data-backed smoke checks
+
+`bun run check:epoch` validates the Supabase-backed model data path and requires real `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` values. In a clean environment without credentials, use `bun run lint` and `bun run build` for local portfolio verification.
