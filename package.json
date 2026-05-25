@@ -14,7 +14,7 @@
     "picomatch": ">=2.3.2",
     "rollup": ">=4.59.0",
     "smol-toml": ">=1.6.1",
-    "postcss": "$postcss"
+    "postcss": "8.5.15"
   },
   "scripts": {
     "dev": "astro dev",
@@ -39,7 +39,7 @@
     "chartjs-plugin-datalabels": "^2.2.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.553.0",
-    "postcss": "^8.5.10",
+    "postcss": "8.5.15",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "tailwind-merge": "^3.5.0",
