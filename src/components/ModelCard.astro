@@ -200,7 +200,6 @@ const formatCompactNumber = (value: number | null | undefined): string => {
 <div
   data-model-card
   data-model-id={model.id}
-  data-model-json={JSON.stringify(model)}
   data-name={(model.name ?? "").toLowerCase()}
   data-company={(model.company_name ?? "").toLowerCase()}
   data-mmlu={Number(model.mmlu_pro) || 0}
@@ -235,93 +234,92 @@ const formatCompactNumber = (value: number | null | undefined): string => {
       <div class="min-w-0">
         <h3
           class="truncate text-sm font-semibold text-text group-hover:text-foam transition-colors"
-          title={model.name}
         >
           {model.name}
         </h3>
-        <p class="mt-0.5 text-xs text-subtle">
+        <p class="mt-0.5 text-xs tsub">
           {providerName}
         </p>
       </div>
     </div>
-    <div class="source-strip flex-shrink-0" title="Data coverage">
+    <div class="source-strip flex-shrink-0">
       <span>{dataSourceBadge}</span>
     </div>
   </header>
 
-  <div class="mt-3 grid gap-2 text-[0.7rem] text-subtle sm:grid-cols-2 xl:grid-cols-3">
-    <section class="card-metric-panel px-3 py-2">
-      <div class="text-[0.55rem] text-muted">
+  <div class="mcg">
+    <section class="mcp">
+      <div class="mcap">
         Pricing
       </div>
-      <dl class="mt-1.5 space-y-0.5 text-text text-[0.65rem]">
-        <div class="flex items-center justify-between">
+      <dl class="mdl">
+        <div class="mj">
           <dt>Input (1M)</dt>
-          <dd class="font-bold">
+          <dd class="fb">
             {formatPrice(Number(model.price_1m_input_tokens) || 0, 3)}
           </dd>
         </div>
-        <div class="flex items-center justify-between">
+        <div class="mj">
           <dt>Output (1M)</dt>
-          <dd class="font-bold">
+          <dd class="fb">
             {formatPrice(Number(model.price_1m_output_tokens) || 0, 3)}
           </dd>
         </div>
-        <div class="flex items-center justify-between">
+        <div class="mj">
           <dt>Blended (3:1)</dt>
-          <dd class="font-bold">
+          <dd class="fb">
             {formatPrice(Number(model.price_1m_blended_3_to_1) || 0, 3)}
           </dd>
         </div>
       </dl>
     </section>
 
-    <section class="card-metric-panel px-3 py-2">
-      <div class="text-[0.55rem] text-muted">
+    <section class="mcp">
+      <div class="mcap">
         Performance
       </div>
-      <dl class="mt-1.5 space-y-0.5 text-text text-[0.65rem]">
-        <div class="flex items-center justify-between">
+      <dl class="mdl">
+        <div class="mj">
           <dt>Tokens / s</dt>
-          <dd class="font-bold">
+          <dd class="fb">
             {formatTPS(model.median_output_tokens_per_second)}
           </dd>
         </div>
-        <div class="flex items-center justify-between">
+        <div class="mj">
           <dt>TTFT (token)</dt>
-          <dd class="font-bold">
+          <dd class="fb">
             {formatTTFT(model.median_time_to_first_token_seconds)}
           </dd>
         </div>
-        <div class="flex items-center justify-between">
+        <div class="mj">
           <dt>TTFT (answer)</dt>
-          <dd class="font-bold">
+          <dd class="fb">
             {formatTTFT(model.median_time_to_first_answer_token)}
           </dd>
         </div>
       </dl>
     </section>
 
-    <section class="card-metric-panel px-3 py-2">
-      <div class="text-[0.55rem] text-muted">
+    <section class="mcp">
+      <div class="mcap">
         Specs
       </div>
-      <dl class="mt-1.5 space-y-0.5 text-text text-[0.65rem]">
-        <div class="flex items-center justify-between">
+      <dl class="mdl">
+        <div class="mj">
           <dt>Context</dt>
-          <dd class="font-bold">
+          <dd class="fb">
             {formatContextLength(effectiveContextLength)}
           </dd>
         </div>
-        <div class="flex items-center justify-between">
+        <div class="mj">
           <dt>Max output</dt>
-          <dd class="font-bold">
+          <dd class="fb">
             {formatContextLength(model.max_output_tokens)}
           </dd>
         </div>
-        <div class="flex items-center justify-between">
+        <div class="mj">
           <dt>Source</dt>
-          <dd class="font-bold">
+          <dd class="fb">
             {dataSourceBadge}
           </dd>
         </div>
@@ -331,50 +329,50 @@ const formatCompactNumber = (value: number | null | undefined): string => {
 
   {
     hasOpenRouterData || hasHuggingFaceData || hasLiteLlmData ? (
-      <section class="card-metric-panel mt-2 px-3 py-2">
-        <div class="text-[0.55rem] text-muted">Public catalog</div>
-        <dl class="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-[0.65rem] text-text">
-          <div class="flex items-center justify-between gap-2">
-            <dt class="text-subtle">Tools</dt>
-            <dd class="font-bold">
+      <section class="mcp2">
+        <div class="mcap">Public catalog</div>
+        <dl class="mdl2">
+          <div class="mj2">
+            <dt class="tsub">Tools</dt>
+            <dd class="fb">
               {openRouterParameters.includes("tools") || model.litellm_supports_function_calling ? "Yes" : "No"}
             </dd>
           </div>
-          <div class="flex items-center justify-between gap-2">
-            <dt class="text-subtle">Route</dt>
-            <dd class="font-bold">
+          <div class="mj2">
+            <dt class="tsub">Route</dt>
+            <dd class="fb">
               {hasOpenRouterData ? (model.openrouter_is_free ? "Free" : "Paid") : "-"}
             </dd>
           </div>
           {
             showOpenRouterPricing ? (
               <>
-                <div class="flex items-center justify-between gap-2">
-                  <dt class="text-subtle">OR input</dt>
-                  <dd class="font-bold">
+                <div class="mj2">
+                  <dt class="tsub">OR input</dt>
+                  <dd class="fb">
                     {formatPrice(model.openrouter_prompt_price_1m, 3)}
                   </dd>
                 </div>
-                <div class="flex items-center justify-between gap-2">
-                  <dt class="text-subtle">OR output</dt>
-                  <dd class="font-bold">
+                <div class="mj2">
+                  <dt class="tsub">OR output</dt>
+                  <dd class="fb">
                     {formatPrice(model.openrouter_completion_price_1m, 3)}
                   </dd>
                 </div>
               </>
             ) : null
           }
-          <div class="col-span-2 flex items-center justify-between gap-3">
-            <dt class="text-subtle">HF signal</dt>
-            <dd class="min-w-0 truncate font-bold" title={model.hf_model_id || ""}>
+          <div class="mj3">
+            <dt class="tsub">HF signal</dt>
+            <dd class="mtr">
               {hasHuggingFaceData
                 ? `${formatCompactNumber(model.hf_downloads)} downloads, ${formatCompactNumber(model.hf_likes)} likes`
                 : "-"}
             </dd>
           </div>
-          <div class="col-span-2 flex items-center justify-between gap-3">
-            <dt class="text-subtle">OR usage</dt>
-            <dd class="min-w-0 truncate font-bold">
+          <div class="mj3">
+            <dt class="tsub">OR usage</dt>
+            <dd class="mtr">
               {
                 Number(model.openrouter_usage_tokens) > 0
                   ? `${formatCompactNumber(model.openrouter_usage_tokens)} tokens, ${formatCompactNumber(model.openrouter_usage_requests)} req`
@@ -382,9 +380,9 @@ const formatCompactNumber = (value: number | null | undefined): string => {
               }
             </dd>
           </div>
-          <div class="col-span-2 flex items-center justify-between gap-3">
-            <dt class="text-subtle">OR routes</dt>
-            <dd class="min-w-0 truncate font-bold" title={(model.openrouter_endpoint_providers || []).join(", ")}>
+          <div class="mj3">
+            <dt class="tsub">OR routes</dt>
+            <dd class="mtr">
               {
                 Number(model.openrouter_endpoint_provider_count) > 0
                   ? `${model.openrouter_endpoint_provider_count} providers`
@@ -392,15 +390,15 @@ const formatCompactNumber = (value: number | null | undefined): string => {
               }
             </dd>
           </div>
-          <div class="col-span-2 flex items-center justify-between gap-3">
-            <dt class="text-subtle">Context</dt>
-            <dd class="min-w-0 truncate font-bold">
+          <div class="mj3">
+            <dt class="tsub">Context</dt>
+            <dd class="mtr">
               {formatContextLength(effectiveContextLength)}
             </dd>
           </div>
-          <div class="col-span-2 flex items-center justify-between gap-3">
-            <dt class="text-subtle">Capabilities</dt>
-            <dd class="min-w-0 truncate font-bold" title={openRouterCaps || "Text"}>
+          <div class="mj3">
+            <dt class="tsub">Capabilities</dt>
+            <dd class="mtr">
               {openRouterCaps || "Text"}
             </dd>
           </div>
@@ -411,16 +409,16 @@ const formatCompactNumber = (value: number | null | undefined): string => {
 
   <!-- All Benchmarks -->
   <section
-    class="card-metric-panel mt-2 px-3 py-2"
+    class="mcp2"
   >
-    <div class="text-[0.55rem] text-muted">
+    <div class="mcap">
       Benchmarks
     </div>
-    <div class="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-[0.65rem]">
+    <div class="mdl3">
       {
         allBenchmarks.map(([label, value]) => (
-          <div class="flex items-center justify-between">
-            <span class="text-subtle">{label}</span>
+          <div class="mj">
+            <span class="tsub">{label}</span>
             <span class={`font-semibold ${getScoreColor(value as number)}`}>
               {formatScore(value as number)}
             </span>
@@ -432,12 +430,12 @@ const formatCompactNumber = (value: number | null | undefined): string => {
 
   <!-- AA Indexes -->
   <section
-    class="card-metric-panel mt-2 px-3 py-2"
+    class="mcp2"
   >
-    <div class="text-[0.55rem] text-muted">
+    <div class="mcap">
       AA Indexes
     </div>
-    <div class="mt-1.5 grid grid-cols-3 gap-1.5">
+    <div class="mdl4">
       {
         aaIndexes.map(([label, value]) => (
           <div
@@ -446,7 +444,7 @@ const formatCompactNumber = (value: number | null | undefined): string => {
             <div class="text-[0.5rem] uppercase text-muted">
               {label}
             </div>
-            <div class={`text-xs font-bold ${getScoreColor(value as number)}`}>
+            <div class={`text-xs fb ${getScoreColor(value as number)}`}>
               {formatScore(value as number)}
             </div>
           </div>
@@ -456,7 +454,7 @@ const formatCompactNumber = (value: number | null | undefined): string => {
   </section>
 </div>
 
-<style>
+<style is:global>
   .model-card {
     transition:
       transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -530,10 +528,110 @@ const formatCompactNumber = (value: number | null | undefined): string => {
     letter-spacing: 0;
   }
 
+  .tsub {
+    color: var(--subtle);
+  }
+
+  .fb {
+    font-weight: 700;
+  }
+
+  .mj,
+  .mj2,
+  .mj3 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .mj2 {
+    gap: 0.5rem;
+  }
+
+  .mj3 {
+    grid-column: span 2 / span 2;
+    gap: 0.75rem;
+  }
+
+  .mtr {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 700;
+  }
+
+  .mcg {
+    margin-top: 0.75rem;
+    display: grid;
+    gap: 0.5rem;
+    color: var(--subtle);
+    font-size: 0.7rem;
+  }
+
+  @media (min-width: 640px) {
+    .mcg {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .mcg {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  .mcp,
+  .mcp2,
   .card-metric-panel {
     border: 1px solid var(--highlight-low);
     border-radius: var(--radius-s);
     background: color-mix(in srgb, var(--overlay) 62%, transparent);
+  }
+
+  .mcp,
+  .mcp2 {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .mcp2 {
+    margin-top: 0.5rem;
+  }
+
+  .mcap {
+    color: var(--muted);
+    font-size: 0.55rem;
+  }
+
+  .mdl,
+  .mdl2,
+  .mdl3,
+  .mdl4 {
+    margin-top: 0.375rem;
+    font-size: 0.65rem;
+  }
+
+  .mdl,
+  .mdl2 {
+    color: var(--text);
+  }
+
+  .mdl > * + * {
+    margin-top: 0.125rem;
+  }
+
+  .mdl2,
+  .mdl3 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 1rem;
+    row-gap: 0.25rem;
+  }
+
+  .mdl4 {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.375rem;
   }
 
   /* Keep AA index chips readable without over-saturated fills */

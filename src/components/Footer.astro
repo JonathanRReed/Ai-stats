@@ -134,7 +134,7 @@ const currentYear = new Date().getFullYear();
           </span>
         </a>
         <a
-          href="https://openrouter.ai/openapi.json"
+          href="https://openrouter.ai/"
           target="_blank"
           rel="noopener noreferrer"
           class="source-card"
@@ -160,7 +160,7 @@ const currentYear = new Date().getFullYear();
           </span>
         </a>
         <a
-          href="https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json"
+          href="https://github.com/BerriAI/litellm"
           target="_blank"
           rel="noopener noreferrer"
           class="source-card"
@@ -179,7 +179,7 @@ const currentYear = new Date().getFullYear();
   </div>
 </footer>
 
-<style>
+<style is:global>
   .footer {
     position: relative;
     width: 100%;
@@ -475,45 +475,45 @@ const currentYear = new Date().getFullYear();
     }
   }
 
-  :global(html.light) .footer {
+  html.light .footer {
     background: var(--base);
     border-top: 1px solid var(--border-color);
   }
 
-  :global(html.light) .footer-glow {
+  html.light .footer-glow {
     background: var(--love);
   }
 
-  :global(html.light) .footer-tagline,
-  :global(html.light) .footer-label,
-  :global(html.light) .footer-credits {
+  html.light .footer-tagline,
+  html.light .footer-label,
+  html.light .footer-credits {
     color: var(--muted);
   }
 
-  :global(html.light) .footer-link {
+  html.light .footer-link {
     background: var(--base);
     color: var(--text);
   }
 
-  :global(html.light) .footer-link:hover {
+  html.light .footer-link:hover {
     background: var(--love);
     color: #ffffff;
     box-shadow: none;
   }
 
-  :global(html.light) .source-card {
+  html.light .source-card {
     background: var(--base);
   }
 
-  :global(html.light) .source-card:hover {
+  html.light .source-card:hover {
     background: color-mix(in srgb, var(--love) 12%, var(--base));
   }
 
-  :global(html.light) .external-link {
+  html.light .external-link {
     color: var(--text);
   }
 
-  :global(html.light) .external-link:hover {
+  html.light .external-link:hover {
     color: var(--love);
   }
 </style>

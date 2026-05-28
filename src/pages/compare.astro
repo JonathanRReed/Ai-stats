@@ -12,8 +12,6 @@ import Footer from "../components/Footer.astro";
 import ScrollToTop from "../components/ScrollToTop.astro";
 import Layout from "../components/Layout.astro";
 import {
-  VALUABLE_FREE_BENCHMARK_SLUGS,
-  EPOCH_BENCHMARK_LABELS,
   AA_BENCHMARK_ATTRIBUTION,
   getEpochBenchmarkAttribution,
   getEpochBenchmarksWithRuns,
@@ -28,13 +26,6 @@ const [baseModels, publicCatalogs, initialEpochBenchmarks, initialEpochRuns] =
     getEpochBenchmarks(),
     getEpochBenchmarkRuns(),
   ]);
-const {
-  openRouterModels,
-  huggingFaceModels,
-  liteLlmModels,
-  openRouterUsageRankings,
-  openRouterEndpointSummaries,
-} = publicCatalogs;
 const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs);
 const initialEpochModels = await getHydratedEpochModels(initialEpochRuns);
 const publicEpochSnapshot = await getPublicEpochSnapshot();
@@ -59,29 +50,10 @@ const normalizeModelKey = (value: string | null | undefined): string => {
     .trim();
 };
 
-const epochAliasesByModelVersion: Record<string, string[]> = {};
-epochModels.forEach((model) => {
-  if (!model.model_version) return;
-  const aliases = new Set<string>();
-  [model.model_version, model.model_name, model.display_name].forEach(
-    (candidate) => {
-      const normalized = normalizeModelKey(candidate);
-      if (!normalized) return;
-      aliases.add(normalized);
-      aliases.add(normalized.replace(/\s+/g, ""));
-    },
-  );
-  if (aliases.size > 0) {
-    epochAliasesByModelVersion[model.model_version] = Array.from(aliases);
-  }
-});
-
 const epochBenchmarksWithData = getEpochBenchmarksWithRuns(
   epochBenchmarks,
   epochRuns,
 );
-const preferredEpochBenchmarkSlugs = [...VALUABLE_FREE_BENCHMARK_SLUGS];
-const epochBenchmarkLabels = EPOCH_BENCHMARK_LABELS;
 const benchmarkAttributions: Record<string, any> = {
   mmlu_pro: AA_BENCHMARK_ATTRIBUTION,
   gpqa: AA_BENCHMARK_ATTRIBUTION,
@@ -101,34 +73,9 @@ epochBenchmarksWithData.forEach((benchmark) => {
     epochRuns,
   );
 });
-
-// Create a map of epoch benchmark scores keyed by normalized aliases.
-const epochScoresByModel: Record<string, Record<string, number>> = {};
-const registerEpochScore = (
-  aliasKey: string,
-  benchmarkSlug: string,
-  score: number,
-) => {
-  if (!aliasKey) return;
-  if (!epochScoresByModel[aliasKey]) {
-    epochScoresByModel[aliasKey] = {};
-  }
-  epochScoresByModel[aliasKey][benchmarkSlug] = score;
-};
-
-epochRuns.forEach((run) => {
-  if (!run.model_version || run.score === null || !run.benchmark_slug) return;
-  const normalizedVersion = normalizeModelKey(run.model_version);
-  const aliases = new Set<string>([
-    normalizedVersion,
-    normalizedVersion.replace(/\s+/g, ""),
-    ...(epochAliasesByModelVersion[run.model_version] ?? []),
-  ]);
-
-  aliases.forEach((alias) => {
-    registerEpochScore(alias, run.benchmark_slug!, run.score!);
-  });
-});
+const clientBenchmarkAttributions = Object.fromEntries(
+  Object.entries(benchmarkAttributions).filter(([key]) => !key.startsWith("epoch_")),
+);
 
 const getEpochDemoPrice = (modelName: string): { input: number; output: number } => {
   const normalized = normalizeModelKey(modelName);
@@ -213,77 +160,7 @@ const validModels = models.filter((model: any) => {
 const epochDemoModels = validModels.length > 0 ? [] : buildEpochCompareDemoModels();
 const compareModels = validModels.length > 0 ? validModels : epochDemoModels;
 
-const INITIAL_CLIENT_MODELS = Math.min(40, compareModels.length);
-const initialClientModels = compareModels.slice(0, INITIAL_CLIENT_MODELS);
-const initialClientEpochScores = epochScoresByModel;
-const initialClientEpochScoreMetrics: Record<string, string> = {};
-epochRuns.forEach((run) => {
-  if (!run.benchmark_slug || !run.score_metric) return;
-  initialClientEpochScoreMetrics[run.benchmark_slug] ??= run.score_metric;
-});
-
 const selectedModels = compareModels.slice(0, 3);
-const clientOpenRouterModels = openRouterModels.map((model) => ({
-  openrouter_id: model.openrouter_id,
-  canonical_slug: model.canonical_slug,
-  model_slug: model.model_slug,
-  name: model.name,
-  context_length: model.context_length,
-  prompt_price_1m: model.prompt_price_1m,
-  completion_price_1m: model.completion_price_1m,
-  supported_parameters: model.supported_parameters,
-  input_modalities: model.input_modalities,
-  output_modalities: model.output_modalities,
-  is_free: model.is_free,
-}));
-const clientHuggingFaceModels = huggingFaceModels.map((model) => ({
-  model_id: model.model_id,
-  author: model.author,
-  downloads: model.downloads,
-  likes: model.likes,
-  pipeline_tag: model.pipeline_tag,
-  library_name: model.library_name,
-  last_modified: model.last_modified,
-  tags: model.tags,
-}));
-const clientLiteLlmModels = liteLlmModels.map((model) => ({
-  model_id: model.model_id,
-  provider: model.provider,
-  mode: model.mode,
-  max_input_tokens: model.max_input_tokens,
-  max_output_tokens: model.max_output_tokens,
-  input_price_1m: model.input_price_1m,
-  output_price_1m: model.output_price_1m,
-  supports_vision: model.supports_vision,
-  supports_function_calling: model.supports_function_calling,
-  supports_reasoning: model.supports_reasoning,
-  supports_prompt_caching: model.supports_prompt_caching,
-  supports_system_messages: model.supports_system_messages,
-  supports_web_search: model.supports_web_search,
-}));
-const clientOpenRouterUsageRankings = openRouterUsageRankings.map((ranking) => ({
-  model_permaslug: ranking.model_permaslug,
-  variant_permaslug: ranking.variant_permaslug,
-  provider: ranking.provider,
-  variant: ranking.variant,
-  rank: ranking.rank,
-  total_tokens: ranking.total_tokens,
-  request_count: ranking.request_count,
-  tool_calls: ranking.tool_calls,
-  tool_call_errors: ranking.tool_call_errors,
-  usage_share: ranking.usage_share,
-  change: ranking.change,
-  date: ranking.date,
-}));
-const clientOpenRouterEndpointSummaries = openRouterEndpointSummaries.map((summary) => ({
-  openrouter_id: summary.openrouter_id,
-  provider_count: summary.provider_count,
-  providers: summary.providers,
-  quantizations: summary.quantizations,
-  max_context_length: summary.max_context_length,
-  min_prompt_price_1m: summary.min_prompt_price_1m,
-  min_completion_price_1m: summary.min_completion_price_1m,
-}));
 
 const formatContextLength = (value: number | null | undefined): string => {
   const num = Number(value);
@@ -365,7 +242,7 @@ epochBenchmarksWithData.forEach((b) => {
   title="Compare AI Models - Pricing & Performance | AI Stats"
   description="Compare AI model pricing, benchmarks, and specifications side by side with filters for MMLU Pro, GPQA, coding, speed, and context length."
 >
-  <style>
+  <style is:global>
     .bar-stack-duo {
       height: 170px;
       width: 100%;
@@ -1819,7 +1696,7 @@ epochBenchmarksWithData.forEach((b) => {
       text-transform: uppercase;
     }
 
-    :global(.benchmark-picker-group) {
+    .benchmark-picker-group {
       margin: 0.35rem 0 0.15rem;
       color: var(--muted);
       font-family: var(--font-mono);
@@ -1829,7 +1706,7 @@ epochBenchmarksWithData.forEach((b) => {
       text-transform: uppercase;
     }
 
-    :global(.benchmark-picker-option) {
+    .benchmark-picker-option {
       min-height: 38px;
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
@@ -1848,34 +1725,34 @@ epochBenchmarksWithData.forEach((b) => {
       text-transform: uppercase;
     }
 
-    :global(.benchmark-picker-option span:first-child) {
+    .benchmark-picker-option span:first-child {
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    :global(.benchmark-picker-option:hover),
-    :global(.benchmark-picker-option:focus-visible) {
+    .benchmark-picker-option:hover,
+    .benchmark-picker-option:focus-visible {
       border-color: var(--border-color);
       background: var(--highlight-low);
       color: var(--text);
       outline: none;
     }
 
-    :global(.benchmark-picker-option[aria-selected="true"]) {
+    .benchmark-picker-option[aria-selected="true"] {
       border-color: color-mix(in srgb, var(--love) 55%, var(--border-color));
       background: color-mix(in srgb, var(--love) 16%, var(--highlight-low));
       color: var(--text);
     }
 
-    :global(.benchmark-picker-source) {
+    .benchmark-picker-source {
       color: var(--muted);
       font-size: 0.56rem;
       letter-spacing: 0.06em;
     }
 
-    :global(.benchmark-picker-empty) {
+    .benchmark-picker-empty {
       color: var(--muted);
       font-family: var(--font-mono);
       font-size: 0.7rem;
@@ -1998,7 +1875,7 @@ epochBenchmarksWithData.forEach((b) => {
       }
     }
 
-    :global(body.compare-filters-open) {
+    body.compare-filters-open {
       overflow: hidden;
     }
 
@@ -2376,33 +2253,33 @@ epochBenchmarksWithData.forEach((b) => {
       }
     }
 
-    :global(.compare-container .catalog-table table) {
+    .compare-container .catalog-table table {
       font-size: 10px !important;
     }
 
-    :global(.compare-container .catalog-table th) {
+    .compare-container .catalog-table th {
       font-size: 9px !important;
       line-height: 1.15 !important;
       padding: 6px 8px !important;
     }
 
-    :global(.compare-container .catalog-table td) {
+    .compare-container .catalog-table td {
       font-size: 10px !important;
       line-height: 1.2 !important;
       padding: 6px 8px !important;
     }
 
-    :global(.compare-container .insights-grid) {
+    .compare-container .insights-grid {
       gap: 8px !important;
       grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)) !important;
     }
 
-    :global(.compare-container .insight-card) {
+    .compare-container .insight-card {
       min-height: 64px !important;
       padding: 8px 10px !important;
     }
 
-    :global(.compare-container .insight-card h3) {
+    .compare-container .insight-card h3 {
       color: var(--muted) !important;
       font-family: var(--font-mono) !important;
       font-size: 10px !important;
@@ -2412,7 +2289,7 @@ epochBenchmarksWithData.forEach((b) => {
       text-transform: uppercase !important;
     }
 
-    :global(.compare-container .insight-card p) {
+    .compare-container .insight-card p {
       display: -webkit-box !important;
       -webkit-box-orient: vertical !important;
       -webkit-line-clamp: 2 !important;
@@ -2425,7 +2302,7 @@ epochBenchmarksWithData.forEach((b) => {
       overflow-wrap: anywhere !important;
     }
 
-    :global(.compare-container .insight-card span) {
+    .compare-container .insight-card span {
       color: var(--muted) !important;
       display: block !important;
       font-size: 9px !important;
@@ -2680,27 +2557,53 @@ epochBenchmarksWithData.forEach((b) => {
 </div>
 <ScrollToTop />
 
-<script is:inline define:vars={{ epochBenchmarkLabels, benchmarkAttributions }}>
-  window.__epochBenchmarkLabels = epochBenchmarkLabels;
+<script is:inline define:vars={{ benchmarkAttributions: clientBenchmarkAttributions }}>
+  window.__epochBenchmarkLabels = {};
   window.__benchmarkAttributions = benchmarkAttributions;
 </script>
 
-<script
-  is:inline
-  define:vars={{
-    validModels: initialClientModels,
-    epochDemoModels,
-    epochScoresByModel: initialClientEpochScores,
-    availableBenchmarks,
-    openRouterModels: clientOpenRouterModels,
-    huggingFaceModels: clientHuggingFaceModels,
-    liteLlmModels: clientLiteLlmModels,
-    openRouterUsageRankings: clientOpenRouterUsageRankings,
-    openRouterEndpointSummaries: clientOpenRouterEndpointSummaries,
-    preferredBenchmarkSlugs: preferredEpochBenchmarkSlugs,
-    initialClientEpochScoreMetrics,
-  }}
->
+<script>
+  // @ts-nocheck
+  let validModels = [];
+  let epochDemoModels = [];
+  let epochScoresByModel = {};
+  let availableBenchmarks = {};
+  let preferredBenchmarkSlugs = [];
+  let initialClientEpochScoreMetrics = {};
+  let compareInitialDataPromise = null;
+
+  const loadCompareInitialData = () => {
+    if (compareInitialDataPromise) return compareInitialDataPromise;
+
+    compareInitialDataPromise = fetch("/api/compare-initial.json", {
+      cache: "force-cache",
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Compare initial data request failed with ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        validModels = Array.isArray(data.validModels) ? data.validModels : [];
+        epochDemoModels = Array.isArray(data.epochDemoModels)
+          ? data.epochDemoModels
+          : [];
+        epochScoresByModel = data.epochScoresByModel || {};
+        availableBenchmarks = data.availableBenchmarks || {};
+        preferredBenchmarkSlugs = Array.isArray(data.preferredBenchmarkSlugs)
+          ? data.preferredBenchmarkSlugs
+          : [];
+        initialClientEpochScoreMetrics =
+          data.initialClientEpochScoreMetrics || {};
+      })
+      .catch((error) => {
+        console.warn("Failed to load compare initial data", error);
+      });
+
+    return compareInitialDataPromise;
+  };
+
   // Security: HTML sanitization function to prevent XSS attacks
   function sanitizeHTML(str) {
     const div = document.createElement("div");
@@ -2721,6 +2624,40 @@ epochBenchmarksWithData.forEach((b) => {
         console.warn("Cleanup failed", error);
       }
     }
+  };
+
+  const PUBLIC_CATALOG_DATA_URL = "/api/public-catalogs.json";
+  let openRouterModels = [];
+  let huggingFaceModels = [];
+  let liteLlmModels = [];
+  let openRouterUsageRankings = [];
+  let openRouterEndpointSummaries = [];
+  let publicCatalogLoadPromise = null;
+
+  const loadPublicCatalogData = () => {
+    if (publicCatalogLoadPromise) return publicCatalogLoadPromise;
+
+    publicCatalogLoadPromise = fetch(PUBLIC_CATALOG_DATA_URL, {
+      cache: "force-cache",
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Public catalog request failed with ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((catalogs) => {
+        openRouterModels = catalogs.openRouterModels || [];
+        huggingFaceModels = catalogs.huggingFaceModels || [];
+        liteLlmModels = catalogs.liteLlmModels || [];
+        openRouterUsageRankings = catalogs.openRouterUsageRankings || [];
+        openRouterEndpointSummaries = catalogs.openRouterEndpointSummaries || [];
+      })
+      .catch((error) => {
+        console.warn("Failed to load public catalog data", error);
+      });
+
+    return publicCatalogLoadPromise;
   };
 
   const destroyChartForCanvas = (canvas) => {
@@ -3111,7 +3048,14 @@ epochBenchmarksWithData.forEach((b) => {
 
     const renderBenchmarkAttribution = (metricKey) => {
       if (!benchmarkAttributionEl) return;
-      const attribution = metricAttributions[metricKey];
+      const attribution =
+        metricAttributions[metricKey] ||
+        (metricKey?.startsWith("epoch_")
+          ? {
+              sourceName: "Epoch AI Benchmarking Hub",
+              sourceUrl: "https://epoch.ai/benchmarks",
+            }
+          : null);
       if (!attribution) {
         benchmarkAttributionEl.textContent = "";
         return;
@@ -4220,23 +4164,32 @@ epochBenchmarksWithData.forEach((b) => {
     });
 
     // Sort toggle functionality
-    sortToggle?.addEventListener("click", () => {
-      if (sortToggle) {
-        const currentOrder = sortToggle.getAttribute("data-order");
-        const newOrder = currentOrder === "desc" ? "asc" : "desc";
-        sortToggle.setAttribute("data-order", newOrder);
-        const textEl = sortToggle.querySelector(".sort-text");
-        if (textEl) {
-          textEl.textContent =
-            newOrder === "desc" ? "High to Low" : "Low to High";
-        }
-        renderCharts(); // Only re-render charts, not model list
+    const handleSortToggleClick = (event) => {
+      event.preventDefault();
+      const currentSortToggle =
+        event.currentTarget instanceof HTMLElement
+          ? event.currentTarget
+          : document.getElementById("sort-toggle");
+      if (!currentSortToggle) return;
+      const currentOrder = currentSortToggle.getAttribute("data-order");
+      const newOrder = currentOrder === "desc" ? "asc" : "desc";
+      currentSortToggle.setAttribute("data-order", newOrder);
+      const textEl = currentSortToggle.querySelector(".sort-text");
+      if (textEl) {
+        textEl.textContent =
+          newOrder === "desc" ? "High to Low" : "Low to High";
       }
-    });
+      renderCharts();
+    };
+    sortToggle?.addEventListener("click", handleSortToggleClick);
+    registerCleanup(() =>
+      sortToggle?.removeEventListener("click", handleSortToggleClick),
+    );
 
-    window.addEventListener("aistats:live-snapshot", (event) => {
+    window.addEventListener("aistats:live-snapshot", async (event) => {
       const snapshot = event.detail;
       if (!snapshot) return;
+      await loadPublicCatalogData();
 
       const nextModels = enrichWithPublicCatalog((snapshot.aaModels ?? []).filter((model) => {
         const inputPrice = Number(model.price_1m_input_tokens);
@@ -4367,22 +4320,32 @@ epochBenchmarksWithData.forEach((b) => {
     registerCleanup(() => window.removeEventListener("resize", handleResize));
   }
 
+  let initializeSequence = 0;
+
   // Initialize on both initial load and after view transitions
-  function initialize() {
+  async function initialize() {
+    const currentSequence = ++initializeSequence;
     runCleanup();
-    initCompare();
+    await loadCompareInitialData();
+    if (currentSequence !== initializeSequence) return;
+    await initCompare();
+    if (currentSequence !== initializeSequence) return;
     initAutoFit();
   }
 
   // Handle initial page load
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initialize);
+    document.addEventListener("DOMContentLoaded", () => {
+      void initialize();
+    });
   } else {
-    initialize();
+    void initialize();
   }
 
   // Handle Astro View Transitions - re-initialize after navigation
-  document.addEventListener("astro:page-load", initialize);
+  document.addEventListener("astro:page-load", () => {
+    void initialize();
+  });
 </script>
 <script>
   import { fetchLiveSnapshot } from "../lib/live-data";
