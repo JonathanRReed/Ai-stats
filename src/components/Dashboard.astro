@@ -13,7 +13,6 @@ import ScrollToTop from "./ScrollToTop.astro";
 import { formatScore, formatPrice } from "../lib/format-utils";
 import {
   VALUABLE_FREE_BENCHMARK_SLUGS,
-  EPOCH_BENCHMARK_LABELS,
   AA_BENCHMARK_ATTRIBUTION,
   getEpochBenchmarkAttribution,
   getEpochBenchmarksWithRuns,
@@ -84,6 +83,9 @@ epochBenchmarksWithRuns.forEach((benchmark) => {
     epochRuns,
   );
 });
+const clientBenchmarkAttributions = Object.fromEntries(
+  Object.entries(benchmarkAttributions).filter(([key]) => !key.startsWith("epoch_")),
+);
 
 const AA_TOP_AVERAGE_KEYS = [
   "mmlu_pro",
@@ -379,69 +381,6 @@ const openRouterRankOptions = [
   { key: "output_price", label: "Lowest output price" },
 ] as const;
 
-const clientOpenRouterModels = openRouterModels.map((model) => ({
-  openrouter_id: model.openrouter_id,
-  canonical_slug: model.canonical_slug,
-  author_slug: model.author_slug,
-  model_slug: model.model_slug,
-  name: model.name,
-  context_length: model.context_length,
-  prompt_price_1m: model.prompt_price_1m,
-  completion_price_1m: model.completion_price_1m,
-  supported_parameters: model.supported_parameters,
-  input_modalities: model.input_modalities,
-  output_modalities: model.output_modalities,
-  is_free: model.is_free,
-}));
-const clientHuggingFaceModels = huggingFaceModels.map((model) => ({
-  model_id: model.model_id,
-  author: model.author,
-  downloads: model.downloads,
-  likes: model.likes,
-  pipeline_tag: model.pipeline_tag,
-  library_name: model.library_name,
-  last_modified: model.last_modified,
-  tags: model.tags,
-}));
-const clientLiteLlmModels = liteLlmModels.map((model) => ({
-  model_id: model.model_id,
-  provider: model.provider,
-  mode: model.mode,
-  max_input_tokens: model.max_input_tokens,
-  max_output_tokens: model.max_output_tokens,
-  input_price_1m: model.input_price_1m,
-  output_price_1m: model.output_price_1m,
-  supports_vision: model.supports_vision,
-  supports_function_calling: model.supports_function_calling,
-  supports_reasoning: model.supports_reasoning,
-  supports_prompt_caching: model.supports_prompt_caching,
-  supports_system_messages: model.supports_system_messages,
-  supports_web_search: model.supports_web_search,
-}));
-const clientOpenRouterUsageRankings = openRouterUsageRankings.map((ranking) => ({
-  model_permaslug: ranking.model_permaslug,
-  variant_permaslug: ranking.variant_permaslug,
-  provider: ranking.provider,
-  variant: ranking.variant,
-  rank: ranking.rank,
-  total_tokens: ranking.total_tokens,
-  request_count: ranking.request_count,
-  tool_calls: ranking.tool_calls,
-  tool_call_errors: ranking.tool_call_errors,
-  usage_share: ranking.usage_share,
-  change: ranking.change,
-  date: ranking.date,
-}));
-const clientOpenRouterEndpointSummaries = openRouterEndpointSummaries.map((summary) => ({
-  openrouter_id: summary.openrouter_id,
-  provider_count: summary.provider_count,
-  providers: summary.providers,
-  quantizations: summary.quantizations,
-  max_context_length: summary.max_context_length,
-  min_prompt_price_1m: summary.min_prompt_price_1m,
-  min_completion_price_1m: summary.min_completion_price_1m,
-}));
-
 const formatContextLength = (value: number | null | undefined): string => {
   const num = Number(value);
   if (!Number.isFinite(num) || num <= 0) return "-";
@@ -601,7 +540,7 @@ function getScoreClass(score: number | null | undefined): string {
             </div>
           </header>
           <div class="openrouter-grid">
-            <div class="openrouter-stats" aria-label="Public catalog totals">
+            <section class="openrouter-stats" aria-label="Public catalog totals">
               <dl>
                 <div>
                   <dt>OR models</dt>
@@ -646,8 +585,8 @@ function getScoreClass(score: number | null | undefined): string {
                 route pricing, endpoint coverage, and capability checks. Benchmark
                 scores remain AA and Epoch.
               </p>
-            </div>
-            <div class="openrouter-table" aria-label="Public catalog provider leaderboard">
+            </section>
+            <section class="openrouter-table" aria-label="Public catalog provider leaderboard">
               <div class="openrouter-table-meta">
                 <span id="openrouter-board-title">Provider coverage</span>
                 <small id="openrouter-board-note">OpenRouter route catalog ranking</small>
@@ -679,8 +618,8 @@ function getScoreClass(score: number | null | undefined): string {
                   </li>
                 ))}
               </ul>
-            </div>
-            <div class="openrouter-long-context">
+            </section>
+            <aside class="openrouter-long-context">
               <span class="console-label">Useful catalog signals</span>
               <strong>{topHuggingFaceMatch?.name ?? topLiteLlmContextMatch?.name ?? "-"}</strong>
               <span>
@@ -693,7 +632,7 @@ function getScoreClass(score: number | null | undefined): string {
                   ? `Top OpenRouter usage match: ${topOpenRouterUsageModel?.name ?? "-"}, ${topOpenRouterUsageModel ? formatCompactNumber(topOpenRouterUsageModel.openrouter_usage_tokens) : "-"} tokens`
                   : `${openRouterToolModels.length} OpenRouter tool-ready routes, ${openRouterVisionModels.length} vision routes, ${openRouterEndpointSummaries.length} endpoint checks`}
               </small>
-            </div>
+            </aside>
           </div>
         </section>
       ) : null
@@ -701,7 +640,7 @@ function getScoreClass(score: number | null | undefined): string {
 
     <!-- Leaderboard -->
     <section id="leaderboard" aria-label="Leaderboard" class="space-y-4 fade-in-section scroll-mt-28">
-      <div class="brutalist-card">
+      <article class="brutalist-card">
         <header
           class="relative z-20 flex flex-col gap-3 border-b border-highlight-low/80 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6"
         >
@@ -794,7 +733,7 @@ function getScoreClass(score: number | null | undefined): string {
           id="leaderboard-panels"
         >
           {
-            benchmarkConfigs.map(({ key, source }) => {
+            benchmarkConfigs.filter(({ key }) => key === "mmlu_pro").map(({ key, source }) => {
               const list = topByBenchmark[key] ?? [];
               if (!list.length) return null;
               const isEpoch = source === "epoch";
@@ -815,68 +754,66 @@ function getScoreClass(score: number | null | undefined): string {
                       const barWidth =
                         maxScore > 0 ? (score / maxScore) * 100 : 0;
                       const rankColors = [
-                        "bg-[rgba(230,25,25,0.18)] border-l-[var(--love)]",
-                        "bg-highlight-low border-l-highlight-high",
-                        "bg-highlight-low border-l-highlight-med",
-                        "bg-transparent border-l-highlight-med",
-                        "bg-transparent border-l-highlight-med",
+                        "lbb1",
+                        "lbb2",
+                        "lbb3",
+                        "lbbx",
+                        "lbbx",
                       ];
 
                       return (
-                        <li class="relative overflow-hidden transition-colors hover:bg-highlight-low/40">
+                        <li class="lbi">
                           <button
                             type="button"
-                            class="leaderboard-row relative block w-full overflow-hidden text-left"
-                            data-leaderboard-row
-                            data-model-json={isEpoch ? undefined : JSON.stringify(model)}
-                            data-compare-url={isEpoch ? `/compare?metric=${key}&model=${encodeURIComponent(model.name ?? "")}` : undefined}
+                            class="lr"
+                            data-lr
+                            data-model-id={isEpoch ? undefined : model.id}
                           >
                             {/* Background bar */}
                             <div
-                              class={`pointer-events-none absolute inset-y-0 left-0 ${rankColors[index]} border-l-4`}
-                              style={`width: ${barWidth}%`}
+                              class={`lbb ${rankColors[index]}`}
+                              style={`--w:${barWidth}%`}
                             />
 
-                            <div class="relative grid grid-cols-[2.5rem_1fr_auto] items-center gap-4 px-4 py-3.5">
+                            <div class="lbr">
                               {/* Rank */}
-                              <div class="flex items-center justify-center">
+                              <div class="lrw">
                                 {index === 0 ? (
-                                  <div class="flex h-8 w-8 items-center justify-center border border-love bg-love text-sm font-bold text-white">
+                                  <div class="lrn lrn1">
                                     1
                                   </div>
                                 ) : index === 1 ? (
-                                  <div class="flex h-8 w-8 items-center justify-center border border-highlight-high bg-highlight-low text-sm font-bold text-text">
+                                  <div class="lrn lrn2">
                                     2
                                   </div>
                                 ) : index === 2 ? (
-                                  <div class="flex h-8 w-8 items-center justify-center border border-highlight-med bg-overlay text-sm font-bold text-text">
+                                  <div class="lrn lrn3">
                                     3
                                   </div>
                                 ) : (
-                                  <div class="flex h-7 w-7 items-center justify-center border border-highlight-med bg-highlight-low text-xs font-semibold text-subtle">
+                                  <div class="lrn lrnx">
                                     {index + 1}
                                   </div>
                                 )}
                               </div>
 
                               {/* Model info */}
-                              <div class="min-w-0">
-                                <div class="flex items-center gap-2">
+                              <div class="lbm">
+                                <div class="lbml">
                                   <span
-                                    class={`truncate font-semibold ${index === 0 ? "text-text" : "text-text/90"}`}
-                                    title={model.name}
+                                    class={`lbn ${index === 0 ? "lbnt" : "lbnx"}`}
                                   >
                                     {model.name}
                                   </span>
                                 </div>
-                                <div class="mt-0.5 text-[0.7rem] text-subtle">
+                                <div class="lbc">
                                   {model.company_name ?? "Unknown provider"}
                                 </div>
                               </div>
 
                               {/* Score */}
                               <div
-                                class={`text-right font-mono text-lg font-bold ${index === 0 ? "score-high" : index < 3 ? "text-text" : "text-subtle"}`}
+                                class={`lbs ${index === 0 ? "score-high" : index < 3 ? "lbsp" : "lbsx"}`}
                               >
                                 {isEpoch
                                   ? `${(score * 100).toFixed(1)}%`
@@ -893,7 +830,7 @@ function getScoreClass(score: number | null | undefined): string {
             })
           }
         </div>
-      </div>
+      </article>
     </section>
 
     <!-- All models -->
@@ -1066,7 +1003,7 @@ function getScoreClass(score: number | null | undefined): string {
                 <tr
                   class="cursor-pointer transition-colors hover:bg-highlight-low/50"
                   data-table-row
-                  data-model-json={JSON.stringify(model)}
+                  data-model-id={model.id}
                   data-name={(model.name ?? "").toLowerCase()}
                   data-company={(model.company_name ?? "").toLowerCase()}
                   data-mmlu={Number(model.mmlu_pro) || 0}
@@ -1122,7 +1059,7 @@ function getScoreClass(score: number | null | undefined): string {
   <ScrollToTop />
 </div>
 
-<style>
+<style is:global>
   .site-shell {
     position: relative;
     width: 100%;
@@ -1783,7 +1720,7 @@ function getScoreClass(score: number | null | undefined): string {
     text-transform: uppercase;
   }
 
-  :global(.benchmark-picker-group) {
+  .benchmark-picker-group {
     margin: 0.35rem 0 0.15rem;
     color: var(--muted);
     font-family: var(--font-mono);
@@ -1793,7 +1730,7 @@ function getScoreClass(score: number | null | undefined): string {
     text-transform: uppercase;
   }
 
-  :global(.benchmark-picker-option) {
+  .benchmark-picker-option {
     min-height: 38px;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -1812,34 +1749,34 @@ function getScoreClass(score: number | null | undefined): string {
     text-transform: uppercase;
   }
 
-  :global(.benchmark-picker-option span:first-child) {
+  .benchmark-picker-option span:first-child {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  :global(.benchmark-picker-option:hover),
-  :global(.benchmark-picker-option:focus-visible) {
+  .benchmark-picker-option:hover,
+  .benchmark-picker-option:focus-visible {
     border-color: var(--border-color);
     background: var(--highlight-low);
     color: var(--text);
     outline: none;
   }
 
-  :global(.benchmark-picker-option[aria-selected="true"]) {
+  .benchmark-picker-option[aria-selected="true"] {
     border-color: color-mix(in srgb, var(--love) 55%, var(--border-color));
     background: color-mix(in srgb, var(--love) 16%, var(--highlight-low));
     color: var(--text);
   }
 
-  :global(.benchmark-picker-source) {
+  .benchmark-picker-source {
     color: var(--muted);
     font-size: 0.56rem;
     letter-spacing: 0.06em;
   }
 
-  :global(.benchmark-picker-empty) {
+  .benchmark-picker-empty {
     color: var(--muted);
     font-family: var(--font-mono);
     font-size: 0.7rem;
@@ -1857,15 +1794,15 @@ function getScoreClass(score: number | null | undefined): string {
     min-width: 10.5rem;
   }
 
-  :global(#openrouter-provider-board > li) {
+  #openrouter-provider-board > li {
     border-bottom: 1px solid var(--highlight-low);
   }
 
-  :global(#openrouter-provider-board > li:last-child) {
+  #openrouter-provider-board > li:last-child {
     border-bottom: 0;
   }
 
-  :global(.openrouter-provider-row) {
+  .openrouter-provider-row {
     display: grid;
     grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr) minmax(3.8rem, 0.45fr) minmax(3.6rem, 0.38fr) minmax(4.8rem, 0.44fr);
     align-items: center;
@@ -1884,31 +1821,31 @@ function getScoreClass(score: number | null | undefined): string {
       color 0.18s ease;
   }
 
-  :global(.openrouter-provider-row:hover),
-  :global(.openrouter-provider-row:focus-visible) {
+  .openrouter-provider-row:hover,
+  .openrouter-provider-row:focus-visible {
     background: var(--highlight-low);
     color: var(--text);
   }
 
-  :global(.openrouter-provider-row:focus-visible) {
+  .openrouter-provider-row:focus-visible {
     outline: 2px solid var(--focus-ring);
     outline-offset: -2px;
   }
 
-  :global(.openrouter-model),
-  :global(.openrouter-leader) {
+  .openrouter-model,
+  .openrouter-leader {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  :global(.openrouter-model) {
+  .openrouter-model {
     color: var(--text);
     font-weight: 800;
   }
 
-  :global(.openrouter-score) {
+  .openrouter-score {
     color: var(--foam);
     font-family: var(--font-mono);
     font-weight: 900;
@@ -1939,18 +1876,161 @@ function getScoreClass(score: number | null | undefined): string {
     box-shadow: 0 0 0 2px rgba(230, 25, 25, 0.25);
   }
 
-  .leaderboard-row {
+  .lr {
     appearance: none;
     border: 0;
     background: transparent;
     color: inherit;
     cursor: pointer;
     font: inherit;
+    position: relative;
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    text-align: left;
   }
 
-  .leaderboard-row:focus-visible {
+  .lr:focus-visible {
     outline: none;
     box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--love) 58%, transparent);
+  }
+
+  .lbi {
+    position: relative;
+    overflow: hidden;
+    transition: background-color 0.18s ease;
+  }
+
+  .lbi:hover {
+    background: var(--highlight-low);
+  }
+
+  .lbb {
+    pointer-events: none;
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: var(--w);
+    border-left: 4px solid var(--highlight-med);
+  }
+
+  .lbb1 {
+    border-left-color: var(--love);
+    background: rgba(230, 25, 25, 0.18);
+  }
+
+  .lbb2 {
+    border-left-color: var(--highlight-high);
+    background: var(--highlight-low);
+  }
+
+  .lbb3,
+  .lbbx {
+    border-left-color: var(--highlight-med);
+  }
+
+  .lbb3 {
+    background: var(--highlight-low);
+  }
+
+  .lbbx {
+    background: transparent;
+  }
+
+  .lbr {
+    position: relative;
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.875rem 1rem;
+  }
+
+  .lrw,
+  .lrn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .lrn {
+    border: 1px solid var(--highlight-med);
+    background: var(--highlight-low);
+    color: var(--subtle);
+    font-weight: 700;
+  }
+
+  .lrn1,
+  .lrn2,
+  .lrn3 {
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.875rem;
+  }
+
+  .lrn1 {
+    border-color: var(--love);
+    background: var(--love);
+    color: #ffffff;
+  }
+
+  .lrn2 {
+    border-color: var(--highlight-high);
+    color: var(--text);
+  }
+
+  .lrn3 {
+    background: var(--overlay);
+    color: var(--text);
+  }
+
+  .lrnx {
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .lbm {
+    min-width: 0;
+  }
+
+  .lbml {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .lbn {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+
+  .lbnt,
+  .lbsp {
+    color: var(--text);
+  }
+
+  .lbnx {
+    color: color-mix(in srgb, var(--text) 90%, transparent);
+  }
+
+  .lbc {
+    margin-top: 0.125rem;
+    color: var(--subtle);
+    font-size: 0.7rem;
+  }
+
+  .lbs {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 1.125rem;
+    font-weight: 700;
+  }
+
+  .lbsx {
+    color: var(--subtle);
   }
 
   .view-toggle {
@@ -2051,7 +2131,7 @@ function getScoreClass(score: number | null | undefined): string {
       min-width: 38rem;
     }
 
-    :global(.openrouter-provider-row) {
+    .openrouter-provider-row {
       min-width: 38rem;
     }
 
@@ -2061,14 +2141,16 @@ function getScoreClass(score: number | null | undefined): string {
   }
 </style>
 
-<script is:inline define:vars={{ clientOpenRouterModels, clientHuggingFaceModels, clientLiteLlmModels, clientOpenRouterUsageRankings, clientOpenRouterEndpointSummaries, preferredEpochBenchmarkSlugs, epochBenchmarkLabels: EPOCH_BENCHMARK_LABELS, benchmarkAttributions }}>
-  window.__aistatsOpenRouterModels = clientOpenRouterModels;
-  window.__aistatsHuggingFaceModels = clientHuggingFaceModels;
-  window.__aistatsLiteLlmModels = clientLiteLlmModels;
-  window.__aistatsOpenRouterUsageRankings = clientOpenRouterUsageRankings;
-  window.__aistatsOpenRouterEndpointSummaries = clientOpenRouterEndpointSummaries;
+<script is:inline define:vars={{ preferredEpochBenchmarkSlugs, benchmarkAttributions: clientBenchmarkAttributions }}>
+  window.__aistatsCatalogDataUrl = "/api/public-catalogs.json";
+  window.__aistatsOpenRouterModels = [];
+  window.__aistatsHuggingFaceModels = [];
+  window.__aistatsLiteLlmModels = [];
+  window.__aistatsOpenRouterUsageRankings = [];
+  window.__aistatsOpenRouterEndpointSummaries = [];
+  window.__aistatsPublicCatalogLoaded = false;
   window.__preferredEpochBenchmarkSlugs = preferredEpochBenchmarkSlugs;
-  window.__epochBenchmarkLabels = epochBenchmarkLabels;
+  window.__epochBenchmarkLabels = {};
   window.__benchmarkAttributions = benchmarkAttributions;
 </script>
 
@@ -2187,6 +2269,38 @@ function getScoreClass(score: number | null | undefined): string {
     let currentView = "cards";
     let focusedCardIndex = -1;
     let benchmarkPickerOptions = [];
+    let publicCatalogLoadPromise = null;
+
+    const loadPublicCatalogData = () => {
+      if (window.__aistatsPublicCatalogLoaded) return Promise.resolve();
+      if (publicCatalogLoadPromise) return publicCatalogLoadPromise;
+
+      const url = window.__aistatsCatalogDataUrl;
+      if (!url) return Promise.resolve();
+
+      publicCatalogLoadPromise = fetch(url, { cache: "force-cache" })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`Public catalog request failed with ${response.status}`);
+          }
+          return response.json();
+        })
+        .then((catalogs) => {
+          window.__aistatsOpenRouterModels = catalogs.openRouterModels || [];
+          window.__aistatsHuggingFaceModels = catalogs.huggingFaceModels || [];
+          window.__aistatsLiteLlmModels = catalogs.liteLlmModels || [];
+          window.__aistatsOpenRouterUsageRankings =
+            catalogs.openRouterUsageRankings || [];
+          window.__aistatsOpenRouterEndpointSummaries =
+            catalogs.openRouterEndpointSummaries || [];
+          window.__aistatsPublicCatalogLoaded = true;
+        })
+        .catch((error) => {
+          console.warn("Failed to load public catalog data", error);
+        });
+
+      return publicCatalogLoadPromise;
+    };
 
     const updateLeaderboardCompareLink = () => {
       if (!leaderboardCompareLink || !metricSelect) return;
@@ -2350,7 +2464,14 @@ function getScoreClass(score: number | null | undefined): string {
 
     const METRIC_ATTRIBUTIONS = window.__benchmarkAttributions || {};
     const renderAttributionText = (metricKey) => {
-      const attribution = METRIC_ATTRIBUTIONS[metricKey];
+      const attribution =
+        METRIC_ATTRIBUTIONS[metricKey] ||
+        (metricKey?.startsWith("epoch_")
+          ? {
+              sourceName: "Epoch AI Benchmarking Hub",
+              sourceUrl: "https://epoch.ai/benchmarks",
+            }
+          : null);
       if (!leaderboardAttribution || !attribution) return;
 
       const sourceName = escapeHtml(attribution.sourceName || "Source");
@@ -2418,6 +2539,89 @@ function getScoreClass(score: number | null | undefined): string {
         notation: "compact",
         maximumFractionDigits: 1,
       }).format(num);
+    };
+
+    const toDrawerModel = (model) => ({
+      id: model.id,
+      name: model.name,
+      slug: model.slug,
+      company_name: model.company_name,
+      creator_slug: model.creator_slug,
+      price_1m_input_tokens: model.price_1m_input_tokens,
+      price_1m_output_tokens: model.price_1m_output_tokens,
+      price_1m_blended_3_to_1: model.price_1m_blended_3_to_1,
+      median_output_tokens_per_second: model.median_output_tokens_per_second,
+      median_time_to_first_token_seconds: model.median_time_to_first_token_seconds,
+      median_time_to_first_answer_token: model.median_time_to_first_answer_token,
+      mmlu_pro: model.mmlu_pro,
+      gpqa: model.gpqa,
+      hle: model.hle,
+      aime: model.aime,
+      livecodebench: model.livecodebench,
+      scicode: model.scicode,
+      math_500: model.math_500,
+      aa_intelligence_index: model.aa_intelligence_index,
+      aa_coding_index: model.aa_coding_index,
+      aa_math_index: model.aa_math_index,
+      context_window: model.context_window,
+      max_output_tokens: model.max_output_tokens,
+      first_seen: model.first_seen,
+      last_seen: model.last_seen,
+      openrouter_id: model.openrouter_id,
+      openrouter_name: model.openrouter_name,
+      openrouter_context_length: model.openrouter_context_length,
+      openrouter_prompt_price_1m: model.openrouter_prompt_price_1m,
+      openrouter_completion_price_1m: model.openrouter_completion_price_1m,
+      openrouter_supported_parameters: model.openrouter_supported_parameters,
+      openrouter_input_modalities: model.openrouter_input_modalities,
+      openrouter_output_modalities: model.openrouter_output_modalities,
+      openrouter_is_free: model.openrouter_is_free,
+    });
+    const drawerModelCache = new Map();
+    let drawerModelIndexPromise = null;
+    const registerDrawerModels = (models) => {
+      (models || []).forEach((model) => {
+        if (!model?.id) return;
+        drawerModelCache.set(String(model.id), toDrawerModel(model));
+      });
+    };
+    const loadDrawerModelIndex = () => {
+      if (drawerModelIndexPromise) return drawerModelIndexPromise;
+      drawerModelIndexPromise = fetch("/api/models.json", { cache: "force-cache" })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`Model detail request failed with ${response.status}`);
+          }
+          return response.json();
+        })
+        .then((models) => {
+          registerDrawerModels(Array.isArray(models) ? models : []);
+          return drawerModelCache;
+        })
+        .catch((error) => {
+          console.warn("Failed to load model detail payload", error);
+          return drawerModelCache;
+        });
+      return drawerModelIndexPromise;
+    };
+    const resolveDrawerModel = async (element) => {
+      const modelJson = element?.dataset?.modelJson;
+      if (modelJson) {
+        try {
+          const model = JSON.parse(modelJson);
+          if (model?.id) drawerModelCache.set(String(model.id), model);
+          return model;
+        } catch (error) {
+          console.warn("Failed to parse model payload", error);
+        }
+      }
+
+      const id = element?.dataset?.modelId;
+      if (!id) return null;
+      const cached = drawerModelCache.get(String(id));
+      if (cached) return cached;
+      await loadDrawerModelIndex();
+      return drawerModelCache.get(String(id)) || null;
     };
 
     const formatTps = (tps) => {
@@ -2834,6 +3038,12 @@ function getScoreClass(score: number | null | undefined): string {
 
     const renderOpenRouterProviderLeaderboard = () => {
       if (!openRouterRankSelect || !openRouterProviderBoard) return;
+      if (
+        !window.__aistatsPublicCatalogLoaded &&
+        !(window.__aistatsOpenRouterModels || []).length
+      ) {
+        return;
+      }
 
       const metric = getOpenRouterRankMetric(openRouterRankSelect.value);
       const groups = buildOpenRouterProviderGroups();
@@ -2933,7 +3143,7 @@ function getScoreClass(score: number | null | undefined): string {
           const provider = escapeHtml(row.provider);
           const leaderName = escapeHtml(row.leaderName);
           const modelPayload = row.model
-            ? ` data-model-json="${escapeHtml(JSON.stringify(row.model))}"`
+            ? ` data-model-id="${escapeHtml(row.model.id)}"`
             : "";
           const providerQuery = escapeHtml(getProviderSearchValue(row.provider));
           return `
@@ -2959,8 +3169,8 @@ function getScoreClass(score: number | null | undefined): string {
     };
 
     const openOpenRouterProviderRow = (row) => {
-      if (row.dataset.modelJson) {
-        openModelDrawerFromElement(row);
+      if (row.dataset.modelId || row.dataset.modelJson) {
+        void openModelDrawerFromElement(row);
         return;
       }
       const query = row.dataset.openrouterProviderQuery;
@@ -3199,11 +3409,11 @@ function getScoreClass(score: number | null | undefined): string {
           };
           const maxScore = Math.max(...list.map(getScore), 0);
           const rankColors = [
-            "bg-[rgba(230,25,25,0.18)] border-l-[var(--love)]",
-            "bg-highlight-low border-l-highlight-high",
-            "bg-highlight-low border-l-highlight-med",
-            "bg-transparent border-l-highlight-med",
-            "bg-transparent border-l-highlight-med",
+            "lbb1",
+            "lbb2",
+            "lbb3",
+            "lbbx",
+            "lbbx",
           ];
 
           const rows = list
@@ -3215,32 +3425,31 @@ function getScoreClass(score: number | null | undefined): string {
               const company = escapeHtml(
                 toDisplayName(model.company_name, "Unknown provider"),
               );
-              const modelName = toDisplayName(model.name);
               const rowAction = isEpoch
-                ? `data-compare-url="/compare?metric=${encodeURIComponent(config.key)}&model=${encodeURIComponent(modelName)}"`
-                : `data-model-json="${escapeHtml(JSON.stringify(model))}"`;
+                ? ""
+                : `data-model-id="${escapeHtml(model.id)}"`;
               const rankBadge =
                 index === 0
-                  ? '<div class="flex h-8 w-8 items-center justify-center border border-love bg-love text-sm font-bold text-white">1</div>'
+                  ? '<div class="lrn lrn1">1</div>'
                   : index === 1
-                    ? '<div class="flex h-8 w-8 items-center justify-center border border-highlight-high bg-highlight-low text-sm font-bold text-text">2</div>'
+                    ? '<div class="lrn lrn2">2</div>'
                     : index === 2
-                      ? '<div class="flex h-8 w-8 items-center justify-center border border-highlight-med bg-overlay text-sm font-bold text-text">3</div>'
-                      : `<div class="flex h-7 w-7 items-center justify-center border border-highlight-med bg-highlight-low text-xs font-semibold text-subtle">${index + 1}</div>`;
+                      ? '<div class="lrn lrn3">3</div>'
+                      : `<div class="lrn lrnx">${index + 1}</div>`;
 
               return `
-                <li class="relative overflow-hidden transition-colors hover:bg-highlight-low/40">
-                  <button type="button" class="leaderboard-row relative block w-full overflow-hidden text-left" data-leaderboard-row ${rowAction}>
-                    <div class="pointer-events-none absolute inset-y-0 left-0 ${rankColors[index]} border-l-4" style="width: ${barWidth}%"></div>
-                    <div class="relative grid grid-cols-[2.5rem_1fr_auto] items-center gap-4 px-4 py-3.5">
-                      <div class="flex items-center justify-center">${rankBadge}</div>
-                      <div class="min-w-0">
-                        <div class="flex items-center gap-2">
-                          <span class="truncate font-semibold ${index === 0 ? "text-text" : "text-text/90"}" title="${name}">${name}</span>
+                <li class="lbi">
+                  <button type="button" class="lr" data-lr ${rowAction}>
+                    <div class="lbb ${rankColors[index]}" style="--w:${barWidth}%"></div>
+                    <div class="lbr">
+                      <div class="lrw">${rankBadge}</div>
+                      <div class="lbm">
+                        <div class="lbml">
+                          <span class="lbn ${index === 0 ? "lbnt" : "lbnx"}">${name}</span>
                         </div>
-                        <div class="mt-0.5 text-[0.7rem] text-subtle">${company}</div>
+                        <div class="lbc">${company}</div>
                       </div>
-                      <div class="text-right font-mono text-lg font-bold ${index === 0 ? "score-high" : index < 3 ? "text-text" : "text-subtle"}">${scoreText}</div>
+                      <div class="lbs ${index === 0 ? "score-high" : index < 3 ? "lbsp" : "lbsx"}">${scoreText}</div>
                     </div>
                   </button>
                 </li>
@@ -3372,7 +3581,6 @@ function getScoreClass(score: number | null | undefined): string {
         <div
           data-model-card
           data-model-id="${escapeHtml(model.id)}"
-          data-model-json="${escapeHtml(JSON.stringify(model))}"
           data-name="${escapeHtml(String(model.name ?? "").toLowerCase())}"
           data-company="${escapeHtml(String(model.company_name ?? "").toLowerCase())}"
           data-mmlu="${Number(model.mmlu_pro) || 0}"
@@ -3448,7 +3656,7 @@ function getScoreClass(score: number | null | undefined): string {
       <tr
         class="cursor-pointer transition-colors hover:bg-highlight-low/50"
         data-table-row
-        data-model-json="${escapeHtml(JSON.stringify(model))}"
+        data-model-id="${escapeHtml(model.id)}"
         data-name="${escapeHtml(String(model.name ?? "").toLowerCase())}"
         data-company="${escapeHtml(String(model.company_name ?? "").toLowerCase())}"
         data-mmlu="${Number(model.mmlu_pro) || 0}"
@@ -3468,14 +3676,10 @@ function getScoreClass(score: number | null | undefined): string {
       </tr>
     `;
 
-    const openModelDrawerFromElement = (element) => {
-      const modelJson = element?.dataset?.modelJson;
-      if (!modelJson) return;
-      try {
-        const model = JSON.parse(modelJson);
+    const openModelDrawerFromElement = async (element) => {
+      const model = await resolveDrawerModel(element);
+      if (model) {
         window.dispatchEvent(new CustomEvent("open-model-drawer", { detail: model }));
-      } catch (error) {
-        console.warn("Failed to parse model payload", error);
       }
     };
 
@@ -3489,11 +3693,11 @@ function getScoreClass(score: number | null | undefined): string {
         });
         if (card.dataset.drawerBound === "true") return;
         card.dataset.drawerBound = "true";
-        card.addEventListener("click", () => openModelDrawerFromElement(card));
+        card.addEventListener("click", () => void openModelDrawerFromElement(card));
         card.addEventListener("keydown", (event) => {
           if (event.key !== "Enter" && event.key !== " ") return;
           event.preventDefault();
-          openModelDrawerFromElement(card);
+          void openModelDrawerFromElement(card);
         });
       });
     };
@@ -3502,26 +3706,32 @@ function getScoreClass(score: number | null | undefined): string {
       getTableRows().forEach((row) => {
         if (row.dataset.drawerBound === "true") return;
         row.dataset.drawerBound = "true";
-        row.addEventListener("click", () => openModelDrawerFromElement(row));
+        row.addEventListener("click", () => void openModelDrawerFromElement(row));
         row.addEventListener("keydown", (event) => {
           if (event.key !== "Enter" && event.key !== " ") return;
           event.preventDefault();
-          openModelDrawerFromElement(row);
+          void openModelDrawerFromElement(row);
         });
       });
     };
 
     const openLeaderboardRow = (row) => {
-      if (row.dataset.modelJson) {
-        openModelDrawerFromElement(row);
+      if (row.dataset.modelId || row.dataset.modelJson) {
+        void openModelDrawerFromElement(row);
         return;
       }
-      const compareUrl = row.dataset.compareUrl;
-      if (compareUrl) window.location.href = compareUrl;
+      const metric = row.closest("[data-metric]")?.dataset?.metric;
+      const modelName =
+        row.querySelector("[title]")?.getAttribute("title") ||
+        row.querySelector(".truncate")?.textContent?.trim() ||
+        "";
+      if (metric && modelName) {
+        window.location.href = `/compare?metric=${encodeURIComponent(metric)}&model=${encodeURIComponent(modelName)}`;
+      }
     };
 
     const bindLeaderboardRows = () => {
-      document.querySelectorAll("[data-leaderboard-row]").forEach((row) => {
+      document.querySelectorAll("[data-lr]").forEach((row) => {
         if (!(row instanceof HTMLElement)) return;
         if (row.dataset.leaderboardBound === "true") return;
         row.dataset.leaderboardBound = "true";
@@ -3631,6 +3841,7 @@ function getScoreClass(score: number | null | undefined): string {
 
     const renderModels = (models) => {
       if (!grid || !tableBody) return;
+      registerDrawerModels(models);
       grid.innerHTML = models.map(createCardMarkup).join("");
       tableBody.innerHTML = models.map(createTableRowMarkup).join("");
       bindCardFocus();
@@ -3654,7 +3865,7 @@ function getScoreClass(score: number | null | undefined): string {
     });
 
     openRouterRankSelect?.addEventListener("change", () => {
-      renderOpenRouterProviderLeaderboard();
+      void loadPublicCatalogData().then(() => renderOpenRouterProviderLeaderboard());
     });
 
     loadMoreBtn?.addEventListener("click", () => {
@@ -3689,13 +3900,15 @@ function getScoreClass(score: number | null | undefined): string {
     bindCardFocus();
     bindTableRows();
     bindLeaderboardRows();
-    renderOpenRouterProviderLeaderboard();
+    bindOpenRouterProviderRows();
+    void loadPublicCatalogData().then(() => renderOpenRouterProviderLeaderboard());
     updateLeaderboardCompareLink();
     applySearch(true);
 
-    window.addEventListener("aistats:live-snapshot", (event) => {
+    window.addEventListener("aistats:live-snapshot", async (event) => {
       const snapshot = event.detail;
       if (!snapshot) return;
+      await loadPublicCatalogData();
 
       const liveModels = enrichWithPublicCatalog(getValidModels(snapshot.aaModels ?? []));
       const epochBenchmarks = snapshot.epochBenchmarks ?? [];

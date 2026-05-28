@@ -28,9 +28,9 @@ Key features:
 
 - [Artificial Analysis](https://artificialanalysis.ai/): Model pricing, Artificial Analysis benchmark scores, speed, and latency
 - [Epoch AI Benchmarking Hub](https://epoch.ai/benchmarks): Epoch benchmark runs
-- [OpenRouter](https://openrouter.ai/openapi.json): Public model catalog, usage rankings, provider directory data, embeddings, modalities, context length, and route metadata
+- [OpenRouter](https://openrouter.ai/): Public model catalog, usage rankings, provider directory data, embeddings, modalities, context length, and route metadata
 - [Hugging Face Hub](https://huggingface.co/docs/hub/api): Public model repository popularity and tags
-- [LiteLLM model prices and context](https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json): Public pricing, context, and model capability metadata
+- [LiteLLM model prices and context](https://github.com/BerriAI/litellm): Public pricing, context, and model capability metadata
 
 ## Optional
 
