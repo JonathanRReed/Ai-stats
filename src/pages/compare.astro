@@ -533,7 +533,7 @@ epochBenchmarksWithData.forEach((b) => {
     }
 
     html.light .model-item label {
-      color: #575279;
+      color: var(--subtle);
     }
 
     .selected-count {
@@ -730,13 +730,9 @@ epochBenchmarksWithData.forEach((b) => {
       border-radius: var(--radius-m);
       padding: 1rem;
       border: 1px solid var(--border-color);
-      box-shadow:
-        0 18px 58px var(--shadow-color),
-        var(--glass-edge);
+      box-shadow: var(--elev-3), var(--glass-edge);
       width: 100%;
-      transition:
-        transform 0.1s ease,
-        box-shadow 0.1s ease;
+      transition: var(--transition-elevate);
       position: relative;
       z-index: 1;
       overflow: visible;
@@ -744,12 +740,12 @@ epochBenchmarksWithData.forEach((b) => {
     html.light .chart-section {
       background: var(--surface);
       border: 1px solid var(--border-color);
-      box-shadow: 0 16px 54px var(--shadow-color);
+      box-shadow: var(--elev-3);
     }
     @media (prefers-reduced-motion: no-preference) {
       .chart-section:hover {
         transform: translateY(-2px);
-        box-shadow: 0 20px 64px var(--shadow-color);
+        box-shadow: var(--elev-4), var(--glass-edge);
         border-color: color-mix(in srgb, var(--love) 55%, var(--border-color));
       }
     }
@@ -774,7 +770,117 @@ epochBenchmarksWithData.forEach((b) => {
     }
     html.light .chart-header h2,
     html.light .chart-header h3 {
-      color: #575279;
+      color: var(--subtle);
+    }
+
+    /* Branded chart skeleton — palette shimmer shown until charts paint. */
+    .chart-skeleton {
+      position: absolute;
+      inset: 2rem 0.5rem 1rem 0.5rem;
+      border-radius: var(--radius-m);
+      background: linear-gradient(
+        100deg,
+        var(--highlight-low) 0%,
+        var(--highlight-med) 28%,
+        var(--highlight-low) 56%
+      );
+      background-size: 220% 100%;
+      animation: chart-skeleton-shimmer 1.4s var(--ease-smooth) infinite;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--dur-base) var(--ease-smooth);
+    }
+    .chart-container.is-loading .chart-skeleton {
+      opacity: 1;
+    }
+    @keyframes chart-skeleton-shimmer {
+      from {
+        background-position: 180% 0;
+      }
+      to {
+        background-position: -80% 0;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .chart-skeleton {
+        animation: none;
+        background: var(--highlight-low);
+        transition: none;
+      }
+    }
+
+    /* Crossfade chart containers on metric/sort change. */
+    .chart-container.is-rerendering {
+      opacity: 0.35;
+      filter: blur(2px);
+      transition:
+        opacity var(--dur-fast) var(--ease-smooth),
+        filter var(--dur-fast) var(--ease-smooth);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .chart-container.is-rerendering {
+        opacity: 1;
+        filter: none;
+        transition: none;
+      }
+    }
+
+    /* Structured empty state (replaces plain grey text). */
+    .chart-empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      padding: 2rem 1.5rem;
+      text-align: center;
+      pointer-events: none;
+    }
+    .chart-empty-icon {
+      width: 44px;
+      height: 44px;
+      color: var(--muted);
+      opacity: 0.85;
+      margin-bottom: 0.35rem;
+    }
+    .chart-empty-kicker {
+      margin: 0;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.58rem;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .chart-empty-title {
+      margin: 0;
+      color: var(--subtle);
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+    .chart-empty-sub {
+      margin: 0;
+      max-width: 30ch;
+      color: var(--muted);
+      font-size: 0.74rem;
+      line-height: 1.45;
+    }
+
+    /* Micro-pulse a toggled model item for tactile feedback. */
+    @media (prefers-reduced-motion: no-preference) {
+      .model-item.just-toggled {
+        animation: model-item-pulse var(--dur-fast) var(--ease-spring);
+      }
+    }
+    @keyframes model-item-pulse {
+      from {
+        transform: scale(0.98);
+      }
+      to {
+        transform: scale(1);
+      }
     }
 
     .zoom-button {
@@ -1241,7 +1347,7 @@ epochBenchmarksWithData.forEach((b) => {
 
     .no-data {
       text-align: center;
-      color: #666;
+      color: var(--muted);
       padding: 2rem;
       font-style: italic;
     }
@@ -1319,7 +1425,7 @@ epochBenchmarksWithData.forEach((b) => {
       z-index: 125;
       background: var(--love);
       border-color: var(--love);
-      color: #fff;
+      color: var(--on-accent);
       margin: 0;
     }
 
@@ -1600,9 +1706,9 @@ epochBenchmarksWithData.forEach((b) => {
       gap: 0.45rem;
       max-height: min(28rem, 72vh);
       border: 1px solid var(--border-color);
-      border-radius: var(--radius-s);
+      border-radius: var(--radius-m);
       background: color-mix(in srgb, var(--base) 97%, black);
-      box-shadow: 0 24px 60px color-mix(in srgb, var(--shadow-color) 85%, black);
+      box-shadow: var(--elev-2), var(--glass-edge);
       padding: 0.5rem;
     }
 
@@ -1665,64 +1771,7 @@ epochBenchmarksWithData.forEach((b) => {
       padding: 0.5rem 0.55rem;
       text-align: left;
       text-transform: uppercase;
-    }
-
-    .benchmark-picker-option:hover,
-    .benchmark-picker-option:focus-visible {
-      border-color: var(--border-color);
-      background: var(--highlight-low);
-      color: var(--text);
-      outline: none;
-    }
-
-    .benchmark-picker-option[aria-selected="true"] {
-      border-color: color-mix(in srgb, var(--love) 55%, var(--border-color));
-      background: color-mix(in srgb, var(--love) 16%, var(--highlight-low));
-      color: var(--text);
-    }
-
-    .benchmark-picker-source {
-      color: var(--muted);
-      font-size: 0.56rem;
-      letter-spacing: 0.06em;
-    }
-
-    .benchmark-picker-empty {
-      color: var(--muted);
-      font-family: var(--font-mono);
-      font-size: 0.7rem;
-      padding: 0.7rem;
-      text-align: center;
-      text-transform: uppercase;
-    }
-
-    .benchmark-picker-group {
-      margin: 0.35rem 0 0.15rem;
-      color: var(--muted);
-      font-family: var(--font-mono);
-      font-size: 0.58rem;
-      font-weight: 900;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .benchmark-picker-option {
-      min-height: 38px;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      align-items: center;
-      gap: 0.55rem;
-      border: 1px solid transparent;
-      border-radius: var(--radius-s);
-      background: transparent;
-      color: var(--subtle);
-      cursor: pointer;
-      font-family: var(--font-mono);
-      font-size: 0.68rem;
-      font-weight: 800;
-      padding: 0.5rem 0.55rem;
-      text-align: left;
-      text-transform: uppercase;
+      transition: var(--transition-colors);
     }
 
     .benchmark-picker-option span:first-child {
@@ -1989,7 +2038,7 @@ epochBenchmarksWithData.forEach((b) => {
       border: 1px solid color-mix(in srgb, var(--love) 70%, var(--border-color));
       border-radius: var(--radius-s);
       background: var(--love);
-      color: #ffffff;
+      color: var(--on-accent);
       cursor: pointer;
       font-family: var(--font-mono);
       font-size: 0.72rem;
@@ -2416,7 +2465,7 @@ epochBenchmarksWithData.forEach((b) => {
     </aside>
 
     <main class="compare-main">
-      <section class="compare-hero" aria-label="Compare workbench overview">
+      <section class="compare-hero fade-in-section" aria-label="Compare workbench overview">
         <div>
           <span class="compare-hero-kicker">Selection lab</span>
           <h1 class="compare-page-title">Compare AI Models</h1>
@@ -2458,22 +2507,24 @@ epochBenchmarksWithData.forEach((b) => {
           </div>
         </details>
       </section>
-      <section class="charts-section">
-        <div class="chart-grid">
-          <div class="chart-section">
+      <section class="charts-section fade-in-section">
+        <div class="chart-grid stagger-container" data-stagger="80">
+          <div class="chart-section stagger-item">
             <div class="chart-header">
               <h2>Price Comparison</h2>
             </div>
-            <div class="chart-container" id="price-chart">
+            <div class="chart-container is-loading" id="price-chart">
+              <div class="chart-skeleton" aria-hidden="true"></div>
               <canvas id="price-canvas"></canvas>
             </div>
           </div>
 
-          <div class="chart-section">
+          <div class="chart-section stagger-item">
             <div class="chart-header">
               <h2>Performance Comparison</h2>
             </div>
-            <div class="chart-container" id="performance-chart">
+            <div class="chart-container is-loading" id="performance-chart">
+              <div class="chart-skeleton" aria-hidden="true"></div>
               <canvas id="perf-canvas"></canvas>
             </div>
           </div>
@@ -2564,6 +2615,19 @@ epochBenchmarksWithData.forEach((b) => {
 
 <script>
   // @ts-nocheck
+  import Chart from "chart.js/auto";
+  import ChartDataLabels from "chartjs-plugin-datalabels";
+
+  // Expose the locally-bundled libraries on window so the existing call sites
+  // (window.Chart / window.ChartDataLabels) stay untouched. The datalabels
+  // plugin is passed per-chart, so global registration is intentionally skipped
+  // here to avoid applying it to charts that opt out.
+  if (!window.Chart) window.Chart = Chart;
+  if (!window.ChartDataLabels) window.ChartDataLabels = ChartDataLabels;
+
+  // Register the datalabels plugin once, not on every chart render.
+  let datalabelsRegistered = false;
+
   let validModels = [];
   let epochDemoModels = [];
   let epochScoresByModel = {};
@@ -2671,59 +2735,91 @@ epochBenchmarksWithData.forEach((b) => {
     }
   };
 
-  // Dynamically ensure Chart.js is available (in case CDN is blocked)
-  let __chartLibLoading = null;
-  function loadScript(src) {
-    return new Promise((resolve, reject) => {
-      const existing = document.querySelector(
-        `script[data-loaded-src="${src}"]`,
-      );
-      if (existing) {
-        if (existing.dataset.loaded === "true") {
-          resolve();
-        } else {
-          existing.addEventListener("load", resolve, { once: true });
-          existing.addEventListener("error", reject, { once: true });
-        }
-        return;
-      }
+  const prefersReducedMotion = () =>
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-      const s = document.createElement("script");
-      s.src = src;
-      s.async = false;
-      s.defer = false;
-      s.dataset.loadedSrc = src;
-      s.addEventListener(
-        "load",
-        () => {
-          s.dataset.loaded = "true";
-          resolve();
-        },
-        { once: true },
-      );
-      s.addEventListener("error", reject, { once: true });
-      document.head.appendChild(s);
-    });
+  // Read the live design tokens off :root so charts stay on-brand and flip
+  // automatically with html.light. Chart.js accepts any CSS color string, so we
+  // hand it color-mix() expressions built from the foundation palette.
+  function getChartTheme() {
+    const styles = getComputedStyle(document.documentElement);
+    const token = (name, fallback) => {
+      const value = styles.getPropertyValue(name).trim();
+      return value || fallback;
+    };
+
+    const pine = token("--pine", "#89c8b6");
+    const love = token("--love", "#d86d4a");
+    const gold = token("--gold", "#d0a85a");
+    const base = token("--base", "#090b0d");
+    const text = token("--text", "#f2f1ea");
+    const subtle = token("--subtle", "#c5cbc8");
+    const overlay = token("--overlay", "#171d20");
+    const borderColor = token("--border-color", "rgba(242,241,234,0.18)");
+    const fontMono =
+      token("--font-mono", "") ||
+      "ui-monospace, SFMono-Regular, Menlo, monospace";
+
+    const fill = (color) => `color-mix(in srgb, ${color} 34%, transparent)`;
+    const border = (color) => `color-mix(in srgb, ${color} 72%, transparent)`;
+
+    return {
+      fontMono,
+      text,
+      subtle,
+      // Dataset palette (semantic, on-brand)
+      input: { base: pine, fill: fill(pine), border: border(pine) },
+      output: { base: love, fill: fill(love), border: border(love) },
+      score: { base: gold, fill: fill(gold), border: border(gold) },
+      // Axes / grid
+      tick: subtle,
+      grid: `color-mix(in srgb, ${borderColor} 60%, transparent)`,
+      // Glass tooltip
+      tooltip: {
+        bg: `color-mix(in srgb, ${overlay} 92%, transparent)`,
+        title: text,
+        body: subtle,
+        border: `color-mix(in srgb, ${love} 45%, ${borderColor})`,
+      },
+      // Datalabel stroke for legibility (no pill, theme-aware halo)
+      labelStroke: `color-mix(in srgb, ${base} 70%, transparent)`,
+    };
   }
-  async function ensureChartLibs() {
-    if (window.Chart && (window.ChartDataLabels || window["ChartDataLabels"]))
-      return true;
-    if (!__chartLibLoading) {
-      __chartLibLoading = (async () => {
-        if (!window.Chart) {
-          await loadScript(
-            "https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js",
-          );
-        }
-        if (!(window.ChartDataLabels || window["ChartDataLabels"])) {
-          await loadScript(
-            "https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js",
-          );
-        }
-        return true;
-      })();
+
+  // Build a per-dataset vertical gradient (top brighter -> bottom dimmer) so the
+  // bars read as branded glass. Falls back to the flat fill if no 2d context.
+  const makeBarGradient = (ctx, area, baseColor) => {
+    if (!ctx || !area) {
+      return `color-mix(in srgb, ${baseColor} 34%, transparent)`;
     }
-    return __chartLibLoading;
+    const gradient = ctx.createLinearGradient(0, area.top, 0, area.bottom);
+    gradient.addColorStop(0, `color-mix(in srgb, ${baseColor} 48%, transparent)`);
+    gradient.addColorStop(1, `color-mix(in srgb, ${baseColor} 18%, transparent)`);
+    return gradient;
+  };
+
+  // Apply chart-wide defaults (mono font + token text color) once libs load.
+  function applyChartDefaults(theme) {
+    if (!window.Chart || !theme) return;
+    window.Chart.defaults.font.family = theme.fontMono;
+    window.Chart.defaults.color = theme.subtle;
+  }
+
+  // Chart.js + datalabels are bundled locally (imported at the top of this
+  // module). ensureChartLibs() is kept as a thin shim so downstream call sites
+  // stay untouched and the loading model stays robust: it resolves with the
+  // imported references, applies the mono-stack chart defaults once the theme
+  // is readable, and never reaches for a CDN.
+  let __chartDefaultsApplied = false;
+  async function ensureChartLibs() {
+    if (!window.Chart) window.Chart = Chart;
+    if (!window.ChartDataLabels) window.ChartDataLabels = ChartDataLabels;
+    if (!__chartDefaultsApplied && typeof applyChartDefaults === "function") {
+      applyChartDefaults(getChartTheme());
+      __chartDefaultsApplied = true;
+    }
+    return { Chart: window.Chart, ChartDataLabels: window.ChartDataLabels };
   }
 
   function getFilterControls() {
@@ -3807,7 +3903,28 @@ epochBenchmarksWithData.forEach((b) => {
       }
     }
 
-    function renderCharts() {
+    // Branded empty state (replaces the plain #666 "Select models" text).
+    const buildEmptyState = () => {
+      const wrap = document.createElement("div");
+      wrap.className = "no-data chart-empty";
+      wrap.innerHTML = `
+        <svg class="chart-empty-icon" viewBox="0 0 48 48" fill="none"
+          stroke="currentColor" stroke-width="2.4" stroke-linecap="square"
+          aria-hidden="true">
+          <path d="M8 40V8" />
+          <path d="M8 40h32" />
+          <rect x="14" y="26" width="6" height="10" />
+          <rect x="24" y="18" width="6" height="18" />
+          <rect x="34" y="30" width="6" height="6" />
+        </svg>
+        <p class="chart-empty-kicker">No models selected</p>
+        <p class="chart-empty-title">Pick models to compare</p>
+        <p class="chart-empty-sub">Choose two or more models from the filter rail
+          to plot price and benchmark scores side by side.</p>`;
+      return wrap;
+    };
+
+    function renderCharts(animate = true) {
       let chosen = getSelected();
 
       // Ensure chart containers exist (metric selector is optional)
@@ -3816,32 +3933,35 @@ epochBenchmarksWithData.forEach((b) => {
         return;
       }
 
+      // Charts are about to paint: clear the skeleton placeholder.
+      priceChart.classList.remove("is-loading");
+      perfChart.classList.remove("is-loading");
+
       // Update insights section
       updateInsights(chosen);
       renderCatalogTable(chosen);
 
       // Clear any existing "no data" messages but preserve the container structure
-      const existingNoData = priceChart.querySelector(".no-data");
-      if (existingNoData) existingNoData.remove();
+      priceChart.querySelectorAll(".no-data").forEach((el) => el.remove());
+      perfChart.querySelectorAll(".no-data").forEach((el) => el.remove());
 
       if (chosen.length === 0) {
-        // Add "no data" message without clearing the container
-        if (!priceChart.querySelector(".no-data")) {
-          const noDataEl = document.createElement("div");
-          noDataEl.className = "no-data";
-          noDataEl.style.cssText =
-            "text-align: center; color: #666; padding: 2rem;";
-          noDataEl.textContent = "Select models to compare";
-          priceChart.appendChild(noDataEl);
+        // Destroy any lingering chart instances so the empty state is visible.
+        destroyChartForCanvas(priceCanvas);
+        destroyChartForCanvas(perfCanvas);
+        if (priceChartInstance) {
+          priceChartInstance.destroy();
+          priceChartInstance = null;
         }
-
+        if (perfChartInstance) {
+          perfChartInstance.destroy();
+          perfChartInstance = null;
+        }
+        if (!priceChart.querySelector(".no-data")) {
+          priceChart.appendChild(buildEmptyState());
+        }
         if (!perfChart.querySelector(".no-data")) {
-          const noDataEl = document.createElement("div");
-          noDataEl.className = "no-data";
-          noDataEl.style.cssText =
-            "text-align: center; color: #666; padding: 2rem;";
-          noDataEl.textContent = "Select models to compare";
-          perfChart.appendChild(noDataEl);
+          perfChart.appendChild(buildEmptyState());
         }
         return;
       }
@@ -3873,6 +3993,57 @@ epochBenchmarksWithData.forEach((b) => {
         perfChartInstance.destroy();
         perfChartInstance = null;
       }
+
+      // Read live theme tokens + motion preference for this render.
+      const theme = getChartTheme();
+      applyChartDefaults(theme);
+      const reduceMotion = prefersReducedMotion();
+      const animateEntry = animate && !reduceMotion;
+      // Grow-from-baseline with a per-bar stagger keyed off dataIndex.
+      const slowMs = (() => {
+        const raw = getComputedStyle(document.documentElement)
+          .getPropertyValue("--dur-slow")
+          .trim();
+        const parsed = parseFloat(raw);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : 600;
+      })();
+      // Grow each bar up from the baseline, staggered by dataIndex (~40ms).
+      const barDelay = (ctx) =>
+        ctx.type === "data" && ctx.mode === "default"
+          ? (ctx.dataIndex || 0) * 40
+          : 0;
+      const buildAnimation = () =>
+        animateEntry
+          ? {
+              duration: slowMs,
+              easing: "easeOutQuart",
+              delay: barDelay,
+              // Anchor the y-tween to the baseline so bars grow up, not in.
+              // (duration/easing/delay inherit from the parent animation config.)
+              animations: {
+                y: {
+                  type: "number",
+                  from: (ctx) =>
+                    ctx.chart?.scales?.y
+                      ? ctx.chart.scales.y.getPixelForValue(0)
+                      : undefined,
+                },
+              },
+            }
+          : false;
+
+      // Shared tooltip styling (only the callbacks differ per chart).
+      const tooltipStyle = {
+        backgroundColor: theme.tooltip.bg,
+        titleColor: theme.tooltip.title,
+        bodyColor: theme.tooltip.body,
+        borderColor: theme.tooltip.border,
+        borderWidth: 1,
+        cornerRadius: 6,
+        titleFont: { family: theme.fontMono },
+        bodyFont: { family: theme.fontMono },
+        padding: 12,
+      };
 
       // Sort chosen models by price for price chart
       const chosenByPrice = [...chosen].sort((a, b) => {
@@ -3924,7 +4095,13 @@ epochBenchmarksWithData.forEach((b) => {
         const m = name.match(/^(.*?)(\s*\(([^)]*)\))?$/);
         const base = m ? m[1] : name;
         const variant = m && m[3] ? m[3] : "";
-        return variant ? [base, `(${variant})`] : [base];
+        // Keep axis labels compact so long model/variant names don't crush the
+        // plot area when rotated. The full name stays in the tooltip title.
+        const trunc = (s, n) =>
+          s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s;
+        return variant
+          ? [trunc(base, 18), trunc(`(${variant})`, 18)]
+          : [trunc(base, 22)];
       };
       const priceLabels = chosenByPrice.map((m) => labelParts(m.name));
       const inputData = chosenByPrice.map(
@@ -3934,9 +4111,17 @@ epochBenchmarksWithData.forEach((b) => {
         (m) => Number(m.price_1m_output_tokens) || 0,
       );
       if (priceCanvas && window.Chart) {
-        window.Chart.register(
-          window.ChartDataLabels || window["ChartDataLabels"],
-        );
+        if (!datalabelsRegistered) {
+          window.Chart.register(
+            window.ChartDataLabels || window["ChartDataLabels"],
+          );
+          datalabelsRegistered = true;
+        }
+        const priceFill = (group) => (context) => {
+          const { chart } = context;
+          const { ctx, chartArea } = chart;
+          return makeBarGradient(ctx, chartArea, group.base);
+        };
         priceChartInstance = new window.Chart(priceCanvas.getContext("2d"), {
           type: "bar",
           data: {
@@ -3945,16 +4130,16 @@ epochBenchmarksWithData.forEach((b) => {
               {
                 label: "Input",
                 data: inputData,
-                backgroundColor: "rgba(34,197,94,0.35)",
-                borderColor: "rgba(34,197,94,0.6)",
+                backgroundColor: priceFill(theme.input),
+                borderColor: theme.input.border,
                 borderWidth: 1,
                 borderRadius: 10,
               },
               {
                 label: "Output",
                 data: outputData,
-                backgroundColor: "rgba(239,68,68,0.35)",
-                borderColor: "rgba(239,68,68,0.6)",
+                backgroundColor: priceFill(theme.output),
+                borderColor: theme.output.border,
                 borderWidth: 1,
                 borderRadius: 10,
               },
@@ -3963,24 +4148,22 @@ epochBenchmarksWithData.forEach((b) => {
           options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: buildAnimation(),
             interaction: { mode: "index", intersect: false },
             plugins: {
               legend: {
                 position: "bottom",
-                labels: { color: "#eae9f0" },
+                labels: { color: theme.subtle },
               },
               tooltip: {
                 enabled: true,
                 position: "nearest",
                 yAlign: "bottom",
                 displayColors: true,
-                backgroundColor: "rgba(0, 0, 0, 0.9)",
-                titleColor: "#fff",
-                bodyColor: "#fff",
-                borderColor: "rgba(156, 207, 216, 0.5)",
-                borderWidth: 1,
-                padding: 12,
+                ...tooltipStyle,
                 callbacks: {
+                  title: (items) =>
+                    chosenByPrice[items[0]?.dataIndex]?.name ?? "",
                   label: (ctx) =>
                     `${ctx.dataset.label}: $${(ctx.parsed.y ?? 0).toFixed(3)} per 1M`,
                 },
@@ -3988,11 +4171,12 @@ epochBenchmarksWithData.forEach((b) => {
               datalabels: {
                 anchor: "end",
                 align: "end",
-                color: "#111",
-                backgroundColor: "rgba(255,255,255,0.9)",
-                borderRadius: 4,
+                color: theme.text,
+                backgroundColor: null,
+                textStrokeColor: theme.labelStroke,
+                textStrokeWidth: 3,
                 padding: 6,
-                font: { weight: "900", size: 11 },
+                font: { family: theme.fontMono, weight: "900", size: 11 },
                 offset: -4,
                 clamp: true,
                 clip: false,
@@ -4003,7 +4187,7 @@ epochBenchmarksWithData.forEach((b) => {
             scales: {
               x: {
                 ticks: {
-                  color: "#eae9f0",
+                  color: theme.tick,
                   autoSkip: true,
                   maxRotation: 28,
                   minRotation: 0,
@@ -4015,12 +4199,12 @@ epochBenchmarksWithData.forEach((b) => {
                 beginAtZero: true,
                 suggestedMax: Math.max(...inputData, ...outputData) * 1.2,
                 ticks: {
-                  color: "#eae9f0",
+                  color: theme.tick,
                   font: { size: 10 },
                   callback: (v) => `$${Number(v).toFixed(0)}`,
                 },
                 grid: {
-                  color: "rgba(255,255,255,0.08)",
+                  color: theme.grid,
                   drawBorder: false,
                 },
               },
@@ -4045,9 +4229,12 @@ epochBenchmarksWithData.forEach((b) => {
       const scores = chosenByMetric.map((m) => resolveMetricScore(m, metric));
       const showPerfLabels = chosenByMetric.length <= 8;
       if (perfCanvas && window.Chart) {
-        window.Chart.register(
-          window.ChartDataLabels || window["ChartDataLabels"],
-        );
+        if (!datalabelsRegistered) {
+          window.Chart.register(
+            window.ChartDataLabels || window["ChartDataLabels"],
+          );
+          datalabelsRegistered = true;
+        }
         const maxScore = scores.length ? Math.max(...scores) : 0;
         perfChartInstance = new window.Chart(perfCanvas.getContext("2d"), {
           type: "bar",
@@ -4057,8 +4244,12 @@ epochBenchmarksWithData.forEach((b) => {
               {
                 label: "Score",
                 data: scores,
-                backgroundColor: "rgba(122,162,194,0.35)",
-                borderColor: "rgba(122,162,194,0.6)",
+                backgroundColor: (context) => {
+                  const { chart } = context;
+                  const { ctx, chartArea } = chart;
+                  return makeBarGradient(ctx, chartArea, theme.score.base);
+                },
+                borderColor: theme.score.border,
                 borderWidth: 1,
                 borderRadius: 10,
               },
@@ -4067,10 +4258,14 @@ epochBenchmarksWithData.forEach((b) => {
           options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: buildAnimation(),
             plugins: {
               legend: { display: false },
               tooltip: {
+                ...tooltipStyle,
                 callbacks: {
+                  title: (items) =>
+                    chosenByMetric[items[0]?.dataIndex]?.name ?? "",
                   label: (ctx) => {
                     const y = ctx.parsed.y ?? 0;
                     if (!Number.isFinite(y) || y <= 0) return "N/A";
@@ -4082,11 +4277,12 @@ epochBenchmarksWithData.forEach((b) => {
               datalabels: {
                 anchor: "end",
                 align: "end",
-                color: "#111",
-                backgroundColor: "rgba(255,255,255,0.9)",
-                borderRadius: 4,
+                color: theme.text,
+                backgroundColor: null,
+                textStrokeColor: theme.labelStroke,
+                textStrokeWidth: 3,
                 padding: 4,
-                font: { weight: "900" },
+                font: { family: theme.fontMono, weight: "900" },
                 clip: false,
                 clamp: true,
                 offset: -4,
@@ -4101,7 +4297,7 @@ epochBenchmarksWithData.forEach((b) => {
             scales: {
               x: {
                 ticks: {
-                  color: "#eae9f0",
+                  color: theme.tick,
                   autoSkip: true,
                   maxRotation: 28,
                   minRotation: 0,
@@ -4113,12 +4309,12 @@ epochBenchmarksWithData.forEach((b) => {
                 beginAtZero: true,
                 suggestedMax: maxScore * 1.2,
                 ticks: {
-                  color: "#eae9f0",
+                  color: theme.tick,
                   font: { size: 10 },
                   callback: (v) => formatMetricValue(Number(v), metric),
                 },
                 grid: {
-                  color: "rgba(255,255,255,0.08)",
+                  color: theme.grid,
                   drawBorder: false,
                 },
               },
@@ -4130,6 +4326,25 @@ epochBenchmarksWithData.forEach((b) => {
       }
     }
 
+    // Crossfade the chart containers on metric/sort change: briefly dim+blur,
+    // re-render without an entry-animation replay, then clear on the next frame.
+    // Under reduced motion the .is-rerendering CSS is a no-op, so this stays a
+    // plain instant re-render.
+    const crossfadeRerender = () => {
+      const containers = [priceChart, perfChart].filter(Boolean);
+      if (prefersReducedMotion()) {
+        renderCharts(false);
+        return;
+      }
+      containers.forEach((c) => c.classList.add("is-rerendering"));
+      window.requestAnimationFrame(() => {
+        renderCharts(false);
+        window.requestAnimationFrame(() => {
+          containers.forEach((c) => c.classList.remove("is-rerendering"));
+        });
+      });
+    };
+
     list?.addEventListener("change", (e) => {
       const target = e.target;
       if (target instanceof HTMLInputElement && target.dataset.id) {
@@ -4137,6 +4352,24 @@ epochBenchmarksWithData.forEach((b) => {
           ? selected.add(target.dataset.id)
           : selected.delete(target.dataset.id);
         updateCount();
+        // Micro-pulse the toggled model item for tactile feedback.
+        if (!prefersReducedMotion()) {
+          const item =
+            target.closest(".model-item") ||
+            target.closest("label") ||
+            target.parentElement;
+          if (item) {
+            item.classList.remove("just-toggled");
+            // Force reflow so the animation restarts on rapid toggles.
+            void item.offsetWidth;
+            item.classList.add("just-toggled");
+            item.addEventListener(
+              "animationend",
+              () => item.classList.remove("just-toggled"),
+              { once: true },
+            );
+          }
+        }
         renderCharts();
       }
     });
@@ -4153,8 +4386,8 @@ epochBenchmarksWithData.forEach((b) => {
       syncMetricPickerValue();
       renderMetricPickerOptions();
 
-      // Re-render charts with new metric
-      renderCharts();
+      // Re-render charts with new metric (crossfade, no entry replay)
+      crossfadeRerender();
     });
 
     // Add event listeners for new features
@@ -4179,7 +4412,7 @@ epochBenchmarksWithData.forEach((b) => {
         textEl.textContent =
           newOrder === "desc" ? "High to Low" : "Low to High";
       }
-      renderCharts();
+      crossfadeRerender();
     };
     sortToggle?.addEventListener("click", handleSortToggleClick);
     registerCleanup(() =>
@@ -4227,6 +4460,33 @@ epochBenchmarksWithData.forEach((b) => {
       renderModelList();
       updateCount();
       renderCharts();
+    });
+
+    // Re-color charts when the theme flips. header.js toggles html.light but
+    // dispatches no event, so we watch the class attribute. Debounce via rAF
+    // and re-render without an entry-animation replay (renderCharts re-reads
+    // getChartTheme() fresh on every call). Registered for teardown so it never
+    // leaks across ClientRouter navigations.
+    let __themeWasLight = document.documentElement.classList.contains("light");
+    let __themeFrame = 0;
+    const themeObserver = new MutationObserver(() => {
+      const isLight = document.documentElement.classList.contains("light");
+      if (isLight === __themeWasLight) return;
+      __themeWasLight = isLight;
+      if (__themeFrame) cancelAnimationFrame(__themeFrame);
+      __themeFrame = window.requestAnimationFrame(() => {
+        __themeFrame = 0;
+        applyChartDefaults(getChartTheme());
+        renderCharts(false);
+      });
+    });
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    registerCleanup(() => {
+      if (__themeFrame) cancelAnimationFrame(__themeFrame);
+      themeObserver.disconnect();
     });
 
     updateMetricSelectorOptions();

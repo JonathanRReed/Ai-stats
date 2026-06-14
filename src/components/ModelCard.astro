@@ -456,22 +456,22 @@ const formatCompactNumber = (value: number | null | undefined): string => {
 
 <style is:global>
   .model-card {
-    transition:
-      transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
-      border-color 0.3s ease,
-      box-shadow 0.3s ease;
+    transition: var(--transition-elevate);
   }
 
   .model-card:hover,
   .model-card:focus-visible {
+    transform: translateY(-3px);
     border-color: var(--love);
     box-shadow:
-      0 18px 52px var(--shadow-color),
-      0 0 0 1px rgba(230, 25, 25, 0.2);
+      var(--elev-3),
+      0 0 0 1px color-mix(in srgb, var(--love) 22%, transparent),
+      var(--glass-edge);
   }
 
   .model-card:active {
     transform: translateY(-1px);
+    box-shadow: var(--elev-1), var(--glass-edge);
   }
 
   .model-card:focus-visible {
@@ -645,32 +645,32 @@ const formatCompactNumber = (value: number | null | undefined): string => {
   }
 
   .score-bg-high {
-    background: rgba(86, 148, 159, 0.16);
-    border-color: rgba(86, 148, 159, 0.45);
+    background: color-mix(in srgb, var(--pine) 16%, transparent);
+    border-color: color-mix(in srgb, var(--pine) 45%, transparent);
     color: var(--text);
   }
 
   .score-bg-mid {
-    background: rgba(234, 157, 52, 0.16);
-    border-color: rgba(234, 157, 52, 0.45);
+    background: color-mix(in srgb, var(--foam) 16%, transparent);
+    border-color: color-mix(in srgb, var(--foam) 45%, transparent);
     color: var(--text);
   }
 
   .score-bg-low {
-    background: rgba(255, 153, 51, 0.14);
-    border-color: rgba(255, 153, 51, 0.4);
+    background: color-mix(in srgb, var(--gold) 16%, transparent);
+    border-color: color-mix(in srgb, var(--gold) 45%, transparent);
     color: var(--text);
   }
 
   .score-bg-poor {
-    background: rgba(180, 99, 122, 0.16);
-    border-color: rgba(180, 99, 122, 0.45);
+    background: color-mix(in srgb, var(--love) 16%, transparent);
+    border-color: color-mix(in srgb, var(--love) 45%, transparent);
     color: var(--text);
   }
 
   .score-bg-none {
-    background: rgba(130, 130, 150, 0.12);
-    border-color: rgba(130, 130, 150, 0.32);
+    background: color-mix(in srgb, var(--muted) 14%, transparent);
+    border-color: color-mix(in srgb, var(--muted) 34%, transparent);
     color: var(--text);
   }
 
@@ -683,7 +683,9 @@ const formatCompactNumber = (value: number | null | undefined): string => {
     .model-card {
       transition: none;
     }
-    .model-card:hover {
+    .model-card:hover,
+    .model-card:focus-visible,
+    .model-card:active {
       transform: none;
     }
   }

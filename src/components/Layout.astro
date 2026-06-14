@@ -107,7 +107,7 @@ const pageSchema = {
     <meta name="generator" content={Astro.generator} />
     <meta name="robots" content={robotsContent} />
     <meta name="author" content={siteAuthor} />
-    <meta name="theme-color" content="#191724" />
+    <meta name="theme-color" content="#090b0d" />
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content={ogType} />
@@ -144,10 +144,8 @@ const pageSchema = {
         --text: #f2f1ea;
         --love: #d86d4a;
         --gold: #d0a85a;
-        --rose: #d8c6bd;
         --pine: #89c8b6;
         --foam: #e58a5f;
-        --iris: #b9b1c8;
         --terminal-green: #9adf8f;
         --highlight-low: rgba(242, 241, 234, 0.055);
         --highlight-med: rgba(242, 241, 234, 0.13);
@@ -170,10 +168,10 @@ const pageSchema = {
         --text: #101111;
         --love: #b84f35;
         --gold: #8f6723;
-        --rose: #514a45;
         --pine: #214a42;
         --foam: #a8462e;
-        --iris: #4f4a61;
+        /* Deep readable green so .score-bg-high stays legible on the light badge */
+        --terminal-green: #1f5d3a;
         --highlight-low: rgba(12, 13, 13, 0.055);
         --highlight-med: rgba(12, 13, 13, 0.14);
         --highlight-high: rgba(12, 13, 13, 0.24);
@@ -285,6 +283,7 @@ const pageSchema = {
         --radius-s: 4px;
         --radius-m: 6px;
         --radius-l: 8px;
+        --radius-xl: 12px;
         --space-1: 0.25rem;
         --space-2: 0.5rem;
         --space-3: 0.75rem;
@@ -296,6 +295,44 @@ const pageSchema = {
         /* Layout */
         --container-max: 1200px;
         --container-pad: 1rem;
+
+        /* Motion: easing curves */
+        --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+        --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+        --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+        /* Motion: durations */
+        --dur-fast: 120ms;
+        --dur-base: 200ms;
+        --dur-slow: 360ms;
+
+        /* Motion: composed transitions */
+        --transition-colors:
+          color var(--dur-base) var(--ease-smooth),
+          background-color var(--dur-base) var(--ease-smooth),
+          border-color var(--dur-base) var(--ease-smooth);
+        --transition-elevate:
+          transform var(--dur-base) var(--ease-spring),
+          box-shadow var(--dur-base) var(--ease-smooth),
+          border-color var(--dur-base) var(--ease-smooth);
+        --transition-reveal:
+          opacity var(--dur-slow) var(--ease-out-expo),
+          transform var(--dur-slow) var(--ease-out-expo);
+
+        /* Elevation scale (uses theme-aware --shadow-color) */
+        --elev-1: 0 2px 8px var(--shadow-color);
+        --elev-2: 0 8px 24px var(--shadow-color);
+        --elev-3: 0 18px 60px var(--shadow-color);
+        --elev-4: 0 24px 76px var(--shadow-color);
+
+        /* Accent glow */
+        --glow-primary: 0 12px 32px
+          color-mix(in srgb, var(--love) 24%, transparent);
+        --glow-primary-hover: 0 16px 42px
+          color-mix(in srgb, var(--love) 30%, transparent);
+
+        /* Text color for accent/primary fills */
+        --on-accent: #ffffff;
       }
 
       /* Modern CSS reset */
@@ -441,25 +478,25 @@ const pageSchema = {
       .brutalist-card {
         background: color-mix(in srgb, var(--surface) 94%, transparent);
         border: 1px solid var(--border-color);
-        box-shadow:
-          0 18px 60px var(--shadow-color),
-          var(--glass-edge);
+        box-shadow: var(--elev-3), var(--glass-edge);
         border-radius: var(--radius-m);
-        transition:
-          transform 0.18s ease,
-          border-color 0.18s ease,
-          box-shadow 0.18s ease;
+        transition: var(--transition-elevate);
       }
 
-      .brutalist-card:hover {
+      .brutalist-card:hover,
+      .brutalist-card:focus-within {
         border-color: color-mix(in srgb, var(--love) 65%, var(--border-color));
         transform: translateY(-2px);
-        box-shadow:
-          0 24px 76px var(--shadow-color),
-          var(--glass-edge);
+        box-shadow: var(--elev-4), var(--glass-edge);
+      }
+
+      .brutalist-card:active {
+        transform: translateY(0);
+        box-shadow: var(--elev-2), var(--glass-edge);
       }
 
       .brutalist-button {
+        position: relative;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -467,9 +504,9 @@ const pageSchema = {
         min-height: 44px;
         min-width: 0;
         background: var(--love);
-        color: #ffffff;
+        color: var(--on-accent);
         border: 1px solid var(--love);
-        box-shadow: 0 12px 32px rgba(216, 109, 74, 0.22);
+        box-shadow: var(--glow-primary);
         border-radius: var(--radius-s);
         font-family: var(--font-mono);
         font-size: 0.75rem;
@@ -481,23 +518,41 @@ const pageSchema = {
         text-align: center;
         text-decoration: none;
         white-space: nowrap;
+        overflow: hidden;
         overflow-wrap: normal;
         cursor: pointer;
-        transition:
-          transform 0.18s ease,
-          box-shadow 0.18s ease,
-          background 0.18s ease;
+        transition: var(--transition-elevate);
+      }
+
+      /* Sweep-highlight on hover (disabled under reduced motion below) */
+      .brutalist-button::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          120deg,
+          transparent 0%,
+          rgba(255, 255, 255, 0.28) 50%,
+          transparent 100%
+        );
+        transform: translateX(-120%);
+        transition: transform var(--dur-slow) var(--ease-out-expo);
+        pointer-events: none;
       }
 
       .brutalist-button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 16px 42px rgba(216, 109, 74, 0.26);
-        background: #e27a55;
+        box-shadow: var(--glow-primary-hover);
+        background: color-mix(in srgb, var(--love) 92%, white);
+      }
+
+      .brutalist-button:hover::after {
+        transform: translateX(120%);
       }
 
       .brutalist-button:active {
         transform: translate(1px, 1px);
-        box-shadow: 0 6px 20px rgba(216, 109, 74, 0.2);
+        box-shadow: var(--elev-1);
       }
 
       .fade-in-section,
@@ -510,10 +565,8 @@ const pageSchema = {
       html.motion-ready .fade-in-section,
       html.motion-ready .stagger-item {
         opacity: 0;
-        transform: translateY(10px);
-        transition:
-          opacity 0.3s ease-out,
-          transform 0.3s ease-out;
+        transform: translateY(12px);
+        transition: var(--transition-reveal);
       }
       html.motion-ready .fade-in-section.is-visible,
       html.motion-ready .stagger-item.is-visible {
@@ -532,6 +585,12 @@ const pageSchema = {
         .brutalist-card,
         .brutalist-button {
           transition: none;
+        }
+        .tilt-card {
+          transform: none !important;
+        }
+        .brutalist-button::after {
+          display: none;
         }
       }
     </style>

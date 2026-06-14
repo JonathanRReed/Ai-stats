@@ -11,6 +11,7 @@ const { currentPage = 'dashboard' } = Astro.props;
     <a href="/" class="logo-link">
       <img src="/logo.png" alt="AI Stats" class="logo" width="120" height="32" />
     </a>
+    <div class="header-glow" aria-hidden="true"></div>
     
     <!-- Desktop nav -->
     <nav class="nav desktop-nav">
@@ -70,6 +71,47 @@ const { currentPage = 'dashboard' } = Astro.props;
   max-width: 100vw;
   overflow: visible;
   box-sizing: border-box;
+  transition:
+    background var(--dur-base) var(--ease-smooth),
+    border-color var(--dur-base) var(--ease-smooth),
+    box-shadow var(--dur-base) var(--ease-smooth),
+    backdrop-filter var(--dur-base) var(--ease-smooth);
+}
+
+/* Scroll state: stronger blur, raised shadow, love-tinted bottom border */
+.header.scrolled {
+  background: color-mix(in srgb, var(--base) 90%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom-color: color-mix(in srgb, var(--love) 38%, var(--border-color));
+  box-shadow: var(--elev-2);
+}
+
+/* Glow echo: thin love-tinted line along the header's bottom edge,
+   mirrors Footer's .footer-glow to tie top/bottom chrome together. */
+.header-glow {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(900px, 90vw);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--love), transparent);
+  opacity: 0.4;
+  pointer-events: none;
+  will-change: opacity;
+  transition: opacity var(--dur-base) var(--ease-smooth);
+}
+
+.header.scrolled .header-glow {
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header,
+  .header-glow {
+    transition: none;
+  }
 }
 
 .header-container {
@@ -91,7 +133,9 @@ const { currentPage = 'dashboard' } = Astro.props;
 
 .logo-link {
   text-decoration: none;
-  transition: transform 0.18s ease, color 0.18s ease;
+  transition:
+    transform var(--dur-fast) var(--ease-smooth),
+    color var(--dur-fast) var(--ease-smooth);
 }
 
 .logo-link:hover {
@@ -116,15 +160,14 @@ const { currentPage = 'dashboard' } = Astro.props;
 }
 
 .nav-item {
+  position: relative;
   color: var(--subtle);
   text-decoration: none;
   font-family: var(--font-mono);
   font-weight: 800;
   padding: 0 0.85rem;
   border-radius: var(--radius-s);
-  transition:
-    color 0.18s ease,
-    background 0.18s ease;
+  transition: var(--transition-colors);
   font-size: 0.72rem;
   text-transform: uppercase;
   display: inline-flex;
@@ -132,6 +175,22 @@ const { currentPage = 'dashboard' } = Astro.props;
   min-height: 36px;
   background: transparent;
   box-sizing: border-box;
+}
+
+/* Animated underline mirrors the legacy `inset 0 -2px 0 var(--love)`
+   but glides on active-state changes (nice with ClientRouter). */
+.nav-item::after {
+  content: "";
+  position: absolute;
+  left: 0.85rem;
+  right: 0.85rem;
+  bottom: 0;
+  height: 2px;
+  background: var(--love);
+  border-radius: var(--radius-s);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform var(--dur-base) var(--ease-spring);
 }
 
 .nav-item:hover {
@@ -146,12 +205,22 @@ const { currentPage = 'dashboard' } = Astro.props;
 .nav-item.active {
   color: var(--text);
   background: color-mix(in srgb, var(--love) 18%, transparent);
-  box-shadow: inset 0 -2px 0 var(--love);
+}
+
+.nav-item.active::after {
+  transform: scaleX(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-item::after {
+    transition: none;
+  }
 }
 
 
 /* Theme toggle */
 .theme-toggle {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -162,27 +231,60 @@ const { currentPage = 'dashboard' } = Astro.props;
   background: transparent;
   color: var(--text);
   cursor: pointer;
-  transition:
-    background 0.18s ease,
-    color 0.18s ease,
-    border-color 0.18s ease;
+  transition: var(--transition-colors);
 }
 
 .theme-toggle:hover {
   background: var(--love);
   border-color: var(--love);
-  color: #ffffff;
+  color: var(--on-accent);
 }
 
 .theme-toggle:active {
   transform: scale(0.92);
 }
 
-.theme-toggle .sun-icon { display: none; }
-.theme-toggle .moon-icon { display: block; }
+/* Sun/moon crossfade + rotate (stacked absolutely), switching on html.light */
+.theme-toggle .sun-icon,
+.theme-toggle .moon-icon {
+  position: absolute;
+  display: block;
+  transition:
+    opacity var(--dur-base) var(--ease-spring),
+    transform var(--dur-base) var(--ease-spring);
+}
 
-html.light .theme-toggle .sun-icon { display: block; }
-html.light .theme-toggle .moon-icon { display: none; }
+.theme-toggle .sun-icon {
+  opacity: 0;
+  transform: rotate(-90deg) scale(0.5);
+}
+
+.theme-toggle .moon-icon {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
+}
+
+html.light .theme-toggle .sun-icon {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
+}
+
+html.light .theme-toggle .moon-icon {
+  opacity: 0;
+  transform: rotate(90deg) scale(0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle .sun-icon,
+  .theme-toggle .moon-icon {
+    transition: none;
+    transform: none;
+  }
+  html.light .theme-toggle .sun-icon,
+  html.light .theme-toggle .moon-icon {
+    transform: none;
+  }
+}
 
 /* Mobile controls */
 .mobile-controls {
@@ -205,7 +307,7 @@ html.light .theme-toggle .moon-icon { display: none; }
   border-radius: var(--radius-s);
   cursor: pointer;
   gap: 4px;
-  transition: all 0.2s ease;
+  transition: var(--transition-colors);
 }
 
 .hamburger:hover {
@@ -218,7 +320,16 @@ html.light .theme-toggle .moon-icon { display: none; }
   height: 2px;
   background: var(--text);
   border-radius: 0;
-  transition: all 0.3s ease;
+  transition:
+    transform var(--dur-slow) var(--ease-smooth),
+    opacity var(--dur-slow) var(--ease-smooth);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hamburger,
+  .hamburger-line {
+    transition: none;
+  }
 }
 
 .hamburger.open .hamburger-line:nth-child(1) {
@@ -237,10 +348,12 @@ html.light .theme-toggle .moon-icon { display: none; }
 .mobile-nav-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.72);
+  background: color-mix(in srgb, var(--base) 72%, transparent);
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.3s ease, visibility 0.3s ease;
+  transition:
+    opacity var(--dur-slow) var(--ease-smooth),
+    visibility var(--dur-slow) var(--ease-smooth);
   z-index: 998;
 }
 
@@ -264,13 +377,20 @@ html.light .theme-toggle .moon-icon { display: none; }
   flex-direction: column;
   gap: 0.5rem;
   transform: translateX(100%);
-  transition: transform 0.3s ease;
+  transition: transform var(--dur-slow) var(--ease-out-expo);
   z-index: 999;
   box-shadow: -20px 24px 80px var(--shadow-color);
 }
 
 .mobile-nav.open {
   transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-nav-overlay,
+  .mobile-nav {
+    transition: none;
+  }
 }
 
 .mobile-nav-item {
@@ -283,13 +403,11 @@ html.light .theme-toggle .moon-icon { display: none; }
   border-radius: var(--radius-s);
   font-size: 0.85rem;
   text-transform: uppercase;
-  transition:
-    color 0.18s ease,
-    background 0.18s ease;
+  transition: var(--transition-colors);
 }
 
 .mobile-nav-item:hover {
-  color: #ffffff;
+  color: var(--on-accent);
   background: var(--overlay);
 }
 
