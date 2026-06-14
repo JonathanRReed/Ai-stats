@@ -32,7 +32,7 @@
   height: 44px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--surface), var(--overlay));
-  border: 1px solid rgba(156, 207, 216, 0.3);
+  border: 1px solid color-mix(in srgb, var(--foam) 30%, transparent);
   color: var(--foam);
   cursor: pointer;
   display: flex;
@@ -41,10 +41,15 @@
   opacity: 0;
   visibility: hidden;
   transform: translateY(10px);
-  transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease, 
-              background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-  z-index: 999;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  transition:
+    opacity var(--dur-slow) var(--ease-smooth),
+    visibility var(--dur-slow) var(--ease-smooth),
+    transform var(--dur-slow) var(--ease-spring),
+    var(--transition-colors),
+    box-shadow var(--dur-base) var(--ease-smooth);
+  /* Below the mobile-nav overlay (998) and panel (999) so it never floats over the open menu. */
+  z-index: 95;
+  box-shadow: var(--elev-2);
 }
 
 .scroll-to-top.visible {
@@ -55,13 +60,26 @@
 
 .scroll-to-top:hover {
   background: linear-gradient(135deg, var(--overlay), var(--highlight-med));
-  border-color: rgba(156, 207, 216, 0.5);
-  box-shadow: 0 6px 24px rgba(156, 207, 216, 0.2);
+  border-color: color-mix(in srgb, var(--foam) 50%, transparent);
+  box-shadow: var(--elev-2), 0 0 0 1px color-mix(in srgb, var(--foam) 20%, transparent);
   transform: translateY(-2px);
 }
 
 .scroll-to-top:active {
   transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-to-top {
+    transition:
+      opacity var(--dur-base) var(--ease-smooth),
+      visibility var(--dur-base) var(--ease-smooth);
+  }
+  .scroll-to-top.visible,
+  .scroll-to-top:hover,
+  .scroll-to-top:active {
+    transform: none;
+  }
 }
 
 @media (max-width: 640px) {
@@ -75,27 +93,52 @@
 </style>
 
 <script>
-  const scrollBtn = document.getElementById('scroll-to-top');
-  
-  if (scrollBtn) {
-    const toggleVisibility = () => {
-      if (window.scrollY > 400) {
-        scrollBtn.classList.add('visible');
-      } else {
-        scrollBtn.classList.remove('visible');
-      }
-    };
-    
-    window.addEventListener('scroll', toggleVisibility, { passive: true });
-    
-    scrollBtn.addEventListener('click', () => {
-      window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-      });
-    });
-    
-    // Initial check
-    toggleVisibility();
+  // Look up the button fresh each tick so the single window listener stays
+  // valid even after ClientRouter swaps the DOM on navigation.
+  function syncScrollToTop() {
+    const btn = document.getElementById('scroll-to-top');
+    if (btn) btn.classList.toggle('visible', window.scrollY > 400);
   }
+
+  function initScrollToTop() {
+    // Bind the global scroll listener exactly once across navigations.
+    if (!document.documentElement.dataset.scrollTopBound) {
+      document.documentElement.dataset.scrollTopBound = '1';
+      let ticking = false;
+      window.addEventListener(
+        'scroll',
+        () => {
+          if (ticking) return;
+          ticking = true;
+          window.requestAnimationFrame(() => {
+            syncScrollToTop();
+            ticking = false;
+          });
+        },
+        { passive: true }
+      );
+    }
+
+    // Bind the click handler per-button (lives/dies with the element).
+    const btn = document.getElementById('scroll-to-top');
+    if (btn && !btn.dataset.clickBound) {
+      btn.dataset.clickBound = '1';
+      btn.addEventListener('click', () => {
+        const reduce = window.matchMedia(
+          '(prefers-reduced-motion: reduce)'
+        ).matches;
+        window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+      });
+    }
+
+    // Initial / post-navigation state sync.
+    syncScrollToTop();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initScrollToTop);
+  } else {
+    initScrollToTop();
+  }
+  document.addEventListener('astro:page-load', initScrollToTop);
 </script>
