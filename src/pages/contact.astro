@@ -16,21 +16,31 @@ const description =
     <h1 class="mt-5 max-w-4xl text-4xl font-black leading-tight text-text md:text-6xl">
       Send AI Stats feedback, data corrections, or source questions.
     </h1>
-    <div class="mt-10 grid gap-4 md:grid-cols-2">
-      <section class="rounded-lg border border-highlight-med bg-surface p-6">
-        <h2 class="text-lg font-bold text-text">Project contact</h2>
+    <div class="fade-in-section stagger-container mt-10 grid gap-4 md:grid-cols-2">
+      <section class="brutalist-card stagger-item p-6">
+        <h2 class="flex items-center gap-2 text-lg font-bold text-text">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-foam" aria-hidden="true">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline>
+          </svg>
+          Project contact
+        </h2>
         <p class="mt-4 leading-7 text-subtle">
           AI Stats is maintained by Jonathan Reed. Use the portfolio contact page for corrections, collaboration questions, or bug reports.
         </p>
         <p class="mt-4 leading-7 text-subtle">
           Data corrections are the most useful when they include a public source and enough detail to reproduce the mismatch. Pricing values can change quickly, and benchmark tables sometimes use different model names for the same release, so source links help keep updates traceable.
         </p>
-        <a class="mt-6 inline-flex rounded border border-highlight-med px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.12em] text-text hover:bg-highlight-low" href="https://jonathanrreed.com/" target="_blank" rel="noopener noreferrer">
+        <a class="brutalist-button mt-6" href="https://jonathanrreed.com/" target="_blank" rel="noopener noreferrer">
           Jonathan Reed
         </a>
       </section>
-      <section class="rounded-lg border border-highlight-med bg-surface p-6">
-        <h2 class="text-lg font-bold text-text">What to include</h2>
+      <section class="brutalist-card stagger-item p-6">
+        <h2 class="flex items-center gap-2 text-lg font-bold text-text">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-pine" aria-hidden="true">
+            <path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+          </svg>
+          What to include
+        </h2>
         <p class="mt-4 leading-7 text-subtle">
           Include the affected model name, provider, source URL, expected value, and the page where the issue appears. This keeps pricing and benchmark updates auditable.
         </p>
@@ -42,8 +52,13 @@ const description =
           used by the benchmark source. Small naming differences can hide otherwise valid matches.
         </p>
       </section>
-      <section class="rounded-lg border border-highlight-med bg-surface p-6 md:col-span-2">
-        <h2 class="text-lg font-bold text-text">Common request types</h2>
+      <section class="brutalist-card stagger-item p-6 md:col-span-2">
+        <h2 class="flex items-center gap-2 text-lg font-bold text-text">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-foam" aria-hidden="true">
+            <line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line>
+          </svg>
+          Common request types
+        </h2>
         <p class="mt-4 leading-7 text-subtle">
           AI Stats can be improved with missing model reports, stale provider pricing, inaccurate OpenRouter route metadata, benchmark naming issues, accessibility feedback, and broken link reports. If the issue affects a public source, include the source page so the update can be checked against the original data.
         </p>

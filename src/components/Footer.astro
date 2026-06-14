@@ -272,7 +272,7 @@ const currentYear = new Date().getFullYear();
     font-size: 0.72rem;
     font-weight: 800;
     text-transform: uppercase;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: var(--transition-elevate), var(--transition-colors);
   }
 
   .footer-link:hover {
@@ -321,16 +321,14 @@ const currentYear = new Date().getFullYear();
     background: color-mix(in srgb, var(--surface) 86%, transparent);
     color: var(--text);
     text-decoration: none;
-    transition:
-      border-color 0.2s ease,
-      background 0.2s ease,
-      transform 0.2s ease;
+    transition: var(--transition-elevate), var(--transition-colors);
   }
 
   .source-card:hover {
     border-color: color-mix(in srgb, var(--love) 55%, var(--border-color));
     background: color-mix(in srgb, var(--love) 10%, var(--surface));
     transform: translateY(-1px);
+    box-shadow: var(--elev-1);
   }
 
   .source-logo {
@@ -402,7 +400,7 @@ const currentYear = new Date().getFullYear();
     color: var(--text);
     text-decoration: none;
     font-weight: 500;
-    transition: all 0.2s ease;
+    transition: var(--transition-colors);
   }
 
   .external-link:hover {
@@ -475,6 +473,18 @@ const currentYear = new Date().getFullYear();
     }
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    .footer-link,
+    .source-card,
+    .external-link {
+      transition: none;
+    }
+    .footer-link:hover,
+    .source-card:hover {
+      transform: none;
+    }
+  }
+
   html.light .footer {
     background: var(--base);
     border-top: 1px solid var(--border-color);
@@ -497,7 +507,7 @@ const currentYear = new Date().getFullYear();
 
   html.light .footer-link:hover {
     background: var(--love);
-    color: #ffffff;
+    color: var(--on-accent);
     box-shadow: none;
   }
 

@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react';
+import type { CSSProperties, TransitionEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+type DrawerPhase = 'closed' | 'entering' | 'open' | 'leaving';
 
 interface ModelData {
   id: string;
@@ -169,26 +172,125 @@ function getProviderIdentity(model: ModelData) {
 }
 
 export default function ModelDrawer() {
-  const [isOpen, setIsOpen] = useState(false);
+  const [phase, setPhase] = useState<DrawerPhase>('closed');
   const [model, setModel] = useState<ModelData | null>(null);
+
+  const phaseRef = useRef<DrawerPhase>('closed');
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const leaveTimerRef = useRef<number | null>(null);
+  // Read the reduced-motion preference once via a ref.
+  const reducedMotionRef = useRef<boolean>(
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      : false,
+  );
+
+  const setPhaseTracked = useCallback((next: DrawerPhase) => {
+    phaseRef.current = next;
+    setPhase(next);
+  }, []);
+
+  const cancelRaf = useCallback(() => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+  }, []);
+
+  const finishClose = useCallback(() => {
+    cancelRaf();
+    if (leaveTimerRef.current !== null) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+    setPhaseTracked('closed');
+    setModel(null);
+    document.body.style.overflow = '';
+    const trigger = triggerRef.current;
+    triggerRef.current = null;
+    if (trigger && typeof trigger.focus === 'function') {
+      trigger.focus();
+    }
+  }, [cancelRaf, setPhaseTracked]);
+
+  const beginClose = useCallback(() => {
+    if (phaseRef.current === 'closed' || phaseRef.current === 'leaving') return;
+    if (reducedMotionRef.current) {
+      finishClose();
+      return;
+    }
+    setPhaseTracked('leaving');
+    // Failsafe: if the panel transition is interrupted and transitionend never
+    // fires, force-close so body scroll isn't left permanently locked.
+    leaveTimerRef.current = window.setTimeout(() => {
+      if (phaseRef.current === 'leaving') finishClose();
+    }, 600);
+  }, [finishClose, setPhaseTracked]);
 
   useEffect(() => {
     const handleOpen = (e: CustomEvent<ModelData>) => {
+      // Remember the element that triggered the drawer so focus can return to it.
+      const active = document.activeElement;
+      triggerRef.current = active instanceof HTMLElement ? active : null;
+
+      cancelRaf();
+      if (leaveTimerRef.current !== null) {
+        clearTimeout(leaveTimerRef.current);
+        leaveTimerRef.current = null;
+      }
       setModel(e.detail);
-      setIsOpen(true);
       document.body.style.overflow = 'hidden';
+
+      if (reducedMotionRef.current) {
+        setPhaseTracked('open');
+        return;
+      }
+
+      setPhaseTracked('entering');
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = requestAnimationFrame(() => {
+          setPhaseTracked('open');
+        });
+      });
     };
 
     const handleClose = () => {
-      setIsOpen(false);
-      document.body.style.overflow = '';
+      beginClose();
     };
 
     window.addEventListener('open-model-drawer', handleOpen as EventListener);
     window.addEventListener('close-model-drawer', handleClose as EventListener);
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) handleClose();
+      if (phaseRef.current === 'closed') return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        beginClose();
+        return;
+      }
+      if (e.key === 'Tab') {
+        const panel = panelRef.current;
+        if (!panel) return;
+        const focusable = panel.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+        );
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const activeEl = document.activeElement;
+        if (e.shiftKey) {
+          if (activeEl === first || !panel.contains(activeEl)) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else if (activeEl === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     document.addEventListener('keydown', handleKeyDown);
 
@@ -196,10 +298,63 @@ export default function ModelDrawer() {
       window.removeEventListener('open-model-drawer', handleOpen as EventListener);
       window.removeEventListener('close-model-drawer', handleClose as EventListener);
       document.removeEventListener('keydown', handleKeyDown);
+      cancelRaf();
+      if (leaveTimerRef.current !== null) {
+        clearTimeout(leaveTimerRef.current);
+        leaveTimerRef.current = null;
+      }
     };
-  }, [isOpen]);
+  }, [beginClose, cancelRaf, setPhaseTracked]);
 
-  if (!isOpen || !model) return null;
+  // Focus the close button once the panel has entered.
+  useEffect(() => {
+    if (phase === 'open') {
+      closeButtonRef.current?.focus();
+    }
+  }, [phase]);
+
+  if (phase === 'closed' || !model) return null;
+
+  const isActive = phase === 'open';
+  const reduced = reducedMotionRef.current;
+  const supportsBlur =
+    typeof window !== 'undefined' &&
+    typeof window.CSS !== 'undefined' &&
+    typeof window.CSS.supports === 'function' &&
+    window.CSS.supports('backdrop-filter', 'blur(8px)');
+
+  const backdropStyle: CSSProperties = reduced
+    ? { opacity: isActive ? 1 : 0 }
+    : {
+        opacity: isActive ? 1 : 0,
+        transition: 'opacity var(--dur-base) var(--ease-smooth)',
+        ...(supportsBlur
+          ? {
+              backdropFilter: isActive ? 'blur(8px)' : 'blur(0px)',
+              WebkitBackdropFilter: isActive ? 'blur(8px)' : 'blur(0px)',
+              transitionProperty: 'opacity, backdrop-filter, -webkit-backdrop-filter',
+            }
+          : {}),
+      };
+
+  const panelStyle: CSSProperties = reduced
+    ? {}
+    : {
+        transform: isActive ? 'translateX(0) scale(1)' : 'translateX(100%) scale(0.98)',
+        opacity: isActive ? 1 : 0,
+        transition:
+          'transform var(--dur-slow) var(--ease-spring), opacity var(--dur-base) var(--ease-smooth)',
+        willChange: 'transform, opacity',
+      };
+
+  const handlePanelTransitionEnd = (event: TransitionEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
+    if (event.propertyName !== 'transform') return;
+    if (phaseRef.current === 'leaving') {
+      finishClose();
+    }
+  };
+
   const provider = getProviderIdentity(model);
   const openRouterParameters = Array.isArray(model.openrouter_supported_parameters)
     ? model.openrouter_supported_parameters
@@ -240,16 +395,17 @@ export default function ModelDrawer() {
   return (
     <>
       <div
-        className="fixed inset-0 z-40 bg-black/75 transition-opacity"
-        onClick={() => {
-          setIsOpen(false);
-          document.body.style.overflow = '';
-        }}
+        className="fixed inset-0 z-40 bg-black/75"
+        style={backdropStyle}
+        onClick={beginClose}
         aria-hidden="true"
       />
 
       <div
+        ref={panelRef}
         className="fixed right-0 top-0 z-50 h-full w-full max-w-lg overflow-y-auto border-l border-border-color bg-base shadow-[-24px_0_80px_var(--shadow-color)]"
+        style={panelStyle}
+        onTransitionEnd={handlePanelTransitionEnd}
         role="dialog"
         aria-modal="true"
         aria-labelledby="model-drawer-title"
@@ -278,11 +434,9 @@ export default function ModelDrawer() {
             </div>
           </div>
           <button
-            onClick={() => {
-              setIsOpen(false);
-              document.body.style.overflow = '';
-            }}
-            className="inline-grid h-11 w-11 shrink-0 place-items-center border border-border-color p-0 leading-none text-subtle transition-colors hover:border-love hover:bg-love hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-love"
+            ref={closeButtonRef}
+            onClick={beginClose}
+            className="drawer-close inline-grid h-11 w-11 shrink-0 place-items-center border border-border-color p-0 leading-none text-subtle transition-colors hover:border-love hover:bg-love hover:text-[var(--on-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-love"
             aria-label="Close drawer"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

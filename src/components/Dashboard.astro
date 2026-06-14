@@ -423,6 +423,7 @@ function getScoreClass(score: number | null | undefined): string {
     <section
       aria-label="Operational metrics"
       class="telemetry-bento grid-flow-dense fade-in-section stagger-container"
+      data-stagger="55"
     >
       <article class="bento-cell stagger-item">
         <span class="console-label">Tracked models</span>
@@ -772,7 +773,7 @@ function getScoreClass(score: number | null | undefined): string {
                             {/* Background bar */}
                             <div
                               class={`lbb ${rankColors[index]}`}
-                              style={`--w:${barWidth}%`}
+                              style={`--w:${barWidth}%;--row-index:${index}`}
                             />
 
                             <div class="lbr">
@@ -851,8 +852,11 @@ function getScoreClass(score: number | null | undefined): string {
         </p>
       </header>
 
+      <div id="model-toolbar-sentinel" aria-hidden="true" class="h-px w-full"></div>
+
       <div
-        class="sticky top-[56px] z-20 border border-highlight-low/70 bg-overlay px-4 py-3 flex flex-col gap-3 md:flex-row md:items-start md:justify-between"
+        id="model-toolbar"
+        class="model-toolbar sticky top-[56px] z-20 border border-highlight-low/70 bg-overlay px-4 py-3 flex flex-col gap-3 md:flex-row md:items-start md:justify-between"
       >
         <div class="w-full md:max-w-xs">
           <label
@@ -893,13 +897,29 @@ function getScoreClass(score: number | null | undefined): string {
               <label for="model-sort-direction" class="sr-only"
                 >Sort direction</label
               >
-              <select
-                id="model-sort-direction"
-                class="toolbar-control w-full px-3 py-2 text-sm font-bold uppercase text-text active:translate-y-px sm:w-32"
-              >
-                <option value="desc">Top first</option>
-                <option value="asc">Lowest first</option>
-              </select>
+              <div class="sort-direction-wrap">
+                <span
+                  id="sort-direction-indicator"
+                  class="sort-direction-indicator"
+                  aria-hidden="true"
+                >
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M8 3v10M4 9l4 4 4-4"
+                    ></path>
+                  </svg>
+                </span>
+                <select
+                  id="model-sort-direction"
+                  class="toolbar-control w-full px-3 py-2 text-sm font-bold uppercase text-text active:translate-y-px sm:w-32"
+                >
+                  <option value="desc">Top first</option>
+                  <option value="asc">Lowest first</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -953,12 +973,13 @@ function getScoreClass(score: number | null | undefined): string {
         </div>
       </div>
 
-      <div id="empty-state" class="hidden rounded-lg border border-highlight-low bg-surface/80 py-16 text-center">
+      <div id="empty-state" class="empty-state hidden">
         <svg
           class="mx-auto h-12 w-12 text-muted"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
+          aria-hidden="true"
         >
           <path
             stroke-linecap="round"
@@ -967,10 +988,18 @@ function getScoreClass(score: number | null | undefined): string {
             d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
           ></path>
         </svg>
-        <h3 class="mt-4 text-sm font-semibold text-text">No models found</h3>
+        <p class="empty-state-kicker">No matches</p>
+        <h3 class="mt-2 text-sm font-semibold text-text">No models found</h3>
         <p class="mt-1 text-xs text-subtle">
           Try adjusting your search or filters.
         </p>
+        <button
+          id="empty-state-clear"
+          type="button"
+          class="brutalist-button mt-5 text-xs"
+        >
+          Clear search
+        </button>
       </div>
 
       <div class="grid gap-3 md:grid-cols-2 stagger-container" id="models-grid">
@@ -1084,11 +1113,14 @@ function getScoreClass(score: number | null | undefined): string {
   }
 
   .bento-cell {
+    position: relative;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     background: color-mix(in srgb, var(--surface) 92%, transparent);
+    border: 1px solid transparent;
     padding: clamp(1rem, 1.7vw, 1.25rem);
+    transition: var(--transition-elevate);
   }
 
   .bento-cell data,
@@ -1099,6 +1131,7 @@ function getScoreClass(score: number | null | undefined): string {
     font-family: var(--font-mono);
     font-size: clamp(1.3rem, 2.6vw, 2.6rem);
     font-weight: 800;
+    letter-spacing: -0.01em;
     line-height: 1;
     overflow-wrap: anywhere;
   }
@@ -1131,8 +1164,19 @@ function getScoreClass(score: number | null | undefined): string {
   }
 
   .bento-cell:hover {
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--love) 70%, transparent);
-    transform: none;
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--love) 65%, var(--border-color));
+    box-shadow: var(--elev-2);
+    z-index: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bento-cell {
+      transition: none;
+    }
+    .bento-cell:hover {
+      transform: none;
+    }
   }
 
   .bento-cell p {
@@ -1442,24 +1486,7 @@ function getScoreClass(score: number | null | undefined): string {
     text-transform: uppercase;
   }
 
-  .model-card {
-    transition:
-      transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-      border-color 0.25s ease,
-      box-shadow 0.25s ease;
-  }
-
-  .model-card:hover {
-    transform: translateY(-3px);
-    border-color: var(--love);
-    box-shadow:
-      8px 8px 0 var(--shadow-color),
-      0 0 0 1px rgba(230, 25, 25, 0.2);
-  }
-
-  .model-card:active {
-    transform: translateY(-1px);
-  }
+  /* .model-card hover/transition is owned by ModelCard.astro (single source of truth). */
 
   .source-strip {
     display: inline-flex;
@@ -1484,11 +1511,98 @@ function getScoreClass(score: number | null | undefined): string {
     background: color-mix(in srgb, var(--overlay) 62%, transparent);
   }
 
+  /* Sticky all-models toolbar elevation. */
+  .model-toolbar {
+    border-radius: var(--radius-m);
+    transition:
+      var(--transition-colors),
+      box-shadow var(--dur-base) var(--ease-smooth);
+  }
+
+  .model-toolbar.is-stuck {
+    background: var(--overlay);
+    border-bottom-color: color-mix(in srgb, var(--love) 45%, var(--border-color));
+    box-shadow: var(--elev-2);
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .model-card {
+    .model-toolbar {
       transition: none;
     }
-    .model-card:hover {
+  }
+
+  /* Empty state within the terminal identity. */
+  .empty-state {
+    border: 1px solid var(--highlight-low);
+    border-radius: var(--radius-m);
+    background: color-mix(in srgb, var(--surface) 80%, transparent);
+    padding: 4rem 1.5rem;
+    text-align: center;
+  }
+
+  .empty-state-kicker {
+    margin-top: 1rem;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  html.motion-ready .empty-state:not(.hidden) {
+    animation: empty-state-in var(--dur-slow) var(--ease-out-expo) both;
+  }
+
+  @keyframes empty-state-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html.motion-ready .empty-state:not(.hidden) {
+      animation: none;
+    }
+  }
+
+  /* Grid <-> table view crossfade. */
+  html.motion-ready #models-grid,
+  html.motion-ready #models-table-container {
+    transition:
+      opacity var(--dur-base) var(--ease-out-expo),
+      transform var(--dur-base) var(--ease-out-expo);
+  }
+
+  html.motion-ready #models-grid.view-leaving,
+  html.motion-ready #models-table-container.view-leaving {
+    opacity: 0;
+    transform: scale(0.99);
+    transition:
+      opacity var(--dur-base) var(--ease-smooth),
+      transform var(--dur-base) var(--ease-smooth);
+  }
+
+  html.motion-ready #models-grid.view-entering,
+  html.motion-ready #models-table-container.view-entering {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html.motion-ready #models-grid,
+    html.motion-ready #models-table-container,
+    html.motion-ready #models-grid.view-leaving,
+    html.motion-ready #models-table-container.view-leaving,
+    html.motion-ready #models-grid.view-entering,
+    html.motion-ready #models-table-container.view-entering {
+      transition: none;
+      opacity: 1;
       transform: none;
     }
   }
@@ -1579,7 +1693,7 @@ function getScoreClass(score: number | null | undefined): string {
   .benchmark-picker-trigger:focus-visible {
     border-color: var(--love);
     background: color-mix(in srgb, var(--surface) 82%, var(--highlight-low));
-    box-shadow: 0 0 0 2px rgba(230, 25, 25, 0.18);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--love) 18%, transparent);
     outline: none;
   }
 
@@ -1794,6 +1908,45 @@ function getScoreClass(score: number | null | undefined): string {
     min-width: 10.5rem;
   }
 
+  .sort-direction-wrap {
+    position: relative;
+    width: 100%;
+  }
+
+  .sort-direction-wrap > .toolbar-control {
+    padding-left: 2.4rem;
+  }
+
+  .sort-direction-indicator {
+    position: absolute;
+    left: 0.85rem;
+    top: 50%;
+    width: 0.95rem;
+    height: 0.95rem;
+    transform: translateY(-50%);
+    color: var(--subtle);
+    pointer-events: none;
+    z-index: 1;
+    display: inline-flex;
+    transition: transform var(--dur-base) var(--ease-spring);
+  }
+
+  .sort-direction-indicator svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Default glyph points down (descending / top first). asc flips it 180. */
+  .sort-direction-indicator.is-asc {
+    transform: translateY(-50%) rotate(180deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sort-direction-indicator {
+      transition: none;
+    }
+  }
+
   #openrouter-provider-board > li {
     border-bottom: 1px solid var(--highlight-low);
   }
@@ -1873,7 +2026,7 @@ function getScoreClass(score: number | null | undefined): string {
   .toolbar-control:focus-visible {
     outline: none;
     border-color: var(--love);
-    box-shadow: 0 0 0 2px rgba(230, 25, 25, 0.25);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--love) 25%, transparent);
   }
 
   .lr {
@@ -1898,11 +2051,57 @@ function getScoreClass(score: number | null | undefined): string {
   .lbi {
     position: relative;
     overflow: hidden;
-    transition: background-color 0.18s ease;
+    transition: background-color var(--dur-fast) var(--ease-smooth);
   }
 
   .lbi:hover {
     background: var(--highlight-low);
+  }
+
+  .lbi:hover .lbb {
+    filter: brightness(1.12);
+  }
+
+  .lbi:hover .lrn {
+    transform: translateX(1px) scale(1.04);
+  }
+
+  .lrn {
+    transition:
+      transform var(--dur-fast) var(--ease-spring),
+      filter var(--dur-fast) var(--ease-smooth);
+  }
+
+  /* Metric crossfade between leaderboard panels. */
+  html.motion-ready #leaderboard [data-metric] {
+    transition:
+      opacity var(--dur-base) var(--ease-smooth),
+      transform var(--dur-base) var(--ease-smooth);
+  }
+
+  html.motion-ready #leaderboard [data-metric].metric-leaving {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  html.motion-ready #leaderboard [data-metric].metric-entering {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lbi:hover .lbb,
+    .lbi:hover .lrn {
+      filter: none;
+      transform: none;
+    }
+    html.motion-ready #leaderboard [data-metric],
+    html.motion-ready #leaderboard [data-metric].metric-leaving,
+    html.motion-ready #leaderboard [data-metric].metric-entering {
+      transition: none;
+      opacity: 1;
+      transform: none;
+    }
   }
 
   .lbb {
@@ -1911,11 +2110,33 @@ function getScoreClass(score: number | null | undefined): string {
     inset: 0 auto 0 0;
     width: var(--w);
     border-left: 4px solid var(--highlight-med);
+    transition: filter var(--dur-fast) var(--ease-smooth);
+  }
+
+  /* Animated bar fill: collapse to 0, then grow to --w when revealed. */
+  html.motion-ready #leaderboard .lbb {
+    width: 0;
+    transition:
+      width var(--dur-slow) var(--ease-out-expo),
+      filter var(--dur-fast) var(--ease-smooth);
+    transition-delay: calc(var(--row-index, 0) * 60ms), 0ms;
+  }
+
+  html.motion-ready #leaderboard .leaderboard-revealed .lbb {
+    width: var(--w);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html.motion-ready #leaderboard .lbb,
+    html.motion-ready #leaderboard .leaderboard-revealed .lbb {
+      width: var(--w);
+      transition: none;
+    }
   }
 
   .lbb1 {
     border-left-color: var(--love);
-    background: rgba(230, 25, 25, 0.18);
+    background: color-mix(in srgb, var(--love) 18%, transparent);
   }
 
   .lbb2 {
@@ -1970,7 +2191,7 @@ function getScoreClass(score: number | null | undefined): string {
   .lrn1 {
     border-color: var(--love);
     background: var(--love);
-    color: #ffffff;
+    color: var(--on-accent);
   }
 
   .lrn2 {
@@ -2060,7 +2281,7 @@ function getScoreClass(score: number | null | undefined): string {
     background: var(--highlight-low);
   }
   .view-toggle-btn.active {
-    color: #ffffff;
+    color: var(--on-accent);
     background: var(--love);
     border-color: var(--love);
     box-shadow: none;
@@ -2263,6 +2484,9 @@ function getScoreClass(score: number | null | undefined): string {
     const emptyState = document.getElementById("empty-state");
     const viewCardsBtn = document.getElementById("view-cards");
     const viewTableBtn = document.getElementById("view-table");
+    const sortDirectionIndicator = document.getElementById(
+      "sort-direction-indicator",
+    );
 
     let currentVisible = PAGE_SIZE;
     let matchedTotal = 0;
@@ -3358,6 +3582,30 @@ function getScoreClass(score: number | null | undefined): string {
       };
     };
 
+    const reducedMotionQuery =
+      typeof window.matchMedia === "function"
+        ? window.matchMedia("(prefers-reduced-motion: reduce)")
+        : null;
+    const prefersReducedMotion = () => Boolean(reducedMotionQuery?.matches);
+
+    // Animate the visible leaderboard panel's bars 0 -> --w.
+    const playBarFill = (panel) => {
+      if (!panel) return;
+      const bars = panel.querySelectorAll(".lbb");
+      if (!bars.length) return;
+      if (prefersReducedMotion()) {
+        panel.classList.add("leaderboard-revealed");
+        return;
+      }
+      // Reset to collapsed, force reflow, then grow.
+      panel.classList.remove("leaderboard-revealed");
+      void panel.offsetWidth;
+      panel.classList.add("leaderboard-revealed");
+    };
+
+    const getActiveLeaderboardPanel = () =>
+      leaderboardPanels?.querySelector("[data-metric]:not([hidden])") || null;
+
     const renderLeaderboard = (models, epochBenchmarks, epochRuns) => {
       if (!metricSelect || !leaderboardPanels) return;
 
@@ -3440,7 +3688,7 @@ function getScoreClass(score: number | null | undefined): string {
               return `
                 <li class="lbi">
                   <button type="button" class="lr" data-lr ${rowAction}>
-                    <div class="lbb ${rankColors[index]}" style="--w:${barWidth}%"></div>
+                    <div class="lbb ${rankColors[index]}" style="--w:${barWidth}%;--row-index:${index}"></div>
                     <div class="lbr">
                       <div class="lrw">${rankBadge}</div>
                       <div class="lbm">
@@ -3489,6 +3737,8 @@ function getScoreClass(score: number | null | undefined): string {
         el.classList.toggle("hidden", shouldHide);
       });
       bindLeaderboardRows();
+      // Replay the fill on the freshly rendered active panel.
+      playBarFill(getActiveLeaderboardPanel());
     };
 
     const createCardMarkup = (model) => {
@@ -3590,7 +3840,7 @@ function getScoreClass(score: number | null | undefined): string {
           data-input-price="${Number(model.price_1m_input_tokens) || 0}"
           data-output-price="${Number(model.price_1m_output_tokens) || 0}"
           data-tps="${Number(model.median_output_tokens_per_second) || 0}"
-          class="model-card brutalist-card group border border-highlight-med bg-surface px-4 py-4 text-sm stagger-item tilt-card"
+          class="model-card brutalist-card group px-4 py-4 text-sm stagger-item"
         >
           <header class="flex items-start justify-between gap-2">
             <div class="min-w-0">
@@ -3796,6 +4046,9 @@ function getScoreClass(score: number | null | undefined): string {
       const direction = sortDirectionSelect?.value || "desc";
       const attr = sortAttrMap[metric] ?? "mmlu";
 
+      // Reflect the active sort direction in the rotating glyph.
+      sortDirectionIndicator?.classList.toggle("is-asc", direction === "asc");
+
       const cards = getCards();
       cards.sort((a, b) => {
         const valA = Number(a.dataset[attr]) || 0;
@@ -3817,25 +4070,100 @@ function getScoreClass(score: number | null | undefined): string {
       applySearch(true);
     };
 
+    // Run `cb` once: on the element's opacity transitionend, or after a failsafe
+    // timeout if it never fires (interrupted/canceled). Shared by the view and
+    // leaderboard-metric crossfades below.
+    const FAILSAFE_VIEW_SWAP_MS = 260;
+    const FAILSAFE_METRIC_SWAP_MS = 320;
+    const onceAfterFade = (el, timeoutMs, cb) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        el.removeEventListener("transitionend", onEnd);
+        cb();
+      };
+      const onEnd = (event) => {
+        if (event.propertyName === "opacity") finish();
+      };
+      el.addEventListener("transitionend", onEnd);
+      window.setTimeout(finish, timeoutMs);
+    };
+
+    // Crossfade between two view containers. updateVisibility/setView still own
+    // each container's final display; this only animates the transition.
+    const swapView = (fromEl, toEl, onShown) => {
+      const showTarget = () => {
+        if (toEl) {
+          toEl.classList.remove("hidden");
+          toEl.classList.remove("view-leaving");
+        }
+        onShown?.();
+        if (!toEl || prefersReducedMotion()) {
+          toEl?.classList.remove("view-entering");
+          return;
+        }
+        toEl.classList.add("view-entering");
+        void toEl.offsetWidth;
+        toEl.classList.remove("view-entering");
+      };
+
+      if (prefersReducedMotion() || !fromEl) {
+        fromEl?.classList.add("hidden");
+        fromEl?.classList.remove("view-leaving", "view-entering");
+        showTarget();
+        return;
+      }
+
+      fromEl.classList.add("view-leaving");
+      onceAfterFade(fromEl, FAILSAFE_VIEW_SWAP_MS, () => {
+        fromEl.classList.add("hidden");
+        fromEl.classList.remove("view-leaving");
+        showTarget();
+      });
+    };
+
+    const applyCardsViewState = () => {
+      if (grid) grid.style.display = matchedTotal === 0 ? "none" : "";
+      viewCardsBtn?.classList.add("active");
+      viewCardsBtn?.setAttribute("aria-pressed", "true");
+      viewTableBtn?.classList.remove("active");
+      viewTableBtn?.setAttribute("aria-pressed", "false");
+      if (loadMoreBtn) loadMoreBtn.style.display = "";
+    };
+
+    const applyTableViewState = () => {
+      if (grid) grid.style.display = "none";
+      viewCardsBtn?.classList.remove("active");
+      viewCardsBtn?.setAttribute("aria-pressed", "false");
+      viewTableBtn?.classList.add("active");
+      viewTableBtn?.setAttribute("aria-pressed", "true");
+      if (loadMoreBtn) loadMoreBtn.style.display = "none";
+      applyTableSearch();
+    };
+
     const setView = (view) => {
+      const previousView = currentView;
       currentView = view;
+      const animate = previousView && previousView !== view;
+
       if (view === "cards") {
-        if (grid) grid.style.display = matchedTotal === 0 ? "none" : "";
-        tableContainer?.classList.add("hidden");
-        viewCardsBtn?.classList.add("active");
-        viewCardsBtn?.setAttribute("aria-pressed", "true");
-        viewTableBtn?.classList.remove("active");
-        viewTableBtn?.setAttribute("aria-pressed", "false");
-        if (loadMoreBtn) loadMoreBtn.style.display = "";
+        if (animate) {
+          swapView(tableContainer, grid, applyCardsViewState);
+        } else {
+          tableContainer?.classList.add("hidden");
+          tableContainer?.classList.remove("view-leaving", "view-entering");
+          grid?.classList.remove("hidden", "view-leaving", "view-entering");
+          applyCardsViewState();
+        }
       } else {
-        if (grid) grid.style.display = "none";
-        tableContainer?.classList.remove("hidden");
-        viewCardsBtn?.classList.remove("active");
-        viewCardsBtn?.setAttribute("aria-pressed", "false");
-        viewTableBtn?.classList.add("active");
-        viewTableBtn?.setAttribute("aria-pressed", "true");
-        if (loadMoreBtn) loadMoreBtn.style.display = "none";
-        applyTableSearch();
+        if (animate) {
+          swapView(grid, tableContainer, applyTableViewState);
+        } else {
+          tableContainer?.classList.remove("hidden", "view-leaving", "view-entering");
+          grid?.classList.remove("view-leaving", "view-entering");
+          applyTableViewState();
+        }
       }
     };
 
@@ -3850,18 +4178,52 @@ function getScoreClass(score: number | null | undefined): string {
       setView(currentView);
     };
 
+    const swapLeaderboardMetric = (metric) => {
+      const panels = Array.from(document.querySelectorAll("[data-metric]")).filter(
+        (el) => el instanceof HTMLElement,
+      );
+      const incoming = panels.find((el) => el.dataset.metric === metric) || null;
+      const outgoing =
+        panels.find((el) => el !== incoming && !el.hidden) || null;
+
+      const showIncoming = () => {
+        panels.forEach((el) => {
+          if (el === incoming) return;
+          el.hidden = true;
+          el.classList.add("hidden");
+          el.classList.remove("metric-leaving", "metric-entering");
+        });
+        if (!incoming) return;
+        incoming.hidden = false;
+        incoming.classList.remove("hidden", "metric-leaving");
+        if (prefersReducedMotion()) {
+          incoming.classList.remove("metric-entering");
+          playBarFill(incoming);
+          return;
+        }
+        incoming.classList.add("metric-entering");
+        // Force reflow so the entering transition plays from its hidden state.
+        void incoming.offsetWidth;
+        incoming.classList.remove("metric-entering");
+        playBarFill(incoming);
+      };
+
+      if (prefersReducedMotion() || !outgoing || outgoing === incoming) {
+        showIncoming();
+        return;
+      }
+
+      outgoing.classList.add("metric-leaving");
+      onceAfterFade(outgoing, FAILSAFE_METRIC_SWAP_MS, showIncoming);
+    };
+
     metricSelect?.addEventListener("change", () => {
       const metric = metricSelect.value;
       updateLeaderboardCompareLink();
       renderAttributionText(metric);
       syncMetricPickerValue();
       renderMetricPickerOptions();
-      Array.from(document.querySelectorAll("[data-metric]")).forEach((el) => {
-        if (!(el instanceof HTMLElement)) return;
-        const shouldHide = el.dataset.metric !== metric;
-        el.hidden = shouldHide;
-        el.classList.toggle("hidden", shouldHide);
-      });
+      swapLeaderboardMetric(metric);
     });
 
     openRouterRankSelect?.addEventListener("change", () => {
@@ -3878,6 +4240,15 @@ function getScoreClass(score: number | null | undefined): string {
     searchInput?.addEventListener("input", () => applySearch(true));
     viewCardsBtn?.addEventListener("click", () => setView("cards"));
     viewTableBtn?.addEventListener("click", () => setView("table"));
+
+    const emptyStateClearBtn = document.getElementById("empty-state-clear");
+    emptyStateClearBtn?.addEventListener("click", () => {
+      if (searchInput) {
+        searchInput.value = "";
+        searchInput.focus();
+      }
+      applySearch(true);
+    });
 
     document.addEventListener("keydown", (event) => {
       const visibleCards = getVisibleCards();
@@ -3897,10 +4268,65 @@ function getScoreClass(score: number | null | undefined): string {
       visibleCards[focusedCardIndex]?.focus();
     });
 
+    // Deferred to first scroll-in so bars don't animate during hydration; idempotent via dataset flag.
+    const setupLeaderboardReveal = () => {
+      const leaderboardSection = document.getElementById("leaderboard");
+      if (!leaderboardSection) return;
+      if (leaderboardSection.dataset.barRevealBound === "true") return;
+      leaderboardSection.dataset.barRevealBound = "true";
+
+      const reveal = () => playBarFill(getActiveLeaderboardPanel());
+
+      if (prefersReducedMotion() || !("IntersectionObserver" in window)) {
+        reveal();
+        return;
+      }
+
+      const observer = new IntersectionObserver(
+        (entries, obs) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            reveal();
+            obs.disconnect();
+          });
+        },
+        { threshold: 0.15 },
+      );
+      observer.observe(leaderboardSection);
+    };
+
+    // Toggle .is-stuck when the sentinel scrolls out; idempotent via dataset flag.
+    const setupStickyToolbar = () => {
+      const toolbarSentinel = document.getElementById("model-toolbar-sentinel");
+      const stickyToolbar = document.getElementById("model-toolbar");
+      if (!toolbarSentinel || !stickyToolbar) return;
+      if (stickyToolbar.dataset.stickyBound === "true") return;
+      stickyToolbar.dataset.stickyBound = "true";
+
+      if (!("IntersectionObserver" in window)) return;
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            stickyToolbar.classList.toggle("is-stuck", !entry.isIntersecting);
+          });
+        },
+        { threshold: [1] },
+      );
+      observer.observe(toolbarSentinel);
+    };
+
+    document.addEventListener("astro:page-load", () => {
+      setupLeaderboardReveal();
+      setupStickyToolbar();
+    });
+
     bindCardFocus();
     bindTableRows();
     bindLeaderboardRows();
     bindOpenRouterProviderRows();
+    setupLeaderboardReveal();
+    setupStickyToolbar();
     void loadPublicCatalogData().then(() => renderOpenRouterProviderLeaderboard());
     updateLeaderboardCompareLink();
     applySearch(true);
