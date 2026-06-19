@@ -1,8 +1,8 @@
 # AI Stats
 
-> AI Stats is a web application for comparing AI model pricing, performance benchmarks, and technical specifications. Built with Astro, TypeScript, and Supabase, it provides real-time data visualization for models including GPT-4, Claude, Gemini, Llama, and more.
+> AI Stats is Jonathan R. Reed's model-selection workbench. It keeps model prices, context windows, benchmark coverage, provider routes, speed, and latency in one place so teams can choose models without fifteen open tabs.
 
-This project is a hobbyist tool inspired by Theo Browne's model-prices dashboard. Pricing, Artificial Analysis benchmark scores, speed, and latency metrics are sourced from Artificial Analysis via their free API. Epoch benchmark runs come from Epoch AI's AI Benchmarking Hub. OpenRouter public catalog data is used for model availability, usage rankings, provider directory data, embedding models, endpoint route detail, modalities, context length, and route metadata. Hugging Face Hub public model data is used for public repo popularity and tags. LiteLLM public catalog data is used for additional pricing, context, and capability checks. The site uses NebulaSans custom font from Nebula.com.
+This project is a public, noncommercial tool inspired by Theo Browne's model-prices dashboard. Pricing, Artificial Analysis benchmark scores, speed, and latency metrics come from Artificial Analysis. Epoch benchmark runs come from Epoch AI's AI Benchmarking Hub. OpenRouter public catalog data is used for model availability, usage rankings, provider directory data, embedding models, route detail, modalities, context length, and route metadata. Hugging Face Hub public model data is used for public repo popularity and tags. LiteLLM public catalog data is used for additional pricing, context, and capability checks. The site uses the NebulaSans font from Nebula.com.
 
 Key features:
 - Interactive comparison of AI model pricing, context, and latency
@@ -10,6 +10,12 @@ Key features:
 - Public catalog coverage from OpenRouter, Hugging Face Hub, and LiteLLM
 - Responsive dark-mode-first model selection workbench
 - Filter, sort, and side-by-side comparison tools
+
+## Creator
+
+- **Name**: Jonathan R. Reed
+- **Canonical site**: https://jonathanrreed.com/
+- **Related work**: AI safety, model evaluation, secure AI deployment, technical tools, and public-facing AI education
 
 ## Pages
 
