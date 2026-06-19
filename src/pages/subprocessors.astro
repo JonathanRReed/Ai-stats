@@ -1,0 +1,60 @@
+---
+import Layout from "../components/Layout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import ScrollToTop from "../components/ScrollToTop.astro";
+
+const title = "AI Stats Subprocessor Disclosure | Model Data Dashboard";
+const description =
+  "Subprocessor disclosure for AI Stats, including Cloudflare Pages hosting, Supabase public data caching, and browser-local comparison workflows.";
+---
+
+<Layout title={title} description={description}>
+  <Header />
+  <main class="mx-auto min-h-[calc(100vh-7rem)] w-full max-w-5xl px-6 py-16">
+    <p class="text-xs font-bold uppercase tracking-[0.16em] text-foam">Subprocessors</p>
+    <h1 class="mt-5 max-w-4xl text-4xl font-black leading-tight text-text md:text-6xl">
+      AI Stats keeps the public model-data stack narrow.
+    </h1>
+    <div class="fade-in-section stagger-container mt-10 grid gap-4 md:grid-cols-2">
+      <section class="brutalist-card stagger-item p-6">
+        <h2 class="text-lg font-bold text-text">Current infrastructure</h2>
+        <p class="mt-4 leading-7 text-subtle">
+          AI Stats is hosted on Cloudflare Pages. Cloudflare may process routine request metadata, such as IP address, user agent, request time, requested URL, and security signals, to deliver and protect the site.
+        </p>
+        <p class="mt-4 leading-7 text-subtle">
+          Supabase is used for public model-data caching and sync workflows. The cached records are public model, provider, benchmark, pricing, route, context, and source metadata used to render comparison pages.
+        </p>
+        <p class="mt-4 leading-7 text-subtle">
+          The cache is intended to make public reference data faster and more stable to browse. It is not used here as a private workspace, prompt history store, user-account database, or customer analytics system.
+        </p>
+      </section>
+      <section class="brutalist-card stagger-item p-6">
+        <h2 class="text-lg font-bold text-text">Visitor data</h2>
+        <p class="mt-4 leading-7 text-subtle">
+          AI Stats does not require visitor accounts, payments, API keys, private prompts, or uploaded benchmark files to browse model comparisons.
+        </p>
+        <p class="mt-4 leading-7 text-subtle">
+          Filtering, sorting, comparison, and theme behavior are intended to run in the browser UI. External source links lead to third-party sites with their own privacy practices.
+        </p>
+        <p class="mt-4 leading-7 text-subtle">
+          Do not enter private prompts, API keys, account credentials, customer data, confidential evaluations, or unpublished provider terms into AI Stats feedback or into external source pages reached from the dashboard.
+        </p>
+      </section>
+      <section class="brutalist-card stagger-item p-6 md:col-span-2">
+        <h2 class="text-lg font-bold text-text">Future changes</h2>
+        <p class="mt-4 leading-7 text-subtle">
+          If AI Stats later adds accounts, hosted workspaces, payments, private saved comparisons, analytics beyond basic delivery health, or user-submitted model data, this disclosure should be updated before those services receive production traffic.
+        </p>
+        <p class="mt-4 leading-7 text-subtle">
+          Questions about subprocessors or data handling can be sent through the <a class="text-pine underline underline-offset-4" href="/contact">AI Stats contact page</a>. This disclosure was last updated on June 19, 2026.
+        </p>
+        <p class="mt-4 leading-7 text-subtle">
+          If a source correction requires sending non-public material, summarize the issue first and wait for a safer exchange path. Public links and reproducible examples are enough for most model-data corrections.
+        </p>
+      </section>
+    </div>
+  </main>
+  <Footer />
+  <ScrollToTop />
+</Layout>
