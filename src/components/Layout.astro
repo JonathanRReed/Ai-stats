@@ -15,6 +15,11 @@ interface Props {
 
 const siteName = "AI Stats";
 const siteAuthor = "Jonathan R. Reed";
+const authorSameAs = [
+  "https://jonathanrreed.com/",
+  "https://github.com/JonathanRReed",
+  "https://helloworldfirm.com/",
+];
 
 const {
   title = "AI Stats | AI model stats, LLM ranking & benchmarks by Jonathan R. Reed",
@@ -47,6 +52,7 @@ const pageSchema = {
         name: siteAuthor,
         alternateName: "Jonathan Reed",
         url: "https://jonathanrreed.com",
+        sameAs: authorSameAs,
       },
       potentialAction: {
         "@type": "SearchAction",
@@ -68,6 +74,7 @@ const pageSchema = {
         name: siteAuthor,
         alternateName: "Jonathan Reed",
         url: "https://jonathanrreed.com",
+        sameAs: authorSameAs,
       },
       datePublished: "2026-04-21",
       dateModified: "2026-06-19",
