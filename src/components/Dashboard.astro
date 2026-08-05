@@ -19,6 +19,11 @@ import {
   getEpochBenchmarkLabel,
 } from "../lib/benchmark-catalog";
 import { getPublicEpochSnapshot } from "../lib/epoch-snapshot";
+import {
+  formatDataDate,
+  getDataFreshness,
+  toIsoDate,
+} from "../lib/data-freshness";
 import ModelCard from "./ModelCard.astro";
 
 const [baseModels, initialEpochBenchmarks, initialEpochRuns, publicCatalogs] =
@@ -53,6 +58,14 @@ const epochModels = usePublicEpochSnapshot
   ? publicEpochSnapshot.epochModels
   : initialEpochModels;
 const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs);
+
+const dataFreshness = await getDataFreshness();
+const dataUpdatedIso = toIsoDate(dataFreshness.updatedAt);
+const dataUpdatedLabel = formatDataDate(dataFreshness.updatedAt);
+// Only cite the bundled Epoch snapshot date when that snapshot actually fed this build.
+const epochSnapshotLabel = usePublicEpochSnapshot
+  ? formatDataDate(dataFreshness.epochFetchedAt)
+  : null;
 
 const epochBenchmarksWithRuns = getEpochBenchmarksWithRuns(
   epochBenchmarks,
@@ -420,6 +433,31 @@ function getScoreClass(score: number | null | undefined): string {
     class="telemetry-main mx-auto flex w-full max-w-7xl flex-col gap-14 px-4 pb-24 pt-10 md:gap-16 md:px-6 md:pt-16"
   >
     <h1 class="sr-only">AI model pricing and benchmark dashboard</h1>
+    {
+      dataUpdatedLabel ? (
+        <p class="data-provenance" aria-label="Data provenance">
+          <span class="console-label">Data updated</span>
+          <time id="data-updated-at" datetime={dataUpdatedIso}>
+            {dataUpdatedLabel}
+          </time>
+          <span class="data-provenance-note">
+            Pricing, latency, and AA benchmark scores come from <a
+              href="https://artificialanalysis.ai/"
+              target="_blank"
+              rel="noopener noreferrer">Artificial Analysis</a
+            >; benchmark runs from <a
+              href="https://epoch.ai/benchmarks"
+              target="_blank"
+              rel="noopener noreferrer">Epoch AI</a
+            >{epochSnapshotLabel ? ` (snapshot ${epochSnapshotLabel})` : ""};
+            catalog, routing, and popularity metadata from OpenRouter, Hugging
+            Face, and LiteLLM. Built and maintained by <a
+              href="https://jonathanrreed.com">Jonathan R. Reed</a
+            >.
+          </span>
+        </p>
+      ) : null
+    }
     <section
       aria-label="Operational metrics"
       class="telemetry-bento grid-flow-dense fade-in-section stagger-container"
@@ -1110,6 +1148,40 @@ function getScoreClass(score: number | null | undefined): string {
     font-weight: 700;
     letter-spacing: 0;
     color: var(--subtle);
+  }
+
+  .data-provenance {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.6rem;
+    margin: -0.5rem 0 0;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--subtle);
+  }
+
+  .data-provenance time {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .data-provenance-note {
+    flex: 1 1 22rem;
+    min-width: 0;
+    color: var(--muted);
+  }
+
+  .data-provenance-note a {
+    color: var(--text);
+    text-decoration: underline;
+    text-decoration-color: var(--border-color);
+    text-underline-offset: 3px;
+  }
+
+  .data-provenance-note a:hover {
+    text-decoration-color: currentColor;
   }
 
   .bento-cell {
@@ -2445,6 +2517,7 @@ function getScoreClass(score: number | null | undefined): string {
       "epoch-benchmarks-count",
     );
     const epochRunsCountEl = document.getElementById("epoch-runs-count");
+    const dataUpdatedEl = document.getElementById("data-updated-at");
     const metricSelect = document.getElementById("leaderboard-metric");
     const leaderboardPanels = document.getElementById("leaderboard-panels");
     const leaderboardAttribution = document.getElementById(
@@ -3431,6 +3504,31 @@ function getScoreClass(score: number | null | undefined): string {
       if (totalCountEl) totalCountEl.textContent = String(count);
     };
 
+    // Keep the provenance stamp honest when the client-side refresh pulls data
+    // newer than the build. Never moves the date backwards.
+    const updateDataFreshness = (models) => {
+      if (!dataUpdatedEl) return;
+      let newest = 0;
+      models.forEach((model) => {
+        const seen = Date.parse(model?.last_seen ?? "");
+        if (Number.isFinite(seen) && seen > newest) newest = seen;
+      });
+      if (!newest) return;
+
+      const updated = new Date(newest);
+      const nextIso = updated.toISOString().slice(0, 10);
+      // ISO dates compare lexicographically, so this also skips same-day rewrites.
+      if (nextIso <= (dataUpdatedEl.getAttribute("datetime") ?? "")) return;
+
+      dataUpdatedEl.setAttribute("datetime", nextIso);
+      dataUpdatedEl.textContent = new Intl.DateTimeFormat("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC",
+      }).format(updated);
+    };
+
     const updateSummaryStats = (models) => {
       const total = models.length || 1;
       const avgInput =
@@ -4341,6 +4439,7 @@ function getScoreClass(score: number | null | undefined): string {
       const epochRuns = snapshot.epochRuns ?? [];
 
       updateModelCounts(liveModels);
+      updateDataFreshness(liveModels);
       updateSummaryStats(liveModels);
       updateTopStrip(
         liveModels,

@@ -1,12 +1,16 @@
 ---
 import Layout from "../components/Layout.astro";
 import Dashboard from "../components/Dashboard.astro";
+import { getDataFreshness, toIsoDate } from "../lib/data-freshness";
 
-const title = "AI Stats | AI Model Pricing and Benchmarks";
+const title = "AI Stats | Model pricing and benchmark dashboard by Jonathan R. Reed";
 const description =
   "AI Stats compares AI model pricing, context limits, provider routes, latency, and benchmark coverage in one model-selection workbench.";
+
+const { updatedAt } = await getDataFreshness();
+const dateModified = toIsoDate(updatedAt) ?? undefined;
 ---
 
-<Layout title={title} description={description}>
+<Layout title={title} description={description} dateModified={dateModified}>
   <Dashboard />
 </Layout>

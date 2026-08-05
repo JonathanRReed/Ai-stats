@@ -11,6 +11,7 @@ interface Props {
   ogType?: string;
   noindex?: boolean;
   robots?: string;
+  dateModified?: string;
 }
 
 const siteName = "AI Stats";
@@ -28,6 +29,9 @@ const {
   ogType = "website",
   noindex = false,
   robots = "index, follow",
+  // Static pages keep the last editorial revision date; data-driven pages pass
+  // the real refresh date from src/lib/data-freshness.ts.
+  dateModified = "2026-07-16",
 } = Astro.props;
 
 const canonicalPathname = Astro.url.pathname
@@ -72,7 +76,7 @@ const pageSchema = {
         sameAs: authorSameAs,
       },
       datePublished: "2026-04-21",
-      dateModified: "2026-07-16",
+      dateModified,
       inLanguage: "en-US",
     },
   ],
