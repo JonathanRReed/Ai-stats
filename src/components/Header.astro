@@ -164,11 +164,12 @@ const { currentPage = 'dashboard' } = Astro.props;
   color: var(--subtle);
   text-decoration: none;
   font-family: var(--font-mono);
-  font-weight: 800;
+  font-weight: 650;
   padding: 0 0.85rem;
   border-radius: var(--radius-s);
   transition: var(--transition-colors);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   display: inline-flex;
   align-items: center;
@@ -204,7 +205,7 @@ const { currentPage = 'dashboard' } = Astro.props;
 
 .nav-item.active {
   color: var(--text);
-  background: color-mix(in srgb, var(--love) 18%, transparent);
+  background: transparent;
 }
 
 .nav-item.active::after {
