@@ -3,6 +3,7 @@
 import { ClientRouter } from "astro:transitions";
 import "../styles/tailwind.css";
 import ModelDrawer from "./ModelDrawer";
+import { STATIC_PAGE_DATE_MODIFIED } from "../lib/site-pages";
 
 interface Props {
   title?: string;
@@ -30,7 +31,7 @@ const {
   robots = "index, follow",
   // Static pages keep the last editorial revision date; data-driven pages pass
   // the real refresh date from src/lib/data-freshness.ts.
-  dateModified = "2026-07-16",
+  dateModified = STATIC_PAGE_DATE_MODIFIED,
 } = Astro.props;
 
 const canonicalPathname = Astro.url.pathname
