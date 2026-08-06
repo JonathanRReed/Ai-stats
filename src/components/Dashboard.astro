@@ -202,6 +202,24 @@ const avgOutputPrice =
     0,
   ) / (totalModels || 1);
 
+// Hard facts for the definition block below the h1. Counted from the same
+// payloads the bento and the model table render, and each clause is dropped
+// when its source came back empty, so the paragraph can never state a zero as
+// if it were a real figure.
+const openRouterTotal =
+  Number(openRouterModelCount?.count) || openRouterModels.length;
+const definitionFacts = [
+  totalModels > 0
+    ? `${totalModels.toLocaleString("en-US")} priced models with input, output, and blended token prices`
+    : null,
+  epochRuns.length > 0
+    ? `${epochModels.length.toLocaleString("en-US")} models scored across ${epochBenchmarksWithRuns.length} Epoch AI benchmarks in ${epochRuns.length.toLocaleString("en-US")} recorded runs`
+    : null,
+  openRouterTotal > 0
+    ? `${openRouterTotal.toLocaleString("en-US")} OpenRouter models routed through ${openRouterProviders.length} providers`
+    : null,
+].filter((fact): fact is string => fact !== null);
+
 // Combined benchmark configs - AA benchmarks first, then Epoch benchmarks
 const benchmarkConfigs = [
   // AA Benchmarks
@@ -433,6 +451,21 @@ function getScoreClass(score: number | null | undefined): string {
     class="telemetry-main mx-auto flex w-full max-w-7xl flex-col gap-14 px-4 pb-24 pt-10 md:gap-16 md:px-6 md:pt-16"
   >
     <h1 class="sr-only">AI model pricing and benchmark dashboard</h1>
+    <p class="dashboard-definition">
+      AI Stats is a workbench for choosing an AI model. It puts pricing,
+      context limits, provider routes, latency, and benchmark scores for the
+      same model side by side, so you can pick on numbers instead of on a
+      release post.
+      {
+        definitionFacts.length ? (
+          <span class="dashboard-definition-facts">
+            {" "}
+            This build covers {definitionFacts.join("; ")}. Everything here is a
+            build-time snapshot of those feeds, not a live query.
+          </span>
+        ) : null
+      }
+    </p>
     {
       dataUpdatedLabel ? (
         <p class="data-provenance" aria-label="Data provenance">
@@ -1153,6 +1186,18 @@ function getScoreClass(score: number | null | undefined): string {
     border-radius: 1px;
     background: color-mix(in srgb, var(--foam) 75%, transparent);
     flex: none;
+  }
+
+  .dashboard-definition {
+    max-width: 62ch;
+    margin: -0.5rem 0 -0.75rem;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--text);
+  }
+
+  .dashboard-definition-facts {
+    color: var(--muted);
   }
 
   .data-provenance {
