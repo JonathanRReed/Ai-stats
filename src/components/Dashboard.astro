@@ -454,14 +454,14 @@ function getScoreClass(score: number | null | undefined): string {
     <p class="dashboard-definition">
       AI Stats is a workbench for choosing an AI model. It puts pricing,
       context limits, provider routes, latency, and benchmark scores for the
-      same model side by side, so you can pick on numbers instead of on a
-      release post.
+      same model side by side, so the choice comes down to the numbers.
       {
         definitionFacts.length ? (
           <span class="dashboard-definition-facts">
             {" "}
             This build covers {definitionFacts.join("; ")}. Everything here is a
-            build-time snapshot of those feeds, not a live query.
+            build-time snapshot of those feeds, so it updates when the site
+            rebuilds.
           </span>
         ) : null
       }
