@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "Cite the exact AI Stats release or Git commit used."
+title: "AI Stats: A Sourced AI Model Selection Workbench"
+type: software
+authors:
+  - family-names: Reed
+    given-names: "Jonathan R."
+repository-code: "https://github.com/JonathanRReed/Ai-stats"
+url: "https://aistats.jonathanrreed.com/"
+license: MIT
+abstract: >-
+  AI Stats is a sourced browser workbench for comparing AI model pricing,
+  provider routes, context limits, latency, speed, benchmark coverage, and
+  public catalog metadata from Artificial Analysis, Epoch AI, OpenRouter,
+  Hugging Face Hub, and LiteLLM.
+keywords:
+  - AI model comparison
+  - LLM pricing
+  - AI benchmarks
+  - model selection
+  - provider routing

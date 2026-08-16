@@ -1,11 +1,22 @@
-# AI Stats (Astro + Bun)
+# AI Stats
 
-This is a hobbyist project.
-Inspired by Theo Browne's [model-prices](https://model-prices.vercel.app/)
+AI Stats is a model-selection workbench for comparing model pricing, context limits, provider routes, speed, latency, and benchmark coverage without opening a pile of tabs.
 
-Pricing, Artificial Analysis benchmark scores, speed, and latency metrics are from [Artificial Analysis](https://artificialanalysis.ai) via their free API.
-Epoch benchmark runs are from Epoch AI, AI Benchmarking Hub, published online at [epoch.ai/benchmarks](https://epoch.ai/benchmarks), used under Creative Commons Attribution licensing with Apache 2.0 licensing for Aider Polyglot and Terminal Bench derived subsets.
-OpenRouter public model catalog data is used for model availability, provider coverage, usage rankings, provider directory metadata, embedding models, endpoint route detail, modalities, context length, and route pricing metadata. Hugging Face Hub public model data adds public repository popularity and tag signals. LiteLLM public catalog data adds extra provider pricing, context, and capability checks. Public catalog rankings are not treated as benchmark scores.
+- [Live site](https://aistats.jonathanrreed.com/)
+- [Portfolio case study](https://jonathanrreed.com/projects/ai-stats/)
+- [Jonathan R. Reed](https://jonathanrreed.com/about/)
+
+The project was inspired by Theo Browne's [model-prices](https://model-prices.vercel.app/). AI Stats expands that basic comparison idea into a sourced dashboard covering model catalogs, provider routes, pricing, benchmark results, popularity signals, and data freshness.
+
+## Data source boundaries
+
+Each source has a specific role. Catalog popularity and route availability are not presented as benchmark results.
+
+- [Artificial Analysis](https://artificialanalysis.ai) supplies pricing, Artificial Analysis benchmark scores, speed, and latency through its free API.
+- [Epoch AI Benchmarking Hub](https://epoch.ai/benchmarks) supplies published benchmark runs. Aider Polyglot and Terminal Bench derived subsets retain their documented Apache 2.0 licensing; the broader Epoch export is used under its published terms.
+- [OpenRouter](https://openrouter.ai/) supplies public model catalog, provider, route, modality, context, usage-ranking, and route-pricing metadata.
+- [Hugging Face Hub](https://huggingface.co/docs/hub/api) supplies public repository popularity and model tags.
+- [LiteLLM](https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json) supplies an additional public pricing, context, and capability catalog.
 
 ## OpenRouter catalog sync
 
@@ -15,9 +26,9 @@ The Supabase migration in [`supabase/openrouter_catalog.sql`](./supabase/openrou
 - `public.openrouter_model_endpoints`
 - `public.sync_openrouter_models()`
 
-The dashboard reads from `public.openrouter_models` when present. If that table has not been applied yet, it falls back to OpenRouter's public `/api/v1/models?output_modalities=all` endpoint so the catalog collection still renders.
+The dashboard reads from `public.openrouter_models` when the table exists. Otherwise it falls back to OpenRouter's public `/api/v1/models?output_modalities=all` endpoint so the catalog remains usable.
 
-The frontend also uses these free public OpenRouter endpoints when available:
+The frontend also uses these free public OpenRouter surfaces when available:
 
 - `/api/v1/models/count`
 - `/api/v1/providers`
@@ -25,7 +36,7 @@ The frontend also uses these free public OpenRouter endpoints when available:
 - `/api/v1/models/{author}/{slug}/endpoints`, capped to the top catalog routes
 - `/rankings/`, parsed for public weekly usage signals
 
-The frontend also fetches free public catalog data from the [Hugging Face Hub API](https://huggingface.co/docs/hub/api) and [LiteLLM's model prices and context catalog](https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json). Those sources are used as availability, popularity, pricing, context, and capability signals only. They are not benchmark scores.
+Hugging Face Hub and LiteLLM add public popularity, tag, pricing, context, and capability checks. Those fields stay separate from benchmark scores.
 
 ## Epoch data sync
 
@@ -35,74 +46,48 @@ Epoch AI publishes the free AI Benchmarking Hub export at `https://epoch.ai/data
 SUPABASE_SERVICE_ROLE_KEY=... bun run sync:epoch
 ```
 
-The sync loads the ECI model file and every benchmark CSV in the ZIP. It upserts benchmark definitions by slug, models by `model_version`, and benchmark runs by Epoch run id while preserving the raw CSV row for source traceability. It also stores every CSV file from the ZIP in `public.epoch_data_files`, including the auxiliary ECI files that are not direct benchmark leaderboards.
+The sync loads the ECI model file and each benchmark CSV in the ZIP. It upserts benchmark definitions by slug, models by `model_version`, and benchmark runs by Epoch run ID while preserving the raw CSV row for source traceability. Auxiliary ECI files are stored in `public.epoch_data_files` even when they are not direct leaderboard inputs.
 
-To refresh the frontend fallback snapshot without writing to Supabase, run:
+Refresh the browser fallback snapshot without writing to Supabase:
 
 ```sh
 bun run snapshot:epoch
 ```
 
-That snapshot is served from `public/data/epoch-benchmark-snapshot.json`. The dashboard and compare page use it when it has broader Epoch coverage than the hosted Supabase tables, so old Epoch benchmark slugs and newly added free benchmarks stay visible even before the database sync runs.
+The snapshot is served from `public/data/epoch-benchmark-snapshot.json`. The dashboard and comparison page use it when it contains broader Epoch coverage than the hosted tables.
 
-The frontend promotes the highest-signal free benchmarks first, including GPQA Diamond, FrontierMath, SWE-bench Verified, TerminalBench, Aider Polyglot, HLE, SimpleBench, SimpleQA Verified, ARC-AGI-2, LiveBench, WebDev Arena, CyBench, OSWorld, GDPval, Video-MME, METR Time Horizons, APEX-Agents, The Agent Company, BALROG, DeepResearchBench, and WeirdML. The full Epoch pool still remains available in the metric dropdowns.
+The interface promotes high-signal free benchmarks first, including GPQA Diamond, FrontierMath, SWE-bench Verified, TerminalBench, Aider Polyglot, HLE, SimpleBench, SimpleQA Verified, ARC-AGI-2, LiveBench, WebDev Arena, CyBench, OSWorld, GDPval, Video-MME, METR Time Horizons, APEX-Agents, The Agent Company, BALROG, DeepResearchBench, and WeirdML. The full Epoch pool remains available in the metric controls.
 
-Benchmark attribution is shown beside the active metric selector. Artificial Analysis metrics link to Artificial Analysis. Epoch-backed metrics link to the benchmark publisher when the CSV exposes a source link or when the project has a verified fallback, and they also credit Epoch AI Benchmarking Hub as the aggregation source. Unknown future Epoch benchmarks fall back to Epoch AI Benchmarking Hub until a publisher link is available.
+Benchmark attribution appears beside the selected metric. Artificial Analysis fields link to Artificial Analysis. Epoch-backed fields link to the benchmark publisher when the export provides a source or the project has a verified fallback, and also credit Epoch AI as the aggregation source. Unknown future Epoch benchmarks fall back to the Epoch Benchmarking Hub until a publisher link is verified.
 
-The font used is NebulaSans, which is a custom font created by [nebula.com](https://nebula.com) all rights reserved to them.
+## Development
 
-The site is built with Astro and TailwindCSS.
-
-## Using Bun
-
-This project is configured to use Bun as the package manager (see `package.json` `packageManager` field).
-
-Install Bun (macOS):
+The site uses Astro, React, Tailwind CSS, and Bun.
 
 ```sh
 brew install oven-sh/bun/bun
-```
-
-Install dependencies (generates `bun.lockb`):
-
-```sh
 bun install
 cp .env.example .env
-```
-
-Run the dev server:
-
-```sh
 bun run dev
 ```
 
-Build for production:
+Production checks:
 
 ```sh
+bun run lint
 bun run build
 ```
 
-Preview the production build:
+Preview the built site:
 
 ```sh
 bun run preview
 ```
 
-Notes:
+`bun run check:epoch` validates the Supabase-backed model data path and requires real `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` values. In a clean environment without credentials, use `bun run lint` and `bun run build` for repository verification.
 
-- If you previously used npm, you can remove `package-lock.json` and `node_modules/` before running `bun install` to avoid lockfile conflicts.
-- Bun can run `astro` directly as well via `bunx astro`, but the scripts defined in `package.json` are recommended.
+## Credits and licensing
 
-Citation/Thanks yous:
-Logo icons are from [lobe-icons](https://lobe-icons.dev/)
+The interface uses Nebula Sans, created by [Nebula](https://nebula.com), under its applicable rights and terms. Provider and product icons include assets from [lobe-icons](https://lobe-icons.dev/) and the credited upstream sources documented in the interface and [`NOTICE.md`](./NOTICE.md).
 
-## License
-
-The source code in this repository is licensed under MIT. Third-party data,
-logos, font files, and trademarks are excluded. See [`LICENSE`](./LICENSE) and
-[`NOTICE.md`](./NOTICE.md).
-
-
-## Data-backed smoke checks
-
-`bun run check:epoch` validates the Supabase-backed model data path and requires real `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` values. In a clean environment without credentials, use `bun run lint` and `bun run build` for local portfolio verification.
+Repository source code is licensed under MIT. Third-party data, logos, fonts, and trademarks are excluded. See [`LICENSE`](./LICENSE) and [`NOTICE.md`](./NOTICE.md).
