@@ -1,0 +1,100 @@
+---
+import Layout from "../components/Layout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import ScrollToTop from "../components/ScrollToTop.astro";
+
+const title = "Page not found | AI Stats";
+const description =
+  "The requested AI Stats page could not be found. Return to the model dashboard or compare AI models by price and performance.";
+---
+
+<Layout title={title} description={description} image="/logo.png" noindex={true}>
+  <Header currentPage="not-found" />
+  <main class="mx-auto grid min-h-[calc(100vh-7rem)] w-full max-w-6xl items-center gap-10 px-6 py-16 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.48fr)]">
+    <section>
+      <p class="text-xs font-bold uppercase tracking-[0.16em] text-foam">
+        404 / Page not found
+      </p>
+      <p class="error-code mt-5" aria-hidden="true">404</p>
+      <h1 class="mt-4 max-w-4xl text-4xl font-black leading-tight text-text md:text-6xl">
+        This page is not in the dataset.
+      </h1>
+      <p class="mt-6 max-w-2xl text-lg leading-8 text-subtle">
+        The address may have changed, or the page may never have existed. The model data is still available from the dashboard and comparison workspace.
+      </p>
+      <div class="mt-8 flex flex-wrap gap-3">
+        <a class="brutalist-button" href="/">Open model stats</a>
+        <a class="brutalist-button secondary" href="/compare">Compare models</a>
+      </div>
+    </section>
+
+    <aside class="brutalist-card p-6 md:p-8" aria-labelledby="recovery-heading">
+      <p class="text-xs font-bold uppercase tracking-[0.16em] text-pine">
+        Keep exploring
+      </p>
+      <h2 id="recovery-heading" class="mt-4 text-2xl font-black text-text">
+        Find the right route.
+      </h2>
+      <nav class="mt-6 grid gap-3" aria-label="Page recovery links">
+        <a class="recovery-link" href="/about">
+          <span>About the data</span>
+          <span aria-hidden="true">↗</span>
+        </a>
+        <a class="recovery-link" href="/contact">
+          <span>Report a broken link</span>
+          <span aria-hidden="true">↗</span>
+        </a>
+      </nav>
+    </aside>
+  </main>
+  <Footer />
+  <ScrollToTop />
+</Layout>
+
+<style>
+  .error-code {
+    color: transparent;
+    font-family: var(--font-mono);
+    font-size: clamp(5.5rem, 18vw, 12rem);
+    font-weight: 900;
+    letter-spacing: -0.09em;
+    line-height: 0.72;
+    -webkit-text-stroke: 2px var(--border-color);
+    text-shadow: 8px 8px 0 color-mix(in srgb, var(--love) 28%, transparent);
+  }
+
+  .recovery-link {
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--subtle);
+    display: flex;
+    font-weight: 700;
+    justify-content: space-between;
+    min-height: 44px;
+    padding: 0.75rem 0;
+    text-decoration: none;
+    transition:
+      border-color var(--dur-fast) var(--ease-smooth),
+      color var(--dur-fast) var(--ease-smooth),
+      padding var(--dur-fast) var(--ease-smooth);
+  }
+
+  .recovery-link:hover {
+    border-color: var(--love);
+    color: var(--text);
+    padding-left: 0.4rem;
+  }
+
+  .recovery-link:focus-visible {
+    border-radius: var(--radius-s);
+    outline: 2px solid var(--pine);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .recovery-link {
+      transition: none;
+    }
+  }
+</style>

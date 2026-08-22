@@ -28,7 +28,7 @@ const {
   image = "/jonathan.avif",
   ogType = "website",
   noindex = false,
-  robots = "index, follow",
+  robots,
   // Static pages keep the last editorial revision date; data-driven pages pass
   // the real refresh date from src/lib/data-freshness.ts.
   dateModified = STATIC_PAGE_DATE_MODIFIED,
@@ -40,7 +40,7 @@ const canonicalPathname = Astro.url.pathname
 const canonicalURL = new URL(canonicalPathname, Astro.site).href;
 const ogImageURL = new URL(image, Astro.site).href;
 const robotsContent =
-  robots || (noindex ? "noindex, nofollow" : "index, follow");
+  robots ?? (noindex ? "noindex, nofollow" : "index, follow");
 const pageSchema = {
   "@context": "https://schema.org",
   "@graph": [
