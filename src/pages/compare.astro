@@ -411,18 +411,6 @@ epochBenchmarksWithData.forEach((b) => {
         display: inline-flex;
       }
     }
-    @media (max-width: 640px) {
-      .compare-hero {
-        padding: 0.95rem;
-      }
-      .compare-page-title {
-        max-width: 12ch;
-        font-size: clamp(2.25rem, 15vw, 4rem);
-      }
-      .compare-hero-stats {
-        grid-template-columns: 1fr;
-      }
-    }
     .filter-section {
       margin-bottom: 1rem;
       padding-bottom: 1rem;
@@ -713,6 +701,19 @@ epochBenchmarksWithData.forEach((b) => {
     .compare-guide .compare-page-lede {
       margin: 0;
       color: var(--muted);
+    }
+    @media (max-width: 640px) {
+      .compare-hero {
+        grid-template-columns: 1fr;
+        padding: 0.95rem;
+      }
+      .compare-page-title {
+        max-width: 12ch;
+        font-size: clamp(2.25rem, 15vw, 4rem);
+      }
+      .compare-hero-stats {
+        grid-template-columns: 1fr;
+      }
     }
     .chart-grid {
       display: grid;

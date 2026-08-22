@@ -1,7 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
-import tailwind from '@astrojs/tailwind';
+import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
 export default defineConfig({
@@ -11,11 +11,9 @@ export default defineConfig({
     format: 'file',
     inlineStylesheets: 'never',
   },
-  integrations: [
-    react(),
-    tailwind({
-      applyBaseStyles: true,
-    }),
-  ],
+  integrations: [react()],
+  vite: {
+    plugins: [tailwindcss()],
+  },
   compressHTML: true,
 });
