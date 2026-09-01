@@ -5,6 +5,7 @@ import type {
   EpochModel,
 } from './supabase';
 import { dedupeAaModelsBySlug, hydrateEpochModelsFromRuns } from './data-integrity';
+import type { TaskPreset } from './model-intelligence';
 
 type FetchOpts = {
   supabaseUrl?: string;
@@ -17,6 +18,229 @@ export type LiveSnapshot = {
   epochModels: EpochModel[];
   epochBenchmarks: EpochBenchmark[];
   epochRuns: EpochBenchmarkRun[];
+};
+
+export type IntelligenceRefreshSource = {
+  sourceKey: string;
+  displayName: string;
+  status: 'healthy' | 'stale' | 'partial' | 'failed' | 'unavailable';
+  lastObservedAt: string | null;
+  lastSuccessfulRunAt: string | null;
+  coverageLabel: string | null;
+  ageDays: number | null;
+  message: string;
+};
+
+export type IntelligenceRefreshPayload = {
+  schemaVersion: '1.0';
+  delivery: {
+    mode: 'build-snapshot';
+    generatedAt: string;
+    refreshRequiresBuild: true;
+  };
+  freshness: {
+    updatedAt: string | null;
+    aaLastSeen: string | null;
+    epochFetchedAt: string | null;
+    sources: IntelligenceRefreshSource[];
+    fallback: {
+      mode: 'live-view' | 'static-snapshot';
+      fallback: boolean;
+      reason: string | null;
+    };
+  };
+  taskPresets: TaskPreset[];
+  overview: {
+    qualityVsPrice: {
+      qualityMetricKey: 'aa_intelligence_index';
+      priceMetricKey: 'price_1m_blended_3_to_1';
+      qualityLabel: string;
+      priceLabel: string;
+    };
+    coverageMetrics: Array<{
+      key: string;
+      label: string;
+      sourceKey: string;
+      unit: string;
+    }>;
+  };
+};
+
+const isIntelligenceRefreshPayload = (
+  value: unknown,
+): value is IntelligenceRefreshPayload => {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as {
+    schemaVersion?: unknown;
+    delivery?: unknown;
+    freshness?: unknown;
+    taskPresets?: unknown;
+    overview?: unknown;
+  };
+  return (
+    candidate.schemaVersion === '1.0' &&
+    isRefreshDelivery(candidate.delivery) &&
+    isRefreshFreshness(candidate.freshness) &&
+    Array.isArray(candidate.taskPresets) &&
+    candidate.taskPresets.every(isTaskPreset) &&
+    isRefreshOverview(candidate.overview)
+  );
+};
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object';
+
+const isRefreshDelivery = (
+  value: unknown,
+): value is IntelligenceRefreshPayload['delivery'] => {
+  if (!isObject(value)) return false;
+  return (
+    value.mode === 'build-snapshot' &&
+    typeof value.generatedAt === 'string' &&
+    !Number.isNaN(Date.parse(value.generatedAt)) &&
+    value.refreshRequiresBuild === true
+  );
+};
+
+const isStringOrNull = (value: unknown): value is string | null =>
+  typeof value === 'string' || value === null;
+
+const isNumberOrNull = (value: unknown): value is number | null =>
+  value === null || (typeof value === 'number' && Number.isFinite(value));
+
+const isSourceStatus = (
+  value: unknown,
+): value is IntelligenceRefreshSource['status'] =>
+  value === 'healthy' ||
+  value === 'stale' ||
+  value === 'partial' ||
+  value === 'failed' ||
+  value === 'unavailable';
+
+const isMetricDirection = (value: unknown): value is 'higher-is-better' | 'lower-is-better' =>
+  value === 'higher-is-better' || value === 'lower-is-better';
+
+const isWeightsRecord = (value: unknown): value is Record<string, number> => {
+  if (!isObject(value)) return false;
+  return Object.values(value).every(
+    (entry) => typeof entry === 'number' && Number.isFinite(entry),
+  );
+};
+
+const isMetricDirectionsRecord = (
+  value: unknown,
+): value is Record<string, 'higher-is-better' | 'lower-is-better'> => {
+  if (value === undefined) return true;
+  if (!isObject(value)) return false;
+  return Object.values(value).every(isMetricDirection);
+};
+
+const isTaskPreset = (value: unknown): value is TaskPreset => {
+  if (!isObject(value)) return false;
+  return (
+    typeof value.id === 'string' &&
+    value.id.length > 0 &&
+    typeof value.label === 'string' &&
+    value.label.length > 0 &&
+    typeof value.minimumCoverage === 'number' &&
+    Number.isFinite(value.minimumCoverage) &&
+    isWeightsRecord(value.weights) &&
+    isMetricDirectionsRecord(value.metricDirections) &&
+    (value.budget === undefined || isNumberOrNull(value.budget)) &&
+    (value.budgetMetricKey === undefined || isStringOrNull(value.budgetMetricKey))
+  );
+};
+
+const isRefreshSource = (value: unknown): value is IntelligenceRefreshSource => {
+  if (!isObject(value)) return false;
+  return (
+    typeof value.sourceKey === 'string' &&
+    value.sourceKey.length > 0 &&
+    typeof value.displayName === 'string' &&
+    value.displayName.length > 0 &&
+    isSourceStatus(value.status) &&
+    isStringOrNull(value.lastObservedAt) &&
+    isStringOrNull(value.lastSuccessfulRunAt) &&
+    isStringOrNull(value.coverageLabel) &&
+    isNumberOrNull(value.ageDays) &&
+    typeof value.message === 'string'
+  );
+};
+
+const isFallbackMetadata = (
+  value: unknown,
+): value is IntelligenceRefreshPayload['freshness']['fallback'] => {
+  if (!isObject(value)) return false;
+  const validMode =
+    value.mode === 'live-view' || value.mode === 'static-snapshot';
+  return (
+    validMode &&
+    typeof value.fallback === 'boolean' &&
+    isStringOrNull(value.reason)
+  );
+};
+
+const isRefreshFreshness = (
+  value: unknown,
+): value is IntelligenceRefreshPayload['freshness'] => {
+  if (!isObject(value)) return false;
+  return (
+    isStringOrNull(value.updatedAt) &&
+    isStringOrNull(value.aaLastSeen) &&
+    isStringOrNull(value.epochFetchedAt) &&
+    Array.isArray(value.sources) &&
+    value.sources.every(isRefreshSource) &&
+    isFallbackMetadata(value.fallback)
+  );
+};
+
+const isCoverageMetric = (
+  value: unknown,
+): value is IntelligenceRefreshPayload['overview']['coverageMetrics'][number] => {
+  if (!isObject(value)) return false;
+  return (
+    typeof value.key === 'string' &&
+    value.key.length > 0 &&
+    typeof value.label === 'string' &&
+    value.label.length > 0 &&
+    typeof value.sourceKey === 'string' &&
+    value.sourceKey.length > 0 &&
+    typeof value.unit === 'string' &&
+    value.unit.length > 0
+  );
+};
+
+const isRefreshOverview = (
+  value: unknown,
+): value is IntelligenceRefreshPayload['overview'] => {
+  if (!isObject(value) || !isObject(value.qualityVsPrice)) return false;
+  return (
+    value.qualityVsPrice.qualityMetricKey === 'aa_intelligence_index' &&
+    value.qualityVsPrice.priceMetricKey === 'price_1m_blended_3_to_1' &&
+    typeof value.qualityVsPrice.qualityLabel === 'string' &&
+    value.qualityVsPrice.qualityLabel.length > 0 &&
+    typeof value.qualityVsPrice.priceLabel === 'string' &&
+    value.qualityVsPrice.priceLabel.length > 0 &&
+    Array.isArray(value.coverageMetrics) &&
+    value.coverageMetrics.every(isCoverageMetric)
+  );
+};
+
+/**
+ * Reads the lightweight intelligence metadata snapshot from the current static
+ * deployment. `cache: no-store` avoids reusing a browser-cached older deploy;
+ * it does not turn the prerendered endpoint into a runtime data source.
+ */
+export const fetchIntelligenceRefresh = async (): Promise<IntelligenceRefreshPayload | null> => {
+  try {
+    const response = await fetch('/api/intelligence.json', { cache: 'no-store' });
+    if (!response.ok) return null;
+    const payload: unknown = await response.json();
+    return isIntelligenceRefreshPayload(payload) ? payload : null;
+  } catch (error) {
+    console.warn('[live-data] Failed to fetch intelligence refresh metadata.', error);
+    return null;
+  }
 };
 
 type PublicEpochSnapshot = {
@@ -52,7 +276,8 @@ const CLIENT_AA_MODEL_SELECT_COLUMNS = [
   'last_seen',
 ] as const;
 
-const SUPABASE_PAGE_SIZE = 1000;
+const SUPABASE_PAGE_SIZE = 250;
+const SUPABASE_MAX_ROWS_PER_TABLE = 250;
 
 const toNumberOrNull = (value: unknown): number | null => {
   if (value === null || value === undefined) return null;
@@ -154,20 +379,36 @@ const fetchPagedJson = async (
 ): Promise<Record<string, unknown>[]> => {
   const rows: Record<string, unknown>[] = [];
 
-  for (let offset = 0; ; offset += SUPABASE_PAGE_SIZE) {
+  for (
+    let offset = 0;
+    offset < SUPABASE_MAX_ROWS_PER_TABLE;
+    offset += SUPABASE_PAGE_SIZE
+  ) {
     const pageUrl = new URL(url.toString());
-    pageUrl.searchParams.set('limit', String(SUPABASE_PAGE_SIZE));
+    const requestLimit = Math.min(
+      SUPABASE_PAGE_SIZE,
+      SUPABASE_MAX_ROWS_PER_TABLE - offset,
+    );
+    pageUrl.searchParams.set('limit', String(requestLimit));
     pageUrl.searchParams.set('offset', String(offset));
 
     const response = await fetch(pageUrl.toString(), { headers, cache: 'no-store' });
     if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`${url.pathname} failed with HTTP ${response.status}: ${body}`);
+      throw new Error(`${url.pathname} failed with HTTP ${response.status}`);
     }
 
-    const page = (await response.json()) as Record<string, unknown>[];
-    rows.push(...page);
-    if (page.length < SUPABASE_PAGE_SIZE) break;
+    const payload: unknown = await response.json();
+    if (!Array.isArray(payload)) {
+      throw new Error(`${url.pathname} returned a non-array payload`);
+    }
+    const page = payload as Record<string, unknown>[];
+    rows.push(...page.slice(0, requestLimit));
+    if (
+      page.length < requestLimit ||
+      rows.length >= SUPABASE_MAX_ROWS_PER_TABLE
+    ) {
+      break;
+    }
   }
 
   return rows;

@@ -1,0 +1,270 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-01T07:22:02.000Z",
+  "title": "Design System: AI Stats",
+  "extensions": {
+    "colorMeta": {
+      "measurement-black": {
+        "role": "neutral",
+        "displayName": "Measurement Black",
+        "canonical": "#090b0d",
+        "tonalRamp": ["#050607", "#090b0d", "#15191d", "#252b30", "#414a51", "#68747c", "#a2a9ad", "#eef0f1"]
+      },
+      "console-surface": {
+        "role": "neutral",
+        "displayName": "Console Surface",
+        "canonical": "#101417",
+        "tonalRamp": ["#07090b", "#101417", "#1b2227", "#2e3941", "#4a5963", "#70808a", "#aab2b7", "#eff1f2"]
+      },
+      "raised-surface": {
+        "role": "neutral",
+        "displayName": "Raised Surface",
+        "canonical": "#171d20",
+        "tonalRamp": ["#090b0c", "#171d20", "#252e32", "#39464b", "#56656b", "#7b898e", "#b2b9bc", "#f1f2f2"]
+      },
+      "intelligence-base": {
+        "role": "neutral",
+        "displayName": "Intelligence Base",
+        "canonical": "#0f1114",
+        "tonalRamp": ["#070809", "#0f1114", "#1d2025", "#30353c", "#4e555e", "#747d86", "#acb1b6", "#f0f1f2"]
+      },
+      "intelligence-surface": {
+        "role": "neutral",
+        "displayName": "Intelligence Surface",
+        "canonical": "#151719",
+        "tonalRamp": ["#090a0b", "#151719", "#25292c", "#3a4044", "#596166", "#7f888d", "#b5babd", "#f2f3f3"]
+      },
+      "grid-hairline": {
+        "role": "neutral",
+        "displayName": "Grid Hairline",
+        "canonical": "#2c2e31",
+        "tonalRamp": ["#111214", "#222427", "#35383b", "#505357", "#717579", "#979a9d", "#c1c3c5", "#f3f3f4"]
+      },
+      "warm-paper": {
+        "role": "neutral",
+        "displayName": "Warm Paper",
+        "canonical": "#f2f1ea",
+        "tonalRamp": ["#272620", "#44423a", "#625f54", "#827e72", "#a39f93", "#c4c1b7", "#e0ded6", "#f8f7f2"]
+      },
+      "supporting-copy": {
+        "role": "neutral",
+        "displayName": "Supporting Copy",
+        "canonical": "#c5cbc8",
+        "tonalRamp": ["#1c2220", "#36403d", "#53605c", "#71817c", "#93a19c", "#b4beba", "#d2d8d5", "#f2f5f4"]
+      },
+      "muted-reading": {
+        "role": "neutral",
+        "displayName": "Muted Reading",
+        "canonical": "#858d90",
+        "tonalRamp": ["#171b1c", "#303638", "#4b5356", "#687174", "#879093", "#a8afb1", "#cbd0d1", "#f2f4f4"]
+      },
+      "action-copper": {
+        "role": "primary",
+        "displayName": "Action Copper",
+        "canonical": "#d86d4a",
+        "tonalRamp": ["#35130b", "#5e2516", "#883923", "#b34f32", "#d86d4a", "#e7967b", "#f0beac", "#fbe9e1"]
+      },
+      "intelligence-copper": {
+        "role": "primary",
+        "displayName": "Intelligence Copper",
+        "canonical": "#c6764d",
+        "tonalRamp": ["#31170c", "#552b18", "#794127", "#9d5937", "#c6764d", "#dd9b78", "#edc3ab", "#fae9df"]
+      },
+      "plot-blue": {
+        "role": "secondary",
+        "displayName": "Plot Blue",
+        "canonical": "#668796",
+        "tonalRamp": ["#0d212a", "#193a48", "#2a5363", "#416e7e", "#668796", "#8eabb6", "#b9cbd1", "#e8f0f2"]
+      },
+      "evidence-green": {
+        "role": "secondary",
+        "displayName": "Evidence Green",
+        "canonical": "#89c8b6",
+        "tonalRamp": ["#102a24", "#1d493e", "#31695a", "#4d8977", "#70aa96", "#96c9b9", "#bee1d5", "#eaf7f2"]
+      },
+      "caution-gold": {
+        "role": "tertiary",
+        "displayName": "Caution Gold",
+        "canonical": "#d0a85a",
+        "tonalRamp": ["#2f2209", "#54400f", "#7a5f19", "#9f7f2c", "#c5a14d", "#dbc17c", "#ebdcae", "#faf3dd"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Route titles and the primary product statement."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Analysis panel and section headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Interpretation, methodology, and model context."
+      },
+      "label": {
+        "displayName": "Measurement Label",
+        "purpose": "Metrics, filters, axes, statuses, and source receipts."
+      }
+    },
+    "shadows": [
+      {
+        "name": "low",
+        "value": "0 2px 8px rgba(6, 8, 9, 0.36)",
+        "purpose": "Pressed and compact interactive states."
+      },
+      {
+        "name": "panel",
+        "value": "0 18px 60px rgba(6, 8, 9, 0.36)",
+        "purpose": "Interactive analytical cards when they lift from the grid."
+      },
+      {
+        "name": "overlay",
+        "value": "0 24px 76px rgba(6, 8, 9, 0.36)",
+        "purpose": "Drawers and transient layers only."
+      },
+      {
+        "name": "action-glow",
+        "value": "0 12px 32px color-mix(in srgb, #d86d4a 24%, transparent)",
+        "purpose": "Primary action emphasis."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-smooth",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Default color and border state transitions."
+      },
+      {
+        "name": "ease-out-expo",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Reveals and restrained emphasis."
+      },
+      {
+        "name": "fast",
+        "value": "120ms",
+        "purpose": "Immediate control feedback."
+      },
+      {
+        "name": "base",
+        "value": "200ms",
+        "purpose": "Normal interactive state change."
+      },
+      {
+        "name": "slow",
+        "value": "360ms",
+        "purpose": "Section reveals and action sheen."
+      }
+    ],
+    "breakpoints": [
+      { "name": "compact", "value": "580px" },
+      { "name": "mobile", "value": "640px" },
+      { "name": "tablet", "value": "960px" },
+      { "name": "wide", "value": "1200px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single strongest action in a task flow.",
+      "html": "<button class=\"ds-btn-primary\">COMPARE MODELS</button>",
+      "css": ".ds-btn-primary { position: relative; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--love, #d86d4a); border-radius: var(--radius-s, 4px); padding: .7rem 1.35rem; background: var(--love, #d86d4a); color: var(--on-accent, #fff); box-shadow: 0 12px 32px color-mix(in srgb, var(--love, #d86d4a) 24%, transparent); font-family: var(--font-mono, monospace); font-size: .75rem; font-weight: 800; text-transform: uppercase; transition: transform 200ms cubic-bezier(.16,1,.3,1), box-shadow 200ms ease; } .ds-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 42px color-mix(in srgb, var(--love, #d86d4a) 30%, transparent); } .ds-btn-primary:focus-visible { outline: 2px solid color-mix(in srgb, var(--love, #d86d4a) 70%, white); outline-offset: 3px; } .ds-btn-primary:active { transform: translate(1px,1px); }"
+    },
+    {
+      "name": "Toolbar Control",
+      "kind": "input",
+      "refersTo": "control",
+      "description": "A compact filter or sort control with instrument-readout typography.",
+      "html": "<label class=\"ds-control-label\">SORT BY<select class=\"ds-control\"><option>Quality</option><option>Price</option></select></label>",
+      "css": ".ds-control-label { display: grid; gap: .35rem; color: var(--muted, #858d90); font-family: var(--font-mono, monospace); font-size: .62rem; font-weight: 800; letter-spacing: .08em; } .ds-control { min-height: 44px; border: 1px solid var(--border-color, rgba(242,241,234,.18)); border-radius: var(--radius-s, 4px); padding: .7rem 2.5rem .7rem .85rem; background: var(--surface, #101417); color: var(--text, #f2f1ea); font: 700 .7rem/1.1 var(--font-mono, monospace); } .ds-control:hover { border-color: var(--love, #d86d4a); } .ds-control:focus-visible { outline: 2px solid color-mix(in srgb, var(--love, #d86d4a) 70%, white); outline-offset: 2px; }"
+    },
+    {
+      "name": "Selected View Chip",
+      "kind": "chip",
+      "refersTo": "chip-selected",
+      "description": "The active mode in a small mutually exclusive control set.",
+      "html": "<button class=\"ds-chip-selected\" aria-pressed=\"true\">CHART</button>",
+      "css": ".ds-chip-selected { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--love, #d86d4a); border-radius: var(--radius-s, 4px); padding: .5rem .75rem; background: var(--love, #d86d4a); color: var(--on-accent, #fff); font: 700 .67rem/1 var(--font-mono, monospace); } .ds-chip-selected:hover { background: color-mix(in srgb, var(--love, #d86d4a) 92%, white); } .ds-chip-selected:focus-visible { outline: 2px solid color-mix(in srgb, var(--love, #d86d4a) 70%, white); outline-offset: 3px; }"
+    },
+    {
+      "name": "Candidate Row",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A task-ranked model candidate with one decision metric and its evidence state.",
+      "html": "<article class=\"ds-candidate\"><span class=\"ds-rank\">01</span><div><h3>Model name</h3><p>Best fit for deliberate reasoning under this budget.</p></div><dl><div><dt>FIT</dt><dd>92</dd></div><div><dt>EVIDENCE</dt><dd class=\"ds-healthy\">HEALTHY</dd></div></dl></article>",
+      "css": ".ds-candidate { display: grid; grid-template-columns: 2.4rem minmax(0,1fr) auto; gap: 1rem; align-items: center; border: 1px solid var(--grid-hairline, #2c2e31); border-radius: var(--radius-m, 6px); padding: 1rem; background: var(--intelligence-surface, #151719); color: var(--text, #f2f1ea); font-family: var(--font-display, sans-serif); } .ds-candidate h3,.ds-candidate p,.ds-candidate dl { margin: 0; } .ds-candidate p { margin-top: .25rem; color: var(--muted, #858d90); font-size: .78rem; } .ds-rank,.ds-candidate dt,.ds-candidate dd { font-family: var(--font-mono, monospace); } .ds-rank { color: var(--intelligence-copper, #c6764d); font-size: .7rem; } .ds-candidate dl { display: flex; gap: 1rem; } .ds-candidate dt { color: var(--muted, #858d90); font-size: .58rem; letter-spacing: .08em; } .ds-candidate dd { color: var(--text, #f2f1ea); font-size: .74rem; font-weight: 800; } .ds-candidate .ds-healthy { color: var(--pine, #89c8b6); } .ds-candidate:hover { border-color: color-mix(in srgb, var(--love, #d86d4a) 60%, var(--grid-hairline, #2c2e31)); } .ds-candidate:focus-within { outline: 2px solid color-mix(in srgb, var(--love, #d86d4a) 70%, white); outline-offset: 2px; }"
+    },
+    {
+      "name": "Source Health Record",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A compact receipt for freshness, coverage, and ingestion status.",
+      "html": "<article class=\"ds-source\"><header><h3>Artificial Analysis</h3><span class=\"ds-status\"><i></i>HEALTHY</span></header><dl><div><dt>REFRESHED</dt><dd>3h ago</dd></div><div><dt>COVERAGE</dt><dd>42 models</dd></div></dl></article>",
+      "css": ".ds-source { border: 1px solid var(--grid-hairline, #2c2e31); padding: 1rem; background: var(--intelligence-surface, #151719); color: var(--text, #f2f1ea); } .ds-source header { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; } .ds-source h3,.ds-source dl { margin: 0; } .ds-source h3 { font: 700 .95rem/1.2 var(--font-display, sans-serif); } .ds-status { display: inline-flex; align-items: center; gap: .4rem; color: var(--subtle, #c5cbc8); font: 700 .62rem/1 var(--font-mono, monospace); letter-spacing: .08em; } .ds-status i { width: .4rem; height: .4rem; border-radius: 50%; background: var(--pine, #89c8b6); } .ds-source dl { display: grid; gap: .45rem; margin-top: .8rem; } .ds-source dl div { display: grid; grid-template-columns: 6rem 1fr; gap: .5rem; } .ds-source dt,.ds-source dd { margin: 0; font: .66rem/1.35 var(--font-mono, monospace); } .ds-source dt { color: var(--muted, #858d90); } .ds-source dd { color: var(--subtle, #c5cbc8); } .ds-source:hover { border-color: color-mix(in srgb, var(--love, #d86d4a) 45%, var(--grid-hairline, #2c2e31)); } .ds-source:focus-within { outline: 2px solid color-mix(in srgb, var(--love, #d86d4a) 70%, white); outline-offset: 2px; }"
+    },
+    {
+      "name": "Compare Lens",
+      "kind": "input",
+      "refersTo": "control",
+      "description": "A quiet, border-bottom select embedded in the compare evidence rail.",
+      "html": "<label class=\"ds-lens\"><span>TASK LENS</span><select><option>Reasoning</option><option>Coding</option></select><p>Weights quality, price, and evidence for this job.</p></label>",
+      "css": ".ds-lens { display: grid; gap: .3rem; padding: .7rem .8rem; border: 1px solid var(--grid-hairline, #2c2e31); background: var(--intelligence-surface, #151719); } .ds-lens span { color: var(--muted, #858d90); font: 800 .58rem/1.35 var(--font-mono, monospace); letter-spacing: .05em; } .ds-lens select { width: 100%; min-height: 36px; border: 0; border-bottom: 1px solid var(--border-color, rgba(242,241,234,.18)); border-radius: 0; padding: .35rem 1.5rem .35rem 0; background: transparent; color: var(--text, #f2f1ea); font: 750 .7rem/1.35 var(--font-mono, monospace); } .ds-lens select:hover { border-bottom-color: var(--love, #d86d4a); } .ds-lens select:focus-visible { outline: 2px solid color-mix(in srgb, var(--love, #d86d4a) 70%, white); outline-offset: 2px; } .ds-lens p { margin: 0; color: var(--muted, #858d90); font: .62rem/1.35 var(--font-mono, monospace); }"
+    },
+    {
+      "name": "Plot Legend",
+      "kind": "custom",
+      "description": "The compact legend used beside quality-price and benchmark plots.",
+      "html": "<div class=\"ds-legend\"><span><i class=\"ds-top\"></i>SHORTLIST</span><span><i class=\"ds-field\"></i>MODEL FIELD</span></div>",
+      "css": ".ds-legend { display: flex; flex-wrap: wrap; gap: 1rem; color: var(--muted, #858d90); font: .65rem/1.3 var(--font-mono, monospace); } .ds-legend span { display: inline-flex; align-items: center; gap: .4rem; } .ds-legend i { width: .55rem; height: .55rem; border-radius: 50%; } .ds-top { background: var(--intelligence-copper, #c6764d); } .ds-field { background: var(--intelligence-blue, #668796); } .ds-legend span:hover { color: var(--text, #f2f1ea); } .ds-legend span:focus-visible { outline: 2px solid color-mix(in srgb, var(--love, #d86d4a) 70%, white); outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Calibrated Console",
+    "overview": "AI Stats should feel like a trusted measurement instrument, not a marketing dashboard. The interface is dense enough to reward investigation but disciplined enough that a first-time visitor can choose a task, understand the recommendation, and inspect the evidence without decoding the page.\n\nNear-black fields, warm neutral type, muted copper controls, restrained blue-gray plots, and monospaced measurement labels create a recognizable technical world. Hairline dividers carry most of the structure. The system avoids oversized ornamental cards, decorative gradients, and universal-rank spectacle.",
+    "keyCharacteristics": [
+      "Task-first hierarchy with evidence immediately available.",
+      "Compact measurement labels paired with plain-language interpretation.",
+      "Hairline grids and tonal layering instead of card sprawl.",
+      "Copper reserved for decisions, selections, and the most important plotted point.",
+      "Charts remain readable as data tables or source receipts."
+    ],
+    "rules": [
+      {
+        "name": "The One Signal Rule",
+        "body": "Copper should occupy a small fraction of a screen. Its scarcity gives selections and primary actions meaning.",
+        "section": "colors"
+      },
+      {
+        "name": "The Evidence Color Rule",
+        "body": "Green and gold communicate source or score state. They are not alternate brand accents.",
+        "section": "colors"
+      },
+      {
+        "name": "The Readout Rule",
+        "body": "Mono type identifies measurable or operational information. It does not replace readable body copy.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-by-Default Rule",
+        "body": "Data regions are separated by hairlines and tone. A shadow must explain interaction or layering.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do begin with the user's task and expose the ranking logic nearby.",
+      "Do pair every recommendation with source quality, freshness, and missing-data context.",
+      "Do use compact grids, shared rules, and deliberate whitespace to organize dense information.",
+      "Do keep mobile controls reachable and analytical overflow contained.",
+      "Do preserve keyboard focus, reduced-motion behavior, and non-color status labels."
+    ],
+    "donts": [
+      "Don't present one universal leaderboard as objective truth.",
+      "Don't fill the page with interchangeable rounded cards.",
+      "Don't use copper, green, or gold as decoration.",
+      "Don't hide methodology behind an unexplained score.",
+      "Don't animate plots or controls when the motion does not clarify a state change."
+    ]
+  }
+}

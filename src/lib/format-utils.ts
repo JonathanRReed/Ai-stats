@@ -7,10 +7,10 @@
  * @param score - Score value (can be decimal 0-1 or already a percentage)
  * @returns Formatted score string with % symbol, or 'N/A' if invalid
  */
-export function formatScore(score: string | number | null): string {
+export function formatScore(score: string | number | null | undefined): string {
   if (score === null || score === undefined) return 'N/A';
   const num = Number(score);
-  if (!isFinite(num) || num <= 0) return 'N/A';
+  if (!Number.isFinite(num)) return 'N/A';
   const pct = num <= 1 ? num * 100 : num;
   return `${pct.toFixed(1)}%`;
 }

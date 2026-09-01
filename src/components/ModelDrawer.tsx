@@ -1,5 +1,6 @@
 import type { CSSProperties, TransitionEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { parseFiniteMetricValue } from '../lib/metric-values';
 
 type DrawerPhase = 'closed' | 'entering' | 'open' | 'leaving';
 
@@ -42,8 +43,8 @@ interface ModelData {
 }
 
 function formatScore(value: number | null | undefined): string {
-  if (!value || value <= 0) return 'N/A';
-  const num = Number(value);
+  const num = parseFiniteMetricValue(value);
+  if (num === null) return 'N/A';
   if (num <= 1) return (num * 100).toFixed(1) + '%';
   return num.toFixed(1);
 }

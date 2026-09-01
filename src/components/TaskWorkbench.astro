@@ -1,0 +1,667 @@
+---
+import {
+  DEFAULT_TASK_PRESETS,
+  rankComparableModels,
+  type ModelEvidence,
+  type RankedCandidate,
+  type TaskPreset,
+} from "../lib/model-intelligence";
+
+type WorkbenchModel = ModelEvidence & {
+  provider: string;
+  inputPrice: number | null;
+  outputPrice: number | null;
+};
+
+interface Props {
+  models: WorkbenchModel[];
+}
+
+const { models } = Astro.props;
+const defaultBudget = 5;
+const defaultPreset = DEFAULT_TASK_PRESETS[0];
+const weightedKeys = Object.keys(defaultPreset.weights).filter(
+  (key) => defaultPreset.weights[key] > 0,
+);
+const initialCandidates = rankComparableModels(models, {
+  ...defaultPreset,
+  budget: defaultBudget,
+}).slice(0, 3);
+
+const metricLabels: Record<string, string> = {
+  aa_coding_index: "AA Coding Index",
+  livecodebench: "LiveCodeBench",
+  aa_intelligence_index: "AA Intelligence Index",
+  gpqa: "GPQA",
+  hle: "HLE",
+  median_output_tokens_per_second: "Speed",
+  price_1m_blended_3_to_1: "Blended price",
+};
+
+const percent = (weight: number): string => `${Math.round(weight * 100)}%`;
+const formatPrice = (value: number | null | undefined): string =>
+  typeof value === "number" && Number.isFinite(value)
+    ? `$${value.toFixed(value < 1 ? 2 : 2)}`
+    : "Missing";
+const formatMetric = (value: number | null | undefined): string =>
+  typeof value === "number" && Number.isFinite(value)
+    ? value.toFixed(1)
+    : "Missing";
+
+const primaryBenchmark = (
+  candidate: RankedCandidate,
+  preset: TaskPreset,
+): { label: string; value: string; unit: string } => {
+  const metricKey = Object.keys(preset.weights).find(
+    (key) =>
+      !key.includes("price") &&
+      key !== "median_output_tokens_per_second" &&
+      candidate.presentMetricKeys.includes(key),
+  );
+  if (!metricKey) {
+    return { label: "Native benchmark", value: "Missing", unit: "No joined evidence" };
+  }
+  return {
+    label: metricLabels[metricKey] ?? metricKey,
+    value: formatMetric(candidate.model.metrics[metricKey]),
+    unit: metricKey.startsWith("aa_") ? "index points" : "source-native score",
+  };
+};
+
+const serializeModels = models.map((model) => ({
+  ...model,
+  metrics: { ...model.metrics },
+}));
+const workbenchPayloadJson = JSON.stringify({
+  serializeModels,
+  taskPresets: DEFAULT_TASK_PRESETS,
+  defaultBudget,
+})
+  .replace(/</g, "\\u003c")
+  .replace(/>/g, "\\u003e")
+  .replace(/&/g, "\\u0026")
+  .replace(/\u2028/g, "\\u2028")
+  .replace(/\u2029/g, "\\u2029");
+---
+
+<section
+  class="task-workbench"
+  aria-label="Task workbench"
+  data-shortlist-state={initialCandidates.length ? "ready" : "empty"}
+>
+  <form class="task-query" data-task-form>
+    <span class="task-query-label">Task query</span>
+    <label>
+      <span>What are you choosing for?</span>
+      <select id="task-preset" name="task">
+        {DEFAULT_TASK_PRESETS.map((preset) => (
+          <option value={preset.id}>{preset.label}</option>
+        ))}
+      </select>
+    </label>
+    <label>
+      <span>Budget ceiling</span>
+      <select id="task-budget" name="budget">
+        <option value="1">$1 / 1M blended tokens</option>
+        <option value="5" selected>$5 / 1M blended tokens</option>
+        <option value="10">$10 / 1M blended tokens</option>
+        <option value="25">$25 / 1M blended tokens</option>
+        <option value="none">No price ceiling</option>
+      </select>
+    </label>
+    <button type="reset" class="task-reset">Reset constraints</button>
+  </form>
+
+  <div class="shortlist-frame" data-shortlist-frame aria-busy="false">
+    <div class="shortlist-head" aria-hidden="true">
+      <span>Candidate</span>
+      <span>Why it fits</span>
+      <span>Price / 1M</span>
+      <span>Speed</span>
+      <span>Native evidence</span>
+      <span>Coverage</span>
+    </div>
+
+    <p class="shortlist-status sr-only" aria-live="polite" data-shortlist-status>
+      {initialCandidates.length
+        ? `${initialCandidates.length} candidates ranked from comparable evidence.`
+        : "No candidates match the current constraints."}
+    </p>
+    <div class="shortlist-rows" data-shortlist-rows hidden={initialCandidates.length === 0}>
+      {initialCandidates.map((candidate, index) => {
+        const model = candidate.model as WorkbenchModel;
+        const benchmark = primaryBenchmark(candidate, defaultPreset);
+        return (
+          <article class="shortlist-row" data-shortlist-row>
+            <div class="candidate-cell" data-label="Candidate">
+              <span class="candidate-mark" aria-hidden="true" />
+              <div>
+                <h2>{model.label ?? model.id}</h2>
+                <p>{model.provider}</p>
+              </div>
+            </div>
+            <div class="reason-cell" data-label="Why it fits">
+              <p>
+                {index === 0 ? "Top" : `#${index + 1}`} comparable result for {defaultPreset.label.toLowerCase()} under this ceiling.
+              </p>
+              <small>{candidate.coverage} weighted fields present</small>
+            </div>
+            <div class="metric-cell" data-label="Price / 1M">
+              <strong>{formatPrice(model.metrics.price_1m_blended_3_to_1)}</strong>
+              <small>Input {formatPrice(model.inputPrice)} / output {formatPrice(model.outputPrice)}</small>
+            </div>
+            <div class="metric-cell" data-label="Speed">
+              <strong>{formatMetric(model.metrics.median_output_tokens_per_second)}</strong>
+              <small>median tokens/sec</small>
+            </div>
+            <div class="metric-cell" data-label="Native evidence">
+              <strong>{benchmark.value}</strong>
+              <small>{benchmark.label} · {benchmark.unit}</small>
+            </div>
+            <div class="metric-cell coverage-cell" data-label="Coverage">
+              <strong>{candidate.coverage} / {weightedKeys.length}</strong>
+              <small>weighted fields</small>
+            </div>
+            {candidate.missingMetricKeys.length > 0 && (
+              <p class="missing-evidence">
+                <span>Missing evidence</span>{" "}
+                {candidate.missingMetricKeys.map((key) => metricLabels[key] ?? key).join(", ")}
+              </p>
+            )}
+          </article>
+        );
+      })}
+    </div>
+
+    <div class="shortlist-loading" hidden data-shortlist-loading>
+      <span aria-hidden="true" />
+      <p>Updating shortlist</p>
+    </div>
+    <div
+      class="shortlist-empty"
+      hidden={initialCandidates.length > 0}
+      data-shortlist-empty
+      data-shortlist-state="empty"
+    >
+      <p>
+        {models.length
+          ? "No shortlist matches this filter yet."
+          : "Shortlist data unavailable in this build."}
+      </p>
+      <span>
+        {models.length
+          ? "Raise the budget ceiling or remove the price constraint."
+          : "Artificial Analysis observations are missing. Epoch and PoliBench evidence remain available below."}
+      </span>
+      <button type="button" data-empty-reset hidden={models.length === 0}>
+        Reset constraints
+      </button>
+    </div>
+  </div>
+
+  <aside class="weights-disclosure" aria-label="Ranking method">
+    <span>Weights in use</span>
+    <dl data-weight-list>
+      {Object.entries(defaultPreset.weights).map(([key, weight]) => (
+        <div>
+          <dt>{metricLabels[key] ?? key}</dt>
+          <dd>{percent(weight)}</dd>
+        </div>
+      ))}
+    </dl>
+    <p>
+      Scores are normalized only within this filtered candidate set. Missing values stay missing; models need at least {defaultPreset.minimumCoverage} weighted fields.
+    </p>
+  </aside>
+
+  <template id="shortlist-row-template">
+    <article class="shortlist-row" data-shortlist-row>
+      <div class="candidate-cell" data-label="Candidate">
+        <span class="candidate-mark" aria-hidden="true"></span>
+        <div><h2 data-model-name>Candidate</h2><p data-model-provider></p></div>
+      </div>
+      <div class="reason-cell" data-label="Why it fits"><p data-model-reason></p><small data-model-fields></small></div>
+      <div class="metric-cell" data-label="Price / 1M"><strong data-model-price></strong><small data-model-price-detail></small></div>
+      <div class="metric-cell" data-label="Speed"><strong data-model-speed></strong><small>median tokens/sec</small></div>
+      <div class="metric-cell" data-label="Native evidence"><strong data-model-benchmark></strong><small data-model-benchmark-detail></small></div>
+      <div class="metric-cell coverage-cell" data-label="Coverage"><strong data-model-coverage></strong><small>weighted fields</small></div>
+      <p class="missing-evidence" data-model-missing hidden><span>Missing evidence</span> <b></b></p>
+    </article>
+  </template>
+</section>
+
+<script
+  id="workbench-data"
+  type="application/json"
+  is:inline
+  set:html={workbenchPayloadJson}
+></script>
+
+<script>
+  import {
+    DEFAULT_TASK_PRESETS,
+    rankComparableModels,
+    type TaskPreset,
+  } from "../lib/model-intelligence";
+
+  type WorkbenchPayload = {
+    serializeModels: Array<{
+      id: string;
+      label?: string | null;
+      provider: string;
+      inputPrice: number | null;
+      outputPrice: number | null;
+      metrics: Record<string, number | null | undefined>;
+    }>;
+    taskPresets: import("../lib/model-intelligence").TaskPreset[];
+    defaultBudget: number;
+  };
+
+  const parseWorkbenchPayload = (): WorkbenchPayload => {
+    const fallback: WorkbenchPayload = {
+      serializeModels: [],
+      taskPresets: DEFAULT_TASK_PRESETS,
+      defaultBudget: 5,
+    };
+    const payloadElement = document.getElementById("workbench-data");
+    if (!payloadElement?.textContent) return fallback;
+    try {
+      const parsed = JSON.parse(payloadElement.textContent) as Partial<WorkbenchPayload>;
+      if (
+        !Array.isArray(parsed.serializeModels) ||
+        !Array.isArray(parsed.taskPresets) ||
+        !parsed.taskPresets.length ||
+        typeof parsed.defaultBudget !== "number"
+      ) {
+        return fallback;
+      }
+      return parsed as WorkbenchPayload;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const workbenchPayload = parseWorkbenchPayload();
+  const { serializeModels, taskPresets, defaultBudget } = workbenchPayload;
+
+  const root = document.querySelector<HTMLElement>(".task-workbench");
+  const form = root?.querySelector<HTMLFormElement>("[data-task-form]");
+  const presetSelect = root?.querySelector<HTMLSelectElement>("#task-preset");
+  const budgetSelect = root?.querySelector<HTMLSelectElement>("#task-budget");
+  const frame = root?.querySelector<HTMLElement>("[data-shortlist-frame]");
+  const rows = root?.querySelector<HTMLElement>("[data-shortlist-rows]");
+  const status = root?.querySelector<HTMLElement>("[data-shortlist-status]");
+  const loading = root?.querySelector<HTMLElement>("[data-shortlist-loading]");
+  const empty = root?.querySelector<HTMLElement>("[data-shortlist-empty]");
+  const weightList = root?.querySelector<HTMLElement>("[data-weight-list]");
+  const rowTemplate = root?.querySelector<HTMLTemplateElement>("#shortlist-row-template");
+  const metricLabels: Record<string, string> = {
+    aa_coding_index: "AA Coding Index",
+    livecodebench: "LiveCodeBench",
+    aa_intelligence_index: "AA Intelligence Index",
+    gpqa: "GPQA",
+    hle: "HLE",
+    median_output_tokens_per_second: "Speed",
+    price_1m_blended_3_to_1: "Blended price",
+  };
+
+  const text = (node: Element | null | undefined, value: string) => {
+    if (node) node.textContent = value;
+  };
+  const money = (value: unknown): string =>
+    typeof value === "number" && Number.isFinite(value) ? `$${value.toFixed(2)}` : "Missing";
+  const metric = (value: unknown): string =>
+    typeof value === "number" && Number.isFinite(value) ? value.toFixed(1) : "Missing";
+  const getPreset = () => taskPresets.find((preset) => preset.id === presetSelect?.value) ?? taskPresets[0];
+  const weightedKeysFor = (preset: TaskPreset): string[] =>
+    Object.keys(preset.weights).filter((key) => preset.weights[key] > 0);
+
+  const renderWeights = (preset: TaskPreset) => {
+    if (!weightList) return;
+    weightList.replaceChildren();
+    Object.entries(preset.weights).forEach(([key, weight]) => {
+      const item = document.createElement("div");
+      const term = document.createElement("dt");
+      const value = document.createElement("dd");
+      text(term, metricLabels[key] ?? key);
+      text(value, `${Math.round(weight * 100)}%`);
+      item.append(term, value);
+      weightList.append(item);
+    });
+  };
+
+  const renderShortlist = () => {
+    if (!root || !rows || !rowTemplate || !presetSelect || !budgetSelect || !frame) return;
+    const preset = getPreset();
+    const budget = budgetSelect.value === "none" ? undefined : Number(budgetSelect.value);
+    const ranked = rankComparableModels(
+      serializeModels,
+      { ...preset, ...(Number.isFinite(budget) ? { budget } : {}) },
+    ).slice(0, 3);
+    const weightedKeys = weightedKeysFor(preset);
+    rows.replaceChildren();
+
+    ranked.forEach((candidate, index) => {
+      const fragment = rowTemplate.content.cloneNode(true) as DocumentFragment;
+      const row = fragment.querySelector("[data-shortlist-row]");
+      const model = serializeModels.find((entry) => entry.id === candidate.model.id);
+      const benchmarkKey = weightedKeys.find(
+        (key) => !key.includes("price") && key !== "median_output_tokens_per_second" && candidate.presentMetricKeys.includes(key),
+      );
+      text(row?.querySelector("[data-model-name]"), model?.label ?? model?.id ?? candidate.model.id);
+      text(row?.querySelector("[data-model-provider]"), model?.provider ?? "Unknown provider");
+      text(
+        row?.querySelector("[data-model-reason]"),
+        `${index === 0 ? "Top" : `#${index + 1}`} comparable result for ${preset.label.toLowerCase()}${Number.isFinite(budget) ? " under this ceiling" : ""}.`,
+      );
+      text(row?.querySelector("[data-model-fields]"), `${candidate.coverage} weighted fields present`);
+      text(row?.querySelector("[data-model-price]"), money(model?.metrics.price_1m_blended_3_to_1));
+      text(row?.querySelector("[data-model-price-detail]"), `Input ${money(model?.inputPrice)} / output ${money(model?.outputPrice)}`);
+      text(row?.querySelector("[data-model-speed]"), metric(model?.metrics.median_output_tokens_per_second));
+      text(row?.querySelector("[data-model-benchmark]"), benchmarkKey ? metric(model?.metrics[benchmarkKey]) : "Missing");
+      text(
+        row?.querySelector("[data-model-benchmark-detail]"),
+        benchmarkKey
+          ? `${metricLabels[benchmarkKey] ?? benchmarkKey} · ${benchmarkKey.startsWith("aa_") ? "index points" : "source-native score"}`
+          : "No joined evidence",
+      );
+      text(row?.querySelector("[data-model-coverage]"), `${candidate.coverage} / ${weightedKeys.length}`);
+      const missing = row?.querySelector<HTMLElement>("[data-model-missing]");
+      if (missing && candidate.missingMetricKeys.length) {
+        missing.hidden = false;
+        text(missing.querySelector("b"), candidate.missingMetricKeys.map((key) => metricLabels[key] ?? key).join(", "));
+      }
+      rows.append(fragment);
+    });
+
+    const isEmpty = ranked.length === 0;
+    rows.hidden = isEmpty;
+    if (empty) empty.hidden = !isEmpty;
+    root.dataset.shortlistState = isEmpty ? "empty" : ranked.length < 3 ? "partial" : "ready";
+    frame.setAttribute("aria-busy", "false");
+    if (loading) loading.hidden = true;
+    text(status, isEmpty ? "No candidates match the current constraints." : `${ranked.length} source-backed candidates ranked.`);
+    renderWeights(preset);
+  };
+
+  const scheduleRender = () => {
+    if (!frame) return;
+    frame.setAttribute("aria-busy", "true");
+    if (loading) loading.hidden = false;
+    text(status, "Updating shortlist");
+    queueMicrotask(renderShortlist);
+  };
+
+  form?.addEventListener("change", scheduleRender);
+  form?.addEventListener("reset", () => {
+    window.setTimeout(() => {
+      if (presetSelect) presetSelect.value = taskPresets[0].id;
+      if (budgetSelect) budgetSelect.value = String(defaultBudget);
+      scheduleRender();
+    }, 0);
+  });
+  root?.querySelector("[data-empty-reset]")?.addEventListener("click", () => form?.reset());
+</script>
+
+<style>
+  .task-workbench {
+    border-top: 1px solid var(--intelligence-grid);
+    border-bottom: 1px solid var(--intelligence-grid);
+    background: var(--intelligence-surface);
+  }
+
+  .task-query {
+    display: grid;
+    grid-template-columns: auto minmax(14rem, 1fr) minmax(13rem, 0.72fr) auto;
+    align-items: end;
+    gap: 1rem;
+    min-height: 4.5rem;
+    padding: 0.8rem 0;
+    border-bottom: 1px solid var(--intelligence-grid);
+  }
+
+  .task-query-label,
+  .shortlist-head,
+  .weights-disclosure > span {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--subtle);
+  }
+
+  .task-query-label::before,
+  .shortlist-head span::before,
+  .weights-disclosure > span::before {
+    content: "";
+    display: inline-block;
+    width: 0.3rem;
+    height: 0.3rem;
+    margin-right: 0.65rem;
+    background: var(--intelligence-copper);
+    vertical-align: 0.08em;
+  }
+
+  .task-query label {
+    display: grid;
+    gap: 0.3rem;
+    min-width: 0;
+  }
+
+  .task-query label > span {
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+
+  .task-query select,
+  .task-reset,
+  .shortlist-empty button {
+    min-height: 44px;
+    border: 1px solid var(--intelligence-grid);
+    border-radius: 2px;
+    background: var(--base);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+  }
+
+  .task-query select {
+    width: 100%;
+    padding: 0.65rem 2rem 0.65rem 0.75rem;
+  }
+
+  .task-reset,
+  .shortlist-empty button {
+    padding: 0.65rem 0.9rem;
+    color: var(--intelligence-copper);
+  }
+
+  .task-query select:focus-visible,
+  .task-reset:focus-visible,
+  .shortlist-empty button:focus-visible {
+    outline: 2px solid var(--foam);
+    outline-offset: 3px;
+  }
+
+  .shortlist-frame {
+    position: relative;
+    min-height: 16rem;
+  }
+
+  .task-workbench[data-shortlist-state="empty"] .shortlist-frame {
+    min-height: 12rem;
+  }
+
+  .shortlist-head,
+  .shortlist-row {
+    display: grid;
+    grid-template-columns: 1.45fr 1.15fr 0.82fr 0.72fr 0.92fr 0.72fr;
+  }
+
+  .shortlist-head {
+    min-height: 3.5rem;
+    align-items: center;
+    border-bottom: 1px solid var(--intelligence-grid);
+  }
+
+  .shortlist-head span {
+    padding: 0 0.8rem;
+  }
+
+  .shortlist-row {
+    position: relative;
+    min-height: 5.6rem;
+    border-bottom: 1px solid var(--intelligence-grid);
+  }
+
+  .shortlist-row > div {
+    min-width: 0;
+    padding: 0.9rem 0.8rem;
+  }
+
+  .candidate-cell {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+  }
+
+  .candidate-mark {
+    width: 0.48rem;
+    height: 0.48rem;
+    margin-top: 0.4rem;
+    border-radius: 2px;
+    background: var(--intelligence-blue);
+    flex: none;
+  }
+
+  .candidate-cell h2 {
+    font-size: clamp(1rem, 1.3vw, 1.2rem);
+    line-height: 1.2;
+    color: var(--text);
+  }
+
+  .candidate-cell p,
+  .reason-cell p,
+  .reason-cell small,
+  .metric-cell small {
+    color: var(--muted);
+    font-size: 0.72rem;
+    line-height: 1.45;
+  }
+
+  .candidate-cell p { margin-top: 0.25rem; }
+
+  .metric-cell strong {
+    display: block;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .metric-cell small {
+    display: block;
+    margin-top: 0.28rem;
+  }
+
+  .missing-evidence {
+    grid-column: 2 / -1;
+    margin: -0.55rem 0.8rem 0.65rem;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+  }
+
+  .missing-evidence span { color: var(--intelligence-copper); }
+  .missing-evidence b { font-weight: 400; }
+
+  .shortlist-loading,
+  .shortlist-empty {
+    position: absolute;
+    inset: 3.5rem 0 0;
+    place-content: center;
+    text-align: center;
+    background: color-mix(in srgb, var(--intelligence-surface) 96%, transparent);
+  }
+
+  .shortlist-loading:not([hidden]),
+  .shortlist-empty:not([hidden]) { display: grid; }
+  .shortlist-loading span {
+    width: 2rem;
+    height: 2px;
+    margin: 0 auto 0.7rem;
+    background: var(--intelligence-copper);
+    animation: shortlist-pulse 0.8s ease-in-out infinite alternate;
+  }
+  .shortlist-loading p,
+  .shortlist-empty p { color: var(--text); }
+  .shortlist-empty span { margin: 0.4rem 0 1rem; color: var(--muted); font-size: 0.8rem; }
+  .shortlist-empty button { justify-self: center; }
+
+  .weights-disclosure {
+    display: grid;
+    grid-template-columns: auto minmax(18rem, 1fr) minmax(18rem, 1.2fr);
+    gap: 1rem;
+    align-items: center;
+    padding: 0.8rem 0;
+  }
+
+  .weights-disclosure dl {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+  }
+
+  .weights-disclosure dl div { display: flex; gap: 0.4rem; }
+  .weights-disclosure dt,
+  .weights-disclosure dd,
+  .weights-disclosure p {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    line-height: 1.45;
+  }
+  .weights-disclosure dt,
+  .weights-disclosure p { color: var(--muted); }
+  .weights-disclosure dd { color: var(--intelligence-copper); }
+
+  @keyframes shortlist-pulse { to { transform: scaleX(2); opacity: 0.5; } }
+
+  @media (max-width: 900px) {
+    .task-query { grid-template-columns: 1fr 1fr; }
+    .task-query-label { grid-column: 1 / -1; }
+    .task-reset { justify-self: start; }
+    .shortlist-head { display: none; }
+    .shortlist-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      padding: 0.6rem 0;
+    }
+    .shortlist-row > div::before {
+      content: attr(data-label);
+      display: block;
+      margin-bottom: 0.45rem;
+      color: var(--subtle);
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .candidate-cell { grid-column: 1 / -1; }
+    .candidate-cell::before { position: absolute; }
+    .candidate-cell .candidate-mark { margin-top: 1.35rem; }
+    .missing-evidence { grid-column: 1 / -1; margin: 0 0.8rem 0.65rem; }
+    .weights-disclosure { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 560px) {
+    .task-query { grid-template-columns: 1fr; }
+    .task-query-label { grid-column: auto; }
+    .shortlist-row { grid-template-columns: 1fr; }
+    .candidate-cell { grid-column: auto; }
+    .weights-disclosure dl { display: grid; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .shortlist-loading span { animation: none; }
+  }
+</style>

@@ -1,0 +1,150 @@
+{
+  "title": "Choose the new visual world for AI Stats",
+  "question": "The roll assigned a modular evidence patch bay. Keep it, choose the strongest alternate, steer the direction, or re-roll.",
+  "options": [
+    {
+      "id": "assigned-patch-bay",
+      "label": "Modular Evidence Patch Bay",
+      "kicker": "THE ROLL",
+      "lineage": "broadcast patch panels, signal-routing matrices, and modular test equipment",
+      "thesis": "Every shortlist is a visible route from independent evidence to a practical model decision.",
+      "palette": ["#0B1110", "#DCE5D8", "#A4F56A", "#FFB84D", "#5AB7FF"],
+      "materials": ["anodized graphite", "engraved labels", "signal LEDs", "cloth patch leads"],
+      "viewport": "A live decision bus routes Artificial Analysis, Epoch, SimpleBench, PoliBench, price, and latency into a task-specific shortlist.",
+      "case": "The mechanism matches the product: source provenance stays visible while users compose a decision.",
+      "risk": "The routing metaphor fails if decorative cables outrun information hierarchy.",
+      "raised": [
+        {
+          "from": "challenger-manual",
+          "raise": "Borrow exact tab discipline so every dense evidence view has a dependable place."
+        },
+        {
+          "from": "challenger-night-flight",
+          "raise": "Borrow instrument-grade status behavior for freshness, confidence, and ingestion health."
+        },
+        {
+          "from": "challenger-orizuru",
+          "raise": "Borrow reversible folding logic for filters and task presets."
+        },
+        {
+          "from": "challenger-alphabet-storm",
+          "raise": "Borrow decisive scale shifts so the selected model and governing tradeoff read instantly."
+        }
+      ],
+      "comp": ".impeccable/mocks/decision/modular-evidence-patch-bay.png"
+    },
+    {
+      "id": "pick-metrology",
+      "label": "Metrology Calibration Bench",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "precision metrology labs, calibration certificates, and serialized instruments",
+      "thesis": "Model claims behave like measurements: dated, calibrated, attributable, and honest about uncertainty.",
+      "palette": ["#ECE9DF", "#171A19", "#B84B2A", "#2E6658", "#A69D8D"],
+      "materials": ["ivory enamel", "knurled steel", "ruled paper", "calibration seals"],
+      "viewport": "A cream instrument bench centers a task selector, a calibrated shortlist, and source receipts with visible uncertainty.",
+      "case": "This is the clearest expression of trustworthy AI measurement and the strongest long-term design system.",
+      "risk": "It can feel clinical unless decisions remain fast, warm, and plainly written.",
+      "comp": ".impeccable/mocks/decision/metrology-calibration-bench.png"
+    },
+    {
+      "id": "challenger-manual",
+      "label": "Acetate Reference Manual",
+      "verdict": "competitive",
+      "lineage": "boxed-software manuals, acetate dividers, and technical field references",
+      "thesis": "AI Stats becomes the definitive model field manual, organized for fast retrieval and careful cross-reference.",
+      "palette": ["#F2EBDD", "#172138", "#E4583E", "#E6B34A", "#B9D9D0"],
+      "materials": ["uncoated stock", "acetate tabs", "registration marks", "technical diagrams"],
+      "viewport": "A wide open manual uses colored edge tabs for Choose, Compare, Benchmarks, Sources, and Freshness.",
+      "case": "Exceptionally clear and scalable, but its document metaphor is less native to interactive model selection.",
+      "risk": "Dense documentation can make the first useful answer feel farther away.",
+      "comp": ".impeccable/mocks/decision/manual-acetate.png",
+      "hero": "https://impeccable.style/worlds/cards/rw-manual-acetate-tab-board-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/rw-manual-acetate-tab-board.webp"
+    },
+    {
+      "id": "challenger-night-flight",
+      "label": "Night-Flight Instrument Six-Pack",
+      "verdict": "competitive",
+      "lineage": "night cockpit instruments, disciplined scan patterns, and warning annunciators",
+      "thesis": "The market becomes a calm instrument panel where trend, risk, speed, cost, and freshness can be scanned at a glance.",
+      "palette": ["#071015", "#E8F0E8", "#72E69B", "#FFB84D", "#E95D5D"],
+      "materials": ["matte black alloy", "radium markings", "glass bezels", "warning lamps"],
+      "viewport": "Six primary instruments summarize the active model shortlist above a compact evidence and routing strip.",
+      "case": "Trustworthy and focused, but a fixed gauge grammar does not scale naturally to dozens of benchmarks.",
+      "risk": "The cockpit metaphor can become theatrical when every metric is forced into a dial.",
+      "comp": ".impeccable/mocks/decision/night-flight.png",
+      "hero": "https://impeccable.style/worlds/cards/signals-instruments-night-flight-six-pack-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/signals-instruments-night-flight-six-pack.webp"
+    },
+    {
+      "id": "challenger-orizuru",
+      "label": "Orizuru Fold Sequence",
+      "verdict": "declined",
+      "lineage": "origami instruction diagrams and reversible fold notation",
+      "thesis": "A model decision unfolds through a strict sequence of visible constraints.",
+      "palette": ["#F7F3EA", "#242424", "#D94C3D", "#92A9C2"],
+      "materials": ["washi paper", "crease diagrams", "numbered folds"],
+      "viewport": "A single folded decision path moves from task constraints to a compact shortlist.",
+      "case": "Elegant for guided selection, but too linear for open exploration and cross-source evidence.",
+      "kept": "Reversible, stepwise filtering with every constraint visible.",
+      "risk": "The metaphor becomes decorative as soon as users compare several branches."
+    },
+    {
+      "id": "challenger-alphabet-storm",
+      "label": "Alphabet Storm",
+      "verdict": "declined",
+      "lineage": "experimental type specimens and information-scale typography",
+      "thesis": "The winning tradeoff becomes monumental type while the supporting evidence forms its weather system.",
+      "palette": ["#F4F0E6", "#121212", "#EF3D23", "#315DFF"],
+      "materials": ["overscale type", "ink collision", "registration offsets"],
+      "viewport": "One model and one governing tradeoff dominate the page in transformational typography.",
+      "case": "Memorable but too volatile for a data product whose evidence must stay calm and comparable.",
+      "kept": "Use scale aggressively to reveal the current decision and its governing tradeoff.",
+      "risk": "Expression can overwhelm comparison accuracy and sustained use."
+    },
+    {
+      "id": "challenger-seedbed",
+      "label": "Saturated Seedbed Lobes",
+      "verdict": "declined",
+      "lineage": "scientific growth diagrams and saturated ecological field maps",
+      "thesis": "Model families grow as colored evidence regions whose overlap reveals usable capability territory.",
+      "palette": ["#123A2C", "#C7FF3D", "#FF5B3A", "#F7D64A"],
+      "materials": ["field-map ink", "organic contours", "specimen pins"],
+      "viewport": "A full-field capability map uses overlapping lobes to reveal model families and task fit.",
+      "case": "Visually decisive, but spatial overlap obscures native benchmark scales and exact comparisons.",
+      "kept": "Commit whole regions of the page to unmistakable source and state color.",
+      "risk": "The organic map reads as interpretation before the data earns it."
+    },
+    {
+      "id": "challenger-hypercard",
+      "label": "HyperCard Evidence Stack",
+      "verdict": "declined",
+      "lineage": "HyperCard stacks, shoebox research files, and linked evidence trails",
+      "thesis": "Every model, benchmark, and source is a linked card with an exact trail back through history.",
+      "palette": ["#F4F4EF", "#111111", "#777777", "#2E66D4"],
+      "materials": ["one-bit icons", "index cards", "rubber stamps", "link traces"],
+      "viewport": "A layered stack opens on the active decision card with source history one click behind it.",
+      "case": "Excellent for provenance trails, but too card-bound for broad comparison and contemporary density.",
+      "kept": "Preserve exact history, backtracking, and durable deep links for every evidence view.",
+      "risk": "The nostalgic interface can overpower the product’s current-market authority."
+    }
+  ],
+  "reroll": {
+    "registers": ["safer", "bolder"]
+  },
+  "buildPath": {
+    "value": "comp",
+    "toggle": true
+  },
+  "canon": true,
+  "canonCard": {
+    "label": "The category standard",
+    "thesis": "A polished analytics dashboard with conventional navigation, filter bars, tables, and comparison charts.",
+    "palette": ["#0B1020", "#F7F9FC", "#6D5DFB", "#22C55E"],
+    "materials": ["clean cards", "soft grid", "standard charts", "neutral controls"],
+    "viewport": "A familiar dashboard hero introduces market totals, a model table, and benchmark leaderboards.",
+    "risk": "Competent and usable, but difficult to distinguish from every other modern data dashboard.",
+    "comp": ".impeccable/mocks/decision/canon.png"
+  },
+  "steer": true
+}

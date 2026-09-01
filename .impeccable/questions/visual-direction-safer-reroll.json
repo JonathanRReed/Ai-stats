@@ -1,0 +1,61 @@
+{
+  "title": "Choose the AI Stats structure, without changing its character",
+  "question": "This hand starts from the real current homepage. The differences are information structure, not visual theater.",
+  "options": [
+    {
+      "id": "safer-task-first",
+      "label": "Task first",
+      "kicker": "RECOMMENDED",
+      "lineage": "the current AI Stats homepage with one practical decision layer added",
+      "thesis": "Keep the existing composition and typography, then make the user’s task the fastest path into the data.",
+      "palette": ["#090B0C", "#E8E7E1", "#B98672", "#818681", "#2B3031"],
+      "materials": ["existing black canvas", "warm gray type", "copper accent", "hairline grid"],
+      "viewport": "The current introduction and grid remain recognizable, with a quiet task query and three evidence-backed candidates taking priority.",
+      "case": "The smallest structural change that turns the site from a data display into a model-selection tool.",
+      "risk": "The task input must stay compact or it will feel like a new product pasted above the old one.",
+      "comp": ".impeccable/mocks/ai-stats-task-first.png"
+    },
+    {
+      "id": "safer-compare-first",
+      "label": "Compare first",
+      "lineage": "the current AI Stats homepage reorganized around a compact evidence matrix",
+      "thesis": "Preserve the current shell while making like-for-like model comparison the visual center.",
+      "palette": ["#090B0C", "#E8E7E1", "#B98672", "#778B88", "#2B3031"],
+      "materials": ["existing black canvas", "warm gray type", "copper accent", "ruled matrix"],
+      "viewport": "A restrained four-model matrix sits inside the current grid language, with native benchmark units and source receipts visible at a glance.",
+      "case": "Best for expert repeat use and the strongest fix for today’s long compare sidebar.",
+      "risk": "A matrix can feel utilitarian unless the initial shortlist and empty states are carefully composed.",
+      "comp": ".impeccable/mocks/ai-stats-compare-first.png"
+    },
+    {
+      "id": "safer-overview-first",
+      "label": "Overview first",
+      "lineage": "the current AI Stats homepage with materially better visualizations and source health",
+      "thesis": "Keep the familiar overview flow, then replace weak leaderboards with useful tradeoff and coverage views.",
+      "palette": ["#090B0C", "#E8E7E1", "#B98672", "#8090A0", "#2B3031"],
+      "materials": ["existing black canvas", "warm gray type", "copper accent", "compact plots"],
+      "viewport": "The current intro leads into a source-health strip, a corrected leaderboard, a Pareto plot, and a compact benchmark coverage view.",
+      "case": "Feels most like the existing site while delivering the visualization and data-quality improvements you asked for.",
+      "risk": "It improves discovery more than it improves the final act of choosing a model.",
+      "comp": ".impeccable/mocks/ai-stats-overview-first.png"
+    }
+  ],
+  "reroll": {
+    "registers": ["safer", "bolder"]
+  },
+  "buildPath": {
+    "value": "comp",
+    "toggle": true
+  },
+  "canon": true,
+  "canonCard": {
+    "label": "Current homepage, corrected",
+    "thesis": "Keep the current page structure exactly and limit the renovation to data correctness, chart defaults, spacing, accessibility, and backend reliability.",
+    "palette": ["#090B0C", "#E8E7E1", "#B98672", "#2B3031"],
+    "materials": ["existing shell", "existing type system", "existing grid", "corrected charts"],
+    "viewport": "The present AI Stats homepage remains the composition, with the sparse-score leader fixed and stronger freshness labeling.",
+    "risk": "Artificial Analysis, Epoch, and OpenRouter set a higher interaction bar than a correction-only pass would reach.",
+    "comp": ".impeccable/mocks/current-ai-stats-home.jpg"
+  },
+  "steer": true
+}

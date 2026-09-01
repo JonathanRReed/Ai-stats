@@ -13,6 +13,11 @@ import {
   getEpochBenchmarkLabel,
 } from '../../lib/benchmark-catalog';
 import { getPublicEpochSnapshot } from '../../lib/epoch-snapshot';
+import {
+  compareOptionalMetricValues,
+  hasFiniteMetricValue,
+  parseFiniteMetricValue,
+} from '../../lib/metric-values';
 
 type CompareModelRecord = Record<string, unknown>;
 type EpochDemoModel = {
@@ -28,6 +33,8 @@ type EpochDemoModel = {
   price_1m_output_tokens: number;
   median_output_tokens_per_second: null;
   median_time_to_first_answer_token: null;
+  isIllustrativeFallback: true;
+  priceEvidence: 'synthetic-estimate';
   first_seen: string;
   last_seen: string;
 };
@@ -101,17 +108,17 @@ const compactCompareModelForClient = (model: CompareModelRecord) => ({
   litellm_supports_reasoning: model.litellm_supports_reasoning,
   litellm_supports_prompt_caching: model.litellm_supports_prompt_caching,
   litellm_supports_web_search: model.litellm_supports_web_search,
+  isIllustrativeFallback: model.isIllustrativeFallback,
+  priceEvidence: model.priceEvidence,
 });
 
 const collectInitialEpochLookup = (model: CompareModelRecord) => {
   const keys = new Set<string>();
-  const tokenSources: string[] = [];
   const register = (candidate: string | null | undefined) => {
     const normalized = normalizeModelKey(candidate);
     if (!normalized) return;
     keys.add(normalized);
     keys.add(normalized.replace(/\s+/g, ''));
-    tokenSources.push(normalized);
   };
 
   register(String(model.name ?? ''));
@@ -127,11 +134,7 @@ const collectInitialEpochLookup = (model: CompareModelRecord) => {
     register(normalizedName.slice(normalizedCompany.length).trim());
   }
 
-  const tokens = Array.from(new Set(tokenSources.join(' ').split(' '))).filter(
-    (token) => token && token.length > 2,
-  );
-
-  return { keys, tokens };
+  return { keys };
 };
 
 export const GET: APIRoute = async () => {
@@ -232,19 +235,26 @@ export const GET: APIRoute = async () => {
     const scoredModels = epochModels
       .map((model) => {
         const relatedRuns = epochRuns.filter(
-          (run) => run.model_version === model.model_version && Number(run.score) > 0,
+          (run) =>
+            run.model_version === model.model_version &&
+            hasFiniteMetricValue(run.score),
         );
-        const bestScore = Math.max(
-          ...relatedRuns.map((run) => Number(run.score) || 0),
-          0,
-        );
+        const scores = relatedRuns
+          .map((run) => parseFiniteMetricValue(run.score))
+          .filter((score): score is number => score !== null);
+        const bestScore = scores.length
+          ? Math.max(...scores)
+          : Number.NEGATIVE_INFINITY;
         return { model, relatedRuns, bestScore };
       })
       .filter((entry) => entry.relatedRuns.length > 0)
       .sort((a, b) => {
-        const aEci = Number(a.model.eci_score) || 0;
-        const bEci = Number(b.model.eci_score) || 0;
-        if (bEci !== aEci) return bEci - aEci;
+        const eciOrder = compareOptionalMetricValues(
+          a.model.eci_score,
+          b.model.eci_score,
+          'desc',
+        );
+        if (eciOrder !== 0) return eciOrder;
         return b.bestScore - a.bestScore;
       })
       .slice(0, 40);
@@ -259,12 +269,14 @@ export const GET: APIRoute = async () => {
         creator_name: model.organization,
         creator_slug: normalizeModelKey(model.organization).replace(/\s+/g, '-'),
         company_name: model.organization,
-        aa_intelligence_index: model.eci_score,
+        aa_intelligence_index: null,
         price_1m_blended_3_to_1: (price.input * 3 + price.output) / 4,
         price_1m_input_tokens: price.input,
         price_1m_output_tokens: price.output,
         median_output_tokens_per_second: null,
         median_time_to_first_answer_token: null,
+        isIllustrativeFallback: true,
+        priceEvidence: "synthetic-estimate",
         first_seen: model.release_date || relatedRuns[0]?.release_date || '',
         last_seen: model.release_date || relatedRuns[0]?.release_date || '',
       };
@@ -277,12 +289,9 @@ export const GET: APIRoute = async () => {
   const initialClientEpochScores: Record<string, Record<string, number>> = {};
 
   compareModels.forEach((model) => {
-    const { keys, tokens } = collectInitialEpochLookup(model);
+    const { keys } = collectInitialEpochLookup(model);
     scoreEntries.forEach(([alias, aliasScores]) => {
-      if (
-        keys.has(alias) ||
-        (tokens.length > 0 && tokens.every((token) => alias.includes(token)))
-      ) {
+      if (keys.has(alias)) {
         initialClientEpochScores[alias] = aliasScores;
       }
     });
@@ -296,8 +305,8 @@ export const GET: APIRoute = async () => {
 
   return new Response(
     JSON.stringify({
-      validModels: compareModels.map(compactCompareModelForClient),
-      epochDemoModels,
+      validModels: validModels.map(compactCompareModelForClient),
+      epochDemoModels: epochDemoModels.map(compactCompareModelForClient),
       epochScoresByModel: initialClientEpochScores,
       availableBenchmarks,
       preferredBenchmarkSlugs: [...VALUABLE_FREE_BENCHMARK_SLUGS],

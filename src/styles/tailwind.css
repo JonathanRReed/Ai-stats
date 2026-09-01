@@ -1,2 +1,20 @@
 @config "../../tailwind.config.js";
 @import "tailwindcss";
+
+@layer base {
+  :root {
+    --intelligence-base: #0f1114;
+    --intelligence-surface: #151719;
+    --intelligence-grid: #2c2e31;
+    --intelligence-copper: #c6764d;
+    --intelligence-blue: #668796;
+  }
+
+  html.light {
+    --intelligence-base: #efede8;
+    --intelligence-surface: #f8f6f1;
+    --intelligence-grid: #c9c5bc;
+    --intelligence-copper: #a84f31;
+    --intelligence-blue: #3f6676;
+  }
+}

@@ -21,3 +21,15 @@ test("the open mobile menu button stays above its dismiss overlay", () => {
 
   expect(controlsZIndex).toBeGreaterThan(overlayZIndex);
 });
+
+test("the mobile navigation keeps the primary links in the same order as desktop", () => {
+  const mobileNavIndex = source.indexOf('<nav id="mobile-nav"');
+  const items = ["Stats", "Compare", "About", "Contact"].map((label) =>
+    source.indexOf(`>${label}<`, mobileNavIndex),
+  );
+
+  expect(items.every((index) => index > mobileNavIndex)).toBe(true);
+  expect(items).toEqual([...items].sort((a, b) => a - b));
+  expect(source).toContain('nav id="mobile-nav" class="mobile-nav" inert');
+  expect(source).toContain('tabindex="-1"');
+});

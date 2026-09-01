@@ -21,12 +21,14 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "lint": "eslint \"src/**/*.{astro,ts,tsx}\" \"scripts/**/*.ts\"",
+    "lint": "eslint \"src/**/*.{astro,ts,tsx}\" \"scripts/**/*.{ts,mjs}\"",
     "test": "bun test",
     "typecheck": "astro check",
     "check:epoch": "bun scripts/check-epoch-smoke.ts",
     "sync:epoch": "node scripts/sync-epoch-data.mjs",
-    "snapshot:epoch": "node scripts/sync-epoch-data.mjs --dry-run --write-public-snapshot public/data/epoch-benchmark-snapshot.json"
+    "snapshot:epoch": "node scripts/sync-epoch-data.mjs --dry-run --write-public-snapshot public/data/epoch-benchmark-snapshot.json",
+    "sync:polibench": "node scripts/sync-polibench-data.mjs",
+    "sync:intelligence": "node scripts/sync-intelligence-data.mjs"
   },
   "dependencies": {
     "@astrojs/check": "0.9.10",

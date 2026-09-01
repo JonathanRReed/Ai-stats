@@ -1,0 +1,385 @@
+---
+import type { DataFreshness } from "../lib/data-freshness";
+import {
+  buildParetoFrontier,
+  DEFAULT_TASK_PRESETS,
+  rankComparableModels,
+  type ModelEvidence,
+} from "../lib/model-intelligence";
+import type { PublicPoliBenchSnapshot } from "../lib/polibench-snapshot";
+import type { AaModel, EpochBenchmark, EpochBenchmarkRun, EpochModel } from "../lib/supabase";
+import { hasFiniteMetricValue } from "../lib/metric-values";
+
+interface Props {
+  models: AaModel[];
+  epochModels: EpochModel[];
+  epochBenchmarks: EpochBenchmark[];
+  epochRuns: EpochBenchmarkRun[];
+  polibench: PublicPoliBenchSnapshot | null;
+  freshness: DataFreshness;
+}
+
+const { models, epochModels, epochBenchmarks, epochRuns, polibench, freshness } = Astro.props;
+const finitePositive = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value) && value > 0;
+const evidence: ModelEvidence[] = models.map((model) => ({
+  id: model.id,
+  label: model.name,
+  metrics: {
+    aa_intelligence_index: model.aa_intelligence_index,
+    aa_coding_index: model.aa_coding_index,
+    livecodebench: model.livecodebench,
+    gpqa: model.gpqa,
+    hle: model.hle,
+    price_1m_blended_3_to_1: model.price_1m_blended_3_to_1,
+    median_output_tokens_per_second: model.median_output_tokens_per_second,
+  },
+}));
+const modelById = new Map(models.map((model) => [model.id, model]));
+const codingPreset = { ...DEFAULT_TASK_PRESETS[0], budget: 5 };
+const codingCandidates = rankComparableModels(evidence, codingPreset);
+const topCandidate = codingCandidates[0] ?? null;
+const topCandidateModel = topCandidate ? modelById.get(topCandidate.model.id) ?? null : null;
+const cheapest = [...models]
+  .filter((model) => finitePositive(model.price_1m_blended_3_to_1))
+  .sort((a, b) => Number(a.price_1m_blended_3_to_1) - Number(b.price_1m_blended_3_to_1))[0] ?? null;
+const topEpoch = [...epochModels]
+  .filter((model) => hasFiniteMetricValue(model.eci_score))
+  .sort((a, b) => Number(b.eci_score) - Number(a.eci_score))[0] ?? null;
+
+const qualityPriceModels = evidence.filter(
+  (model) =>
+    hasFiniteMetricValue(model.metrics.aa_intelligence_index) &&
+    finitePositive(model.metrics.price_1m_blended_3_to_1),
+);
+const frontier = buildParetoFrontier(qualityPriceModels, {
+  qualityMetricKey: "aa_intelligence_index",
+  priceMetricKey: "price_1m_blended_3_to_1",
+});
+const frontierIds = new Set(frontier.map((model) => model.id));
+const qualityValues = qualityPriceModels.map((model) => Number(model.metrics.aa_intelligence_index));
+const priceValues = qualityPriceModels.map((model) => Number(model.metrics.price_1m_blended_3_to_1));
+const qualityMin = qualityValues.length ? Math.min(...qualityValues) : 0;
+const qualityMax = qualityValues.length ? Math.max(...qualityValues) : 100;
+const priceMin = priceValues.length ? Math.min(...priceValues) : 0.01;
+const priceMax = priceValues.length ? Math.max(...priceValues) : 100;
+const logMin = Math.log10(Math.max(priceMin, 0.001));
+const logMax = Math.log10(Math.max(priceMax, priceMin * 1.01));
+const chartLeft = 58;
+const chartRight = 612;
+const chartTop = 32;
+const chartBottom = 286;
+const scaleX = (price: number): number =>
+  chartLeft + ((Math.log10(Math.max(price, 0.001)) - logMin) / Math.max(logMax - logMin, 0.01)) * (chartRight - chartLeft);
+const scaleY = (quality: number): number =>
+  chartBottom - ((quality - qualityMin) / Math.max(qualityMax - qualityMin, 1)) * (chartBottom - chartTop);
+const priceTicks = [0.01, 0.1, 1, 10, 100].filter(
+  (tick) => tick >= priceMin * 0.8 && tick <= priceMax * 1.2,
+);
+const qualityTicks = [0, 25, 50, 75, 100].filter(
+  (tick) => tick >= qualityMin - 5 && tick <= qualityMax + 5,
+);
+const chartRows = [...qualityPriceModels]
+  .sort((a, b) => Number(b.metrics.aa_intelligence_index) - Number(a.metrics.aa_intelligence_index))
+  .slice(0, 12);
+
+const aaIntelligenceCount = models.filter((model) => hasFiniteMetricValue(model.aa_intelligence_index)).length;
+const aaCodingCount = models.filter(
+  (model) => hasFiniteMetricValue(model.aa_coding_index) || hasFiniteMetricValue(model.livecodebench),
+).length;
+const epochModelVersions = new Set(epochRuns.map((run) => run.model_version).filter(Boolean));
+const simpleBenchRuns = epochRuns.filter((run) =>
+  String(run.benchmark_slug ?? run.benchmark_name ?? "").toLowerCase().includes("simplebench"),
+);
+const coverageRows = [
+  { label: "AA intelligence evidence", value: aaIntelligenceCount, max: Math.max(models.length, 1), detail: `${aaIntelligenceCount} / ${models.length} priced models` },
+  { label: "AA coding evidence", value: aaCodingCount, max: Math.max(models.length, 1), detail: `${aaCodingCount} / ${models.length} priced models` },
+  { label: "Epoch model coverage", value: epochModelVersions.size, max: Math.max(epochModels.length, 1), detail: `${epochModelVersions.size} / ${epochModels.length} models` },
+  { label: "SimpleBench observations", value: simpleBenchRuns.length, max: Math.max(epochRuns.length, 1), detail: `${simpleBenchRuns.length} / ${epochRuns.length} Epoch runs` },
+  { label: "PoliBench operational evidence", value: polibench?.counts.models ?? 0, max: Math.max(polibench?.counts.models ?? 0, 1), detail: polibench ? `${polibench.counts.models} models / ${polibench.counts.runs} runs` : "No checked snapshot" },
+];
+
+const recentSources = [...freshness.sources]
+  .filter((source) => source.lastObservedAt !== null)
+  .sort((a, b) => Number(b.lastObservedAt) - Number(a.lastObservedAt))
+  .slice(0, 5);
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+const money = (value: number | null | undefined): string =>
+  finitePositive(value) ? `$${value.toFixed(value < 1 ? 3 : 2)}` : "Missing";
+---
+
+<section class="intelligence-overview" aria-label="Intelligence overview">
+  <header class="overview-header">
+    <div>
+      <span>Intelligence overview</span>
+      <h2>Market evidence, without a universal score</h2>
+    </div>
+    <a href="/compare">View all model comparisons <span aria-hidden="true">→</span></a>
+  </header>
+
+  <div class="overview-facts">
+    <article>
+      <span>Tracked models</span>
+      <strong>{models.length}</strong>
+      <p>Priced Artificial Analysis models in this build.</p>
+    </article>
+    <article>
+      <span>Coding preset leader</span>
+      <strong>{topCandidateModel?.name ?? "No comparable result"}</strong>
+      <p>{topCandidate ? `${topCandidate.coverage} / ${Object.keys(codingPreset.weights).length} weighted fields` : "Coverage threshold not met"}</p>
+    </article>
+    <article>
+      <span>Cheapest blended</span>
+      <strong>{cheapest?.name ?? "No priced result"}</strong>
+      <p>{money(cheapest?.price_1m_blended_3_to_1)} per 1M tokens.</p>
+    </article>
+    <article>
+      <span>Epoch signal</span>
+      <strong>{topEpoch?.display_name ?? topEpoch?.model_name ?? "No run data"}</strong>
+      <p>{epochBenchmarks.length} benchmarks / {epochRuns.length} recorded runs.</p>
+    </article>
+  </div>
+
+  <div class="overview-grid">
+    <figure class="quality-price">
+      <figcaption>
+        <span>Quality vs. price</span>
+        <p>Artificial Analysis Intelligence Index against blended price. Log price scale.</p>
+      </figcaption>
+      {qualityPriceModels.length ? (
+        <svg viewBox="0 0 640 340" role="img" aria-labelledby="quality-price-title quality-price-desc">
+          <title id="quality-price-title">Quality versus price for models with comparable Artificial Analysis data</title>
+          <desc id="quality-price-desc">Each point is a model. Horizontal position is blended US dollar price per one million tokens on a logarithmic scale. Vertical position is the Artificial Analysis Intelligence Index. The selected coding preset leader is labeled.</desc>
+          <rect x={chartLeft} y={chartTop} width={chartRight - chartLeft} height={chartBottom - chartTop} class="chart-frame" />
+          {qualityTicks.map((tick) => (
+            <g>
+              <line x1={chartLeft} x2={chartRight} y1={scaleY(tick)} y2={scaleY(tick)} class="chart-gridline" />
+              <text x={chartLeft - 10} y={scaleY(tick) + 4} text-anchor="end">{tick}</text>
+            </g>
+          ))}
+          {priceTicks.map((tick) => (
+            <g>
+              <line x1={scaleX(tick)} x2={scaleX(tick)} y1={chartTop} y2={chartBottom} class="chart-gridline" />
+              <text x={scaleX(tick)} y={chartBottom + 20} text-anchor="middle">${tick}</text>
+            </g>
+          ))}
+          {qualityPriceModels.map((model) => {
+            const isTop = model.id === topCandidate?.model.id;
+            return (
+              <circle
+                cx={scaleX(Number(model.metrics.price_1m_blended_3_to_1))}
+                cy={scaleY(Number(model.metrics.aa_intelligence_index))}
+                r={isTop ? 6 : frontierIds.has(model.id) ? 3.4 : 2.6}
+                class={isTop ? "plot-top" : frontierIds.has(model.id) ? "plot-frontier" : "plot-other"}
+              >
+                <title>{model.label ?? model.id}: index {Number(model.metrics.aa_intelligence_index).toFixed(1)}, {money(Number(model.metrics.price_1m_blended_3_to_1))} per 1M tokens</title>
+              </circle>
+            );
+          })}
+          {topCandidate && (
+            <text
+              x={Math.min(scaleX(Number(topCandidate.model.metrics.price_1m_blended_3_to_1)) + 10, chartRight - 90)}
+              y={Math.max(scaleY(Number(topCandidate.model.metrics.aa_intelligence_index)) - 10, chartTop + 14)}
+              class="top-label"
+            >
+              {topCandidate.model.label ?? topCandidate.model.id}
+            </text>
+          )}
+          <text x={(chartLeft + chartRight) / 2} y="330" text-anchor="middle" class="axis-title">Blended price, USD per 1M tokens</text>
+          <text transform="translate(14 190) rotate(-90)" text-anchor="middle" class="axis-title">Artificial Analysis Intelligence Index</text>
+        </svg>
+      ) : (
+        <p class="chart-empty">Quality and price observations are unavailable in this build.</p>
+      )}
+      <div class="plot-legend" aria-label="Chart legend">
+        <span><i class="top-swatch" /> Top pick</span>
+        <span><i class="other-swatch" /> Other models</span>
+      </div>
+      <details>
+        <summary>Quality and price data table</summary>
+        <div class="table-scroll">
+          <table aria-label="Quality and price data table">
+            <thead><tr><th scope="col">Model</th><th scope="col">Intelligence Index</th><th scope="col">Blended USD / 1M</th><th scope="col">Pareto frontier</th></tr></thead>
+            <tbody>
+              {chartRows.map((model) => (
+                <tr>
+                  <th scope="row">{model.label ?? model.id}</th>
+                  <td>{Number(model.metrics.aa_intelligence_index).toFixed(1)}</td>
+                  <td>{money(Number(model.metrics.price_1m_blended_3_to_1))}</td>
+                  <td>{frontierIds.has(model.id) ? "Yes" : "No"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </figure>
+
+    <section class="coverage-panel" aria-labelledby="coverage-title">
+      <header><h3 id="coverage-title">Benchmark coverage</h3><p>Exact counts from this build.</p></header>
+      <div class="coverage-list">
+        {coverageRows.map((row) => (
+          <div>
+            <div><span>{row.label}</span><b>{row.detail}</b></div>
+            <progress value={row.value} max={row.max}>{row.value} of {row.max}</progress>
+          </div>
+        ))}
+      </div>
+      <p class="coverage-note">PoliBench coverage is source-native operational evidence and is not joined to AA candidates without an explicit alias.</p>
+    </section>
+
+    <section class="changes-panel" aria-labelledby="changes-title">
+      <header><h3 id="changes-title">Recent source changes</h3><p>Newest observation receipts in this build.</p></header>
+      {recentSources.length ? (
+        <ol>
+          {recentSources.map((source) => (
+            <li>
+              <time datetime={source.lastObservedAt?.toISOString()}>{dateFormatter.format(source.lastObservedAt as Date)}</time>
+              <div>
+                <strong>{source.displayName}</strong>
+                <span>{source.coverageLabel ?? source.message}</span>
+              </div>
+              <b>{source.status}</b>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p class="changes-empty">No dated source receipt is available. Checked snapshots remain visible above.</p>
+      )}
+      <a href="/about">Read source methodology <span aria-hidden="true">→</span></a>
+    </section>
+  </div>
+</section>
+
+<style>
+  .intelligence-overview { border: 1px solid var(--intelligence-grid); background: var(--intelligence-surface); }
+  .overview-header {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem;
+    border-bottom: 1px solid var(--intelligence-grid);
+  }
+  .overview-header span,
+  .overview-facts article > span,
+  .quality-price figcaption > span,
+  .coverage-panel h3,
+  .changes-panel h3 {
+    color: var(--subtle);
+    font-family: var(--font-mono);
+    font-size: 0.67rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .overview-header span::before,
+  .overview-facts article > span::before {
+    content: "";
+    display: inline-block;
+    width: 0.3rem;
+    height: 0.3rem;
+    margin-right: 0.65rem;
+    background: var(--intelligence-copper);
+    vertical-align: 0.08em;
+  }
+  .overview-header h2 { margin-top: 0.4rem; color: var(--text); font-size: clamp(1rem, 2vw, 1.35rem); }
+  .overview-header a,
+  .changes-panel > a { color: var(--intelligence-copper); font-family: var(--font-mono); font-size: 0.7rem; text-underline-offset: 4px; }
+  .overview-header a:hover,
+  .changes-panel > a:hover { text-decoration: underline; }
+  .overview-facts {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border-bottom: 1px solid var(--intelligence-grid);
+  }
+  .overview-facts article { min-width: 0; min-height: 9rem; padding: 1rem; border-right: 1px solid var(--intelligence-grid); }
+  .overview-facts article:last-child { border-right: 0; }
+  .overview-facts strong {
+    display: block;
+    margin-top: 1.1rem;
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: clamp(1.15rem, 2vw, 1.65rem);
+    font-weight: 400;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+  .overview-facts p { margin-top: 0.55rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.66rem; line-height: 1.45; }
+  .overview-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(15rem, 0.8fr) minmax(15rem, 0.9fr); }
+  .overview-grid > * { min-width: 0; padding: 1rem; border-right: 1px solid var(--intelligence-grid); }
+  .overview-grid > *:last-child { border-right: 0; }
+  .quality-price { margin: 0; }
+  .quality-price figcaption p,
+  .coverage-panel header p,
+  .changes-panel header p { margin-top: 0.3rem; color: var(--muted); font-size: 0.7rem; }
+  .quality-price svg { display: block; width: 100%; height: auto; margin-top: 0.7rem; overflow: visible; }
+  .quality-price svg text { fill: var(--muted); font-family: var(--font-mono); font-size: 10px; }
+  .chart-frame { fill: transparent; stroke: var(--intelligence-grid); }
+  .chart-gridline { stroke: var(--intelligence-grid); stroke-width: 1; }
+  .plot-other { fill: color-mix(in srgb, var(--intelligence-blue) 42%, transparent); }
+  .plot-frontier { fill: none; stroke: var(--intelligence-blue); stroke-width: 1.4; }
+  .plot-top { fill: var(--intelligence-copper); stroke: var(--text); stroke-width: 1; }
+  .quality-price .top-label { fill: var(--text); font-size: 10px; }
+  .quality-price .axis-title { fill: var(--subtle); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; }
+  .plot-legend { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0.2rem 0 0.8rem 2.8rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.65rem; }
+  .plot-legend span { display: flex; align-items: center; gap: 0.4rem; }
+  .plot-legend i { width: 0.55rem; height: 0.55rem; border-radius: 50%; }
+  .top-swatch { background: var(--intelligence-copper); }
+  .other-swatch { background: var(--intelligence-blue); }
+  .quality-price details { border-top: 1px solid var(--intelligence-grid); padding-top: 0.65rem; }
+  .quality-price summary { min-height: 44px; padding: 0.7rem 0; color: var(--subtle); cursor: pointer; font-family: var(--font-mono); font-size: 0.68rem; }
+  .table-scroll { overflow-x: auto; }
+  .quality-price table { width: 100%; min-width: 30rem; border-collapse: collapse; font-size: 0.67rem; }
+  .quality-price th,
+  .quality-price td { padding: 0.5rem; border-top: 1px solid var(--intelligence-grid); text-align: left; color: var(--muted); }
+  .quality-price th { color: var(--subtle); font-weight: 600; }
+  .chart-empty,
+  .changes-empty { padding: 2rem 0; color: var(--muted); font-size: 0.75rem; }
+  .coverage-list { display: grid; gap: 1rem; margin-top: 1.2rem; }
+  .coverage-list > div > div { display: flex; justify-content: space-between; gap: 0.7rem; margin-bottom: 0.35rem; }
+  .coverage-list span { color: var(--subtle); font-size: 0.7rem; }
+  .coverage-list b { color: var(--muted); font-family: var(--font-mono); font-size: 0.62rem; font-weight: 400; text-align: right; }
+  .coverage-list progress { display: block; width: 100%; height: 0.38rem; border: 0; border-radius: 0; background: var(--intelligence-grid); accent-color: var(--intelligence-blue); }
+  .coverage-list progress::-webkit-progress-bar { background: var(--intelligence-grid); }
+  .coverage-list progress::-webkit-progress-value { background: var(--intelligence-blue); }
+  .coverage-list progress::-moz-progress-bar { background: var(--intelligence-blue); }
+  .coverage-note { margin-top: 1.2rem; padding-top: 0.8rem; border-top: 1px solid var(--intelligence-grid); color: var(--muted); font-size: 0.67rem; line-height: 1.5; }
+  .changes-panel ol { margin-top: 0.85rem; }
+  .changes-panel li { display: grid; grid-template-columns: 4.7rem minmax(0, 1fr) auto; gap: 0.65rem; padding: 0.65rem 0; border-bottom: 1px solid var(--intelligence-grid); }
+  .changes-panel time,
+  .changes-panel li b { color: var(--muted); font-family: var(--font-mono); font-size: 0.62rem; font-weight: 400; text-transform: uppercase; }
+  .changes-panel li div { display: grid; gap: 0.18rem; }
+  .changes-panel li strong { color: var(--subtle); font-size: 0.7rem; font-weight: 500; }
+  .changes-panel li span { color: var(--muted); font-size: 0.65rem; line-height: 1.35; }
+  .changes-panel > a { display: inline-block; min-height: 44px; padding-top: 1rem; }
+  @media (max-width: 1050px) {
+    .overview-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .overview-facts article:nth-child(2) { border-right: 0; }
+    .overview-facts article:nth-child(-n + 2) { border-bottom: 1px solid var(--intelligence-grid); }
+    .overview-grid { grid-template-columns: 1fr 1fr; }
+    .quality-price { grid-column: 1 / -1; border-right: 0; border-bottom: 1px solid var(--intelligence-grid); }
+  }
+  @media (max-width: 660px) {
+    .overview-header { align-items: flex-start; flex-direction: column; }
+    .overview-header a { min-height: 44px; padding-top: 0.6rem; }
+    .overview-facts,
+    .overview-grid { grid-template-columns: 1fr; }
+    .overview-facts article,
+    .overview-facts article:nth-child(2),
+    .overview-grid > * { border-right: 0; border-bottom: 1px solid var(--intelligence-grid); }
+    .overview-facts article:last-child,
+    .overview-grid > *:last-child { border-bottom: 0; }
+    .quality-price { grid-column: auto; }
+    .changes-panel li { grid-template-columns: 4.4rem minmax(0, 1fr); }
+    .changes-panel li b { grid-column: 2; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .quality-price summary { scroll-behavior: auto; }
+  }
+</style>

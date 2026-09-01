@@ -19,12 +19,16 @@ import {
   getEpochBenchmarkLabel,
 } from "../lib/benchmark-catalog";
 import { getPublicEpochSnapshot } from "../lib/epoch-snapshot";
-import {
-  formatDataDate,
-  getDataFreshness,
-  toIsoDate,
-} from "../lib/data-freshness";
+import { getDataFreshness } from "../lib/data-freshness";
 import ModelCard from "./ModelCard.astro";
+import TaskWorkbench from "./TaskWorkbench.astro";
+import SourceHealthStrip from "./SourceHealthStrip.astro";
+import IntelligenceOverview from "./IntelligenceOverview.astro";
+import { getPublicPoliBenchSnapshot } from "../lib/polibench-snapshot";
+import {
+  hasFiniteMetricValue,
+  parseFiniteMetricValue,
+} from "../lib/metric-values";
 
 const [baseModels, initialEpochBenchmarks, initialEpochRuns, publicCatalogs] =
   await Promise.all([
@@ -58,14 +62,26 @@ const epochModels = usePublicEpochSnapshot
   ? publicEpochSnapshot.epochModels
   : initialEpochModels;
 const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs);
+const publicPoliBenchSnapshot = await getPublicPoliBenchSnapshot();
+
+const workbenchModels = models.map((model) => ({
+  id: model.id,
+  label: model.name,
+  provider: model.company_name ?? model.creator_name ?? "Unknown provider",
+  inputPrice: model.price_1m_input_tokens,
+  outputPrice: model.price_1m_output_tokens,
+  metrics: {
+    aa_coding_index: model.aa_coding_index,
+    livecodebench: model.livecodebench,
+    aa_intelligence_index: model.aa_intelligence_index,
+    gpqa: model.gpqa,
+    hle: model.hle,
+    median_output_tokens_per_second: model.median_output_tokens_per_second,
+    price_1m_blended_3_to_1: model.price_1m_blended_3_to_1,
+  },
+}));
 
 const dataFreshness = await getDataFreshness();
-const dataUpdatedIso = toIsoDate(dataFreshness.updatedAt);
-const dataUpdatedLabel = formatDataDate(dataFreshness.updatedAt);
-// Only cite the bundled Epoch snapshot date when that snapshot actually fed this build.
-const epochSnapshotLabel = usePublicEpochSnapshot
-  ? formatDataDate(dataFreshness.epochFetchedAt)
-  : null;
 
 const epochBenchmarksWithRuns = getEpochBenchmarksWithRuns(
   epochBenchmarks,
@@ -100,88 +116,6 @@ const clientBenchmarkAttributions = Object.fromEntries(
   Object.entries(benchmarkAttributions).filter(([key]) => !key.startsWith("epoch_")),
 );
 
-const AA_TOP_AVERAGE_KEYS = [
-  "mmlu_pro",
-  "gpqa",
-  "hle",
-  "aime",
-  "scicode",
-  "math_500",
-  "livecodebench",
-  "aa_math_index",
-  "aa_coding_index",
-  "aa_intelligence_index",
-] as const;
-
-const toPercentScore = (value: number | null | undefined): number | null => {
-  const score = Number(value);
-  if (!Number.isFinite(score) || score <= 0) return null;
-  return score <= 1 ? score * 100 : score;
-};
-
-const averageScore = (values: Array<number | null | undefined>): number | null => {
-  const normalized = values
-    .map((value) => toPercentScore(value))
-    .filter((value): value is number => value !== null);
-  if (!normalized.length) return null;
-  return normalized.reduce((sum, value) => sum + value, 0) / normalized.length;
-};
-
-const normalizeModelVersion = (value: string | null | undefined): string =>
-  String(value || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-
-const buildEpochModelAliases = (model: {
-  model_version?: string | null;
-  model_name?: string | null;
-  display_name?: string | null;
-}): Set<string> => {
-  const aliases = new Set<string>();
-  [model.model_version, model.model_name, model.display_name].forEach((value) => {
-    const normalized = normalizeModelVersion(value);
-    if (!normalized) return;
-    aliases.add(normalized);
-    aliases.add(normalized.replace(/\s+/g, ""));
-  });
-  return aliases;
-};
-
-const getEpochAverageForModel = (model: {
-  model_version?: string | null;
-  model_name?: string | null;
-  display_name?: string | null;
-}): number | null => {
-  const aliases = buildEpochModelAliases(model);
-  if (!aliases.size) return null;
-
-  const scores = epochRuns
-    .filter(
-      (run) => {
-        const normalizedRun = normalizeModelVersion(run.model_version);
-        if (!normalizedRun || Number(run.score) <= 0) return false;
-        return (
-          aliases.has(normalizedRun) ||
-          aliases.has(normalizedRun.replace(/\s+/g, ""))
-        );
-      },
-    )
-    .map((run) => toPercentScore(Number(run.score)))
-    .filter((score): score is number => score !== null);
-  if (!scores.length) return null;
-  return scores.reduce((sum, score) => sum + score, 0) / scores.length;
-};
-
-// Top epoch model by ECI score
-const topEciModel =
-  [...epochModels]
-    .filter((m) => Number(m.eci_score) > 0)
-    .sort((a, b) => Number(b.eci_score) - Number(a.eci_score))[0] ?? null;
-const topEciAverageScore = topEciModel
-  ? getEpochAverageForModel(topEciModel)
-  : null;
-
 const validModels = models.filter((model: any) => {
   const inputPrice = Number(model.price_1m_input_tokens);
   const outputPrice = Number(model.price_1m_output_tokens);
@@ -191,16 +125,6 @@ const validModels = models.filter((model: any) => {
 const totalModels = validModels.length;
 const INITIAL_VISIBLE_MODELS = Math.min(8, totalModels);
 const initialModels = validModels.slice(0, INITIAL_VISIBLE_MODELS);
-const avgInputPrice =
-  validModels.reduce(
-    (sum: number, m: any) => sum + Number(m.price_1m_input_tokens),
-    0,
-  ) / (totalModels || 1);
-const avgOutputPrice =
-  validModels.reduce(
-    (sum: number, m: any) => sum + Number(m.price_1m_output_tokens),
-    0,
-  ) / (totalModels || 1);
 
 // Hard facts for the definition block below the h1. Counted from the same
 // payloads the bento and the model table render, and each clause is dropped
@@ -252,7 +176,7 @@ benchmarkConfigs
   .filter((c) => c.source === "aa")
   .forEach(({ key }) => {
     const list = [...validModels]
-      .filter((m: any) => m[key] && Number(m[key]) > 0)
+      .filter((m: any) => hasFiniteMetricValue(m[key]))
       .sort((a: any, b: any) => Number(b[key]) - Number(a[key]))
       .slice(0, 5);
     topByBenchmark[key] = list;
@@ -272,26 +196,6 @@ epochBenchmarksWithRuns.forEach((benchmark) => {
     }));
   topByBenchmark[`epoch_${slug}`] = runs;
 });
-
-const topAaAverageModel =
-  [...validModels]
-    .map((model: any) => ({
-      model,
-      avgScore: averageScore(
-        AA_TOP_AVERAGE_KEYS.map((metricKey) => Number(model[metricKey])),
-      ),
-    }))
-    .filter((entry) => entry.avgScore !== null)
-    .sort((a, b) => Number(b.avgScore) - Number(a.avgScore))[0] ??
-  null;
-
-const cheapestBlendedModel =
-  [...validModels]
-    .filter((m: any) => Number(m.price_1m_blended_3_to_1) > 0)
-    .sort(
-      (a: any, b: any) =>
-        Number(a.price_1m_blended_3_to_1) - Number(b.price_1m_blended_3_to_1),
-    )[0] ?? null;
 
 const openRouterToolModels = openRouterModels.filter((model) =>
   model.supported_parameters.includes("tools"),
@@ -448,11 +352,23 @@ function getScoreClass(score: number | null | undefined): string {
   <Header currentPage="dashboard" />
 
   <main
-    class="telemetry-main mx-auto flex w-full max-w-7xl flex-col gap-14 px-4 pb-24 pt-10 md:gap-16 md:px-6 md:pt-16"
+    class="telemetry-main mx-auto flex w-full max-w-[1586px] flex-col gap-14 px-4 pb-24 pt-10 md:gap-16 md:px-6 md:pt-12"
   >
     <h1 class="sr-only">AI model pricing and benchmark dashboard</h1>
+    <div class="intelligence-stack">
+      <TaskWorkbench models={workbenchModels} />
+      <SourceHealthStrip freshness={dataFreshness} />
+      <IntelligenceOverview
+        models={models}
+        epochModels={epochModels}
+        epochBenchmarks={epochBenchmarks}
+        epochRuns={epochRuns}
+        polibench={publicPoliBenchSnapshot}
+        freshness={dataFreshness}
+      />
+    </div>
     <p class="dashboard-definition">
-      AI Stats is a workbench for choosing an AI model. It puts pricing,
+      AI Stats is a workbench for choosing an AI model. It keeps pricing,
       context limits, provider routes, latency, and benchmark scores for the
       same model side by side, so the choice comes down to the numbers.
       {
@@ -466,116 +382,6 @@ function getScoreClass(score: number | null | undefined): string {
         ) : null
       }
     </p>
-    {
-      dataUpdatedLabel ? (
-        <p class="data-provenance" aria-label="Data provenance">
-          <span class="console-label">Data updated</span>
-          <time id="data-updated-at" datetime={dataUpdatedIso}>
-            {dataUpdatedLabel}
-          </time>
-          <span class="data-provenance-note">
-            Pricing, latency, and AA benchmark scores come from <a
-              href="https://artificialanalysis.ai/"
-              target="_blank"
-              rel="noopener noreferrer">Artificial Analysis</a
-            >; benchmark runs from <a
-              href="https://epoch.ai/benchmarks"
-              target="_blank"
-              rel="noopener noreferrer">Epoch AI</a
-            >{epochSnapshotLabel ? ` (snapshot ${epochSnapshotLabel})` : ""};
-            catalog, routing, and popularity metadata from OpenRouter, Hugging
-            Face, and LiteLLM.
-          </span>
-        </p>
-      ) : null
-    }
-    <section
-      aria-label="Operational metrics"
-      class="telemetry-bento grid-flow-dense fade-in-section stagger-container"
-      data-stagger="55"
-    >
-      <article class="bento-cell stagger-item">
-        <span class="console-label">Tracked models</span>
-        <data id="hero-model-count" value={totalModels}>{totalModels}</data>
-        <p>Priced models from the Artificial Analysis feed.</p>
-      </article>
-      <article class="bento-cell stagger-item">
-        <span class="console-label">AA average leader</span>
-        <output id="top-mmlu-name">
-          {topAaAverageModel ? topAaAverageModel.model.name : "-"}
-        </output>
-        <samp id="top-mmlu-score">
-          {
-            topAaAverageModel
-              ? `${formatScore(topAaAverageModel.avgScore)} avg`
-              : "N/A"
-          }
-        </samp>
-      </article>
-      <article class="bento-cell stagger-item">
-        <span class="console-label">Cheapest blended</span>
-        <output id="cheapest-blended-name">
-          {cheapestBlendedModel ? cheapestBlendedModel.name : "-"}
-        </output>
-        <samp id="cheapest-blended-price">
-          {
-            cheapestBlendedModel
-              ? formatPrice(
-                  Number(cheapestBlendedModel.price_1m_blended_3_to_1) || 0,
-                  3,
-                )
-              : ""
-          }
-        </samp>
-      </article>
-      <article class="bento-cell stagger-item">
-        <span class="console-label">Epoch signal</span>
-        <output id="top-eci-name">
-          {
-            topEciModel
-              ? topEciModel.display_name || topEciModel.model_name
-              : "-"
-          }
-        </output>
-        <samp id="top-eci-score">
-          {
-            topEciAverageScore !== null
-              ? `${topEciAverageScore.toFixed(1)}% avg`
-              : topEciModel && Number(topEciModel.eci_score) > 0
-                ? `${Number(topEciModel.eci_score).toFixed(1)} ECI`
-                : "N/A"
-          }
-        </samp>
-      </article>
-      <article class="bento-cell stagger-item">
-        <span class="console-label">Epoch coverage</span>
-        <data id="epoch-models-count" value={epochModels.length}>
-          {epochModels.length}
-        </data>
-        <p>
-          <span id="epoch-benchmarks-count">
-            {epochBenchmarksWithRuns.length} benchmarks
-          </span>
-          /
-          <span id="epoch-runs-count">{epochRuns.length} benchmark runs</span>
-        </p>
-      </article>
-      <article class="bento-cell stagger-item">
-        <span class="console-label">Token averages</span>
-        <div class="metric-pair">
-          <span>
-            <small>Input</small>
-            <data id="summary-avg-input">{formatPrice(avgInputPrice, 3)}</data>
-          </span>
-          <span>
-            <small>Output</small>
-            <data id="summary-avg-output">{formatPrice(avgOutputPrice, 3)}</data>
-          </span>
-        </div>
-        <p>Mean price per 1M tokens across priced models.</p>
-      </article>
-    </section>
-
     {
       openRouterModels.length ||
       huggingFaceModels.length ||
@@ -806,7 +612,7 @@ function getScoreClass(score: number | null | undefined): string {
               const isEpoch = source === "epoch";
               // For epoch benchmarks, score is stored in model.score; for AA, it's model[key]
               const getScore = (m: any) =>
-                isEpoch ? Number(m.score) || 0 : Number(m[key]) || 0;
+                parseFiniteMetricValue(isEpoch ? m.score : m[key]) ?? 0;
               const maxScore = Math.max(...list.map(getScore));
 
               return (
@@ -1167,6 +973,12 @@ function getScoreClass(score: number | null | undefined): string {
     overflow-x: hidden;
   }
 
+  .intelligence-stack {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+  }
+
   .console-label {
     display: inline-flex;
     align-items: center;
@@ -1189,8 +1001,8 @@ function getScoreClass(score: number | null | undefined): string {
   }
 
   .dashboard-definition {
-    max-width: 62ch;
-    margin: -0.5rem 0 -0.75rem;
+    max-width: 66ch;
+    margin: -0.25rem 0 -0.65rem;
     font-size: 0.95rem;
     line-height: 1.7;
     color: var(--text);
@@ -2252,7 +2064,7 @@ function getScoreClass(score: number | null | undefined): string {
     position: absolute;
     inset: 0 auto 0 0;
     width: var(--w);
-    border-left: 4px solid var(--highlight-med);
+    border-left: 1px solid var(--highlight-med);
     transition: filter var(--dur-fast) var(--ease-smooth);
   }
 
@@ -2520,6 +2332,12 @@ function getScoreClass(score: number | null | undefined): string {
 
 <script>
   // @ts-nocheck
+  import { findAaComparableCoverageLeader } from "../lib/data-integrity";
+  import {
+    hasFiniteMetricValue,
+    parseFiniteMetricValue,
+  } from "../lib/metric-values";
+
   if (typeof window !== "undefined") {
     const PAGE_SIZE = 12;
     const AA_BENCHMARKS = [
@@ -2552,19 +2370,6 @@ function getScoreClass(score: number | null | undefined): string {
         if (aRank !== bRank) return aRank - bRank;
         return String(a.name || a.slug).localeCompare(String(b.name || b.slug));
       });
-    const AA_TOP_AVERAGE_KEYS = [
-      "mmlu_pro",
-      "gpqa",
-      "hle",
-      "aime",
-      "scicode",
-      "math_500",
-      "livecodebench",
-      "aa_math_index",
-      "aa_coding_index",
-      "aa_intelligence_index",
-    ];
-
     const grid = document.getElementById("models-grid");
     const tableBody = document.getElementById("models-table-body");
     const tableContainer = document.getElementById("models-table-container");
@@ -2886,8 +2691,8 @@ function getScoreClass(score: number | null | undefined): string {
     };
 
     const formatScore = (score) => {
-      const num = Number(score);
-      if (!Number.isFinite(num) || num <= 0) return "N/A";
+      const num = parseFiniteMetricValue(score);
+      if (num === null) return "N/A";
       const pct = num <= 1 ? num * 100 : num;
       return `${pct.toFixed(1)}%`;
     };
@@ -3220,8 +3025,8 @@ function getScoreClass(score: number | null | undefined): string {
       });
 
     const getScoreClass = (score) => {
-      const num = Number(score);
-      if (!Number.isFinite(num) || num <= 0) return "score-none";
+      const num = parseFiniteMetricValue(score);
+      if (num === null) return "score-none";
       const pct = num <= 1 ? num * 100 : num;
       if (pct >= 80) return "score-high";
       if (pct >= 60) return "score-mid";
@@ -3230,17 +3035,9 @@ function getScoreClass(score: number | null | undefined): string {
     };
 
     const toPercentScore = (score) => {
-      const num = Number(score);
-      if (!Number.isFinite(num) || num <= 0) return null;
+      const num = parseFiniteMetricValue(score);
+      if (num === null) return null;
       return num <= 1 ? num * 100 : num;
-    };
-
-    const getAverageScore = (values) => {
-      const normalized = values
-        .map((value) => toPercentScore(value))
-        .filter((value) => value !== null);
-      if (!normalized.length) return null;
-      return normalized.reduce((sum, value) => sum + value, 0) / normalized.length;
     };
 
     const normalizeModelVersion = (value) =>
@@ -3270,7 +3067,7 @@ function getScoreClass(score: number | null | undefined): string {
         .filter(
           (run) => {
             const normalizedRun = normalizeModelVersion(run.model_version);
-            if (!normalizedRun || Number(run.score) <= 0) return false;
+            if (!normalizedRun || !hasFiniteMetricValue(run.score)) return false;
             return (
               aliases.has(normalizedRun) ||
               aliases.has(normalizedRun.replace(/\s+/g, ""))
@@ -3619,20 +3416,11 @@ function getScoreClass(score: number | null | undefined): string {
     };
 
     const updateTopStrip = (models, epochModels, epochBenchmarks, epochRuns) => {
-      const topAaAverageModel =
-        [...models]
-          .map((model) => ({
-            model,
-            avgScore: getAverageScore(
-              AA_TOP_AVERAGE_KEYS.map((metricKey) => model?.[metricKey]),
-            ),
-          }))
-          .filter((entry) => entry.avgScore !== null)
-          .sort((a, b) => Number(b.avgScore) - Number(a.avgScore))[0] ?? null;
+      const topAaAverageModel = findAaComparableCoverageLeader(models);
 
       const topEciModel =
         [...(epochModels ?? [])]
-          .filter((model) => Number(model?.eci_score) > 0)
+          .filter((model) => hasFiniteMetricValue(model?.eci_score))
           .sort((a, b) => Number(b.eci_score) - Number(a.eci_score))[0] ?? null;
       const topEpochAverage = topEciModel
         ? getEpochAverageForModel(topEciModel, epochRuns)
@@ -3663,7 +3451,7 @@ function getScoreClass(score: number | null | undefined): string {
         topEciScoreEl.textContent =
           topEpochAverage !== null
             ? `${topEpochAverage.toFixed(1)}% avg`
-            : topEciModel && Number(topEciModel.eci_score) > 0
+            : topEciModel && hasFiniteMetricValue(topEciModel.eci_score)
               ? `${Number(topEciModel.eci_score).toFixed(1)} ECI`
               : "N/A";
       if (cheapestNameEl)
@@ -3709,7 +3497,7 @@ function getScoreClass(score: number | null | undefined): string {
 
       AA_BENCHMARKS.forEach((config) => {
         const list = [...models]
-          .filter((model) => Number(model[config.key]) > 0)
+          .filter((model) => hasFiniteMetricValue(model[config.key]))
           .sort((a, b) => Number(b[config.key]) - Number(a[config.key]))
           .slice(0, 5);
         if (!list.length) return;
@@ -3722,7 +3510,8 @@ function getScoreClass(score: number | null | undefined): string {
         const list = epochRuns
           .filter(
             (run) =>
-              run.benchmark_slug === benchmark.slug && run.score !== null,
+              run.benchmark_slug === benchmark.slug &&
+              hasFiniteMetricValue(run.score),
           )
           .sort((a, b) => Number(b.score) - Number(a.score))
           .slice(0, 5)
@@ -3731,7 +3520,7 @@ function getScoreClass(score: number | null | undefined): string {
               .replace(/_/g, " ")
               .replace(/-/g, " "),
             company_name: run.organization ?? "Unknown provider",
-            score: Number(run.score) || 0,
+            score: parseFiniteMetricValue(run.score) ?? 0,
             score_metric: run.score_metric,
         }));
         if (!list.length) return;
@@ -3806,9 +3595,11 @@ function getScoreClass(score: number | null | undefined): string {
 
           const isEpoch = config.source === "epoch";
           const getScore = (model) =>
-            isEpoch ? Number(model.score) || 0 : Number(model[config.key]) || 0;
+            parseFiniteMetricValue(
+              isEpoch ? model.score : model[config.key],
+            ) ?? 0;
           const formatBenchmarkScore = (score) => {
-            if (!Number.isFinite(score) || score <= 0) return "N/A";
+            if (!Number.isFinite(score)) return "N/A";
             if (!isEpoch) return formatScore(score);
             const metric = String(config.scoreMetric || "").toLowerCase();
             const isPercentMetric =
@@ -4522,38 +4313,5 @@ function getScoreClass(score: number | null | undefined): string {
       renderLeaderboard(liveModels, epochBenchmarks, epochRuns);
       renderModels(liveModels);
     });
-  }
-</script>
-
-<script>
-  import { fetchLiveSnapshot } from "../lib/live-data";
-
-  const scheduleLiveRefresh = () => {
-    const run = async () => {
-      const snapshot = await fetchLiveSnapshot({ includeEpoch: true });
-      if (!snapshot) return;
-      window.dispatchEvent(
-        new CustomEvent("aistats:live-snapshot", { detail: snapshot }),
-      );
-    };
-
-    if ("requestIdleCallback" in window) {
-      window.requestIdleCallback(
-        () => {
-          void run();
-        },
-        { timeout: 5000 },
-      );
-    } else {
-      setTimeout(() => {
-        void run();
-      }, 2500);
-    }
-  };
-
-  if (document.readyState === "complete") {
-    scheduleLiveRefresh();
-  } else {
-    window.addEventListener("load", scheduleLiveRefresh, { once: true });
   }
 </script>

@@ -3,9 +3,9 @@ import Layout from "../components/Layout.astro";
 import Dashboard from "../components/Dashboard.astro";
 import { getDataFreshness, toIsoDate } from "../lib/data-freshness";
 
-const title = "AI Stats | Model pricing and benchmark dashboard by Jonathan R. Reed";
+const title = "AI Stats | Source-backed AI model selection by Jonathan R. Reed";
 const description =
-  "AI Stats compares AI model pricing, context limits, provider routes, latency, and benchmark coverage in one model-selection workbench.";
+  "Choose an AI model by task and budget, then inspect source-backed pricing, speed, benchmark coverage, and freshness without an opaque universal score.";
 
 const { updatedAt } = await getDataFreshness();
 const dateModified = toIsoDate(updatedAt) ?? undefined;

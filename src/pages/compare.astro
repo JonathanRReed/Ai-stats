@@ -18,6 +18,12 @@ import {
   getEpochBenchmarkLabel,
 } from "../lib/benchmark-catalog";
 import { getPublicEpochSnapshot } from "../lib/epoch-snapshot";
+import { DEFAULT_TASK_PRESETS, type TaskPreset } from "../lib/model-intelligence";
+import {
+  compareOptionalMetricValues,
+  hasFiniteMetricValue,
+  parseFiniteMetricValue,
+} from "../lib/metric-values";
 
 const [baseModels, publicCatalogs, initialEpochBenchmarks, initialEpochRuns] =
   await Promise.all([
@@ -103,16 +109,26 @@ const buildEpochCompareDemoModels = (): any[] => {
   const scoredModels = epochModels
     .map((model) => {
       const relatedRuns = epochRuns.filter(
-        (run) => run.model_version === model.model_version && Number(run.score) > 0,
+        (run) =>
+          run.model_version === model.model_version &&
+          hasFiniteMetricValue(run.score),
       );
-      const bestScore = Math.max(...relatedRuns.map((run) => Number(run.score) || 0), 0);
+      const scores = relatedRuns
+        .map((run) => parseFiniteMetricValue(run.score))
+        .filter((score): score is number => score !== null);
+      const bestScore = scores.length
+        ? Math.max(...scores)
+        : Number.NEGATIVE_INFINITY;
       return { model, relatedRuns, bestScore };
     })
     .filter((entry) => entry.relatedRuns.length > 0)
     .sort((a, b) => {
-      const aEci = Number(a.model.eci_score) || 0;
-      const bEci = Number(b.model.eci_score) || 0;
-      if (bEci !== aEci) return bEci - aEci;
+      const eciOrder = compareOptionalMetricValues(
+        a.model.eci_score,
+        b.model.eci_score,
+        "desc",
+      );
+      if (eciOrder !== 0) return eciOrder;
       return b.bestScore - a.bestScore;
     })
     .slice(0, 40);
@@ -129,7 +145,7 @@ const buildEpochCompareDemoModels = (): any[] => {
       creator_slug: normalizeModelKey(model.organization).replace(/\s+/g, '-'),
       company_name: model.organization,
       evaluations: null,
-      aa_intelligence_index: model.eci_score,
+      aa_intelligence_index: null,
       aa_coding_index: null,
       aa_math_index: null,
       mmlu_pro: null,
@@ -146,6 +162,8 @@ const buildEpochCompareDemoModels = (): any[] => {
       median_output_tokens_per_second: null,
       median_time_to_first_token_seconds: null,
       median_time_to_first_answer_token: null,
+      isIllustrativeFallback: true,
+      priceEvidence: "synthetic-estimate",
       first_seen: model.release_date || relatedRuns[0]?.release_date || '',
       last_seen: model.release_date || relatedRuns[0]?.release_date || '',
     };
@@ -159,8 +177,28 @@ const validModels = models.filter((model: any) => {
 });
 const epochDemoModels = validModels.length > 0 ? [] : buildEpochCompareDemoModels();
 const compareModels = validModels.length > 0 ? validModels : epochDemoModels;
+const usingIllustrativeFallback =
+  validModels.length === 0 && epochDemoModels.length > 0;
 
-const selectedModels = compareModels.slice(0, 3);
+const selectedModels = validModels.length > 0 ? validModels.slice(0, 3) : [];
+
+const weightedMetricKeys = (preset: TaskPreset): string[] =>
+  Object.keys(preset.weights).filter((key) => preset.weights[key] > 0);
+
+const preferredMetricForPreset = (preset: TaskPreset): string =>
+  weightedMetricKeys(preset).find((key) => !key.includes("price")) ??
+  weightedMetricKeys(preset)[0] ??
+  "mmlu_pro";
+
+const defaultTaskPreset = DEFAULT_TASK_PRESETS[0];
+const defaultTaskMetricKeys = weightedMetricKeys(defaultTaskPreset);
+const initialCoverageCount = compareModels.filter((model: any) => {
+  const present = defaultTaskMetricKeys.filter((key) =>
+    hasFiniteMetricValue(model[key]),
+  );
+  return present.length >= defaultTaskPreset.minimumCoverage;
+}).length;
+const initialCoverageLabel = `${initialCoverageCount} / ${compareModels.length} models meet ${defaultTaskPreset.minimumCoverage} of ${defaultTaskMetricKeys.length} weighted fields`;
 
 const formatContextLength = (value: number | null | undefined): string => {
   const num = Number(value);
@@ -550,30 +588,19 @@ epochBenchmarksWithData.forEach((b) => {
     .compare-hero {
       position: relative;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.28fr);
-      gap: 1rem;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.85rem 1.25rem;
       width: 100%;
       max-width: 1320px;
       margin: 0 auto;
       border: 1px solid var(--border-color);
-      border-radius: var(--radius-l);
-      background:
-        linear-gradient(135deg, color-mix(in srgb, var(--surface) 95%, transparent), color-mix(in srgb, var(--overlay) 86%, transparent)),
-        radial-gradient(circle at 86% 16%, color-mix(in srgb, var(--pine) 20%, transparent), transparent 22rem);
-      box-shadow: 0 22px 72px color-mix(in srgb, var(--shadow-color) 70%, transparent);
-      overflow: hidden;
-      padding: clamp(1rem, 2.4vw, 1.45rem);
+      border-radius: 2px;
+      background: var(--surface);
+      box-shadow: none;
+      padding: clamp(0.9rem, 2vw, 1.2rem);
     }
     .compare-hero::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      background-image:
-        linear-gradient(90deg, color-mix(in srgb, var(--border-color) 44%, transparent) 1px, transparent 1px),
-        linear-gradient(color-mix(in srgb, var(--border-color) 36%, transparent) 1px, transparent 1px);
-      background-size: 38px 38px;
-      opacity: 0.18;
+      content: none;
     }
     .compare-hero > * {
       position: relative;
@@ -588,14 +615,14 @@ epochBenchmarksWithData.forEach((b) => {
       text-transform: uppercase;
     }
     .compare-page-title {
-      max-width: 16ch;
+      max-width: 22ch;
       width: 100%;
-      margin: 0.45rem 0 0;
+      margin: 0.35rem 0 0;
       color: var(--text);
-      font-size: clamp(2.45rem, 6vw, 5.4rem);
-      line-height: 0.9;
-      font-weight: 950;
-      letter-spacing: 0;
+      font-size: clamp(1.75rem, 3.4vw, 2.85rem);
+      line-height: 1;
+      font-weight: 850;
+      letter-spacing: -0.025em;
     }
     .compare-page-lede {
       max-width: 58rem;
@@ -611,7 +638,7 @@ epochBenchmarksWithData.forEach((b) => {
     }
     .compare-hero-stats {
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(3, minmax(5.2rem, 1fr));
       gap: 1px;
       align-self: start;
       border: 1px solid var(--highlight-low);
@@ -619,7 +646,8 @@ epochBenchmarksWithData.forEach((b) => {
     }
     .compare-hero-stats div {
       background: color-mix(in srgb, var(--base) 42%, transparent);
-      padding: 0.78rem;
+      min-width: 5.2rem;
+      padding: 0.62rem 0.7rem;
     }
     .compare-hero-stats dt {
       color: var(--muted);
@@ -632,9 +660,68 @@ epochBenchmarksWithData.forEach((b) => {
       margin-top: 0.25rem;
       color: var(--text);
       font-family: var(--font-mono);
-      font-size: clamp(1.35rem, 2.8vw, 2rem);
+      font-size: clamp(1.1rem, 2vw, 1.55rem);
       font-weight: 950;
       line-height: 1;
+    }
+    .compare-preset-strip,
+    .compare-lens-strip {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: minmax(12rem, 1.15fr) repeat(2, minmax(11rem, 1fr));
+      border-block: 1px solid var(--border-color);
+      background: color-mix(in srgb, var(--base) 30%, transparent);
+    }
+    .compare-lens-cell {
+      display: grid;
+      align-content: start;
+      gap: 0.3rem;
+      min-width: 0;
+      padding: 0.7rem 0.8rem;
+      border-right: 1px solid var(--border-color);
+    }
+    .compare-lens-cell:last-child {
+      border-right: 0;
+    }
+    .compare-lens-cell > span {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.58rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .compare-lens-cell strong,
+    .compare-lens-cell select,
+    .compare-lens-cell p {
+      font-family: var(--font-mono);
+      line-height: 1.35;
+    }
+    .compare-lens-cell strong {
+      color: var(--text);
+      font-size: 0.7rem;
+      font-weight: 750;
+    }
+    .compare-lens-cell p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.62rem;
+    }
+    .compare-lens-cell select {
+      width: 100%;
+      min-height: 36px;
+      appearance: none;
+      border: 0;
+      border-bottom: 1px solid var(--border-color);
+      border-radius: 0;
+      color: var(--text);
+      background: transparent;
+      padding: 0.35rem 1.5rem 0.35rem 0;
+      font-size: 0.7rem;
+    }
+    .compare-lens-cell select:focus-visible {
+      outline: 2px solid color-mix(in srgb, var(--love) 70%, white);
+      outline-offset: 2px;
     }
     .compare-guide {
       grid-column: 1 / -1;
@@ -707,12 +794,26 @@ epochBenchmarksWithData.forEach((b) => {
         grid-template-columns: 1fr;
         padding: 0.95rem;
       }
+      .compare-preset-strip,
+      .compare-lens-strip {
+        grid-template-columns: 1fr;
+      }
+      .compare-lens-cell {
+        border-right: 0;
+        border-bottom: 1px solid var(--highlight-low);
+      }
+      .compare-lens-cell:last-child {
+        border-bottom: 0;
+      }
       .compare-page-title {
-        max-width: 12ch;
-        font-size: clamp(2.25rem, 15vw, 4rem);
+        max-width: 18ch;
+        font-size: clamp(1.75rem, 9vw, 2.35rem);
       }
       .compare-hero-stats {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .compare-hero-stats div {
+        min-width: 0;
       }
     }
     .chart-grid {
@@ -724,16 +825,12 @@ epochBenchmarksWithData.forEach((b) => {
       margin: 0 auto;
     }
     .chart-section {
-      background:
-        linear-gradient(180deg, color-mix(in srgb, var(--surface) 96%, transparent), color-mix(in srgb, var(--overlay) 84%, transparent));
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-radius: var(--radius-m);
+      background: var(--surface);
+      border-radius: 2px;
       padding: 1rem;
       border: 1px solid var(--border-color);
-      box-shadow: var(--elev-3), var(--glass-edge);
+      box-shadow: none;
       width: 100%;
-      transition: var(--transition-elevate);
       position: relative;
       z-index: 1;
       overflow: visible;
@@ -741,19 +838,7 @@ epochBenchmarksWithData.forEach((b) => {
     html.light .chart-section {
       background: var(--surface);
       border: 1px solid var(--border-color);
-      box-shadow: var(--elev-3);
-    }
-    @media (prefers-reduced-motion: no-preference) {
-      .chart-section:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--elev-4), var(--glass-edge);
-        border-color: color-mix(in srgb, var(--love) 55%, var(--border-color));
-      }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .chart-section:hover {
-        border-color: var(--border-color);
-      }
+      box-shadow: none;
     }
     .chart-header {
       display: flex;
@@ -872,7 +957,7 @@ epochBenchmarksWithData.forEach((b) => {
     /* Micro-pulse a toggled model item for tactile feedback. */
     @media (prefers-reduced-motion: no-preference) {
       .model-item.just-toggled {
-        animation: model-item-pulse var(--dur-fast) var(--ease-spring);
+        animation: model-item-pulse var(--dur-fast) var(--ease-out-expo);
       }
     }
     @keyframes model-item-pulse {
@@ -2475,14 +2560,50 @@ epochBenchmarksWithData.forEach((b) => {
             latency, context, and public catalog coverage in the same view.
           </p>
         </div>
+        <div class="compare-preset-strip compare-lens-strip" aria-label="Task lens controls">
+          <label class="compare-lens-cell compare-lens-control" for="compare-task-preset">
+            <span>Task lens</span>
+            <select
+              id="compare-task-preset"
+              aria-describedby="compare-evidence-coverage compare-evidence-mode"
+            >
+              {DEFAULT_TASK_PRESETS.map((preset) => (
+                <option
+                  value={preset.id}
+                  data-preferred-metric={preferredMetricForPreset(preset)}
+                >
+                  {preset.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div class="compare-lens-cell" id="compare-evidence-coverage">
+            <span>Metric coverage</span>
+            <strong>{initialCoverageLabel}</strong>
+            <p>Coverage uses weighted fields only. Missing evidence stays missing.</p>
+          </div>
+          <div class="compare-lens-cell" id="compare-evidence-mode">
+            <span>Evidence mode</span>
+            <strong>
+              {usingIllustrativeFallback
+                ? "Illustrative fallback"
+                : "Source-backed defaults"}
+            </strong>
+            <p>
+              {usingIllustrativeFallback
+                ? "No priced source-backed rows are loaded here yet, so price estimates are synthetic."
+                : "Selections start from source-backed priced models and live data can replace the snapshot."}
+            </p>
+          </div>
+        </div>
         <dl class="compare-hero-stats" aria-label="Initial compare coverage">
           <div>
             <dt>Loaded</dt>
-            <dd>{compareModels.length}</dd>
+            <dd>{validModels.length}</dd>
           </div>
           <div>
             <dt>Selected</dt>
-            <dd>{selectedModels.length}</dd>
+            <dd id="compare-selected-count">{selectedModels.length}</dd>
           </div>
           <div>
             <dt>Metrics</dt>
@@ -2514,7 +2635,7 @@ epochBenchmarksWithData.forEach((b) => {
             </div>
             <div class="chart-container is-loading" id="price-chart">
               <div class="chart-skeleton" aria-hidden="true"></div>
-              <canvas id="price-canvas"></canvas>
+              <canvas id="price-canvas" aria-label="Input and output price comparison for selected models"></canvas>
             </div>
           </div>
 
@@ -2524,7 +2645,7 @@ epochBenchmarksWithData.forEach((b) => {
             </div>
             <div class="chart-container is-loading" id="performance-chart">
               <div class="chart-skeleton" aria-hidden="true"></div>
-              <canvas id="perf-canvas"></canvas>
+              <canvas id="perf-canvas" aria-label="Selected benchmark comparison for selected models"></canvas>
             </div>
           </div>
         </div>
@@ -2616,6 +2737,12 @@ epochBenchmarksWithData.forEach((b) => {
   // @ts-nocheck
   import Chart from "chart.js/auto";
   import ChartDataLabels from "chartjs-plugin-datalabels";
+  import { DEFAULT_TASK_PRESETS } from "../lib/model-intelligence";
+  import {
+    compareOptionalMetricValues,
+    hasFiniteMetricValue,
+    parseFiniteMetricValue,
+  } from "../lib/metric-values";
 
   // Expose the locally-bundled libraries on window so the existing call sites
   // (window.Chart / window.ChartDataLabels) stay untouched. The datalabels
@@ -2951,11 +3078,16 @@ epochBenchmarksWithData.forEach((b) => {
     );
 
     // Dynamic model selection and charts
-    let modelsState = [...validModels];
+    let usingIllustrativeFallback =
+      validModels.length === 0 && epochDemoModels.length > 0;
+    let modelsState = usingIllustrativeFallback
+      ? [...epochDemoModels]
+      : [...validModels];
     let filteredModels = [...modelsState]; // For search filtering
-    const selected = new Set(modelsState.slice(0, 3).map((m) => m.id));
+    const selected = new Set(usingIllustrativeFallback ? [] : modelsState.slice(0, 3).map((m) => m.id));
     const list = document.querySelector(".model-list");
     const countEl = document.querySelector(".selected-count");
+    const selectedStatEl = document.getElementById("compare-selected-count");
     const priceChart = document.getElementById("price-chart");
     const perfChart = document.getElementById("performance-chart");
     const priceCanvas = document.getElementById("price-canvas");
@@ -2988,6 +3120,9 @@ epochBenchmarksWithData.forEach((b) => {
     const metricPickerList = metricPicker?.querySelector(
       ".benchmark-picker-list",
     );
+    const taskPresetSelect = document.getElementById("compare-task-preset");
+    const evidenceCoverageEl = document.getElementById("compare-evidence-coverage");
+    const evidenceModeEl = document.getElementById("compare-evidence-mode");
 
     // Benchmark display names and epoch scores (mutable for live refresh)
     let benchmarkNames = { ...availableBenchmarks };
@@ -3013,6 +3148,15 @@ epochBenchmarksWithData.forEach((b) => {
       if (value.startsWith("aa_")) return "Artificial Analysis indexes";
       return "Artificial Analysis benchmarks";
     };
+    const getTaskPreset = () =>
+      DEFAULT_TASK_PRESETS.find((preset) => preset.id === taskPresetSelect?.value) ??
+      DEFAULT_TASK_PRESETS[0];
+    const getTaskMetricKeys = (preset) =>
+      Object.keys(preset.weights).filter((key) => preset.weights[key] > 0);
+    const getPreferredMetricForPreset = (preset) =>
+      getTaskMetricKeys(preset).find((key) => !key.includes("price")) ||
+      getTaskMetricKeys(preset)[0] ||
+      "mmlu_pro";
 
     const syncMetricPickerValue = () => {
       if (!metricSelector || !metricPickerValue) return;
@@ -3473,13 +3617,11 @@ epochBenchmarksWithData.forEach((b) => {
 
     const collectLookupKeys = (model) => {
       const keys = new Set();
-      const tokenSources = [];
       const register = (candidate) => {
         const normalized = normalizeModelKey(candidate);
         if (!normalized) return;
         keys.add(normalized);
         keys.add(normalized.replace(/\s+/g, ""));
-        tokenSources.push(normalized);
       };
 
       register(model?.name);
@@ -3495,13 +3637,8 @@ epochBenchmarksWithData.forEach((b) => {
         register(normalizedName.slice(normalizedCompany.length).trim());
       }
 
-      const tokens = Array.from(new Set(tokenSources.join(" ").split(" "))).filter(
-        (token) => token && token.length > 2,
-      );
-
       return {
         keys: Array.from(keys).filter(Boolean),
-        tokens,
       };
     };
 
@@ -3581,7 +3718,7 @@ epochBenchmarksWithData.forEach((b) => {
 
     const resolveMetricScore = (model, metricKey) => {
       if (!metricKey.startsWith("epoch_")) {
-        return Number(model?.[metricKey]) || 0;
+        return parseFiniteMetricValue(model?.[metricKey]);
       }
 
       const epochSlug = metricKey.replace("epoch_", "");
@@ -3596,32 +3733,23 @@ epochBenchmarksWithData.forEach((b) => {
         metricName.includes("resolved");
       const normalizeEpochMetricScore = (score) =>
         isPercentMetric && score <= 1 ? score * 100 : score;
-      const { keys, tokens } = collectLookupKeys(model);
+      const { keys } = collectLookupKeys(model);
 
       for (const key of keys) {
-        const exactScore = Number(epochScores?.[key]?.[epochSlug]);
-        if (Number.isFinite(exactScore) && exactScore > 0) {
+        const exactScore = parseFiniteMetricValue(
+          epochScores?.[key]?.[epochSlug],
+        );
+        if (exactScore !== null) {
           return normalizeEpochMetricScore(exactScore);
         }
       }
 
-      let fallbackScore = 0;
-      if (tokens.length > 0) {
-        Object.entries(epochScores).forEach(([alias, scores]) => {
-          if (!tokens.every((token) => alias.includes(token))) return;
-          const score = Number(scores?.[epochSlug]);
-          if (Number.isFinite(score) && score > fallbackScore) {
-            fallbackScore = score;
-          }
-        });
-      }
-
-      return normalizeEpochMetricScore(fallbackScore);
+      return null;
     };
 
     const formatMetricValue = (value, metricKey) => {
-      const num = Number(value);
-      if (!Number.isFinite(num) || num <= 0) return "N/A";
+      const num = parseFiniteMetricValue(value);
+      if (num === null) return "N/A";
       if (!metricKey.startsWith("epoch_")) return `${num.toFixed(3)}%`;
 
       const epochSlug = metricKey.replace("epoch_", "");
@@ -3731,10 +3859,45 @@ epochBenchmarksWithData.forEach((b) => {
     function updateCount() {
       if (countEl)
         countEl.textContent = `${selected.size} of ${filteredModels.length} models selected`;
+      if (selectedStatEl) selectedStatEl.textContent = String(selected.size);
+      renderTaskLensSummary();
     }
 
     function getSelected() {
       return modelsState.filter((m) => selected.has(m.id));
+    }
+
+    function renderTaskLensSummary() {
+      const preset = getTaskPreset();
+      const taskMetricKeys = getTaskMetricKeys(preset);
+      const coveredModels = modelsState.filter((model) => {
+        const presentCount = taskMetricKeys.filter((key) =>
+          hasFiniteMetricValue(model?.[key]),
+        ).length;
+        return presentCount >= preset.minimumCoverage;
+      }).length;
+      const selectedCovered = getSelected().filter((model) => {
+        const presentCount = taskMetricKeys.filter((key) =>
+          hasFiniteMetricValue(model?.[key]),
+        ).length;
+        return presentCount >= preset.minimumCoverage;
+      }).length;
+
+      const summary = `${coveredModels} / ${modelsState.length} models meet ${preset.minimumCoverage} of ${taskMetricKeys.length} weighted fields`;
+      const detail = `${selectedCovered} selected models currently meet this task lens.`;
+      const modeTitle = usingIllustrativeFallback
+        ? "Illustrative fallback"
+        : "Source-backed defaults";
+      const modeDetail = usingIllustrativeFallback
+        ? "No priced source-backed rows are loaded here yet, so price estimates are synthetic."
+        : "Selections start from source-backed priced models and live data can replace the snapshot.";
+
+      if (evidenceCoverageEl) {
+        evidenceCoverageEl.innerHTML = `<span>Metric coverage</span><strong>${sanitizeHTML(summary)}</strong><p>${sanitizeHTML(detail)}</p>`;
+      }
+      if (evidenceModeEl) {
+        evidenceModeEl.innerHTML = `<span>Evidence mode</span><strong>${sanitizeHTML(modeTitle)}</strong><p>${sanitizeHTML(modeDetail)}</p>`;
+      }
     }
 
     function renderCatalogTable(models) {
@@ -3810,7 +3973,7 @@ epochBenchmarksWithData.forEach((b) => {
       // Find cheapest input, output, top performer, TPS winner, and TTFT winner for current metric
       let cheapestInputModel = models[0];
       let cheapestOutputModel = models[0];
-      let topPerformerModel = models[0];
+      let topPerformerModel = null;
       let tpsWinnerModel = null;
       let ttftWinnerModel = null;
       let highestTPS = 0;
@@ -3848,9 +4011,13 @@ epochBenchmarksWithData.forEach((b) => {
           cheapestOutputModel = model;
         }
 
+        const currentScore = resolveMetricScore(model, currentMetric);
+        const topScore = topPerformerModel
+          ? resolveMetricScore(topPerformerModel, currentMetric)
+          : null;
         if (
-          resolveMetricScore(model, currentMetric) >
-          resolveMetricScore(topPerformerModel, currentMetric)
+          currentScore !== null &&
+          (topScore === null || currentScore > topScore)
         ) {
           topPerformerModel = model;
         }
@@ -3898,7 +4065,7 @@ epochBenchmarksWithData.forEach((b) => {
         insightCards[4].textContent = ttftWinnerModel
           ? ttftWinnerModel.name
           : "-";
-        insightCards[5].textContent = topPerformerModel.name;
+        insightCards[5].textContent = topPerformerModel?.name ?? "-";
       }
     }
 
@@ -4220,7 +4387,7 @@ epochBenchmarksWithData.forEach((b) => {
       const chosenByMetric = [...chosen].sort((a, b) => {
         const scoreA = resolveMetricScore(a, metric);
         const scoreB = resolveMetricScore(b, metric);
-        return sortOrder === "desc" ? scoreB - scoreA : scoreA - scoreB;
+        return compareOptionalMetricValues(scoreA, scoreB, sortOrder);
       });
 
       // Build performance chart using Chart.js
@@ -4234,7 +4401,8 @@ epochBenchmarksWithData.forEach((b) => {
           );
           datalabelsRegistered = true;
         }
-        const maxScore = scores.length ? Math.max(...scores) : 0;
+        const finiteScores = scores.filter((score) => score !== null);
+        const maxScore = finiteScores.length ? Math.max(...finiteScores) : 0;
         perfChartInstance = new window.Chart(perfCanvas.getContext("2d"), {
           type: "bar",
           data: {
@@ -4266,8 +4434,8 @@ epochBenchmarksWithData.forEach((b) => {
                   title: (items) =>
                     chosenByMetric[items[0]?.dataIndex]?.name ?? "",
                   label: (ctx) => {
-                    const y = ctx.parsed.y ?? 0;
-                    if (!Number.isFinite(y) || y <= 0) return "N/A";
+                    const y = parseFiniteMetricValue(ctx.parsed.y);
+                    if (y === null) return "N/A";
                     const t = Math.trunc(y * 1000) / 1000; // truncate, no rounding
                     return formatMetricValue(t, metric);
                   },
@@ -4287,8 +4455,9 @@ epochBenchmarksWithData.forEach((b) => {
                 offset: -4,
                 display: showPerfLabels,
                 formatter: (v) => {
-                  if (!Number.isFinite(Number(v)) || Number(v) <= 0) return "N/A";
-                  const t = Math.trunc(Number(v) * 1000) / 1000; // truncate
+                  const value = parseFiniteMetricValue(v);
+                  if (value === null) return "N/A";
+                  const t = Math.trunc(value * 1000) / 1000; // truncate
                   return formatMetricValue(t, metric);
                 },
               },
@@ -4388,6 +4557,17 @@ epochBenchmarksWithData.forEach((b) => {
       // Re-render charts with new metric (crossfade, no entry replay)
       crossfadeRerender();
     });
+    taskPresetSelect?.addEventListener("change", () => {
+      const preset = getTaskPreset();
+      if (metricSelector) {
+        const preferredMetric = getPreferredMetricForPreset(preset);
+        if (benchmarkNames[preferredMetric]) {
+          metricSelector.value = preferredMetric;
+          metricSelector.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      }
+      renderTaskLensSummary();
+    });
 
     // Add event listeners for new features
     searchInput?.addEventListener("input", () => {
@@ -4429,7 +4609,10 @@ epochBenchmarksWithData.forEach((b) => {
         return inputPrice > 0 && outputPrice > 0;
       }));
 
-      modelsState = nextModels.length > 0 ? nextModels : [...(epochDemoModels || [])];
+      usingIllustrativeFallback = nextModels.length === 0 && epochDemoModels.length > 0;
+      modelsState = usingIllustrativeFallback
+        ? [...(epochDemoModels || [])]
+        : nextModels;
       epochRunsState = [...(snapshot.epochRuns ?? [])];
       epochBenchmarksState = [...(snapshot.epochBenchmarks ?? [])];
       epochAliasesByVersion = rebuildEpochAliasesByVersion(
@@ -4452,12 +4635,13 @@ epochBenchmarksWithData.forEach((b) => {
       Array.from(selected).forEach((id) => {
         if (!liveIds.has(id)) selected.delete(id);
       });
-      if (selected.size === 0) {
+      if (selected.size === 0 && !usingIllustrativeFallback) {
         modelsState.slice(0, 3).forEach((model) => selected.add(model.id));
       }
 
       renderModelList();
       updateCount();
+      renderTaskLensSummary();
       renderCharts();
     });
 
@@ -4493,6 +4677,7 @@ epochBenchmarksWithData.forEach((b) => {
     renderBenchmarkAttribution(metricSelector?.value || "mmlu_pro");
     renderModelList();
     updateCount();
+    renderTaskLensSummary();
     try {
       await ensureChartLibs();
     } catch (e) {
@@ -4605,37 +4790,5 @@ epochBenchmarksWithData.forEach((b) => {
   document.addEventListener("astro:page-load", () => {
     void initialize();
   });
-</script>
-<script>
-  import { fetchLiveSnapshot } from "../lib/live-data";
-
-  const scheduleLiveRefresh = () => {
-    const run = async () => {
-      const snapshot = await fetchLiveSnapshot();
-      if (!snapshot) return;
-      window.dispatchEvent(
-        new CustomEvent("aistats:live-snapshot", { detail: snapshot }),
-      );
-    };
-
-    if ("requestIdleCallback" in window) {
-      window.requestIdleCallback(
-        () => {
-          void run();
-        },
-        { timeout: 7000 },
-      );
-    } else {
-      setTimeout(() => {
-        void run();
-      }, 3500);
-    }
-  };
-
-  if (document.readyState === "complete") {
-    scheduleLiveRefresh();
-  } else {
-    window.addEventListener("load", scheduleLiveRefresh, { once: true });
-  }
 </script>
 </Layout>

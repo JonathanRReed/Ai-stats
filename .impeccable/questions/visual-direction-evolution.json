@@ -1,0 +1,77 @@
+{
+  "title": "Choose how AI Stats evolves",
+  "question": "Your steer is locked: preserve the current dark technical aesthetic. Choose the degree and structure of the upgrade.",
+  "options": [
+    {
+      "id": "evolution-calibrated-console",
+      "label": "Calibrated Console",
+      "kicker": "USER STEER",
+      "lineage": "the current AI Stats console, refined with scientific instrument discipline",
+      "thesis": "Keep the product immediately recognizable while making every model decision more legible, attributable, and useful.",
+      "palette": ["#070A0E", "#E8EDF2", "#9DFF5B", "#FFB74D", "#6DB6FF"],
+      "materials": ["matte black panels", "hairline rules", "compact plots", "source LEDs"],
+      "viewport": "The familiar dark shell gains a task-first decision strip, a live shortlist, and compact source-backed tradeoff visualizations.",
+      "case": "This keeps the current identity intact while fixing hierarchy, sparse-score ranking, provenance, and chart usefulness.",
+      "risk": "It demands disciplined spacing and type or the familiar density will remain visually flat.",
+      "raised": [
+        {
+          "from": "research-patch-bay",
+          "raise": "Use restrained source-routing lines only where they clarify how evidence produces a recommendation."
+        },
+        {
+          "from": "research-metrology",
+          "raise": "Give every consequential metric a visible source, date, version, scale, and coverage receipt."
+        },
+        {
+          "from": "research-night-flight",
+          "raise": "Make freshness and ingestion health readable as instrument states, not buried metadata."
+        }
+      ],
+      "comp": ".impeccable/mocks/decision/evolution-calibrated-console.png"
+    },
+    {
+      "id": "evolution-evidence-matrix",
+      "label": "Evidence Matrix",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "the current dark UI fused with comparative scientific matrices and modern data notebooks",
+      "thesis": "Turn the existing console into the clearest possible cross-source comparison surface without changing its character.",
+      "palette": ["#080B10", "#EEF2F5", "#B5F36A", "#A78BFA", "#58B6D8"],
+      "materials": ["ink-black canvas", "matrix cells", "spark lines", "pinned evidence rails"],
+      "viewport": "A sticky model matrix makes benchmark coverage, price, speed, and provenance comparable in one scan.",
+      "case": "The matrix solves the product’s hardest information problem while staying closest to its existing data-dense aesthetic.",
+      "risk": "The interface can become spreadsheet-like unless task presets and progressive disclosure lead the experience.",
+      "comp": ".impeccable/mocks/decision/evolution-evidence-matrix.png"
+    },
+    {
+      "id": "evolution-signal-deck",
+      "label": "Signal Deck",
+      "verdict": "competitive",
+      "lineage": "the current AI Stats console with observability-grade time series and small multiples",
+      "thesis": "Make changing model quality, price, speed, and source freshness the visual signature of the site.",
+      "palette": ["#05080C", "#E7EDF1", "#82F06B", "#54A7FF", "#F5A24A"],
+      "materials": ["dark trace plots", "small multiples", "event markers", "quiet status bands"],
+      "viewport": "A familiar overview adds high-information trend plots, benchmark deltas, and a compact recommended shortlist.",
+      "case": "The strongest visualization upgrade, especially for model changes over time, with minimal brand disruption.",
+      "risk": "Trend displays become noise unless the backend preserves dated observations and methodology changes cleanly.",
+      "comp": ".impeccable/mocks/decision/evolution-signal-deck.png"
+    }
+  ],
+  "reroll": {
+    "registers": ["safer", "bolder"]
+  },
+  "buildPath": {
+    "value": "comp",
+    "toggle": true
+  },
+  "canon": true,
+  "canonCard": {
+    "label": "Current AI Stats, polished",
+    "thesis": "Keep the current layouts and visual grammar, then improve spacing, typography, accessibility, chart defaults, and data accuracy in place.",
+    "palette": ["#050505", "#F4F4F5", "#A3FF12", "#2F3136"],
+    "materials": ["existing dark shell", "terminal labels", "standard charts", "compact tables"],
+    "viewport": "The current homepage composition remains, with cleaner leaderboards, better filters, and clearer freshness labels.",
+    "risk": "The safest move may preserve the structural weaknesses that make the current product harder to use.",
+    "comp": ".impeccable/mocks/decision/evolution-current-polished.png"
+  },
+  "steer": true
+}

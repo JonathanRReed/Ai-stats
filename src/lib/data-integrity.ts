@@ -1,4 +1,23 @@
 import type { AaModel, EpochBenchmarkRun, EpochModel } from './supabase';
+import {
+  findComparableCoverageLeader,
+  type ModelEvidence,
+} from './model-intelligence';
+
+export const AA_AVERAGE_LEADER_METRIC_KEYS = [
+  'mmlu_pro',
+  'gpqa',
+  'hle',
+  'aime',
+  'scicode',
+  'math_500',
+  'livecodebench',
+  'aa_math_index',
+  'aa_coding_index',
+  'aa_intelligence_index',
+] as const;
+
+export const AA_AVERAGE_LEADER_MINIMUM_COVERAGE = 2;
 
 const toTime = (value: string | null | undefined): number => {
   if (!value) return 0;
@@ -9,6 +28,43 @@ const toTime = (value: string | null | undefined): number => {
 const toScore = (value: number | null | undefined): number => {
   const score = Number(value);
   return Number.isFinite(score) ? score : -Infinity;
+};
+
+const toPercentScore = (value: number | null | undefined): number | null => {
+  if (value === null || value === undefined) return null;
+  const score = Number(value);
+  if (!Number.isFinite(score)) return null;
+  return score <= 1 ? score * 100 : score;
+};
+
+const toAaAverageEvidence = (model: AaModel): ModelEvidence => ({
+  id: model.id,
+  label: model.name,
+  metrics: Object.fromEntries(
+    AA_AVERAGE_LEADER_METRIC_KEYS.map((key) => [
+      key,
+      toPercentScore(model[key]),
+    ]),
+  ),
+});
+
+export type AaComparableCoverageLeader = {
+  model: AaModel;
+  avgScore: number;
+};
+
+export const findAaComparableCoverageLeader = (
+  models: AaModel[],
+): AaComparableCoverageLeader | null => {
+  const modelsById = new Map(models.map((model) => [model.id, model]));
+  const leader = findComparableCoverageLeader(
+    models.map(toAaAverageEvidence),
+    [...AA_AVERAGE_LEADER_METRIC_KEYS],
+    AA_AVERAGE_LEADER_MINIMUM_COVERAGE,
+  );
+  const model = leader ? modelsById.get(leader.model.id) : null;
+
+  return model && leader ? { model, avgScore: leader.score } : null;
 };
 
 const compareAaFreshness = (a: AaModel, b: AaModel): number => {

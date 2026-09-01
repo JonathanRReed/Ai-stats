@@ -1,0 +1,204 @@
+---
+import type {
+  DataFreshness,
+  SourceFreshness,
+  SourceFreshnessStatus,
+} from "../lib/data-freshness";
+
+interface Props {
+  freshness: DataFreshness;
+}
+
+const { freshness } = Astro.props;
+const requiredSources = [
+  { sourceKey: "artificial-analysis", displayName: "Artificial Analysis" },
+  { sourceKey: "epoch-ai", displayName: "Epoch AI" },
+  { sourceKey: "simplebench", displayName: "SimpleBench" },
+  { sourceKey: "polibench", displayName: "PoliBench" },
+];
+
+const sourceByKey = new Map(
+  freshness.sources.map((source) => [source.sourceKey, source]),
+);
+const sources: SourceFreshness[] = requiredSources.map((required) =>
+  sourceByKey.get(required.sourceKey) ?? {
+    ...required,
+    status: "unavailable",
+    lastObservedAt: null,
+    lastSuccessfulRunAt: null,
+    coverageLabel: null,
+    ageDays: null,
+    message: "No source snapshot is available yet.",
+  },
+);
+
+const statusLabels: Record<SourceFreshnessStatus, string> = {
+  healthy: "Healthy",
+  stale: "Stale",
+  partial: "Partial",
+  failed: "Failed",
+  unavailable: "Unavailable",
+};
+const observedFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+const formatObserved = (value: Date | null): string =>
+  value ? observedFormatter.format(value) : "Not observed";
+---
+
+<section class="source-health" aria-label="Source health">
+  <header>
+    <div>
+      <span>Source health</span>
+      <p>Independent receipts. All dates UTC.</p>
+    </div>
+    <p class="fallback-mode">
+      <b>Fallback mode</b>
+      {freshness.fallback.fallback ? "Static snapshot" : "Live freshness view"}
+    </p>
+  </header>
+  <div class="source-health-grid">
+    {sources.map((source) => (
+      <article data-source-status={source.status}>
+        <h2>{source.displayName}</h2>
+        <dl>
+          <div>
+            <dt>Last observed</dt>
+            <dd>
+              {source.lastObservedAt ? (
+                <time datetime={source.lastObservedAt.toISOString()}>
+                  {formatObserved(source.lastObservedAt)}
+                </time>
+              ) : (
+                "Not observed"
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt>Coverage</dt>
+            <dd>{source.coverageLabel ?? "No coverage receipt"}</dd>
+          </div>
+          <div>
+            <dt>Status</dt>
+            <dd class="status-label">
+              <span aria-hidden="true" />
+              {statusLabels[source.status]}
+              {source.ageDays !== null ? ` · ${source.ageDays}d old` : ""}
+            </dd>
+          </div>
+        </dl>
+        <p class="source-message">{source.message}</p>
+      </article>
+    ))}
+  </div>
+  {freshness.fallback.reason && <p class="fallback-reason">{freshness.fallback.reason}</p>}
+</section>
+
+<style>
+  .source-health {
+    border: 1px solid var(--intelligence-grid);
+    background: var(--intelligence-surface);
+  }
+  .source-health > header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: center;
+    min-height: 3.2rem;
+    padding: 0.7rem 0.85rem;
+    border-bottom: 1px solid var(--intelligence-grid);
+  }
+  .source-health header > div { display: flex; align-items: baseline; gap: 1rem; }
+  .source-health header span,
+  .fallback-mode b {
+    color: var(--subtle);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .source-health header span::before {
+    content: "";
+    display: inline-block;
+    width: 0.3rem;
+    height: 0.3rem;
+    margin-right: 0.65rem;
+    background: var(--intelligence-copper);
+    vertical-align: 0.08em;
+  }
+  .source-health header p,
+  .fallback-mode { color: var(--muted); font-size: 0.7rem; }
+  .fallback-mode { display: flex; gap: 0.55rem; align-items: center; }
+  .source-health-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .source-health-grid article {
+    min-width: 0;
+    padding: 1rem;
+    border-right: 1px solid var(--intelligence-grid);
+  }
+  .source-health-grid article:last-child { border-right: 0; }
+  .source-health-grid h2 {
+    margin-bottom: 0.8rem;
+    color: var(--text);
+    font-size: 0.95rem;
+  }
+  .source-health-grid dl { display: grid; gap: 0.45rem; }
+  .source-health-grid dl div {
+    display: grid;
+    grid-template-columns: 6.2rem minmax(0, 1fr);
+    gap: 0.45rem;
+    font-size: 0.69rem;
+    line-height: 1.35;
+  }
+  .source-health-grid dt { color: var(--muted); }
+  .source-health-grid dd { color: var(--subtle); overflow-wrap: anywhere; }
+  .status-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    text-transform: capitalize;
+  }
+  .status-label span {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 50%;
+    background: var(--muted);
+  }
+  [data-source-status="healthy"] .status-label span { background: var(--pine); }
+  [data-source-status="stale"] .status-label span,
+  [data-source-status="partial"] .status-label span { background: var(--gold); }
+  [data-source-status="failed"] .status-label span { background: var(--love); }
+  .source-message {
+    margin-top: 0.8rem;
+    color: var(--muted);
+    font-size: 0.66rem;
+    line-height: 1.4;
+  }
+  .fallback-reason {
+    padding: 0.6rem 0.85rem;
+    border-top: 1px solid var(--intelligence-grid);
+    color: var(--muted);
+    font-size: 0.68rem;
+  }
+  @media (max-width: 960px) {
+    .source-health-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .source-health-grid article:nth-child(2) { border-right: 0; }
+    .source-health-grid article:nth-child(-n + 2) { border-bottom: 1px solid var(--intelligence-grid); }
+  }
+  @media (max-width: 580px) {
+    .source-health > header,
+    .source-health header > div { align-items: flex-start; flex-direction: column; }
+    .source-health-grid { grid-template-columns: 1fr; }
+    .source-health-grid article { border-right: 0; border-bottom: 1px solid var(--intelligence-grid); }
+    .source-health-grid article:last-child { border-bottom: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .source-health * { scroll-behavior: auto; }
+  }
+</style>

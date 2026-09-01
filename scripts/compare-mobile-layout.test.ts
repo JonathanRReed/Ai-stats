@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 
 const source = readFileSync("src/pages/compare.astro", "utf8");
 
-test("the compare hero mobile override follows the base hero styles", () => {
+test("the compact compare header and task lens stack cleanly on mobile", () => {
   const baseHeroIndex = source.indexOf(
     ".compare-hero {\n      position: relative;",
   );
@@ -22,5 +22,10 @@ test("the compare hero mobile override follows the base hero styles", () => {
     source.indexOf("\n    }", mobileOverrideIndex) + 6,
   );
   expect(mobileOverride).toContain("grid-template-columns: 1fr");
-  expect(mobileOverride).toContain("font-size: clamp(2.25rem, 15vw, 4rem)");
+  expect(mobileOverride).not.toContain("15vw");
+  expect(source).toContain(".compare-preset-strip");
+  expect(source).toContain("grid-template-columns: 1fr;");
+  expect(source.indexOf('id="compare-task-preset"')).toBeLessThan(
+    source.indexOf('class="charts-section'),
+  );
 });
