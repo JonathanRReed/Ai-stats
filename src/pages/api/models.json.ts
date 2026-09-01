@@ -7,6 +7,7 @@ import {
   supabase,
   type AaModel,
 } from '../../lib/supabase';
+import { toModelDrawerPayload } from '../../lib/model-api';
 
 const SEARCH_MAX_LENGTH = 80;
 const BENCHMARK_COLUMNS = new Set<keyof AaModel>([
@@ -62,16 +63,14 @@ export const GET: APIRoute = async ({ url }) => {
       normalizeAaModelsForDisplay((data ?? []) as unknown as AaModel[]),
       publicCatalogs,
     );
-    const filteredModels = models.map((model) => ({
-      ...model,
-      company_name: model.creator_name ?? null,
-    }));
+    const filteredModels = models.map(toModelDrawerPayload);
 
     return new Response(JSON.stringify(filteredModels), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-store, max-age=0',
+        'Cache-Control':
+          'public, max-age=60, s-maxage=900, stale-while-revalidate=86400',
       },
     });
   } catch (error) {

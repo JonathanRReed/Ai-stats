@@ -1,0 +1,281 @@
+---
+import type { AaModel } from "../lib/supabase";
+import { formatPrice, formatScore, formatTPS } from "../lib/format-utils";
+
+type Props = {
+  models: AaModel[];
+};
+
+const { models } = Astro.props;
+
+const formatTrackedDate = (value: string | null | undefined): string => {
+  const date = new Date(value ?? "");
+  if (Number.isNaN(date.getTime())) return "Unknown";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+};
+---
+
+<section class="latest-models" aria-label="Latest flagship models">
+  <header class="latest-models-header">
+    <div>
+      <p class="console-label">Current model watch</p>
+      <h1>Latest flagship models</h1>
+    </div>
+    <p>
+      A deliberately narrow view: one current, fully measured model per provider,
+      ordered by when each model was first tracked. A recent observation receipt
+      is required. Incomplete zero-price rows and unverified niche entries do not qualify.
+    </p>
+  </header>
+
+  {
+    models.length ? (
+      <ol class="latest-model-grid">
+        {models.map((model, index) => (
+          <li>
+            <a href={`/compare?model=${encodeURIComponent(model.name ?? model.id)}`}>
+              <span class="latest-model-order">{String(index + 1).padStart(2, "0")}</span>
+              <span class="latest-model-date">
+                First tracked <time datetime={model.first_seen}>{formatTrackedDate(model.first_seen)}</time>
+              </span>
+              <strong>{model.name}</strong>
+              <span class="latest-model-provider">
+                {model.company_name ?? model.creator_name ?? "Unknown provider"}
+              </span>
+              <dl>
+                <div>
+                  <dt>AA index</dt>
+                  <dd>{formatScore(model.aa_intelligence_index)}</dd>
+                </div>
+                <div>
+                  <dt>Coding</dt>
+                  <dd>{formatScore(model.aa_coding_index)}</dd>
+                </div>
+                <div>
+                  <dt>Speed</dt>
+                  <dd>{formatTPS(model.median_output_tokens_per_second)} t/s</dd>
+                </div>
+                <div>
+                  <dt>Blended</dt>
+                  <dd>{formatPrice(model.price_1m_blended_3_to_1, 2)}</dd>
+                </div>
+              </dl>
+              <span class="latest-model-action">Compare model</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    ) : (
+      <p class="latest-model-empty">
+        Current fully measured flagship observations are unavailable in this build.
+      </p>
+    )
+  }
+</section>
+
+<style>
+  .latest-models {
+    display: grid;
+    gap: 1rem;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1.25rem 0;
+  }
+
+  .latest-models-header {
+    display: grid;
+    gap: 0.75rem;
+    align-items: end;
+  }
+
+  .latest-models-header h1 {
+    margin-top: 0.25rem;
+    max-width: 18ch;
+    color: var(--text);
+    font-size: clamp(1.75rem, 4vw, 3.4rem);
+    font-weight: 900;
+    letter-spacing: -0.045em;
+    line-height: 0.98;
+  }
+
+  .latest-models-header > p {
+    max-width: 68ch;
+    color: var(--subtle);
+    font-size: 0.82rem;
+    line-height: 1.65;
+  }
+
+  .console-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    color: var(--love);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .console-label::before {
+    width: 0.4rem;
+    height: 0.4rem;
+    background: currentColor;
+    content: "";
+  }
+
+  .latest-model-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .latest-model-grid li,
+  .latest-model-grid a {
+    min-width: 0;
+  }
+
+  .latest-model-grid a {
+    display: grid;
+    height: 100%;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    background: var(--surface);
+    padding: 0.9rem;
+    color: inherit;
+    text-decoration: none;
+    transition: border-color 150ms ease, background-color 150ms ease;
+  }
+
+  .latest-model-grid a:hover,
+  .latest-model-grid a:focus-visible {
+    border-color: var(--love);
+    background: var(--overlay);
+  }
+
+  .latest-model-grid a:focus-visible {
+    outline: 2px solid var(--love);
+    outline-offset: 2px;
+  }
+
+  .latest-model-order,
+  .latest-model-date,
+  .latest-model-provider,
+  .latest-model-action,
+  .latest-model-grid dt,
+  .latest-model-grid dd {
+    font-family: var(--font-mono);
+  }
+
+  .latest-model-order {
+    grid-row: 1 / span 3;
+    color: var(--love);
+    font-size: 0.7rem;
+    font-weight: 800;
+  }
+
+  .latest-model-date {
+    color: var(--muted);
+    font-size: 0.62rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .latest-model-grid strong,
+  .latest-model-provider,
+  .latest-model-date {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .latest-model-grid strong {
+    color: var(--text);
+    font-size: 0.98rem;
+    line-height: 1.2;
+  }
+
+  .latest-model-provider {
+    color: var(--subtle);
+    font-size: 0.7rem;
+  }
+
+  .latest-model-grid dl {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin: 0.5rem 0 0;
+  }
+
+  .latest-model-grid dl div {
+    min-width: 0;
+    border-top: 1px solid var(--highlight-low);
+    padding-top: 0.45rem;
+  }
+
+  .latest-model-grid dt {
+    color: var(--muted);
+    font-size: 0.58rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .latest-model-grid dd {
+    margin: 0.15rem 0 0;
+    color: var(--text);
+    font-size: 0.72rem;
+    font-weight: 750;
+  }
+
+  .latest-model-action {
+    grid-column: 1 / -1;
+    margin-top: 0.25rem;
+    color: var(--foam);
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .latest-model-empty {
+    border: 1px solid var(--border-color);
+    padding: 1rem;
+    color: var(--subtle);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+  }
+
+  @media (min-width: 720px) {
+    .latest-models-header {
+      grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.9fr);
+    }
+
+    .latest-model-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1180px) {
+    .latest-model-grid {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .latest-model-grid a {
+      transition: none;
+    }
+  }
+</style>

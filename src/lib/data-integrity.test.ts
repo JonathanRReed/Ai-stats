@@ -5,6 +5,7 @@ import {
   dedupeAaModelsBySlug,
   findAaComparableCoverageLeader,
   hydrateEpochModelsFromRuns,
+  normalizeAaOperationalMetrics,
   sortAaModelsByIntelligence,
 } from "./data-integrity";
 import type { AaModel, EpochBenchmarkRun, EpochModel } from "./supabase";
@@ -147,6 +148,71 @@ test("findAaComparableCoverageLeader retains finite zero as comparable evidence"
     model: { id: "zero" },
     avgScore: 40,
   });
+});
+
+test("normalizeAaOperationalMetrics derives a missing 3:1 blended price", () => {
+  const normalized = normalizeAaOperationalMetrics({
+    ...aaModel("priced", "priced", 90, "2025-01-01"),
+    price_1m_input_tokens: 2,
+    price_1m_output_tokens: 10,
+  });
+
+  expect(normalized.price_1m_blended_3_to_1).toBe(4);
+});
+
+test("normalizeAaOperationalMetrics removes floating-point artifacts from derived prices", () => {
+  const normalized = normalizeAaOperationalMetrics({
+    ...aaModel("decimal", "decimal", 90, "2025-01-01"),
+    price_1m_input_tokens: 0.1,
+    price_1m_output_tokens: 0.62,
+  });
+
+  expect(normalized.price_1m_blended_3_to_1).toBe(0.23);
+});
+
+test("normalizeAaOperationalMetrics preserves a positive native blended price", () => {
+  const normalized = normalizeAaOperationalMetrics({
+    ...aaModel("native", "native", 90, "2025-01-01"),
+    price_1m_input_tokens: 2,
+    price_1m_output_tokens: 10,
+    price_1m_blended_3_to_1: 7,
+  });
+
+  expect(normalized.price_1m_blended_3_to_1).toBe(7);
+});
+
+test("normalizeAaOperationalMetrics treats zero operational telemetry as missing", () => {
+  const normalized = normalizeAaOperationalMetrics({
+    ...aaModel("incomplete", "incomplete", 90, "2025-01-01"),
+    price_1m_input_tokens: 0,
+    price_1m_output_tokens: 0,
+    price_1m_blended_3_to_1: 0,
+    median_output_tokens_per_second: 0,
+    median_time_to_first_token_seconds: 0,
+    median_time_to_first_answer_token: 0,
+  });
+
+  expect(normalized).toMatchObject({
+    price_1m_input_tokens: null,
+    price_1m_output_tokens: null,
+    price_1m_blended_3_to_1: null,
+    median_output_tokens_per_second: null,
+    median_time_to_first_token_seconds: null,
+    median_time_to_first_answer_token: null,
+  });
+});
+
+test("normalizeAaOperationalMetrics preserves zero benchmark evidence", () => {
+  const normalized = normalizeAaOperationalMetrics({
+    ...aaModel("measured-zero", "measured-zero", 0, "2025-01-01"),
+    aa_intelligence_index: 0,
+    mmlu_pro: 0,
+    gpqa: 0,
+  });
+
+  expect(normalized.aa_intelligence_index).toBe(0);
+  expect(normalized.mmlu_pro).toBe(0);
+  expect(normalized.gpqa).toBe(0);
 });
 
 test("hydrateEpochModelsFromRuns backfills missing Epoch models from runs and humanizes the version", () => {

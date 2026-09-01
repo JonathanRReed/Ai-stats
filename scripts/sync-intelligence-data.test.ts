@@ -11,6 +11,7 @@ import {
 } from "./sync-intelligence-data.mjs";
 
 const observedAt = "2026-08-30T07:15:38.021Z";
+const productionSupabaseUrl = "https://bgbqdzmgxkwstjihgeef.supabase.co";
 
 const createInput = (explicitAliases: unknown[] = []) => ({
   aa: {
@@ -385,6 +386,53 @@ test("sync rejects remote HTTP Supabase URLs before network activity", async () 
   expect(calls).toBe(0);
 });
 
+test("sync rejects arbitrary HTTPS hosts before transmitting a service-role key", async () => {
+  let calls = 0;
+  const message = await rejectionMessage(syncIntelligenceData({
+    input: createInput(),
+    env: {
+      SUPABASE_URL: "https://attacker.example.test",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-secret",
+    },
+    fetchImpl: async () => {
+      calls += 1;
+      return new Response();
+    },
+  }));
+
+  expect(message).toBe(
+    "Invalid server configuration: SUPABASE_URL must target the AI Stats Supabase project or an explicit loopback development host",
+  );
+  expect(calls).toBe(0);
+});
+
+test("sync rejects credentials, paths, queries, and fragments in the Supabase origin", async () => {
+  for (const url of [
+    "https://user:password@bgbqdzmgxkwstjihgeef.supabase.co",
+    "https://bgbqdzmgxkwstjihgeef.supabase.co/rest/v1",
+    "https://bgbqdzmgxkwstjihgeef.supabase.co?redirect=attacker.example.test",
+    "https://bgbqdzmgxkwstjihgeef.supabase.co#fragment",
+  ]) {
+    let calls = 0;
+    const message = await rejectionMessage(syncIntelligenceData({
+      input: createInput(),
+      env: {
+        SUPABASE_URL: url,
+        SUPABASE_SERVICE_ROLE_KEY: "service-role-secret",
+      },
+      fetchImpl: async () => {
+        calls += 1;
+        return new Response();
+      },
+    }));
+
+    expect(message).toBe(
+      "Invalid server configuration: SUPABASE_URL must be a project origin without credentials, paths, query parameters, or fragments",
+    );
+    expect(calls).toBe(0);
+  }
+});
+
 const successfulFetch = ({
   failTableOnce,
   omitFromTable,
@@ -451,7 +499,7 @@ test("sync batches bounded REST upserts with atomic conflict keys and receipt RP
   const result = await syncIntelligenceData({
     input: createInput(),
     env: {
-      SUPABASE_URL: "https://project.example.test",
+      SUPABASE_URL: productionSupabaseUrl,
       SUPABASE_SERVICE_ROLE_KEY: "service-role-secret",
     },
     fetchImpl,
@@ -461,10 +509,10 @@ test("sync batches bounded REST upserts with atomic conflict keys and receipt RP
   expect(result.status).toBe("succeeded");
   expect(result.counts.sources).toBe(4);
   expect(requests[0]?.url).toBe(
-    "https://project.example.test/rest/v1/rpc/start_intelligence_ingestion",
+    `${productionSupabaseUrl}/rest/v1/rpc/start_intelligence_ingestion`,
   );
   expect(requests.at(-1)?.url).toBe(
-    "https://project.example.test/rest/v1/rpc/finish_intelligence_ingestion",
+    `${productionSupabaseUrl}/rest/v1/rpc/finish_intelligence_ingestion`,
   );
   const upserts = requests.filter((request) => !request.url.includes("/rpc/"));
   expect(upserts.every((request) => Array.isArray(request.body) && request.body.length <= 2)).toBe(true);
@@ -503,7 +551,7 @@ test("sync sanitizes upstream failures and never exposes URLs, keys, payloads, o
   const message = await rejectionMessage(syncIntelligenceData({
     input: createInput(),
     env: {
-      SUPABASE_URL: "https://project.example.test",
+      SUPABASE_URL: productionSupabaseUrl,
       SUPABASE_SERVICE_ROLE_KEY: "service-role-secret",
     },
     fetchImpl,
@@ -555,7 +603,7 @@ test("sync fails locally when any dependent upsert representation omits a requir
     const message = await rejectionMessage(syncIntelligenceData({
       input: createInput(),
       env: {
-        SUPABASE_URL: "https://project.example.test",
+        SUPABASE_URL: productionSupabaseUrl,
         SUPABASE_SERVICE_ROLE_KEY: "service-role-secret",
       },
       fetchImpl,

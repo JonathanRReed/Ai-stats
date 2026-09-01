@@ -30,6 +30,11 @@ test("default task presets disclose weights, coverage, and comparable metric dir
       price_1m_blended_3_to_1: "lower-is-better",
     },
   });
+  expect(
+    DEFAULT_TASK_PRESETS.every(
+      (preset) => preset.budgetMetricKey === "price_1m_blended_3_to_1",
+    ),
+  ).toBe(true);
 });
 
 test("rankComparableModels excludes a one-metric perfect row below required coverage", () => {

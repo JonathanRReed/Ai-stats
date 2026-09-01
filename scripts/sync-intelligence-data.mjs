@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const DEFAULT_BATCH_SIZE = 250;
 const MAX_BATCH_SIZE = 500;
+const PRODUCTION_SUPABASE_HOST = "bgbqdzmgxkwstjihgeef.supabase.co";
 /** @typedef {(input: string | URL | Request, init?: RequestInit) => Promise<Response>} FetchLike */
 /** @type {FetchLike} */
 const defaultFetch = (input, init) => globalThis.fetch(input, init);
@@ -812,9 +813,26 @@ const validateServerConfig = (env) => {
     throw new Error("Invalid server configuration: SUPABASE_URL must be a valid URL");
   }
   const loopbackHosts = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
-  if (url.protocol !== "https:" && !(url.protocol === "http:" && loopbackHosts.has(url.hostname))) {
+  const isLoopback = loopbackHosts.has(url.hostname);
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && isLoopback)) {
     throw new Error(
       "Invalid server configuration: SUPABASE_URL must use HTTPS except for explicit loopback development hosts",
+    );
+  }
+  if (
+    url.username ||
+    url.password ||
+    (url.pathname && url.pathname !== "/") ||
+    url.search ||
+    url.hash
+  ) {
+    throw new Error(
+      "Invalid server configuration: SUPABASE_URL must be a project origin without credentials, paths, query parameters, or fragments",
+    );
+  }
+  if (!isLoopback && url.hostname !== PRODUCTION_SUPABASE_HOST) {
+    throw new Error(
+      "Invalid server configuration: SUPABASE_URL must target the AI Stats Supabase project or an explicit loopback development host",
     );
   }
   return { baseUrl: url.href.replace(/\/$/u, ""), serviceKey: keyValue };

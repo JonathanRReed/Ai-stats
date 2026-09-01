@@ -30,6 +30,43 @@ const toScore = (value: number | null | undefined): number => {
   return Number.isFinite(score) ? score : -Infinity;
 };
 
+const toPositiveMetric = (
+  value: number | null | undefined,
+): number | null => {
+  const metric = Number(value);
+  return Number.isFinite(metric) && metric > 0 ? metric : null;
+};
+
+export const normalizeAaOperationalMetrics = (model: AaModel): AaModel => {
+  const inputPrice = toPositiveMetric(model.price_1m_input_tokens);
+  const outputPrice = toPositiveMetric(model.price_1m_output_tokens);
+  const nativeBlendedPrice = toPositiveMetric(
+    model.price_1m_blended_3_to_1,
+  );
+  const derivedBlendedPrice =
+    inputPrice !== null && outputPrice !== null
+      ? Math.round(((inputPrice * 3 + outputPrice) / 4) * 1_000_000_000) /
+        1_000_000_000
+      : null;
+
+  return {
+    ...model,
+    price_1m_input_tokens: inputPrice,
+    price_1m_output_tokens: outputPrice,
+    price_1m_blended_3_to_1:
+      nativeBlendedPrice ?? derivedBlendedPrice,
+    median_output_tokens_per_second: toPositiveMetric(
+      model.median_output_tokens_per_second,
+    ),
+    median_time_to_first_token_seconds: toPositiveMetric(
+      model.median_time_to_first_token_seconds,
+    ),
+    median_time_to_first_answer_token: toPositiveMetric(
+      model.median_time_to_first_answer_token,
+    ),
+  };
+};
+
 const toPercentScore = (value: number | null | undefined): number | null => {
   if (value === null || value === undefined) return null;
   const score = Number(value);

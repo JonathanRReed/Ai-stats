@@ -22,6 +22,7 @@ import { getPublicEpochSnapshot } from "../lib/epoch-snapshot";
 import { getDataFreshness } from "../lib/data-freshness";
 import ModelCard from "./ModelCard.astro";
 import TaskWorkbench from "./TaskWorkbench.astro";
+import LatestModelsStrip from "./LatestModelsStrip.astro";
 import SourceHealthStrip from "./SourceHealthStrip.astro";
 import IntelligenceOverview from "./IntelligenceOverview.astro";
 import { getPublicPoliBenchSnapshot } from "../lib/polibench-snapshot";
@@ -29,6 +30,10 @@ import {
   hasFiniteMetricValue,
   parseFiniteMetricValue,
 } from "../lib/metric-values";
+import {
+  isCurrentMeasuredModel,
+  selectLatestFlagshipModels,
+} from "../lib/model-spotlight";
 
 const [baseModels, initialEpochBenchmarks, initialEpochRuns, publicCatalogs] =
   await Promise.all([
@@ -64,7 +69,11 @@ const epochModels = usePublicEpochSnapshot
 const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs);
 const publicPoliBenchSnapshot = await getPublicPoliBenchSnapshot();
 
-const workbenchModels = models.map((model) => ({
+const currentMeasuredModels = models.filter((model) =>
+  isCurrentMeasuredModel(model),
+);
+const latestFlagshipModels = selectLatestFlagshipModels(currentMeasuredModels);
+const workbenchModels = currentMeasuredModels.map((model) => ({
   id: model.id,
   label: model.name,
   provider: model.company_name ?? model.creator_name ?? "Unknown provider",
@@ -116,7 +125,7 @@ const clientBenchmarkAttributions = Object.fromEntries(
   Object.entries(benchmarkAttributions).filter(([key]) => !key.startsWith("epoch_")),
 );
 
-const validModels = models.filter((model: any) => {
+const validModels = currentMeasuredModels.filter((model: any) => {
   const inputPrice = Number(model.price_1m_input_tokens);
   const outputPrice = Number(model.price_1m_output_tokens);
   return inputPrice > 0 && outputPrice > 0;
@@ -134,7 +143,7 @@ const openRouterTotal =
   Number(openRouterModelCount?.count) || openRouterModels.length;
 const definitionFacts = [
   totalModels > 0
-    ? `${totalModels.toLocaleString("en-US")} priced models with input, output, and blended token prices`
+    ? `${totalModels.toLocaleString("en-US")} current measured models with input, output, and blended token prices`
     : null,
   epochRuns.length > 0
     ? `${epochModels.length.toLocaleString("en-US")} models scored across ${epochBenchmarksWithRuns.length} Epoch AI benchmarks in ${epochRuns.length.toLocaleString("en-US")} recorded runs`
@@ -354,12 +363,12 @@ function getScoreClass(score: number | null | undefined): string {
   <main
     class="telemetry-main mx-auto flex w-full max-w-[1586px] flex-col gap-14 px-4 pb-24 pt-10 md:gap-16 md:px-6 md:pt-12"
   >
-    <h1 class="sr-only">AI model pricing and benchmark dashboard</h1>
     <div class="intelligence-stack">
+      <LatestModelsStrip models={latestFlagshipModels} />
       <TaskWorkbench models={workbenchModels} />
       <SourceHealthStrip freshness={dataFreshness} />
       <IntelligenceOverview
-        models={models}
+        models={currentMeasuredModels}
         epochModels={epochModels}
         epochBenchmarks={epochBenchmarks}
         epochRuns={epochRuns}
@@ -2751,31 +2760,38 @@ function getScoreClass(score: number | null | undefined): string {
       openrouter_is_free: model.openrouter_is_free,
     });
     const drawerModelCache = new Map();
-    let drawerModelIndexPromise = null;
+    const drawerModelRequests = new Map();
     const registerDrawerModels = (models) => {
       (models || []).forEach((model) => {
         if (!model?.id) return;
         drawerModelCache.set(String(model.id), toDrawerModel(model));
       });
     };
-    const loadDrawerModelIndex = () => {
-      if (drawerModelIndexPromise) return drawerModelIndexPromise;
-      drawerModelIndexPromise = fetch("/api/models.json", { cache: "force-cache" })
+    const loadDrawerModel = (id) => {
+      const existingRequest = drawerModelRequests.get(id);
+      if (existingRequest) return existingRequest;
+
+      const request = fetch(`/api/models/${encodeURIComponent(id)}.json`)
         .then((response) => {
           if (!response.ok) {
             throw new Error(`Model detail request failed with ${response.status}`);
           }
           return response.json();
         })
-        .then((models) => {
-          registerDrawerModels(Array.isArray(models) ? models : []);
-          return drawerModelCache;
+        .then((model) => {
+          registerDrawerModels(model ? [model] : []);
+          return drawerModelCache.get(String(id)) || null;
         })
         .catch((error) => {
           console.warn("Failed to load model detail payload", error);
-          return drawerModelCache;
+          return null;
+        })
+        .finally(() => {
+          drawerModelRequests.delete(id);
         });
-      return drawerModelIndexPromise;
+
+      drawerModelRequests.set(id, request);
+      return request;
     };
     const resolveDrawerModel = async (element) => {
       const modelJson = element?.dataset?.modelJson;
@@ -2793,8 +2809,7 @@ function getScoreClass(score: number | null | undefined): string {
       if (!id) return null;
       const cached = drawerModelCache.get(String(id));
       if (cached) return cached;
-      await loadDrawerModelIndex();
-      return drawerModelCache.get(String(id)) || null;
+      return loadDrawerModel(String(id));
     };
 
     const formatTps = (tps) => {
@@ -4276,9 +4291,35 @@ function getScoreClass(score: number | null | undefined): string {
       observer.observe(toolbarSentinel);
     };
 
+    const setupPublicCatalogHydration = () => {
+      const catalogSection = document.querySelector(".openrouter-panel");
+      if (!(catalogSection instanceof HTMLElement)) return;
+      if (catalogSection.dataset.catalogHydrationBound === "true") return;
+      catalogSection.dataset.catalogHydrationBound = "true";
+
+      const hydrate = () =>
+        loadPublicCatalogData().then(() => renderOpenRouterProviderLeaderboard());
+
+      if (!("IntersectionObserver" in window)) {
+        void hydrate();
+        return;
+      }
+
+      const catalogObserver = new IntersectionObserver(
+        (entries) => {
+          if (!entries.some((entry) => entry.isIntersecting)) return;
+          catalogObserver.disconnect();
+          void hydrate();
+        },
+        { rootMargin: "400px 0px" },
+      );
+      catalogObserver.observe(catalogSection);
+    };
+
     document.addEventListener("astro:page-load", () => {
       setupLeaderboardReveal();
       setupStickyToolbar();
+      setupPublicCatalogHydration();
     });
 
     bindCardFocus();
@@ -4287,7 +4328,7 @@ function getScoreClass(score: number | null | undefined): string {
     bindOpenRouterProviderRows();
     setupLeaderboardReveal();
     setupStickyToolbar();
-    void loadPublicCatalogData().then(() => renderOpenRouterProviderLeaderboard());
+    setupPublicCatalogHydration();
     updateLeaderboardCompareLink();
     applySearch(true);
 

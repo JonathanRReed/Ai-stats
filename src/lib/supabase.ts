@@ -3,6 +3,7 @@ import { AA_MODEL_SELECT_COLUMNS } from './aa-model-columns';
 import {
   dedupeAaModelsBySlug,
   hydrateEpochModelsFromRuns,
+  normalizeAaOperationalMetrics,
   sortAaModelsByIntelligence,
 } from './data-integrity';
 
@@ -853,7 +854,7 @@ export async function getModels(): Promise<AaModel[]> {
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return dedupeAaModelsBySlug((data ?? []).map((model: any) => ({
+  return normalizeAaModelsForDisplay((data ?? []).map((model: any) => ({
     ...model,
     company_name: model.creator_name ?? null,
   })) as AaModel[]);
@@ -911,7 +912,9 @@ export async function getHydratedEpochModels(
 }
 
 export const normalizeAaModelsForDisplay = (models: AaModel[]): AaModel[] =>
-  dedupeAaModelsBySlug(sortAaModelsByIntelligence(models));
+  dedupeAaModelsBySlug(
+    sortAaModelsByIntelligence(models.map(normalizeAaOperationalMetrics)),
+  );
 
 const isMissingOpenRouterTableError = (error: unknown): boolean => {
   if (!error || typeof error !== 'object') return false;

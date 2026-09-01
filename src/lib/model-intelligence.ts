@@ -55,6 +55,7 @@ export const DEFAULT_TASK_PRESETS: TaskPreset[] = [
       hle: 0.25,
     },
     minimumCoverage: 2,
+    budgetMetricKey: "price_1m_blended_3_to_1",
   },
   {
     id: "fast-value",

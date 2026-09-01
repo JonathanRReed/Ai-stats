@@ -129,12 +129,18 @@ mock.module("../src/lib/supabase", () => ({
   },
   normalizeAaModelsForDisplay: (models: unknown[]) => models,
   enrichModelsWithPublicCatalogData: (models: unknown[]) => models,
+  getModels: async () => queryResult,
   getPublicCatalogModels: async () => publicCatalogs,
 }));
 
-const [{ GET: getModels }, { GET: getPublicCatalogs }] = await Promise.all([
+const [
+  { GET: getModels },
+  { GET: getPublicCatalogs },
+  { GET: getModelDetail, getStaticPaths: getModelDetailPaths },
+] = await Promise.all([
   import("../src/pages/api/models.json"),
   import("../src/pages/api/public-catalogs.json"),
+  import("../src/pages/api/models/[id].json"),
 ]);
 
 test("models endpoint filters search and benchmark params before returning public model data", async () => {
@@ -143,7 +149,9 @@ test("models endpoint filters search and benchmark params before returning publi
   } as never);
 
   expect(response.status).toBe(200);
-  expect(response.headers.get("Cache-Control")).toBe("no-store, max-age=0");
+  expect(response.headers.get("Cache-Control")).toBe(
+    "public, max-age=60, s-maxage=900, stale-while-revalidate=86400",
+  );
   expect(queryState).toMatchObject({
     table: "aa_models",
     select: "id,name,slug",
@@ -152,11 +160,30 @@ test("models endpoint filters search and benchmark params before returning publi
   });
 
   expect(await response.json()).toEqual([
-    {
-      ...queryResult[0],
+    expect.objectContaining({
+      id: "model-1",
+      name: "GPT-4o Mini",
       company_name: "OpenAI",
-    },
+      aa_intelligence_index: 91.2,
+    }),
   ]);
+});
+
+test("model detail routes generate one cacheable static payload per model", async () => {
+  const paths = await getModelDetailPaths();
+  expect(paths).toHaveLength(1);
+  expect(paths[0]).toMatchObject({ params: { id: "model-1" } });
+
+  const response = await getModelDetail({ props: paths[0]?.props } as never);
+  expect(response.status).toBe(200);
+  expect(response.headers.get("Cache-Control")).toBe(
+    "public, max-age=60, must-revalidate",
+  );
+  expect(await response.json()).toMatchObject({
+    id: "model-1",
+    name: "GPT-4o Mini",
+    company_name: "OpenAI",
+  });
 });
 
 test("public catalogs endpoint serializes the public contract and cache header", async () => {

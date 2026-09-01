@@ -7,18 +7,60 @@ const dashboardSource = readFileSync("src/components/Dashboard.astro", "utf8");
 const readPendingSource = (path: string): string =>
   existsSync(path) ? readFileSync(path, "utf8") : "";
 const workbenchSource = readPendingSource("src/components/TaskWorkbench.astro");
+const latestModelsSource = readPendingSource("src/components/LatestModelsStrip.astro");
 const sourceHealthSource = readPendingSource("src/components/SourceHealthStrip.astro");
 const overviewSource = readPendingSource("src/components/IntelligenceOverview.astro");
 
-test("the homepage renders the task-first sequence before deeper comparison content", () => {
+test("the homepage renders current flagship models before the task workbench and deeper content", () => {
+  const latestModelsIndex = dashboardSource.indexOf("<LatestModelsStrip");
   const workbenchIndex = dashboardSource.indexOf("<TaskWorkbench");
   const sourceHealthIndex = dashboardSource.indexOf("<SourceHealthStrip");
   const overviewIndex = dashboardSource.indexOf("<IntelligenceOverview");
 
-  expect(workbenchIndex).toBeGreaterThan(-1);
+  expect(latestModelsIndex).toBeGreaterThan(-1);
+  expect(workbenchIndex).toBeGreaterThan(latestModelsIndex);
   expect(sourceHealthIndex).toBeGreaterThan(workbenchIndex);
   expect(overviewIndex).toBeGreaterThan(sourceHealthIndex);
   expect(dashboardSource.indexOf('aria-label="Public catalog collections"')).toBeGreaterThan(overviewIndex);
+});
+
+test("the latest-model splash explains its editorial filter and links into comparison", () => {
+  expect(latestModelsSource).toContain('aria-label="Latest flagship models"');
+  expect(latestModelsSource).toContain("<h1");
+  expect(latestModelsSource).toContain("Latest flagship models");
+  expect(latestModelsSource).toContain("one current, fully measured model per provider");
+  expect(latestModelsSource).toContain("ordered by when each model was first tracked");
+  expect(latestModelsSource).toContain("First tracked");
+  expect(latestModelsSource).toContain('href={`/compare?model=${encodeURIComponent(model.name ?? model.id)}`}');
+  expect(latestModelsSource).not.toContain("overflow-x-auto");
+});
+
+test("the homepage is prerendered and the model drawer API is cacheable", () => {
+  const indexSource = readFileSync("src/pages/index.astro", "utf8");
+  const apiSource = readFileSync("src/pages/api/models.json.ts", "utf8");
+
+  expect(indexSource).toContain("export const prerender = true");
+  expect(apiSource).toContain("toModelDrawerPayload");
+  expect(apiSource).toContain("s-maxage=900");
+  expect(apiSource).not.toContain("no-store");
+});
+
+test("the first-screen overview uses the same curated measured-model cohort", () => {
+  expect(dashboardSource).toContain("models={currentMeasuredModels}");
+  expect(dashboardSource).toContain("const validModels = currentMeasuredModels.filter");
+  expect(dashboardSource).not.toContain("<IntelligenceOverview\n        models={models}");
+});
+
+test("large public catalogs and drawer details load only when the user reaches them", () => {
+  expect(dashboardSource).toContain("setupPublicCatalogHydration");
+  expect(dashboardSource).toContain('rootMargin: "400px 0px"');
+  expect(dashboardSource).toContain("catalogObserver.observe");
+  expect(dashboardSource).toContain('fetch(`/api/models/${encodeURIComponent(id)}.json`');
+  expect(dashboardSource).not.toContain(
+    'fetch(`/api/models/${encodeURIComponent(id)}.json`, {',
+  );
+  expect(dashboardSource).toContain("registerDrawerModels(model ? [model] : [])");
+  expect(dashboardSource).not.toContain('fetch("/api/models.json", { cache: "force-cache" })');
 });
 
 test("the task workbench keeps transparent controls, shortlist columns, and reset affordances in source", () => {
