@@ -1,8 +1,8 @@
 # AI Stats production migration runbook
 
-This runbook applies the additive normalized intelligence layer in `supabase/model_intelligence_foundation.sql` and backfills it with `scripts/sync-intelligence-data.mjs`. It does not replace or rewrite the existing Artificial Analysis, Epoch, OpenRouter, or snapshot tables.
+This runbook applies the versioned additive normalized intelligence migrations in `supabase/migrations/` and backfills them with `scripts/build-intelligence-input.mjs` and `scripts/sync-intelligence-data.mjs`. It does not replace or rewrite the existing Artificial Analysis, Epoch, OpenRouter, or snapshot tables.
 
-The expected project reference from the renovation plan is `bgbqdzmgxkwstjihgeef`. Treat that value as unverified until the signed-in Supabase dashboard shows the AI Stats project name, reference, organization, region, and production branch together. Never substitute the AI News project or infer the target from an environment file.
+The production target is the `Ai-dex` Supabase project with reference `bgbqdzmgxkwstjihgeef`. Confirm the signed-in dashboard still shows that project, organization, region, and production branch together before every production operation. Never substitute the AI News project or infer the target from an environment file.
 
 ## Preconditions
 
@@ -49,14 +49,19 @@ order by tablename, policyname;
 
 Record legacy counts without assuming every optional table exists. Use the dashboard table editor or guarded `to_regclass` checks before querying an optional relation.
 
-## Apply the additive foundation
+## Apply the versioned migrations
 
-1. Open `supabase/model_intelligence_foundation.sql` from the same release revision that passed verification.
-2. Review the SQL Editor target banner again before execution.
-3. Run the complete migration as one transaction. Save the Supabase query receipt, timestamp, executing role, and success result.
-4. Do not continue if the transaction rolls back, any existing object has an incompatible shape, or a grant/policy statement fails.
+Apply these files in order from the same release revision that passed verification:
 
-The migration must only add or replace the normalized intelligence objects. It must not drop or alter the legacy source tables.
+1. `20260901000100_model_intelligence_foundation.sql`
+2. `20260901000200_backfill_legacy_intelligence.sql`
+3. `20260901000300_register_intelligence_migrations.sql`
+4. `20260901155807_reconcile_source_native_observation_keys.sql`
+5. `20260901170000_harden_cron_secrets_and_extensions.sql`
+
+Review the project target before execution and retain the migration receipt. Stop if a transaction rolls back, an existing object has an incompatible shape, or any constraint, grant, policy, or reconciliation assertion fails.
+
+The migrations must not drop, truncate, or remove rows from legacy source tables. Approved legacy mutations are limited to restoring missing Epoch model linkage and removing redundant public-read policies after equivalent select access is verified.
 
 ## Verify schema and access controls
 
@@ -86,11 +91,15 @@ Re-run the RLS, policy, and grant inventory. Verify these invariants:
 
 Use an anonymous client request to read each public view and attempt a harmless write that must be denied. Do not use a production record as the write target.
 
-## Dry run and backfill
+## Build, dry run, and sync
 
-Build the intelligence payload without credentials or a database write first. The input bundle must contain the validated `aa`, `epoch`, `openrouter`, and `polibench` source objects exercised by `scripts/sync-intelligence-data.test.ts`; store it outside the repository and record its digest in the change receipt.
+Build the intelligence payload into a private file outside the repository. The builder reads Artificial Analysis from the verified production project, uses the checked Epoch and PoliBench snapshots, and fetches the current OpenRouter public catalog. It deduplicates Artificial Analysis by source slug using the same freshness ordering as the production backfill.
 
 ```sh
+SUPABASE_URL=https://bgbqdzmgxkwstjihgeef.supabase.co \
+SUPABASE_SERVICE_ROLE_KEY=REDACTED \
+bun run build:intelligence-input -- --output /secure/path/intelligence-input.json
+
 bun run sync:intelligence -- --input /secure/path/intelligence-input.json --dry-run
 ```
 
@@ -105,6 +114,8 @@ bun run sync:intelligence -- --input /secure/path/intelligence-input.json
 ```
 
 Set the real key through a secure environment mechanism rather than entering the literal `REDACTED` placeholder. Save the sanitized command shape, exit status, ingestion run ID, and per-source row counts.
+
+Use a short-lived secret key for a manual production sync. Revoke it after the post-sync readback and access-control probes pass. Remove the generated input file and clear any clipboard copy after revocation.
 
 ## Post-backfill readback
 
@@ -128,6 +139,8 @@ order by source_key;
 ```
 
 Verify the latest private ingestion run is `succeeded`, has a non-null `finished_at`, and has source-run rows whose read/write totals match the sanitized CLI receipt. A successful SQL transaction without these operational receipts is not a completed migration.
+
+Verify source-native observation identities after every legacy backfill or source sync. Artificial Analysis keys must use a UTC millisecond timestamp ending in `Z`. Epoch keys must use `epoch_run_id` when it is present. Equivalent rows with the older PostgreSQL timestamp string or internal UUID key are a failed migration state.
 
 Re-run all legacy table counts and compare them with the pre-change receipt. Any unexpected legacy count change is a stop condition.
 
@@ -153,3 +166,17 @@ Prefer a forward correction when data is valid and only presentation needs adjus
 ## Completion receipt
 
 The production migration is complete only when the change record contains the verified project identity, backup receipt, release SHA, migration receipt, dry-run receipt, successful ingestion run and source-run IDs, post-change counts, RLS/grant readback, anonymous read/write probes, legacy invariants, and rendered production checks. Without those receipts, report the migration as pending or partial.
+
+## Verified production receipt, 2026-09-01
+
+- Applied migrations: `20260901000100`, `20260901000200`, `20260901000300`, `20260901155807`, and `20260901170000`.
+- Source sync: succeeded as ingestion run `2`; all four source runs succeeded with no error summary.
+- Current source coverage: Artificial Analysis 659 models, Epoch AI 606 current-snapshot models and 3,375 observations, OpenRouter 565 models, and PoliBench 103 models with 110 runs.
+- Normalized totals: 1,938 canonical models, 1,938 aliases, 85 benchmark definitions, 85 benchmark versions, 9,736 observations, and one PoliBench snapshot.
+- Observation totals by source: Artificial Analysis 4,435, Epoch AI 3,447 including 72 retained legacy-only observations, and PoliBench 1,854.
+- Integrity checks: zero unlinked Epoch legacy runs, zero noncanonical Artificial Analysis keys, and zero legacy Epoch UUID observation keys where a source-native run ID exists.
+- Anonymous probes: public source-freshness read returned `200`; normalized table write and ingestion RPC returned `401`; private-schema read returned `406`.
+- The one-time `codex_ai_stats_sync_20260901` secret key was deleted after verification and the clipboard was cleared.
+- The Artificial Analysis cron authorization value now lives in Supabase Vault. The cron command contains no plaintext JWT, references the named Vault secret, and returned HTTP `200` in a production invocation.
+- The non-relocatable `http` and `pg_net` extensions were transactionally recreated with `extensions` as their owning schema after the `pg_net` queue was verified empty. Both extension surfaces passed post-change checks.
+- The remaining advisor warning is the Supabase-managed PostgreSQL patch level. A platform upgrade remains gated on a verified recovery point because this free project has no confirmed backup receipt.

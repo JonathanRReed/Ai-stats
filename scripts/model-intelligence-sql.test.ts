@@ -6,7 +6,23 @@ import path from "node:path";
 
 const migrationPath = path.join(
   process.cwd(),
-  "supabase/model_intelligence_foundation.sql",
+  "supabase/migrations/20260901000100_model_intelligence_foundation.sql",
+);
+const legacyBackfillPath = path.join(
+  process.cwd(),
+  "supabase/migrations/20260901000200_backfill_legacy_intelligence.sql",
+);
+const historyPath = path.join(
+  process.cwd(),
+  "supabase/migrations/20260901000300_register_intelligence_migrations.sql",
+);
+const reconciliationPath = path.join(
+  process.cwd(),
+  "supabase/migrations/20260901155807_reconcile_source_native_observation_keys.sql",
+);
+const backendHardeningPath = path.join(
+  process.cwd(),
+  "supabase/migrations/20260901170000_harden_cron_secrets_and_extensions.sql",
 );
 
 const requiredPublicTables = [
@@ -144,4 +160,70 @@ test("the intelligence migration is additive, constrained, indexed, and read-onl
       new RegExp(`(?:alter|drop|delete\\s+from|truncate)(?: table)?(?: if exists)? public\\.${legacyObject}\\b`),
     );
   }
+});
+
+test("the legacy intelligence backfill preserves source rows and proves complete source-native coverage", async () => {
+  const sql = normalizeSql(await readFile(legacyBackfillPath, "utf8"));
+
+  expect(sql).not.toMatch(/\b(delete from|truncate)\b/);
+  expect(sql).not.toMatch(/\bdrop\s+(table|schema|view|function)\b/);
+  expect(sql).toContain("insert into public.epoch_models");
+  expect(sql).toContain("update public.epoch_benchmark_runs as run");
+  expect(sql).toContain("insert into public.intelligence_sources");
+  expect(sql).toContain("insert into public.canonical_models");
+  expect(sql).toContain("insert into public.model_aliases");
+  expect(sql).toContain("insert into public.benchmark_definitions");
+  expect(sql).toContain("insert into public.benchmark_versions");
+  expect(sql).toContain("insert into public.benchmark_observations");
+  expect(sql).toContain("insert into private.ingestion_runs");
+  expect(sql).toContain("insert into private.ingestion_source_runs");
+  expect(sql).toContain("epoch benchmark runs remain unlinked after the generic repair");
+  expect(sql).toContain("artificial analysis source-native alias coverage is incomplete");
+  expect(sql).toContain("epoch ai source-native alias coverage is incomplete");
+  expect(sql).toContain('drop policy if exists "public read models" on public.aa_models');
+  expect(sql).toContain('drop policy if exists "allow public read epoch_models"');
+  expect(sql).not.toContain("where slug in (");
+});
+
+test("the dashboard-applied intelligence migrations are registered in order", async () => {
+  const sql = normalizeSql(await readFile(historyPath, "utf8"));
+  expect(sql).toContain("insert into supabase_migrations.schema_migrations");
+  expect(sql).toContain("'20260901000100'");
+  expect(sql).toContain("'20260901000200'");
+  expect(sql).toContain("'20260901000300'");
+  expect(sql).toContain("on conflict (version) do update set");
+});
+
+test("source-native observation reconciliation keeps one stable identity per record", async () => {
+  const sql = normalizeSql(await readFile(reconciliationPath, "utf8"));
+
+  expect(sql).toContain("'yyyy-mm-dd\"t\"hh24:mi:ss.ms\"z\"'");
+  expect(sql).toContain("'epoch-ai:' || coalesce(nullif(btrim(run.epoch_run_id), ''), run.id::text)");
+  expect(sql).toContain("join public.benchmark_observations as canonical");
+  expect(sql).toContain("canonical.id <> keys.id");
+  expect(sql).toContain("source-native observation reconciliation failed");
+  expect(sql).not.toMatch(/\btruncate\b/);
+  expect(sql).not.toMatch(/\bdrop\s+(table|schema|view|function)\b/);
+});
+
+test("backend hardening removes plaintext cron credentials and public extension ownership", async () => {
+  const sql = normalizeSql(await readFile(backendHardeningPath, "utf8"));
+
+  expect(sql).toContain("vault.create_secret");
+  expect(sql).toContain("vault.update_secret");
+  expect(sql).toContain("vault.decrypted_secrets");
+  expect(sql).toContain("ai-stats-ingest-service-role");
+  expect(sql).toContain("authorization");
+  expect(sql).toContain("bearer ' ||");
+  expect(sql).toContain("from vault.decrypted_secrets");
+  expect(sql).toContain("cron.alter_job(target_job_id, command := replacement_command)");
+  expect(sql).not.toContain("update cron.job set command");
+  expect(sql).toContain("select count(*) into queued_requests from net.http_request_queue");
+  expect(sql).toContain("drop extension pg_net");
+  expect(sql).toContain("create extension pg_net with schema extensions");
+  expect(sql).toContain("drop extension http");
+  expect(sql).toContain("create extension http with schema extensions");
+  expect(sql).toContain("raise exception 'cron credential migration failed'");
+  expect(sql).toContain("raise exception 'pg_net request queue must be empty before relocation'");
+  expect(sql).not.toMatch(/eyj[a-z0-9_-]+\.[a-z0-9_-]+\.[a-z0-9_-]+/i);
 });
