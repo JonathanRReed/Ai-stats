@@ -646,9 +646,18 @@ const workbenchPayloadJson = JSON.stringify({
       letter-spacing: 0.08em;
       text-transform: uppercase;
     }
-    .candidate-cell { grid-column: 1 / -1; }
-    .candidate-cell::before { position: absolute; }
-    .candidate-cell .candidate-mark { margin-top: 1.35rem; }
+    .candidate-cell {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      column-gap: 0.85rem;
+      row-gap: 0.45rem;
+    }
+    .candidate-cell::before {
+      grid-column: 1 / -1;
+      margin-bottom: 0;
+    }
+    .candidate-cell .candidate-mark { margin-top: 0.4rem; }
     .missing-evidence { grid-column: 1 / -1; margin: 0 0.8rem 0.65rem; }
     .weights-disclosure { grid-template-columns: 1fr; }
   }
