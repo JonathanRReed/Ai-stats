@@ -18,6 +18,8 @@ import {
   hasFiniteMetricValue,
   parseFiniteMetricValue,
 } from '../../lib/metric-values';
+import { selectBenchmarkSnapshotModels } from '../../lib/model-spotlight';
+import type { AaModel } from '../../lib/supabase';
 
 type CompareModelRecord = Record<string, unknown>;
 type EpochDemoModel = {
@@ -285,6 +287,14 @@ export const GET: APIRoute = async () => {
 
   const epochDemoModels = validModels.length > 0 ? [] : buildEpochCompareDemoModels();
   const compareModels = validModels.length > 0 ? validModels : epochDemoModels;
+  const curatedDefaultModels = selectBenchmarkSnapshotModels(
+    models as AaModel[],
+    3,
+  );
+  const defaultModelIds = (curatedDefaultModels.length
+    ? curatedDefaultModels
+    : validModels.slice(0, 3)
+  ).map((model) => model.id);
   const scoreEntries = Object.entries(epochScoresByModel);
   const initialClientEpochScores: Record<string, Record<string, number>> = {};
 
@@ -306,6 +316,7 @@ export const GET: APIRoute = async () => {
   return new Response(
     JSON.stringify({
       validModels: validModels.map(compactCompareModelForClient),
+      defaultModelIds,
       epochDemoModels: epochDemoModels.map(compactCompareModelForClient),
       epochScoresByModel: initialClientEpochScores,
       availableBenchmarks,

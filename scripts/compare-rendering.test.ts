@@ -51,10 +51,13 @@ test("illustrative Epoch fallback is labeled and never selected as a source-back
   expect(source).toContain("Illustrative fallback");
   expect(source).toContain("price estimates are synthetic");
   expect(source).toContain(
-    "const selectedModels = validModels.length > 0 ? validModels.slice(0, 3) : [];",
+    "const curatedSelectedModels = selectBenchmarkSnapshotModels(validModels, 3);",
   );
   expect(source).toContain(
-    "const selected = new Set(usingIllustrativeFallback ? [] : modelsState.slice(0, 3).map((m) => m.id));",
+    "const selectedModels = validModels.length > 0",
+  );
+  expect(source).toContain(
+    "usingIllustrativeFallback\n        ? []",
   );
   expect(initialApiSource).toContain("validModels: validModels.map(compactCompareModelForClient)");
   expect(initialApiSource).toContain("isIllustrativeFallback: true");

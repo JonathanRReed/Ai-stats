@@ -29,9 +29,9 @@ test("the model snapshot explains its evidence filter and links into comparison"
   expect(latestModelsSource).toContain("<h1");
   expect(latestModelsSource).toContain("Current benchmark snapshot");
   expect(latestModelsSource).toContain("One current, fully measured model per provider");
-  expect(latestModelsSource).toContain("ordered by evidence coverage");
-  expect(latestModelsSource).toContain("then AA Intelligence Index");
-  expect(latestModelsSource).toContain("Last observed");
+  expect(latestModelsSource).toContain("ordered by AA Intelligence Index");
+  expect(latestModelsSource).toContain("then evidence coverage");
+  expect(latestModelsSource).toContain("First tracked");
   expect(latestModelsSource).toContain("not a recommendation");
   expect(latestModelsSource).toContain('href={`/compare?model=${encodeURIComponent(model.name ?? model.id)}`}');
   expect(latestModelsSource).not.toContain("latest-model-order");
@@ -130,7 +130,7 @@ test("the intelligence overview keeps the quality-price plot, coverage bars, and
   expect(overviewSource).toContain("Other models");
   expect(overviewSource).not.toContain("Top pick");
   expect(overviewSource).not.toContain("Coding preset leader");
-  expect(overviewSource).toContain('role="img"');
+  expect(overviewSource).toContain('role="group"');
   expect(overviewSource).toContain('aria-label="Quality and price data table"');
   expect(overviewSource).toContain("<progress");
   expect(overviewSource).toContain("Artificial Analysis Intelligence Index");
@@ -138,6 +138,19 @@ test("the intelligence overview keeps the quality-price plot, coverage bars, and
   expect(overviewSource).toContain("PoliBench coverage is source-native");
   expect(overviewSource).toContain('href="/about"');
   expect(overviewSource).not.toContain('href="/methodology"');
+});
+
+test("the intelligence plot supports inspection, filtering, and the complete evidence table", () => {
+  expect(overviewSource).toContain('id="plot-provider"');
+  expect(overviewSource).toContain('id="plot-search"');
+  expect(overviewSource).toContain('id="plot-frontier-only"');
+  expect(overviewSource).toContain('aria-live="polite"');
+  expect(overviewSource).toContain('data-plot-point');
+  expect(overviewSource).toContain('role="button"');
+  expect(overviewSource).toContain("ArrowRight");
+  expect(overviewSource).toContain("How to read");
+  expect(overviewSource).toContain("Complete quality and price data");
+  expect(overviewSource).not.toContain(".slice(0, 12)");
 });
 
 test("the homepage components preserve non-color state labels and reduced-motion behavior", () => {

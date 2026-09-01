@@ -27,8 +27,8 @@ const formatTrackedDate = (value: string | null | undefined): string => {
       <h1>Current benchmark snapshot</h1>
     </div>
     <p>
-      One current, fully measured model per provider, ordered by evidence coverage,
-      then AA Intelligence Index. Every row needs a recent observation receipt,
+      One current, fully measured model per provider, ordered by AA Intelligence Index,
+      then evidence coverage. Every row needs a recent observation receipt,
       positive pricing, and measured speed. This is a factual snapshot, not a recommendation.
     </p>
   </header>
@@ -40,9 +40,11 @@ const formatTrackedDate = (value: string | null | undefined): string => {
           <li>
             <a href={`/compare?model=${encodeURIComponent(model.name ?? model.id)}`}>
               <span class="latest-model-date">
-                Last observed <time datetime={model.last_seen}>{formatTrackedDate(model.last_seen)}</time>
+                First tracked <time datetime={model.first_seen}>{formatTrackedDate(model.first_seen)}</time>
+                <span aria-hidden="true"> · </span>
+                last observed <time datetime={model.last_seen}>{formatTrackedDate(model.last_seen)}</time>
               </span>
-              <strong>{model.name}</strong>
+              <strong title={model.name ?? model.id}>{model.name}</strong>
               <span class="latest-model-provider">
                 {model.company_name ?? model.creator_name ?? "Unknown provider"}
               </span>
@@ -182,19 +184,17 @@ const formatTrackedDate = (value: string | null | undefined): string => {
     text-transform: uppercase;
   }
 
-  .latest-model-grid strong,
   .latest-model-provider,
   .latest-model-date {
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
   }
 
   .latest-model-grid strong {
     color: var(--text);
     font-size: 0.98rem;
     line-height: 1.2;
+    overflow-wrap: anywhere;
   }
 
   .latest-model-provider {

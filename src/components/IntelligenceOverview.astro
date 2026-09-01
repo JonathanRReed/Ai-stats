@@ -45,8 +45,6 @@ const frontier = buildParetoFrontier(qualityPriceModels, {
 const frontierIds = new Set(frontier.map((model) => model.id));
 const qualityValues = qualityPriceModels.map((model) => Number(model.metrics.aa_intelligence_index));
 const priceValues = qualityPriceModels.map((model) => Number(model.metrics.price_1m_blended_3_to_1));
-const qualityMin = qualityValues.length ? Math.min(...qualityValues) : 0;
-const qualityMax = qualityValues.length ? Math.max(...qualityValues) : 100;
 const priceMin = priceValues.length ? Math.min(...priceValues) : 0.01;
 const priceMax = priceValues.length ? Math.max(...priceValues) : 100;
 const logMin = Math.log10(Math.max(priceMin, 0.001));
@@ -58,16 +56,19 @@ const chartBottom = 286;
 const scaleX = (price: number): number =>
   chartLeft + ((Math.log10(Math.max(price, 0.001)) - logMin) / Math.max(logMax - logMin, 0.01)) * (chartRight - chartLeft);
 const scaleY = (quality: number): number =>
-  chartBottom - ((quality - qualityMin) / Math.max(qualityMax - qualityMin, 1)) * (chartBottom - chartTop);
+  chartBottom - (Math.max(0, Math.min(100, quality)) / 100) * (chartBottom - chartTop);
 const priceTicks = [0.01, 0.1, 1, 10, 100].filter(
   (tick) => tick >= priceMin * 0.8 && tick <= priceMax * 1.2,
 );
-const qualityTicks = [0, 25, 50, 75, 100].filter(
-  (tick) => tick >= qualityMin - 5 && tick <= qualityMax + 5,
-);
+const qualityTicks = [0, 25, 50, 75, 100];
 const chartRows = [...qualityPriceModels]
-  .sort((a, b) => Number(b.metrics.aa_intelligence_index) - Number(a.metrics.aa_intelligence_index))
-  .slice(0, 12);
+  .sort((a, b) => Number(b.metrics.aa_intelligence_index) - Number(a.metrics.aa_intelligence_index));
+const chartSourceModels = new Map(models.map((model) => [model.id, model]));
+const providerOptions = [...new Set(
+  qualityPriceModels
+    .map((model) => chartSourceModels.get(model.id)?.company_name ?? chartSourceModels.get(model.id)?.creator_name ?? "Unknown provider")
+    .filter(Boolean),
+)].sort((a, b) => a.localeCompare(b));
 
 const aaIntelligenceCount = models.filter((model) => hasFiniteMetricValue(model.aa_intelligence_index)).length;
 const aaCodingCount = models.filter(
@@ -78,11 +79,11 @@ const simpleBenchRuns = epochRuns.filter((run) =>
   String(run.benchmark_slug ?? run.benchmark_name ?? "").toLowerCase().includes("simplebench"),
 );
 const coverageRows = [
-  { label: "AA intelligence evidence", value: aaIntelligenceCount, max: Math.max(models.length, 1), detail: `${aaIntelligenceCount} / ${models.length} priced models` },
-  { label: "AA coding evidence", value: aaCodingCount, max: Math.max(models.length, 1), detail: `${aaCodingCount} / ${models.length} priced models` },
-  { label: "Epoch model coverage", value: epochModelVersions.size, max: Math.max(epochModels.length, 1), detail: `${epochModelVersions.size} / ${epochModels.length} models` },
-  { label: "SimpleBench observations", value: simpleBenchRuns.length, max: Math.max(epochRuns.length, 1), detail: `${simpleBenchRuns.length} / ${epochRuns.length} Epoch runs` },
-  { label: "PoliBench operational evidence", value: polibench?.counts.models ?? 0, max: Math.max(polibench?.counts.models ?? 0, 1), detail: polibench ? `${polibench.counts.models} models / ${polibench.counts.runs} runs` : "No checked snapshot" },
+  { label: "AA intelligence evidence", value: aaIntelligenceCount, max: Math.max(models.length, 1), detail: `${aaIntelligenceCount} / ${models.length} priced models`, showProgress: true },
+  { label: "AA coding evidence", value: aaCodingCount, max: Math.max(models.length, 1), detail: `${aaCodingCount} / ${models.length} priced models`, showProgress: true },
+  { label: "Epoch model coverage", value: epochModelVersions.size, max: Math.max(epochModels.length, 1), detail: `${epochModelVersions.size} / ${epochModels.length} models`, showProgress: true },
+  { label: "SimpleBench observations", value: simpleBenchRuns.length, max: 0, detail: `${simpleBenchRuns.length.toLocaleString("en-US")} recorded observations`, showProgress: false },
+  { label: "PoliBench operational evidence", value: polibench?.counts.models ?? 0, max: 0, detail: polibench ? `${polibench.counts.models} models / ${polibench.counts.runs} runs` : "No checked snapshot", showProgress: false },
 ];
 
 const recentSources = [...freshness.sources]
@@ -116,7 +117,7 @@ const money = (value: number | null | undefined): string =>
     </article>
     <article>
       <span>AA intelligence span</span>
-      <strong>{qualityValues.length ? `${qualityMin.toFixed(1)}–${qualityMax.toFixed(1)}` : "No observations"}</strong>
+      <strong>{qualityValues.length ? `${Math.min(...qualityValues).toFixed(1)}–${Math.max(...qualityValues).toFixed(1)}` : "No observations"}</strong>
       <p>{qualityValues.length} current index observations.</p>
     </article>
     <article>
@@ -135,12 +136,31 @@ const money = (value: number | null | undefined): string =>
     <figure class="quality-price">
       <figcaption>
         <span>Quality vs. price</span>
-        <p>Artificial Analysis Intelligence Index against blended price. Log price scale.</p>
+        <p>Artificial Analysis Intelligence Index against blended price. Log price scale. Select a point for exact values.</p>
       </figcaption>
+      <div class="plot-controls" aria-label="Filter quality and price plot">
+        <label>
+          <span>Provider</span>
+          <select id="plot-provider">
+            <option value="">All providers</option>
+            {providerOptions.map((provider) => <option value={provider}>{provider}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Find a model</span>
+          <input id="plot-search" type="search" placeholder="Search names" autocomplete="off" />
+        </label>
+        <label class="plot-check">
+          <input id="plot-frontier-only" type="checkbox" />
+          <span>Frontier only</span>
+        </label>
+      </div>
+      <p id="plot-status" class="plot-status" aria-live="polite">Showing {qualityPriceModels.length} measured models.</p>
       {qualityPriceModels.length ? (
-        <svg viewBox="0 0 640 340" role="img" aria-labelledby="quality-price-title quality-price-desc">
+        <div class="plot-stage" role="region" aria-label="Scrollable quality and price plot">
+        <svg viewBox="0 0 640 340" role="group" aria-labelledby="quality-price-title quality-price-desc">
           <title id="quality-price-title">Quality versus price for models with comparable Artificial Analysis data</title>
-          <desc id="quality-price-desc">Each point is a model. Horizontal position is blended US dollar price per one million tokens on a logarithmic scale. Vertical position is the Artificial Analysis Intelligence Index. Copper points are on the price-quality Pareto frontier.</desc>
+          <desc id="quality-price-desc">Each point is a model. Horizontal position is blended US dollar price per one million tokens on a logarithmic scale. Vertical position is the Artificial Analysis Intelligence Index from 0 to 100. Copper points are on the price-quality Pareto frontier.</desc>
           <rect x={chartLeft} y={chartTop} width={chartRight - chartLeft} height={chartBottom - chartTop} class="chart-frame" />
           {qualityTicks.map((tick) => (
             <g>
@@ -154,37 +174,63 @@ const money = (value: number | null | undefined): string =>
               <text x={scaleX(tick)} y={chartBottom + 20} text-anchor="middle">${tick}</text>
             </g>
           ))}
-          {qualityPriceModels.map((model) => {
+          {qualityPriceModels.map((model, index) => {
             const isFrontier = frontierIds.has(model.id);
+            const sourceModel = chartSourceModels.get(model.id);
+            const provider = sourceModel?.company_name ?? sourceModel?.creator_name ?? "Unknown provider";
+            const quality = Number(model.metrics.aa_intelligence_index);
+            const price = Number(model.metrics.price_1m_blended_3_to_1);
             return (
-              <circle
-                cx={scaleX(Number(model.metrics.price_1m_blended_3_to_1))}
-                cy={scaleY(Number(model.metrics.aa_intelligence_index))}
-                r={isFrontier ? 4.2 : 2.8}
-                class={isFrontier ? "plot-frontier" : "plot-other"}
+              <g
+                data-plot-point
+                data-model-id={model.id}
+                data-model-name={model.label ?? model.id}
+                data-provider={provider}
+                data-frontier={isFrontier ? "true" : "false"}
+                data-quality={quality}
+                data-price={price}
+                data-first-tracked={sourceModel?.first_seen ?? ""}
+                data-last-observed={sourceModel?.last_seen ?? ""}
+                tabindex={index === 0 ? 0 : -1}
+                role="button"
+                aria-label={`${model.label ?? model.id}, ${provider}, intelligence index ${quality.toFixed(1)}, ${money(price)} per 1M tokens${isFrontier ? ", price-quality frontier" : ""}`}
               >
-                <title>{model.label ?? model.id}: index {Number(model.metrics.aa_intelligence_index).toFixed(1)}, {money(Number(model.metrics.price_1m_blended_3_to_1))} per 1M tokens</title>
-              </circle>
+                <circle
+                  cx={scaleX(price)}
+                  cy={scaleY(quality)}
+                  r={isFrontier ? 4.2 : 2.8}
+                  class={isFrontier ? "plot-frontier" : "plot-other"}
+                />
+                <circle cx={scaleX(price)} cy={scaleY(quality)} r="10" class="plot-hit-area" aria-hidden="true" />
+                <title>{model.label ?? model.id}: index {quality.toFixed(1)}, {money(price)} per 1M tokens</title>
+              </g>
             );
           })}
           <text x={(chartLeft + chartRight) / 2} y="330" text-anchor="middle" class="axis-title">Blended price, USD per 1M tokens</text>
           <text transform="translate(14 190) rotate(-90)" text-anchor="middle" class="axis-title">Artificial Analysis Intelligence Index</text>
         </svg>
+        </div>
       ) : (
         <p class="chart-empty">Quality and price observations are unavailable in this build.</p>
       )}
+      <aside id="plot-inspector" class="plot-inspector" aria-live="polite" aria-label="Selected model details">
+        <strong id="plot-inspector-name">Select a point</strong>
+        <span id="plot-inspector-values">Use click, touch, or arrow keys to inspect exact values.</span>
+        <a id="plot-inspector-link" href="/compare">Compare selected model</a>
+      </aside>
       <div class="plot-legend" aria-label="Chart legend">
         <span><i class="frontier-swatch" /> Price-quality frontier</span>
         <span><i class="other-swatch" /> Other models</span>
       </div>
+      <p class="plot-how-to-read"><strong>How to read:</strong> higher points have a higher measured AA index. Moving left means a lower blended token price. Frontier points are not recommendations, they are models for which no measured model is both cheaper and higher-index.</p>
       <details>
-        <summary>Quality and price data table</summary>
+        <summary>Complete quality and price data</summary>
         <div class="table-scroll">
           <table aria-label="Quality and price data table">
             <thead><tr><th scope="col">Model</th><th scope="col">Intelligence Index</th><th scope="col">Blended USD / 1M</th><th scope="col">Pareto frontier</th></tr></thead>
             <tbody>
               {chartRows.map((model) => (
-                <tr>
+                <tr data-plot-row data-model-id={model.id} data-model-name={model.label ?? model.id} data-provider={chartSourceModels.get(model.id)?.company_name ?? chartSourceModels.get(model.id)?.creator_name ?? "Unknown provider"} data-frontier={frontierIds.has(model.id) ? "true" : "false"}>
                   <th scope="row">{model.label ?? model.id}</th>
                   <td>{Number(model.metrics.aa_intelligence_index).toFixed(1)}</td>
                   <td>{money(Number(model.metrics.price_1m_blended_3_to_1))}</td>
@@ -203,7 +249,7 @@ const money = (value: number | null | undefined): string =>
         {coverageRows.map((row) => (
           <div>
             <div><span>{row.label}</span><b>{row.detail}</b></div>
-            <progress value={row.value} max={row.max}>{row.value} of {row.max}</progress>
+            {row.showProgress ? <progress value={row.value} max={row.max} aria-label={`${row.label}: ${row.detail}`}>{row.value} of {row.max}</progress> : <p class="coverage-source-note">Source-native count, not a cross-source percentage.</p>}
           </div>
         ))}
       </div>
@@ -287,7 +333,7 @@ const money = (value: number | null | undefined): string =>
     line-height: 1.15;
     overflow-wrap: anywhere;
   }
-  .overview-facts p { margin-top: 0.55rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.66rem; line-height: 1.45; }
+  .overview-facts p { margin-top: 0.55rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.7rem; line-height: 1.45; }
   .overview-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(15rem, 0.8fr) minmax(15rem, 0.9fr); }
   .overview-grid > * { min-width: 0; padding: 1rem; border-right: 1px solid var(--intelligence-grid); }
   .overview-grid > *:last-child { border-right: 0; }
@@ -295,22 +341,46 @@ const money = (value: number | null | undefined): string =>
   .quality-price figcaption p,
   .coverage-panel header p,
   .changes-panel header p { margin-top: 0.3rem; color: var(--muted); font-size: 0.7rem; }
-  .quality-price svg { display: block; width: 100%; height: auto; margin-top: 0.7rem; overflow: visible; }
-  .quality-price svg text { fill: var(--muted); font-family: var(--font-mono); font-size: 10px; }
+  .plot-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 0.6rem; margin-top: 0.9rem; }
+  .plot-controls label { display: grid; gap: 0.28rem; min-width: 9rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.7rem; }
+  .plot-controls select,
+  .plot-controls input[type="search"] { min-height: 2.25rem; border: 1px solid var(--intelligence-grid); border-radius: 0; background: var(--intelligence-surface); padding: 0.45rem 0.55rem; color: var(--text); font: inherit; }
+  .plot-controls select:focus-visible,
+  .plot-controls input:focus-visible { outline: 2px solid var(--intelligence-copper); outline-offset: 2px; }
+  .plot-check { display: flex !important; grid-template-columns: auto 1fr; align-items: center; min-width: auto !important; gap: 0.45rem !important; min-height: 2.25rem; }
+  .plot-check input { width: 1rem; height: 1rem; accent-color: var(--intelligence-copper); }
+  .plot-status { margin-top: 0.65rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.7rem; }
+  .plot-stage { overflow-x: auto; margin-top: 0.25rem; padding: 0.1rem 0.1rem 0.35rem; }
+  .quality-price svg { display: block; width: 100%; min-width: 38rem; height: auto; margin-top: 0.7rem; overflow: visible; }
+  .quality-price svg text { fill: var(--muted); font-family: var(--font-mono); font-size: 11px; }
   .chart-frame { fill: transparent; stroke: var(--intelligence-grid); }
   .chart-gridline { stroke: var(--intelligence-grid); stroke-width: 1; }
   .plot-other { fill: color-mix(in srgb, var(--intelligence-blue) 42%, transparent); }
   .plot-frontier { fill: var(--intelligence-copper); stroke: var(--text); stroke-width: 0.8; }
-  .quality-price .axis-title { fill: var(--subtle); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; }
-  .plot-legend { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0.2rem 0 0.8rem 2.8rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.65rem; }
+  .plot-hit-area { fill: transparent; pointer-events: all; }
+  [data-plot-point] { cursor: pointer; outline: none; }
+  [data-plot-point]:focus-visible .plot-other,
+  [data-plot-point]:focus-visible .plot-frontier,
+  [data-plot-point].is-selected .plot-other,
+  [data-plot-point].is-selected .plot-frontier { stroke: var(--text); stroke-width: 2; }
+  [data-plot-point].is-filtered,
+  [data-plot-row].is-filtered { display: none; }
+  .plot-inspector { display: grid; gap: 0.25rem; min-height: 3.3rem; margin: 0.7rem 0 0.8rem; border-left: 2px solid var(--intelligence-copper); background: color-mix(in srgb, var(--intelligence-copper) 7%, transparent); padding: 0.65rem 0.75rem; }
+  .plot-inspector strong { color: var(--text); font-size: 0.78rem; }
+  .plot-inspector span { color: var(--muted); font-family: var(--font-mono); font-size: 0.7rem; line-height: 1.45; }
+  .plot-inspector a { width: fit-content; min-height: 2.25rem; padding-top: 0.55rem; color: var(--intelligence-copper); font-family: var(--font-mono); font-size: 0.7rem; text-underline-offset: 4px; }
+  .plot-inspector a:hover,
+  .plot-inspector a:focus-visible { color: var(--text); }
+  .quality-price .axis-title { fill: var(--subtle); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; }
+  .plot-legend { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0.2rem 0 0.8rem 2.8rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.7rem; }
   .plot-legend span { display: flex; align-items: center; gap: 0.4rem; }
   .plot-legend i { width: 0.55rem; height: 0.55rem; border-radius: 50%; }
   .frontier-swatch { background: var(--intelligence-copper); }
   .other-swatch { background: var(--intelligence-blue); }
   .quality-price details { border-top: 1px solid var(--intelligence-grid); padding-top: 0.65rem; }
-  .quality-price summary { min-height: 44px; padding: 0.7rem 0; color: var(--subtle); cursor: pointer; font-family: var(--font-mono); font-size: 0.68rem; }
+  .quality-price summary { min-height: 44px; padding: 0.7rem 0; color: var(--subtle); cursor: pointer; font-family: var(--font-mono); font-size: 0.7rem; }
   .table-scroll { overflow-x: auto; }
-  .quality-price table { width: 100%; min-width: 30rem; border-collapse: collapse; font-size: 0.67rem; }
+  .quality-price table { width: 100%; min-width: 30rem; border-collapse: collapse; font-size: 0.7rem; }
   .quality-price th,
   .quality-price td { padding: 0.5rem; border-top: 1px solid var(--intelligence-grid); text-align: left; color: var(--muted); }
   .quality-price th { color: var(--subtle); font-weight: 600; }
@@ -319,19 +389,20 @@ const money = (value: number | null | undefined): string =>
   .coverage-list { display: grid; gap: 1rem; margin-top: 1.2rem; }
   .coverage-list > div > div { display: flex; justify-content: space-between; gap: 0.7rem; margin-bottom: 0.35rem; }
   .coverage-list span { color: var(--subtle); font-size: 0.7rem; }
-  .coverage-list b { color: var(--muted); font-family: var(--font-mono); font-size: 0.62rem; font-weight: 400; text-align: right; }
+  .coverage-list b { color: var(--muted); font-family: var(--font-mono); font-size: 0.7rem; font-weight: 400; text-align: right; }
   .coverage-list progress { display: block; width: 100%; height: 0.38rem; border: 0; border-radius: 0; background: var(--intelligence-grid); accent-color: var(--intelligence-blue); }
   .coverage-list progress::-webkit-progress-bar { background: var(--intelligence-grid); }
   .coverage-list progress::-webkit-progress-value { background: var(--intelligence-blue); }
   .coverage-list progress::-moz-progress-bar { background: var(--intelligence-blue); }
-  .coverage-note { margin-top: 1.2rem; padding-top: 0.8rem; border-top: 1px solid var(--intelligence-grid); color: var(--muted); font-size: 0.67rem; line-height: 1.5; }
+  .coverage-source-note { margin: 0.3rem 0 0; color: var(--muted); font-family: var(--font-mono); font-size: 0.7rem; line-height: 1.35; }
+  .coverage-note { margin-top: 1.2rem; padding-top: 0.8rem; border-top: 1px solid var(--intelligence-grid); color: var(--muted); font-size: 0.7rem; line-height: 1.5; }
   .changes-panel ol { margin-top: 0.85rem; }
   .changes-panel li { display: grid; grid-template-columns: 4.7rem minmax(0, 1fr) auto; gap: 0.65rem; padding: 0.65rem 0; border-bottom: 1px solid var(--intelligence-grid); }
   .changes-panel time,
-  .changes-panel li b { color: var(--muted); font-family: var(--font-mono); font-size: 0.62rem; font-weight: 400; text-transform: uppercase; }
+  .changes-panel li b { color: var(--muted); font-family: var(--font-mono); font-size: 0.7rem; font-weight: 400; text-transform: uppercase; }
   .changes-panel li div { display: grid; gap: 0.18rem; }
   .changes-panel li strong { color: var(--subtle); font-size: 0.7rem; font-weight: 500; }
-  .changes-panel li span { color: var(--muted); font-size: 0.65rem; line-height: 1.35; }
+  .changes-panel li span { color: var(--muted); font-size: 0.7rem; line-height: 1.35; }
   .changes-panel > a { display: inline-block; min-height: 44px; padding-top: 1rem; }
   @media (max-width: 1050px) {
     .overview-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -351,6 +422,7 @@ const money = (value: number | null | undefined): string =>
     .overview-facts article:last-child,
     .overview-grid > *:last-child { border-bottom: 0; }
     .quality-price { grid-column: auto; }
+    .plot-controls label { flex: 1 1 8rem; }
     .changes-panel li { grid-template-columns: 4.4rem minmax(0, 1fr); }
     .changes-panel li b { grid-column: 2; }
   }
@@ -358,3 +430,108 @@ const money = (value: number | null | undefined): string =>
     .quality-price summary { scroll-behavior: auto; }
   }
 </style>
+
+<script>
+  const overview = document.querySelector<HTMLElement>(".intelligence-overview");
+  if (overview) {
+    const points = Array.from(overview.querySelectorAll<SVGGElement>("[data-plot-point]"));
+    const rows = Array.from(overview.querySelectorAll<HTMLElement>("[data-plot-row]"));
+    const provider = overview.querySelector<HTMLSelectElement>("#plot-provider");
+    const search = overview.querySelector<HTMLInputElement>("#plot-search");
+    const frontierOnly = overview.querySelector<HTMLInputElement>("#plot-frontier-only");
+    const status = overview.querySelector<HTMLElement>("#plot-status");
+    const inspectorName = overview.querySelector<HTMLElement>("#plot-inspector-name");
+    const inspectorValues = overview.querySelector<HTMLElement>("#plot-inspector-values");
+    const inspectorLink = overview.querySelector<HTMLAnchorElement>("#plot-inspector-link");
+    let selectedPoint: SVGGElement | null = null;
+
+    const formatDate = (value: string | undefined) => {
+      const parsed = new Date(value ?? "");
+      if (Number.isNaN(parsed.getTime())) return "date unavailable";
+      return new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      }).format(parsed);
+    };
+
+    const setEmptyInspector = (message: string) => {
+      selectedPoint?.classList.remove("is-selected");
+      selectedPoint = null;
+      points.forEach((candidate) => candidate.setAttribute("tabindex", "-1"));
+      if (inspectorName) inspectorName.textContent = "No model selected";
+      if (inspectorValues) inspectorValues.textContent = message;
+      if (inspectorLink) inspectorLink.hidden = true;
+    };
+
+    const setInspector = (point: SVGGElement) => {
+      selectedPoint?.classList.remove("is-selected");
+      selectedPoint = point;
+      point.classList.add("is-selected");
+      points.forEach((candidate) => candidate.setAttribute("tabindex", candidate === point ? "0" : "-1"));
+      const name = point.dataset.modelName ?? "Selected model";
+      const modelProvider = point.dataset.provider ?? "Unknown provider";
+      const quality = Number(point.dataset.quality ?? 0).toFixed(1);
+      const price = Number(point.dataset.price ?? 0);
+      const priceLabel = price < 1 ? `$${price.toFixed(3)}` : `$${price.toFixed(2)}`;
+      const frontierLabel = point.dataset.frontier === "true" ? " · Price-quality frontier" : "";
+      const dates = ` · First tracked ${formatDate(point.dataset.firstTracked)} · Last observed ${formatDate(point.dataset.lastObserved)}`;
+      if (inspectorName) inspectorName.textContent = name;
+      if (inspectorValues) inspectorValues.textContent = `${modelProvider} · Intelligence Index ${quality} · ${priceLabel} per 1M tokens${frontierLabel}${dates}`;
+      if (inspectorLink) {
+        inspectorLink.hidden = false;
+        inspectorLink.href = `/compare?model=${encodeURIComponent(name)}`;
+        inspectorLink.setAttribute("aria-label", `Compare ${name}`);
+      }
+    };
+
+    const matches = (element: HTMLElement | SVGGElement) => {
+      const providerMatch = !provider?.value || element.dataset.provider === provider.value;
+      const searchMatch = !search?.value || (element.dataset.modelName ?? "").toLowerCase().includes(search.value.toLowerCase());
+      const frontierMatch = !frontierOnly?.checked || element.dataset.frontier === "true";
+      return providerMatch && searchMatch && frontierMatch;
+    };
+
+    const applyFilters = () => {
+      let visible = 0;
+      points.forEach((point) => {
+        const visiblePoint = matches(point);
+        point.classList.toggle("is-filtered", !visiblePoint);
+        point.setAttribute("aria-hidden", visiblePoint ? "false" : "true");
+        if (visiblePoint) visible += 1;
+      });
+      rows.forEach((row) => row.classList.toggle("is-filtered", !matches(row)));
+      if (status) status.textContent = `Showing ${visible} of ${points.length} measured models.`;
+      const next = points.find((point) => !point.classList.contains("is-filtered"));
+      if (!next) setEmptyInspector("No models match the current filters.");
+      else if (!selectedPoint || selectedPoint.classList.contains("is-filtered")) setInspector(next);
+    };
+
+    points.forEach((point) => {
+      point.addEventListener("click", () => setInspector(point));
+      point.addEventListener("focus", () => setInspector(point));
+      point.addEventListener("keydown", (event) => {
+        if (!["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown", "Enter", " "].includes(event.key)) return;
+        event.preventDefault();
+        if (event.key === "Enter" || event.key === " ") {
+          setInspector(point);
+          return;
+        }
+        const direction = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
+        const visiblePoints = points.filter((candidate) => !candidate.classList.contains("is-filtered"));
+        const visibleIndex = visiblePoints.indexOf(point);
+        const next = visiblePoints[(visibleIndex + direction + visiblePoints.length) % visiblePoints.length];
+        if (next) {
+          setInspector(next);
+          next.focus();
+        }
+      });
+    });
+    provider?.addEventListener("change", applyFilters);
+    search?.addEventListener("input", applyFilters);
+    frontierOnly?.addEventListener("change", applyFilters);
+    if (points[0]) setInspector(points[0]);
+    applyFilters();
+  }
+</script>

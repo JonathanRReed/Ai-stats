@@ -111,9 +111,6 @@ export const selectBenchmarkSnapshotModels = (
   return models
     .filter((model) => isCurrentMeasuredModel(model))
     .sort((a, b) => {
-      const evidenceDifference = qualityEvidenceCount(b) - qualityEvidenceCount(a);
-      if (evidenceDifference !== 0) return evidenceDifference;
-
       const qualityDifference =
         Number(b.aa_intelligence_index ?? 0) -
         Number(a.aa_intelligence_index ?? 0);
@@ -121,6 +118,16 @@ export const selectBenchmarkSnapshotModels = (
 
       const broaderQualityDifference = qualityScore(b) - qualityScore(a);
       if (broaderQualityDifference !== 0) return broaderQualityDifference;
+
+      // Coverage is a tie-breaker, never a way for a heavily measured weak
+      // model to displace a stronger model in the first-screen snapshot.
+      const evidenceDifference = qualityEvidenceCount(b) - qualityEvidenceCount(a);
+      if (evidenceDifference !== 0) return evidenceDifference;
+
+      // first_seen is the closest available release/arrival signal. last_seen
+      // is an ingestion receipt and should only break a true tie.
+      const firstSeenDifference = toTimestamp(b.first_seen) - toTimestamp(a.first_seen);
+      if (firstSeenDifference !== 0) return firstSeenDifference;
 
       const observationDifference = toTimestamp(b.last_seen) - toTimestamp(a.last_seen);
       if (observationDifference !== 0) return observationDifference;

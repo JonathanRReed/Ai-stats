@@ -24,6 +24,7 @@ import {
   hasFiniteMetricValue,
   parseFiniteMetricValue,
 } from "../lib/metric-values";
+import { selectBenchmarkSnapshotModels } from "../lib/model-spotlight";
 
 const [baseModels, publicCatalogs, initialEpochBenchmarks, initialEpochRuns] =
   await Promise.all([
@@ -180,7 +181,10 @@ const compareModels = validModels.length > 0 ? validModels : epochDemoModels;
 const usingIllustrativeFallback =
   validModels.length === 0 && epochDemoModels.length > 0;
 
-const selectedModels = validModels.length > 0 ? validModels.slice(0, 3) : [];
+const curatedSelectedModels = selectBenchmarkSnapshotModels(validModels, 3);
+const selectedModels = validModels.length > 0
+  ? (curatedSelectedModels.length ? curatedSelectedModels : validModels.slice(0, 3))
+  : [];
 
 const weightedMetricKeys = (preset: TaskPreset): string[] =>
   Object.keys(preset.weights).filter((key) => preset.weights[key] > 0);
@@ -2760,6 +2764,7 @@ epochBenchmarksWithData.forEach((b) => {
   let availableBenchmarks = {};
   let preferredBenchmarkSlugs = [];
   let initialClientEpochScoreMetrics = {};
+  let defaultModelIds = [];
   let compareInitialDataPromise = null;
 
   const loadCompareInitialData = () => {
@@ -2784,6 +2789,9 @@ epochBenchmarksWithData.forEach((b) => {
           : [];
         initialClientEpochScoreMetrics =
           data.initialClientEpochScoreMetrics || {};
+        defaultModelIds = Array.isArray(data.defaultModelIds)
+          ? data.defaultModelIds
+          : [];
       })
       .catch((error) => {
         console.warn("Failed to load compare initial data", error);
@@ -3082,7 +3090,16 @@ epochBenchmarksWithData.forEach((b) => {
       ? [...epochDemoModels]
       : [...validModels];
     let filteredModels = [...modelsState]; // For search filtering
-    const selected = new Set(usingIllustrativeFallback ? [] : modelsState.slice(0, 3).map((m) => m.id));
+    const curatedDefaultIds = defaultModelIds.filter((id) =>
+      modelsState.some((model) => model.id === id),
+    );
+    const selected = new Set(
+      usingIllustrativeFallback
+        ? []
+        : (curatedDefaultIds.length
+            ? curatedDefaultIds
+            : modelsState.slice(0, 3).map((m) => m.id)),
+    );
     const list = document.querySelector(".model-list");
     const countEl = document.querySelector(".selected-count");
     const selectedStatEl = document.getElementById("compare-selected-count");
@@ -3607,8 +3624,13 @@ epochBenchmarksWithData.forEach((b) => {
           );
         });
       if (!matchedModel?.id) return;
-      selected.clear();
-      selected.add(matchedModel.id);
+      if (!selected.has(matchedModel.id)) {
+        if (selected.size >= 3) {
+          const lastSelected = Array.from(selected).at(-1);
+          if (lastSelected) selected.delete(lastSelected);
+        }
+        selected.add(matchedModel.id);
+      }
       if (searchInput instanceof HTMLInputElement) searchInput.value = "";
       modelDeepLinkApplied = true;
     };
@@ -4634,7 +4656,13 @@ epochBenchmarksWithData.forEach((b) => {
         if (!liveIds.has(id)) selected.delete(id);
       });
       if (selected.size === 0 && !usingIllustrativeFallback) {
-        modelsState.slice(0, 3).forEach((model) => selected.add(model.id));
+        const refreshedDefaults = defaultModelIds.filter((id) =>
+          liveIds.has(id),
+        );
+        (refreshedDefaults.length
+          ? refreshedDefaults
+          : modelsState.slice(0, 3).map((model) => model.id)
+        ).forEach((id) => selected.add(id));
       }
 
       renderModelList();

@@ -97,7 +97,7 @@ test("selectBenchmarkSnapshotModels keeps one evidence-rich measured model per p
   ]);
 });
 
-test("selectBenchmarkSnapshotModels prioritizes evidence coverage before recency", () => {
+test("selectBenchmarkSnapshotModels prioritizes observed intelligence before coverage depth", () => {
   const selected = selectBenchmarkSnapshotModels([
     model("qwen-new-sparse", "Alibaba", "2026-08-30", {
       aa_intelligence_index: 90,
@@ -109,7 +109,7 @@ test("selectBenchmarkSnapshotModels prioritizes evidence coverage before recency
     }),
   ]);
 
-  expect(selected.map((candidate) => candidate.id)).toEqual(["qwen-covered"]);
+  expect(selected.map((candidate) => candidate.id)).toEqual(["qwen-new-sparse"]);
 });
 
 test("selectBenchmarkSnapshotModels uses AA intelligence as the quality tie-break", () => {

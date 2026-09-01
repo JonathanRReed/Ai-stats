@@ -133,7 +133,15 @@ const validModels = currentMeasuredModels.filter((model: any) => {
 
 const totalModels = validModels.length;
 const INITIAL_VISIBLE_MODELS = Math.min(8, totalModels);
-const initialModels = validModels.slice(0, INITIAL_VISIBLE_MODELS);
+const curatedInitialModels = selectBenchmarkSnapshotModels(
+  validModels,
+  INITIAL_VISIBLE_MODELS,
+);
+const curatedInitialIds = new Set(curatedInitialModels.map((model) => model.id));
+const initialModels = [
+  ...curatedInitialModels,
+  ...validModels.filter((model) => !curatedInitialIds.has(model.id)),
+].slice(0, INITIAL_VISIBLE_MODELS);
 
 // Hard facts for the definition block below the h1. Counted from the same
 // payloads the bento and the model table render, and each clause is dropped
