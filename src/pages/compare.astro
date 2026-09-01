@@ -2765,9 +2765,7 @@ epochBenchmarksWithData.forEach((b) => {
   const loadCompareInitialData = () => {
     if (compareInitialDataPromise) return compareInitialDataPromise;
 
-    compareInitialDataPromise = fetch("/api/compare-initial.json", {
-      cache: "force-cache",
-    })
+    compareInitialDataPromise = fetch("/api/compare-initial.json")
       .then((response) => {
         if (!response.ok) {
           throw new Error(`Compare initial data request failed with ${response.status}`);

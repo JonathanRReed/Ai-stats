@@ -40,6 +40,13 @@ test("the compare page describes source-backed data as build-time evidence", () 
   expect(source).not.toContain("live data can replace the snapshot");
 });
 
+test("the compare page revalidates its stable initial-data URL", () => {
+  expect(source).toContain('fetch("/api/compare-initial.json")');
+  expect(source).not.toContain(
+    'fetch("/api/compare-initial.json", {\n      cache: "force-cache",\n    })',
+  );
+});
+
 test("illustrative Epoch fallback is labeled and never selected as a source-backed default", () => {
   expect(source).toContain("Illustrative fallback");
   expect(source).toContain("price estimates are synthetic");
