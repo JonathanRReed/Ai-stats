@@ -2592,7 +2592,7 @@ epochBenchmarksWithData.forEach((b) => {
             <p>
               {usingIllustrativeFallback
                 ? "No priced source-backed rows are loaded here yet, so price estimates are synthetic."
-                : "Selections start from source-backed priced models and live data can replace the snapshot."}
+                : "Selections start from source-backed priced models captured by this build."}
             </p>
           </div>
         </div>
@@ -3890,7 +3890,7 @@ epochBenchmarksWithData.forEach((b) => {
         : "Source-backed defaults";
       const modeDetail = usingIllustrativeFallback
         ? "No priced source-backed rows are loaded here yet, so price estimates are synthetic."
-        : "Selections start from source-backed priced models and live data can replace the snapshot.";
+        : "Selections start from source-backed priced models captured by this build.";
 
       if (evidenceCoverageEl) {
         evidenceCoverageEl.innerHTML = `<span>Metric coverage</span><strong>${sanitizeHTML(summary)}</strong><p>${sanitizeHTML(detail)}</p>`;

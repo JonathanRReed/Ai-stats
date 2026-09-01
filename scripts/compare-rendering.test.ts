@@ -33,6 +33,13 @@ test("the compare page starts with a compact task lens and explicit evidence cov
   expect(source).toContain("selectedStatEl.textContent = String(selected.size);");
 });
 
+test("the compare page describes source-backed data as build-time evidence", () => {
+  expect(source).toContain(
+    "Selections start from source-backed priced models captured by this build.",
+  );
+  expect(source).not.toContain("live data can replace the snapshot");
+});
+
 test("illustrative Epoch fallback is labeled and never selected as a source-backed default", () => {
   expect(source).toContain("Illustrative fallback");
   expect(source).toContain("price estimates are synthetic");
