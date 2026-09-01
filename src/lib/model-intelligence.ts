@@ -30,11 +30,11 @@ export type ParetoFrontierOptions = {
   priceMetricKey?: string;
 };
 
-/** Shared, inspectable defaults for task-oriented recommendations. */
+/** Shared, inspectable defaults for neutral, task-oriented evidence views. */
 export const DEFAULT_TASK_PRESETS: TaskPreset[] = [
   {
     id: "coding",
-    label: "Coding agent",
+    label: "Coding evidence",
     weights: {
       aa_coding_index: 0.5,
       livecodebench: 0.3,
@@ -48,18 +48,21 @@ export const DEFAULT_TASK_PRESETS: TaskPreset[] = [
   },
   {
     id: "reasoning",
-    label: "Reasoning and research",
+    label: "Reasoning and research evidence",
     weights: {
       aa_intelligence_index: 0.45,
       gpqa: 0.3,
       hle: 0.25,
     },
-    minimumCoverage: 2,
+    // Current Artificial Analysis rows reliably publish the aggregate index,
+    // while older GPQA and HLE joins are often absent. Keep those gaps visible
+    // instead of turning a valid current evidence view into an empty state.
+    minimumCoverage: 1,
     budgetMetricKey: "price_1m_blended_3_to_1",
   },
   {
     id: "fast-value",
-    label: "Fast value",
+    label: "Speed, cost, and intelligence",
     weights: {
       aa_intelligence_index: 0.35,
       median_output_tokens_per_second: 0.35,

@@ -1,54 +1,12 @@
 import type { APIRoute } from 'astro';
 import { getDataFreshness, type SourceFreshness } from '../../lib/data-freshness';
-import type { TaskPreset } from '../../lib/model-intelligence';
+import { DEFAULT_TASK_PRESETS } from '../../lib/model-intelligence';
 import type {
   IntelligenceRefreshPayload,
   IntelligenceRefreshSource,
 } from '../../lib/live-data';
 
 export const prerender = true;
-
-const TASK_PRESETS: TaskPreset[] = [
-  {
-    id: 'coding',
-    label: 'Coding agent',
-    weights: {
-      aa_coding_index: 0.5,
-      livecodebench: 0.3,
-      price_1m_blended_3_to_1: 0.2,
-    },
-    metricDirections: {
-      price_1m_blended_3_to_1: 'lower-is-better',
-    },
-    minimumCoverage: 2,
-    budgetMetricKey: 'price_1m_blended_3_to_1',
-  },
-  {
-    id: 'reasoning',
-    label: 'Reasoning and research',
-    weights: {
-      aa_intelligence_index: 0.45,
-      gpqa: 0.3,
-      hle: 0.25,
-    },
-    minimumCoverage: 2,
-  },
-  {
-    id: 'fast-value',
-    label: 'Fast value',
-    weights: {
-      aa_intelligence_index: 0.35,
-      median_output_tokens_per_second: 0.35,
-      price_1m_blended_3_to_1: 0.3,
-    },
-    metricDirections: {
-      median_output_tokens_per_second: 'higher-is-better',
-      price_1m_blended_3_to_1: 'lower-is-better',
-    },
-    minimumCoverage: 2,
-    budgetMetricKey: 'price_1m_blended_3_to_1',
-  },
-];
 
 const OVERVIEW: IntelligenceRefreshPayload['overview'] = {
   qualityVsPrice: {
@@ -112,7 +70,7 @@ export const GET: APIRoute = async () => {
       sources: freshness.sources.map(serializeSource),
       fallback: freshness.fallback,
     },
-    taskPresets: TASK_PRESETS,
+    taskPresets: DEFAULT_TASK_PRESETS,
     overview: OVERVIEW,
   };
 

@@ -20,28 +20,27 @@ const formatTrackedDate = (value: string | null | undefined): string => {
 };
 ---
 
-<section class="latest-models" aria-label="Latest flagship models">
+<section class="latest-models" aria-label="Current benchmark snapshot">
   <header class="latest-models-header">
     <div>
-      <p class="console-label">Current model watch</p>
-      <h1>Latest flagship models</h1>
+      <p class="console-label">Measured model landscape</p>
+      <h1>Current benchmark snapshot</h1>
     </div>
     <p>
-      A deliberately narrow view: one current, fully measured model per provider,
-      ordered by when each model was first tracked. A recent observation receipt
-      is required. Incomplete zero-price rows and unverified niche entries do not qualify.
+      One current, fully measured model per provider, ordered by evidence coverage,
+      then AA Intelligence Index. Every row needs a recent observation receipt,
+      positive pricing, and measured speed. This is a factual snapshot, not a recommendation.
     </p>
   </header>
 
   {
     models.length ? (
-      <ol class="latest-model-grid">
-        {models.map((model, index) => (
+      <ul class="latest-model-grid">
+        {models.map((model) => (
           <li>
             <a href={`/compare?model=${encodeURIComponent(model.name ?? model.id)}`}>
-              <span class="latest-model-order">{String(index + 1).padStart(2, "0")}</span>
               <span class="latest-model-date">
-                First tracked <time datetime={model.first_seen}>{formatTrackedDate(model.first_seen)}</time>
+                Last observed <time datetime={model.last_seen}>{formatTrackedDate(model.last_seen)}</time>
               </span>
               <strong>{model.name}</strong>
               <span class="latest-model-provider">
@@ -69,10 +68,10 @@ const formatTrackedDate = (value: string | null | undefined): string => {
             </a>
           </li>
         ))}
-      </ol>
+      </ul>
     ) : (
       <p class="latest-model-empty">
-        Current fully measured flagship observations are unavailable in this build.
+        Current fully measured observations are unavailable in this build.
       </p>
     )
   }
@@ -95,7 +94,7 @@ const formatTrackedDate = (value: string | null | undefined): string => {
 
   .latest-models-header h1 {
     margin-top: 0.25rem;
-    max-width: 18ch;
+    max-width: 17ch;
     color: var(--text);
     font-size: clamp(1.75rem, 4vw, 3.4rem);
     font-weight: 900;
@@ -147,8 +146,8 @@ const formatTrackedDate = (value: string | null | undefined): string => {
   .latest-model-grid a {
     display: grid;
     height: 100%;
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 0.5rem 0.75rem;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
     border: 1px solid var(--border-color);
     background: var(--surface);
     padding: 0.9rem;
@@ -168,20 +167,12 @@ const formatTrackedDate = (value: string | null | undefined): string => {
     outline-offset: 2px;
   }
 
-  .latest-model-order,
   .latest-model-date,
   .latest-model-provider,
   .latest-model-action,
   .latest-model-grid dt,
   .latest-model-grid dd {
     font-family: var(--font-mono);
-  }
-
-  .latest-model-order {
-    grid-row: 1 / span 3;
-    color: var(--love);
-    font-size: 0.7rem;
-    font-weight: 800;
   }
 
   .latest-model-date {
@@ -213,7 +204,6 @@ const formatTrackedDate = (value: string | null | undefined): string => {
 
   .latest-model-grid dl {
     display: grid;
-    grid-column: 1 / -1;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.5rem;
     margin: 0.5rem 0 0;
@@ -240,7 +230,6 @@ const formatTrackedDate = (value: string | null | undefined): string => {
   }
 
   .latest-model-action {
-    grid-column: 1 / -1;
     margin-top: 0.25rem;
     color: var(--foam);
     font-size: 0.64rem;
@@ -267,9 +256,9 @@ const formatTrackedDate = (value: string | null | undefined): string => {
     }
   }
 
-  @media (min-width: 1180px) {
+  @media (min-width: 1080px) {
     .latest-model-grid {
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
 

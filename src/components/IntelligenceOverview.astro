@@ -2,8 +2,6 @@
 import type { DataFreshness } from "../lib/data-freshness";
 import {
   buildParetoFrontier,
-  DEFAULT_TASK_PRESETS,
-  rankComparableModels,
   type ModelEvidence,
 } from "../lib/model-intelligence";
 import type { PublicPoliBenchSnapshot } from "../lib/polibench-snapshot";
@@ -35,18 +33,6 @@ const evidence: ModelEvidence[] = models.map((model) => ({
     median_output_tokens_per_second: model.median_output_tokens_per_second,
   },
 }));
-const modelById = new Map(models.map((model) => [model.id, model]));
-const codingPreset = { ...DEFAULT_TASK_PRESETS[0], budget: 5 };
-const codingCandidates = rankComparableModels(evidence, codingPreset);
-const topCandidate = codingCandidates[0] ?? null;
-const topCandidateModel = topCandidate ? modelById.get(topCandidate.model.id) ?? null : null;
-const cheapest = [...models]
-  .filter((model) => finitePositive(model.price_1m_blended_3_to_1))
-  .sort((a, b) => Number(a.price_1m_blended_3_to_1) - Number(b.price_1m_blended_3_to_1))[0] ?? null;
-const topEpoch = [...epochModels]
-  .filter((model) => hasFiniteMetricValue(model.eci_score))
-  .sort((a, b) => Number(b.eci_score) - Number(a.eci_score))[0] ?? null;
-
 const qualityPriceModels = evidence.filter(
   (model) =>
     hasFiniteMetricValue(model.metrics.aa_intelligence_index) &&
@@ -129,19 +115,19 @@ const money = (value: number | null | undefined): string =>
       <p>Priced Artificial Analysis models in this build.</p>
     </article>
     <article>
-      <span>Coding preset leader</span>
-      <strong>{topCandidateModel?.name ?? "No comparable result"}</strong>
-      <p>{topCandidate ? `${topCandidate.coverage} / ${Object.keys(codingPreset.weights).length} weighted fields` : "Coverage threshold not met"}</p>
+      <span>AA intelligence span</span>
+      <strong>{qualityValues.length ? `${qualityMin.toFixed(1)}–${qualityMax.toFixed(1)}` : "No observations"}</strong>
+      <p>{qualityValues.length} current index observations.</p>
     </article>
     <article>
-      <span>Cheapest blended</span>
-      <strong>{cheapest?.name ?? "No priced result"}</strong>
-      <p>{money(cheapest?.price_1m_blended_3_to_1)} per 1M tokens.</p>
+      <span>Blended price span</span>
+      <strong>{priceValues.length ? `${money(priceMin)}–${money(priceMax)}` : "No prices"}</strong>
+      <p>USD per 1M tokens on current measured rows.</p>
     </article>
     <article>
-      <span>Epoch signal</span>
-      <strong>{topEpoch?.display_name ?? topEpoch?.model_name ?? "No run data"}</strong>
-      <p>{epochBenchmarks.length} benchmarks / {epochRuns.length} recorded runs.</p>
+      <span>Epoch corpus</span>
+      <strong>{epochRuns.length.toLocaleString("en-US")} runs</strong>
+      <p>{epochModels.length} models across {epochBenchmarks.length} benchmarks.</p>
     </article>
   </div>
 
@@ -154,7 +140,7 @@ const money = (value: number | null | undefined): string =>
       {qualityPriceModels.length ? (
         <svg viewBox="0 0 640 340" role="img" aria-labelledby="quality-price-title quality-price-desc">
           <title id="quality-price-title">Quality versus price for models with comparable Artificial Analysis data</title>
-          <desc id="quality-price-desc">Each point is a model. Horizontal position is blended US dollar price per one million tokens on a logarithmic scale. Vertical position is the Artificial Analysis Intelligence Index. The selected coding preset leader is labeled.</desc>
+          <desc id="quality-price-desc">Each point is a model. Horizontal position is blended US dollar price per one million tokens on a logarithmic scale. Vertical position is the Artificial Analysis Intelligence Index. Copper points are on the price-quality Pareto frontier.</desc>
           <rect x={chartLeft} y={chartTop} width={chartRight - chartLeft} height={chartBottom - chartTop} class="chart-frame" />
           {qualityTicks.map((tick) => (
             <g>
@@ -169,27 +155,18 @@ const money = (value: number | null | undefined): string =>
             </g>
           ))}
           {qualityPriceModels.map((model) => {
-            const isTop = model.id === topCandidate?.model.id;
+            const isFrontier = frontierIds.has(model.id);
             return (
               <circle
                 cx={scaleX(Number(model.metrics.price_1m_blended_3_to_1))}
                 cy={scaleY(Number(model.metrics.aa_intelligence_index))}
-                r={isTop ? 6 : frontierIds.has(model.id) ? 3.4 : 2.6}
-                class={isTop ? "plot-top" : frontierIds.has(model.id) ? "plot-frontier" : "plot-other"}
+                r={isFrontier ? 4.2 : 2.8}
+                class={isFrontier ? "plot-frontier" : "plot-other"}
               >
                 <title>{model.label ?? model.id}: index {Number(model.metrics.aa_intelligence_index).toFixed(1)}, {money(Number(model.metrics.price_1m_blended_3_to_1))} per 1M tokens</title>
               </circle>
             );
           })}
-          {topCandidate && (
-            <text
-              x={Math.min(scaleX(Number(topCandidate.model.metrics.price_1m_blended_3_to_1)) + 10, chartRight - 90)}
-              y={Math.max(scaleY(Number(topCandidate.model.metrics.aa_intelligence_index)) - 10, chartTop + 14)}
-              class="top-label"
-            >
-              {topCandidate.model.label ?? topCandidate.model.id}
-            </text>
-          )}
           <text x={(chartLeft + chartRight) / 2} y="330" text-anchor="middle" class="axis-title">Blended price, USD per 1M tokens</text>
           <text transform="translate(14 190) rotate(-90)" text-anchor="middle" class="axis-title">Artificial Analysis Intelligence Index</text>
         </svg>
@@ -197,7 +174,7 @@ const money = (value: number | null | undefined): string =>
         <p class="chart-empty">Quality and price observations are unavailable in this build.</p>
       )}
       <div class="plot-legend" aria-label="Chart legend">
-        <span><i class="top-swatch" /> Top pick</span>
+        <span><i class="frontier-swatch" /> Price-quality frontier</span>
         <span><i class="other-swatch" /> Other models</span>
       </div>
       <details>
@@ -323,14 +300,12 @@ const money = (value: number | null | undefined): string =>
   .chart-frame { fill: transparent; stroke: var(--intelligence-grid); }
   .chart-gridline { stroke: var(--intelligence-grid); stroke-width: 1; }
   .plot-other { fill: color-mix(in srgb, var(--intelligence-blue) 42%, transparent); }
-  .plot-frontier { fill: none; stroke: var(--intelligence-blue); stroke-width: 1.4; }
-  .plot-top { fill: var(--intelligence-copper); stroke: var(--text); stroke-width: 1; }
-  .quality-price .top-label { fill: var(--text); font-size: 10px; }
+  .plot-frontier { fill: var(--intelligence-copper); stroke: var(--text); stroke-width: 0.8; }
   .quality-price .axis-title { fill: var(--subtle); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; }
   .plot-legend { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0.2rem 0 0.8rem 2.8rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.65rem; }
   .plot-legend span { display: flex; align-items: center; gap: 0.4rem; }
   .plot-legend i { width: 0.55rem; height: 0.55rem; border-radius: 50%; }
-  .top-swatch { background: var(--intelligence-copper); }
+  .frontier-swatch { background: var(--intelligence-copper); }
   .other-swatch { background: var(--intelligence-blue); }
   .quality-price details { border-top: 1px solid var(--intelligence-grid); padding-top: 0.65rem; }
   .quality-price summary { min-height: 44px; padding: 0.7rem 0; color: var(--subtle); cursor: pointer; font-family: var(--font-mono); font-size: 0.68rem; }

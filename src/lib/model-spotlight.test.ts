@@ -4,7 +4,7 @@ import { expect, test } from "bun:test";
 import type { AaModel } from "./supabase";
 import {
   isCurrentMeasuredModel,
-  selectLatestFlagshipModels,
+  selectBenchmarkSnapshotModels,
 } from "./model-spotlight";
 
 const model = (
@@ -82,8 +82,8 @@ test("isCurrentMeasuredModel requires a recent observation receipt", () => {
   ).toBe(false);
 });
 
-test("selectLatestFlagshipModels keeps one newest measured model per provider", () => {
-  const selected = selectLatestFlagshipModels([
+test("selectBenchmarkSnapshotModels keeps one evidence-rich measured model per provider", () => {
+  const selected = selectBenchmarkSnapshotModels([
     model("openai-old", "OpenAI", "2026-08-20", { aa_intelligence_index: 95 }),
     model("openai-new", "OpenAI", "2026-08-30", { aa_intelligence_index: 80 }),
     model("anthropic-new", "Anthropic", "2026-08-29"),
@@ -91,14 +91,29 @@ test("selectLatestFlagshipModels keeps one newest measured model per provider", 
   ]);
 
   expect(selected.map((candidate) => candidate.id)).toEqual([
-    "openai-new",
+    "openai-old",
     "anthropic-new",
     "google-new",
   ]);
 });
 
-test("selectLatestFlagshipModels uses quality as a same-day provider tie-break", () => {
-  const selected = selectLatestFlagshipModels([
+test("selectBenchmarkSnapshotModels prioritizes evidence coverage before recency", () => {
+  const selected = selectBenchmarkSnapshotModels([
+    model("qwen-new-sparse", "Alibaba", "2026-08-30", {
+      aa_intelligence_index: 90,
+      gpqa: null,
+    }),
+    model("qwen-covered", "Alibaba", "2026-08-20", {
+      aa_intelligence_index: 75,
+      gpqa: 60,
+    }),
+  ]);
+
+  expect(selected.map((candidate) => candidate.id)).toEqual(["qwen-covered"]);
+});
+
+test("selectBenchmarkSnapshotModels uses AA intelligence as the quality tie-break", () => {
+  const selected = selectBenchmarkSnapshotModels([
     model("qwen-weaker", "Alibaba", "2026-08-30", { aa_intelligence_index: 60 }),
     model("qwen-stronger", "Alibaba", "2026-08-30", { aa_intelligence_index: 85 }),
   ]);
@@ -106,15 +121,16 @@ test("selectLatestFlagshipModels uses quality as a same-day provider tie-break",
   expect(selected.map((candidate) => candidate.id)).toEqual(["qwen-stronger"]);
 });
 
-test("selectLatestFlagshipModels caps the splash at five providers", () => {
-  const selected = selectLatestFlagshipModels([
+test("selectBenchmarkSnapshotModels caps the splash at six providers", () => {
+  const selected = selectBenchmarkSnapshotModels([
     model("openai", "OpenAI", "2026-08-30"),
     model("anthropic", "Anthropic", "2026-08-29"),
     model("google", "Google", "2026-08-28"),
     model("deepseek", "DeepSeek", "2026-08-27"),
     model("xai", "xAI", "2026-08-26"),
     model("mistral", "Mistral", "2026-08-25"),
+    model("amazon", "Amazon", "2026-08-24"),
   ]);
 
-  expect(selected).toHaveLength(5);
+  expect(selected).toHaveLength(6);
 });

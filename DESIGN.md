@@ -86,16 +86,16 @@ components:
 
 **Creative North Star: "The Calibrated Console"**
 
-AI Stats should feel like a trusted measurement instrument, not a marketing dashboard. The interface is dense enough to reward investigation but disciplined enough that a first-time visitor can choose a task, understand the recommendation, and inspect the evidence without decoding the page.
+AI Stats should feel like a trusted measurement instrument, not a marketing dashboard. The interface is dense enough to reward investigation but disciplined enough that a first-time visitor can select an evidence lens, understand the ordering method, and inspect the measurements without decoding the page.
 
 Near-black fields, warm neutral type, muted copper controls, restrained blue-gray plots, and monospaced measurement labels create a recognizable technical world. Hairline dividers carry most of the structure. The system avoids oversized ornamental cards, decorative gradients, and universal-rank spectacle.
 
 **Key Characteristics:**
 
-- Task-first hierarchy with evidence immediately available.
+- Evidence-first hierarchy with task and budget lenses immediately available.
 - Compact measurement labels paired with plain-language interpretation.
 - Hairline grids and tonal layering instead of card sprawl.
-- Copper reserved for decisions, selections, and the most important plotted point.
+- Copper reserved for active selections, source states, and Pareto-frontier points.
 - Charts remain readable as data tables or source receipts.
 
 ## Colors
@@ -151,7 +151,7 @@ The palette uses warm neutrals over a near-black instrument panel, with copper f
 
 The core page uses a 1200px content boundary with a 1rem minimum gutter. Compare views may widen to 1320px when the extra width directly supports plots or side-by-side model evidence.
 
-Composition starts with the user's task, continues through a compact recommendation and source receipt seam, then opens into overview plots and deeper tables. Analytical panels join through shared borders and grid lines instead of becoming unrelated floating cards.
+Composition starts with a current benchmark snapshot, continues through a compact evidence lens and source receipt seam, then opens into overview plots and deeper tables. Analytical panels join through shared borders and grid lines instead of becoming unrelated floating cards.
 
 The spacing rhythm is based on quarter-rem steps and grows through half, three-quarter, one, one-and-a-half, two, and three rem intervals. At tablet widths, four-column evidence strips become two columns. On small screens, comparison lenses and evidence grids become a single column, controls reach a 44px minimum target, and wide tables scroll within their own labeled region.
 
@@ -202,7 +202,7 @@ Corners are small and functional. Controls and buttons use the smallest radius, 
 
 ### Charts and Evidence Tables
 
-- **Plot:** Blue-gray carries the comparison field, copper marks the decision point, and the hairline grid stays visible but quiet.
+- **Plot:** Blue-gray carries the comparison field, copper marks a disclosed Pareto frontier, and the hairline grid stays visible but quiet.
 - **Labels:** Mono text with explicit axes and units. Never encode an important distinction by color alone.
 - **Fallback:** Provide a table, receipt, or textual interpretation for the same claim.
 
@@ -215,8 +215,8 @@ Corners are small and functional. Controls and buttons use the smallest radius, 
 
 ### Do
 
-- Do begin with the user's task and expose the ranking logic nearby.
-- Do pair every recommendation with source quality, freshness, and missing-data context.
+- Do begin with current measured evidence and expose any ordering formula nearby.
+- Do pair every synthesized view with source quality, freshness, and missing-data context.
 - Do use compact grids, shared rules, and deliberate whitespace to organize dense information.
 - Do keep mobile controls reachable and analytical overflow contained.
 - Do preserve keyboard focus, reduced-motion behavior, and non-color status labels.

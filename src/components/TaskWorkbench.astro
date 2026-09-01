@@ -86,13 +86,13 @@ const workbenchPayloadJson = JSON.stringify({
 
 <section
   class="task-workbench"
-  aria-label="Task workbench"
+  aria-label="Evidence lens"
   data-shortlist-state={initialCandidates.length ? "ready" : "empty"}
 >
   <form class="task-query" data-task-form>
-    <span class="task-query-label">Task query</span>
+    <span class="task-query-label">Evidence lens</span>
     <label>
-      <span>What are you choosing for?</span>
+      <span>Metric view</span>
       <select id="task-preset" name="task">
         {DEFAULT_TASK_PRESETS.map((preset) => (
           <option value={preset.id}>{preset.label}</option>
@@ -114,8 +114,8 @@ const workbenchPayloadJson = JSON.stringify({
 
   <div class="shortlist-frame" data-shortlist-frame aria-busy="false">
     <div class="shortlist-head" aria-hidden="true">
-      <span>Candidate</span>
-      <span>Why it fits</span>
+      <span>Model</span>
+      <span>Evidence profile</span>
       <span>Price / 1M</span>
       <span>Speed</span>
       <span>Native evidence</span>
@@ -124,26 +124,24 @@ const workbenchPayloadJson = JSON.stringify({
 
     <p class="shortlist-status sr-only" aria-live="polite" data-shortlist-status>
       {initialCandidates.length
-        ? `${initialCandidates.length} candidates ranked from comparable evidence.`
-        : "No candidates match the current constraints."}
+        ? `${initialCandidates.length} models shown in disclosed metric order.`
+        : "No models match the current evidence filter."}
     </p>
     <div class="shortlist-rows" data-shortlist-rows hidden={initialCandidates.length === 0}>
-      {initialCandidates.map((candidate, index) => {
+      {initialCandidates.map((candidate) => {
         const model = candidate.model as WorkbenchModel;
         const benchmark = primaryBenchmark(candidate, defaultPreset);
         return (
           <article class="shortlist-row" data-shortlist-row>
-            <div class="candidate-cell" data-label="Candidate">
+            <div class="candidate-cell" data-label="Model">
               <span class="candidate-mark" aria-hidden="true" />
               <div>
                 <h2>{model.label ?? model.id}</h2>
                 <p>{model.provider}</p>
               </div>
             </div>
-            <div class="reason-cell" data-label="Why it fits">
-              <p>
-                {index === 0 ? "Top" : `#${index + 1}`} comparable result for {defaultPreset.label.toLowerCase()} under this ceiling.
-              </p>
+            <div class="reason-cell" data-label="Evidence profile">
+              <p>Ordered by the disclosed formula within this filtered set.</p>
               <small>{candidate.coverage} weighted fields present</small>
             </div>
             <div class="metric-cell" data-label="Price / 1M">
@@ -175,7 +173,7 @@ const workbenchPayloadJson = JSON.stringify({
 
     <div class="shortlist-loading" hidden data-shortlist-loading>
       <span aria-hidden="true" />
-      <p>Updating shortlist</p>
+      <p>Updating evidence</p>
     </div>
     <div
       class="shortlist-empty"
@@ -185,8 +183,8 @@ const workbenchPayloadJson = JSON.stringify({
     >
       <p>
         {models.length
-          ? "No shortlist matches this filter yet."
-          : "Shortlist data unavailable in this build."}
+          ? "No models match this evidence filter yet."
+          : "Evidence data unavailable in this build."}
       </p>
       <span>
         {models.length
@@ -199,8 +197,8 @@ const workbenchPayloadJson = JSON.stringify({
     </div>
   </div>
 
-  <aside class="weights-disclosure" aria-label="Ranking method">
-    <span>Weights in use</span>
+  <aside class="weights-disclosure" aria-label="Evidence ordering method">
+    <span>Comparison formula</span>
     <dl data-weight-list>
       {Object.entries(defaultPreset.weights).map(([key, weight]) => (
         <div>
@@ -210,17 +208,17 @@ const workbenchPayloadJson = JSON.stringify({
       ))}
     </dl>
     <p>
-      Scores are normalized only within this filtered candidate set. Missing values stay missing; models need at least {defaultPreset.minimumCoverage} weighted fields.
+      The order is a temporary within-view comparison, not a recommendation. Values are normalized only within this filtered set. Missing values stay missing; models need at least {defaultPreset.minimumCoverage} weighted fields.
     </p>
   </aside>
 
   <template id="shortlist-row-template">
     <article class="shortlist-row" data-shortlist-row>
-      <div class="candidate-cell" data-label="Candidate">
+      <div class="candidate-cell" data-label="Model">
         <span class="candidate-mark" aria-hidden="true"></span>
         <div><h2 data-model-name>Candidate</h2><p data-model-provider></p></div>
       </div>
-      <div class="reason-cell" data-label="Why it fits"><p data-model-reason></p><small data-model-fields></small></div>
+      <div class="reason-cell" data-label="Evidence profile"><p data-model-reason></p><small data-model-fields></small></div>
       <div class="metric-cell" data-label="Price / 1M"><strong data-model-price></strong><small data-model-price-detail></small></div>
       <div class="metric-cell" data-label="Speed"><strong data-model-speed></strong><small>median tokens/sec</small></div>
       <div class="metric-cell" data-label="Native evidence"><strong data-model-benchmark></strong><small data-model-benchmark-detail></small></div>
@@ -341,7 +339,7 @@ const workbenchPayloadJson = JSON.stringify({
     const weightedKeys = weightedKeysFor(preset);
     rows.replaceChildren();
 
-    ranked.forEach((candidate, index) => {
+    ranked.forEach((candidate) => {
       const fragment = rowTemplate.content.cloneNode(true) as DocumentFragment;
       const row = fragment.querySelector("[data-shortlist-row]");
       const model = serializeModels.find((entry) => entry.id === candidate.model.id);
@@ -352,7 +350,7 @@ const workbenchPayloadJson = JSON.stringify({
       text(row?.querySelector("[data-model-provider]"), model?.provider ?? "Unknown provider");
       text(
         row?.querySelector("[data-model-reason]"),
-        `${index === 0 ? "Top" : `#${index + 1}`} comparable result for ${preset.label.toLowerCase()}${Number.isFinite(budget) ? " under this ceiling" : ""}.`,
+        `Ordered by the disclosed formula for ${preset.label.toLowerCase()}${Number.isFinite(budget) ? " within this price ceiling" : ""}.`,
       );
       text(row?.querySelector("[data-model-fields]"), `${candidate.coverage} weighted fields present`);
       text(row?.querySelector("[data-model-price]"), money(model?.metrics.price_1m_blended_3_to_1));
@@ -380,7 +378,7 @@ const workbenchPayloadJson = JSON.stringify({
     root.dataset.shortlistState = isEmpty ? "empty" : ranked.length < 3 ? "partial" : "ready";
     frame.setAttribute("aria-busy", "false");
     if (loading) loading.hidden = true;
-    text(status, isEmpty ? "No candidates match the current constraints." : `${ranked.length} source-backed candidates ranked.`);
+    text(status, isEmpty ? "No models match the current evidence filter." : `${ranked.length} source-backed models shown in disclosed metric order.`);
     renderWeights(preset);
   };
 
@@ -388,7 +386,7 @@ const workbenchPayloadJson = JSON.stringify({
     if (!frame) return;
     frame.setAttribute("aria-busy", "true");
     if (loading) loading.hidden = false;
-    text(status, "Updating shortlist");
+    text(status, "Updating evidence");
     queueMicrotask(renderShortlist);
   };
 

@@ -32,7 +32,7 @@ import {
 } from "../lib/metric-values";
 import {
   isCurrentMeasuredModel,
-  selectLatestFlagshipModels,
+  selectBenchmarkSnapshotModels,
 } from "../lib/model-spotlight";
 
 const [baseModels, initialEpochBenchmarks, initialEpochRuns, publicCatalogs] =
@@ -72,7 +72,7 @@ const publicPoliBenchSnapshot = await getPublicPoliBenchSnapshot();
 const currentMeasuredModels = models.filter((model) =>
   isCurrentMeasuredModel(model),
 );
-const latestFlagshipModels = selectLatestFlagshipModels(currentMeasuredModels);
+const benchmarkSnapshotModels = selectBenchmarkSnapshotModels(currentMeasuredModels);
 const workbenchModels = currentMeasuredModels.map((model) => ({
   id: model.id,
   label: model.name,
@@ -361,10 +361,10 @@ function getScoreClass(score: number | null | undefined): string {
   <Header currentPage="dashboard" />
 
   <main
-    class="telemetry-main mx-auto flex w-full max-w-[1586px] flex-col gap-14 px-4 pb-24 pt-10 md:gap-16 md:px-6 md:pt-12"
+    class="telemetry-main mx-auto flex w-full max-w-[1320px] flex-col gap-12 px-4 pb-20 pt-8 md:gap-14 md:px-6 md:pt-10"
   >
     <div class="intelligence-stack">
-      <LatestModelsStrip models={latestFlagshipModels} />
+      <LatestModelsStrip models={benchmarkSnapshotModels} />
       <TaskWorkbench models={workbenchModels} />
       <SourceHealthStrip freshness={dataFreshness} />
       <IntelligenceOverview
@@ -377,9 +377,9 @@ function getScoreClass(score: number | null | undefined): string {
       />
     </div>
     <p class="dashboard-definition">
-      AI Stats is a workbench for choosing an AI model. It keeps pricing,
+      AI Stats is a source-backed console for inspecting AI model evidence. It keeps pricing,
       context limits, provider routes, latency, and benchmark scores for the
-      same model side by side, so the choice comes down to the numbers.
+      same model side by side without naming a universal winner.
       {
         definitionFacts.length ? (
           <span class="dashboard-definition-facts">
@@ -986,6 +986,15 @@ function getScoreClass(score: number | null | undefined): string {
     display: grid;
     gap: 1rem;
     min-width: 0;
+  }
+
+  .telemetry-main > .fade-in-section {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 720px;
+  }
+
+  #model-browser {
+    contain-intrinsic-size: auto 1200px;
   }
 
   .console-label {
@@ -2267,7 +2276,7 @@ function getScoreClass(score: number | null | undefined): string {
 
   @media (max-width: 640px) {
     .telemetry-main {
-      gap: 5rem;
+      gap: 2.75rem;
     }
 
     .leaderboard-controls {

@@ -19,7 +19,10 @@ test("default task presets disclose weights, coverage, and comparable metric dir
     "reasoning",
     "fast-value",
   ]);
-  expect(DEFAULT_TASK_PRESETS.every((preset) => preset.minimumCoverage >= 2)).toBe(true);
+  expect(DEFAULT_TASK_PRESETS.find((preset) => preset.id === "reasoning")).toMatchObject({
+    label: "Reasoning and research evidence",
+    minimumCoverage: 1,
+  });
   expect(DEFAULT_TASK_PRESETS.find((preset) => preset.id === "coding")).toMatchObject({
     weights: {
       aa_coding_index: 0.5,
@@ -35,6 +38,35 @@ test("default task presets disclose weights, coverage, and comparable metric dir
       (preset) => preset.budgetMetricKey === "price_1m_blended_3_to_1",
     ),
   ).toBe(true);
+});
+
+test("the reasoning evidence lens remains populated when current AA rows lack legacy benchmark joins", () => {
+  const reasoningPreset = modelIntelligence.DEFAULT_TASK_PRESETS.find(
+    (preset) => preset.id === "reasoning",
+  );
+
+  expect(reasoningPreset).toBeDefined();
+  const ranked = rankComparableModels(
+    [
+      {
+        id: "current-aa-model",
+        metrics: {
+          aa_intelligence_index: 72,
+          gpqa: null,
+          hle: null,
+          price_1m_blended_3_to_1: 2,
+        },
+      },
+    ],
+    { ...reasoningPreset!, budget: 5 },
+  );
+
+  expect(ranked).toHaveLength(1);
+  expect(ranked[0]).toMatchObject({
+    coverage: 1,
+    presentMetricKeys: ["aa_intelligence_index"],
+    missingMetricKeys: ["gpqa", "hle"],
+  });
 });
 
 test("rankComparableModels excludes a one-metric perfect row below required coverage", () => {

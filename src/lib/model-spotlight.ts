@@ -102,20 +102,28 @@ export const isCurrentMeasuredModel = (
   );
 };
 
-export const selectLatestFlagshipModels = (
+export const selectBenchmarkSnapshotModels = (
   models: AaModel[],
-  limit = 5,
+  limit = 6,
 ): AaModel[] => {
   const selectedProviders = new Set<string>();
 
   return models
     .filter((model) => isCurrentMeasuredModel(model))
     .sort((a, b) => {
-      const dateDifference = toTimestamp(b.first_seen) - toTimestamp(a.first_seen);
-      if (dateDifference !== 0) return dateDifference;
+      const evidenceDifference = qualityEvidenceCount(b) - qualityEvidenceCount(a);
+      if (evidenceDifference !== 0) return evidenceDifference;
 
-      const qualityDifference = qualityScore(b) - qualityScore(a);
+      const qualityDifference =
+        Number(b.aa_intelligence_index ?? 0) -
+        Number(a.aa_intelligence_index ?? 0);
       if (qualityDifference !== 0) return qualityDifference;
+
+      const broaderQualityDifference = qualityScore(b) - qualityScore(a);
+      if (broaderQualityDifference !== 0) return broaderQualityDifference;
+
+      const observationDifference = toTimestamp(b.last_seen) - toTimestamp(a.last_seen);
+      if (observationDifference !== 0) return observationDifference;
 
       return a.id.localeCompare(b.id);
     })

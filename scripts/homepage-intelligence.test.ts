@@ -11,7 +11,7 @@ const latestModelsSource = readPendingSource("src/components/LatestModelsStrip.a
 const sourceHealthSource = readPendingSource("src/components/SourceHealthStrip.astro");
 const overviewSource = readPendingSource("src/components/IntelligenceOverview.astro");
 
-test("the homepage renders current flagship models before the task workbench and deeper content", () => {
+test("the homepage renders a current benchmark snapshot before the evidence lens and deeper content", () => {
   const latestModelsIndex = dashboardSource.indexOf("<LatestModelsStrip");
   const workbenchIndex = dashboardSource.indexOf("<TaskWorkbench");
   const sourceHealthIndex = dashboardSource.indexOf("<SourceHealthStrip");
@@ -24,14 +24,17 @@ test("the homepage renders current flagship models before the task workbench and
   expect(dashboardSource.indexOf('aria-label="Public catalog collections"')).toBeGreaterThan(overviewIndex);
 });
 
-test("the latest-model splash explains its editorial filter and links into comparison", () => {
-  expect(latestModelsSource).toContain('aria-label="Latest flagship models"');
+test("the model snapshot explains its evidence filter and links into comparison", () => {
+  expect(latestModelsSource).toContain('aria-label="Current benchmark snapshot"');
   expect(latestModelsSource).toContain("<h1");
-  expect(latestModelsSource).toContain("Latest flagship models");
-  expect(latestModelsSource).toContain("one current, fully measured model per provider");
-  expect(latestModelsSource).toContain("ordered by when each model was first tracked");
-  expect(latestModelsSource).toContain("First tracked");
+  expect(latestModelsSource).toContain("Current benchmark snapshot");
+  expect(latestModelsSource).toContain("One current, fully measured model per provider");
+  expect(latestModelsSource).toContain("ordered by evidence coverage");
+  expect(latestModelsSource).toContain("then AA Intelligence Index");
+  expect(latestModelsSource).toContain("Last observed");
+  expect(latestModelsSource).toContain("not a recommendation");
   expect(latestModelsSource).toContain('href={`/compare?model=${encodeURIComponent(model.name ?? model.id)}`}');
+  expect(latestModelsSource).not.toContain("latest-model-order");
   expect(latestModelsSource).not.toContain("overflow-x-auto");
 });
 
@@ -63,33 +66,44 @@ test("large public catalogs and drawer details load only when the user reaches t
   expect(dashboardSource).not.toContain('fetch("/api/models.json", { cache: "force-cache" })');
 });
 
-test("the task workbench keeps transparent controls, shortlist columns, and reset affordances in source", () => {
-  expect(workbenchSource).toContain('aria-label="Task workbench"');
+test("below-fold analytical sections defer rendering work and mobile spacing stays compact", () => {
+  expect(dashboardSource).toContain("content-visibility: auto");
+  expect(dashboardSource).toContain("contain-intrinsic-size: auto 720px");
+  expect(dashboardSource).toContain("gap: 2.75rem");
+  expect(dashboardSource).not.toContain("gap: 5rem");
+});
+
+test("the evidence lens keeps transparent controls, evidence columns, and reset affordances in source", () => {
+  expect(workbenchSource).toContain('aria-label="Evidence lens"');
   expect(workbenchSource).toContain('id="task-preset"');
   expect(workbenchSource).toContain('id="task-budget"');
   expect(workbenchSource).toContain('aria-live="polite"');
   expect(workbenchSource).toContain('aria-busy="false"');
-  expect(workbenchSource).toContain("Task query");
+  expect(workbenchSource).toContain("Evidence lens");
+  expect(workbenchSource).toContain("Metric view");
   expect(workbenchSource).toContain("Budget ceiling");
   expect(workbenchSource).toContain("Reset constraints");
-  expect(workbenchSource).toContain("No shortlist matches this filter yet.");
-  expect(workbenchSource).toContain("Why it fits");
+  expect(workbenchSource).toContain("No models match this evidence filter yet.");
+  expect(workbenchSource).toContain("Evidence profile");
   expect(workbenchSource).toContain("Coverage");
-  expect(workbenchSource).toContain("Weights in use");
+  expect(workbenchSource).toContain("Comparison formula");
+  expect(workbenchSource).toContain("not a recommendation");
+  expect(workbenchSource).not.toContain("Top comparable result");
+  expect(workbenchSource).not.toContain("Why it fits");
   expect(workbenchSource).toContain("rankComparableModels");
   expect(workbenchSource).toContain('type="application/json"');
   expect(workbenchSource).toContain('id="workbench-data"');
   expect(workbenchSource).toContain("JSON.parse");
   expect(workbenchSource).not.toContain("window.__AI_STATS_WORKBENCH__");
-  expect(workbenchSource).toContain("Updating shortlist");
+  expect(workbenchSource).toContain("Updating evidence");
   expect(workbenchSource).toContain("Missing evidence");
 });
 
-test("the server-rendered workbench exposes a useful empty state without client JavaScript", () => {
+test("the server-rendered evidence lens exposes a useful empty state without client JavaScript", () => {
   expect(workbenchSource).toContain('data-shortlist-state={initialCandidates.length ? "ready" : "empty"}');
   expect(workbenchSource).toContain('hidden={initialCandidates.length === 0}');
   expect(workbenchSource).toContain('hidden={initialCandidates.length > 0}');
-  expect(workbenchSource).toContain("Shortlist data unavailable in this build.");
+  expect(workbenchSource).toContain("Evidence data unavailable in this build.");
   expect(workbenchSource).toContain("Artificial Analysis observations are missing.");
 });
 
@@ -112,8 +126,10 @@ test("the intelligence overview keeps the quality-price plot, coverage bars, and
   expect(overviewSource).toContain("Benchmark coverage");
   expect(overviewSource).toContain("Recent source changes");
   expect(overviewSource).toContain("View all model comparisons");
-  expect(overviewSource).toContain("Top pick");
+  expect(overviewSource).toContain("Price-quality frontier");
   expect(overviewSource).toContain("Other models");
+  expect(overviewSource).not.toContain("Top pick");
+  expect(overviewSource).not.toContain("Coding preset leader");
   expect(overviewSource).toContain('role="img"');
   expect(overviewSource).toContain('aria-label="Quality and price data table"');
   expect(overviewSource).toContain("<progress");
