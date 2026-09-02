@@ -23,7 +23,7 @@ export function formatScore(score: string | number | null | undefined): string {
  */
 export function formatPrice(price: number | null | undefined, decimals = 3): string {
   if (price === null || price === undefined) return '-';
-  if (!price && price !== 0) return '-';
+  if (!Number.isFinite(price) || price < 0) return '-';
   const factor = Math.pow(10, decimals);
   const truncated = Math.trunc(price * factor) / factor;
   return `$${truncated.toFixed(decimals)}`;

@@ -387,9 +387,8 @@ function getScoreClass(score: number | null | undefined): string {
       <PoliBenchLab snapshot={publicPoliBenchSnapshot} />
     </div>
     <p class="dashboard-definition">
-      AI Stats is a source-backed console for inspecting AI model evidence. It keeps pricing,
-      context limits, provider routes, latency, and benchmark scores for the
-      same model side by side without naming a universal winner.
+      AI Stats keeps model pricing, context limits, provider routes, latency,
+      and named benchmark scores side by side without combining them into a universal score.
       {
         definitionFacts.length ? (
           <span class="dashboard-definition-facts">
@@ -3838,7 +3837,7 @@ function getScoreClass(score: number | null | undefined): string {
         >
           <header class="flex items-start justify-between gap-2">
             <div class="min-w-0">
-              <h3 class="truncate text-sm font-semibold text-text group-hover:text-foam transition-colors" title="${name}">${name}</h3>
+              <h3 class="break-words text-sm font-semibold text-text group-hover:text-foam transition-colors" title="${name}">${name}</h3>
               <p class="mt-0.5 text-xs text-subtle">${company}</p>
             </div>
             <div class="source-strip flex-shrink-0" title="Data coverage">
@@ -3858,8 +3857,8 @@ function getScoreClass(score: number | null | undefined): string {
               <div class="text-[0.55rem] text-muted">Performance</div>
               <dl class="mt-1.5 space-y-0.5 text-text text-[0.65rem]">
                 <div class="flex items-center justify-between"><dt>TPS</dt><dd class="font-semibold">${formatTps(model.median_output_tokens_per_second)}</dd></div>
-                <div class="flex items-center justify-between"><dt>TTFT token</dt><dd class="font-semibold">${formatTtft(model.median_time_to_first_token_seconds)}</dd></div>
-                <div class="flex items-center justify-between"><dt>TTFT answer</dt><dd class="font-semibold">${formatTtft(model.median_time_to_first_answer_token)}</dd></div>
+                <div class="flex items-center justify-between"><dt>First token</dt><dd class="font-semibold">${formatTtft(model.median_time_to_first_token_seconds)}</dd></div>
+                <div class="flex items-center justify-between"><dt>First answer token</dt><dd class="font-semibold">${formatTtft(model.median_time_to_first_answer_token)}</dd></div>
               </dl>
             </section>
             <section class="card-metric-panel px-3 py-2">
@@ -3884,9 +3883,9 @@ function getScoreClass(score: number | null | undefined): string {
             </div>
           </section>
           <section class="card-metric-panel mt-2 px-3 py-2">
-            <div class="text-[0.55rem] text-muted">AA indexes</div>
+            <div class="text-[0.55rem] text-muted">Artificial Analysis indexes</div>
             <div class="mt-1.5 grid grid-cols-3 gap-1.5 text-center text-[0.65rem]">
-              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[0.5rem] uppercase text-muted">Intelligence</div><div class="font-bold ${getScoreClass(model.aa_intelligence_index)}">${formatScore(model.aa_intelligence_index)}</div></div>
+              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[0.5rem] uppercase text-muted">AA Index</div><div class="font-bold ${getScoreClass(model.aa_intelligence_index)}">${formatScore(model.aa_intelligence_index)}</div></div>
               <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[0.5rem] uppercase text-muted">Coding</div><div class="font-bold ${getScoreClass(model.aa_coding_index)}">${formatScore(model.aa_coding_index)}</div></div>
               <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[0.5rem] uppercase text-muted">Math</div><div class="font-bold ${getScoreClass(model.aa_math_index)}">${formatScore(model.aa_math_index)}</div></div>
             </div>

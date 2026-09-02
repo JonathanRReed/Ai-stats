@@ -54,15 +54,15 @@ export const DEFAULT_TASK_PRESETS: TaskPreset[] = [
       gpqa: 0.3,
       hle: 0.25,
     },
-    // Current Artificial Analysis rows reliably publish the aggregate index,
-    // while older GPQA and HLE joins are often absent. Keep those gaps visible
-    // instead of turning a valid current evidence view into an empty state.
-    minimumCoverage: 1,
+    // A one-field row is not comparable to rows backed by multiple independent
+    // measurements. Keep sparse rows out of this ordered view instead of
+    // renormalizing a single aggregate index into an apparent ranking.
+    minimumCoverage: 2,
     budgetMetricKey: "price_1m_blended_3_to_1",
   },
   {
     id: "fast-value",
-    label: "Speed, cost, and intelligence",
+    label: "Speed, cost, and AA Index",
     weights: {
       aa_intelligence_index: 0.35,
       median_output_tokens_per_second: 0.35,

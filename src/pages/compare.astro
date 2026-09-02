@@ -22,7 +22,6 @@ import { DEFAULT_TASK_PRESETS, type TaskPreset } from "../lib/model-intelligence
 import {
   compareOptionalMetricValues,
   hasFiniteMetricValue,
-  parseFiniteMetricValue,
 } from "../lib/metric-values";
 import { selectBenchmarkSnapshotModels } from "../lib/model-spotlight";
 
@@ -84,28 +83,6 @@ const clientBenchmarkAttributions = Object.fromEntries(
   Object.entries(benchmarkAttributions).filter(([key]) => !key.startsWith("epoch_")),
 );
 
-const getEpochDemoPrice = (modelName: string): { input: number; output: number } => {
-  const normalized = normalizeModelKey(modelName);
-  const priceHints = [
-    { tokens: ["gpt 4o mini"], input: 0.15, output: 0.6 },
-    { tokens: ["gpt 4o"], input: 2.5, output: 10 },
-    { tokens: ["gpt 4 1 mini"], input: 0.4, output: 1.6 },
-    { tokens: ["gpt 4 1"], input: 2, output: 8 },
-    { tokens: ["claude 3 5 haiku", "claude 3 5 haiku 20241022"], input: 0.8, output: 4 },
-    { tokens: ["claude 3 5 sonnet", "claude 3 7 sonnet"], input: 3, output: 15 },
-    { tokens: ["gemini 1 5 flash", "gemini 2 0 flash"], input: 0.1, output: 0.4 },
-    { tokens: ["gemini 1 5 pro"], input: 1.25, output: 5 },
-    { tokens: ["deepseek v3", "deepseek r1"], input: 0.27, output: 1.1 },
-    { tokens: ["llama 3 1 405b", "llama 3 3 70b"], input: 0.6, output: 0.9 },
-    { tokens: ["mistral large"], input: 2, output: 6 },
-    { tokens: ["grok"], input: 3, output: 15 },
-  ];
-  const match = priceHints.find((hint) =>
-    hint.tokens.some((token) => normalized.includes(token)),
-  );
-  return match ? { input: match.input, output: match.output } : { input: 1, output: 3 };
-};
-
 const buildEpochCompareDemoModels = (): any[] => {
   const scoredModels = epochModels
     .map((model) => {
@@ -114,13 +91,7 @@ const buildEpochCompareDemoModels = (): any[] => {
           run.model_version === model.model_version &&
           hasFiniteMetricValue(run.score),
       );
-      const scores = relatedRuns
-        .map((run) => parseFiniteMetricValue(run.score))
-        .filter((score): score is number => score !== null);
-      const bestScore = scores.length
-        ? Math.max(...scores)
-        : Number.NEGATIVE_INFINITY;
-      return { model, relatedRuns, bestScore };
+      return { model, relatedRuns };
     })
     .filter((entry) => entry.relatedRuns.length > 0)
     .sort((a, b) => {
@@ -130,13 +101,14 @@ const buildEpochCompareDemoModels = (): any[] => {
         "desc",
       );
       if (eciOrder !== 0) return eciOrder;
-      return b.bestScore - a.bestScore;
+      return String(a.model.model_version || a.model.id).localeCompare(
+        String(b.model.model_version || b.model.id),
+      );
     })
     .slice(0, 40);
 
   return scoredModels.map(({ model, relatedRuns }, index) => {
     const name = model.display_name || model.model_name || model.model_version;
-    const price = getEpochDemoPrice(name);
     return {
       id: `epoch-demo-${model.id || model.model_version || index}`,
       name,
@@ -157,16 +129,17 @@ const buildEpochCompareDemoModels = (): any[] => {
       math_500: null,
       aime: null,
       pricing: null,
-      price_1m_blended_3_to_1: (price.input * 3 + price.output) / 4,
-      price_1m_input_tokens: price.input,
-      price_1m_output_tokens: price.output,
+      price_1m_blended_3_to_1: null,
+      price_1m_input_tokens: null,
+      price_1m_output_tokens: null,
       median_output_tokens_per_second: null,
       median_time_to_first_token_seconds: null,
       median_time_to_first_answer_token: null,
       isIllustrativeFallback: true,
-      priceEvidence: "synthetic-estimate",
-      first_seen: model.release_date || relatedRuns[0]?.release_date || '',
-      last_seen: model.release_date || relatedRuns[0]?.release_date || '',
+      priceEvidence: "unavailable",
+      first_seen: null,
+      last_seen: null,
+      release_date: model.release_date || relatedRuns[0]?.release_date || null,
     };
   });
 };
@@ -202,7 +175,7 @@ const initialCoverageCount = compareModels.filter((model: any) => {
   );
   return present.length >= defaultTaskPreset.minimumCoverage;
 }).length;
-const initialCoverageLabel = `${initialCoverageCount} / ${compareModels.length} models meet ${defaultTaskPreset.minimumCoverage} of ${defaultTaskMetricKeys.length} weighted fields`;
+const initialCoverageLabel = `${initialCoverageCount} / ${compareModels.length} models have ${defaultTaskPreset.minimumCoverage} of ${defaultTaskMetricKeys.length} named measurements`;
 
 const formatContextLength = (value: number | null | undefined): string => {
   const num = Number(value);
@@ -2555,18 +2528,17 @@ epochBenchmarksWithData.forEach((b) => {
     </aside>
 
     <main class="compare-main">
-      <section class="compare-hero fade-in-section" aria-label="Compare workbench overview">
+      <section class="compare-hero fade-in-section" aria-label="Model comparison overview">
         <div>
-          <span class="compare-hero-kicker">Selection lab</span>
           <h1 class="compare-page-title">Compare AI Models</h1>
           <p class="compare-page-lede">
-            Build a practical shortlist by reading benchmark movement, price,
-            latency, context, and public catalog coverage in the same view.
+            Select models and compare named benchmarks, prices, speed, latency,
+            context, and catalog fields side by side.
           </p>
         </div>
-        <div class="compare-preset-strip compare-lens-strip" aria-label="Task lens controls">
+        <div class="compare-preset-strip compare-lens-strip" aria-label="Comparison controls">
           <label class="compare-lens-cell compare-lens-control" for="compare-task-preset">
-            <span>Task lens</span>
+            <span>Compare by</span>
             <select
               id="compare-task-preset"
               aria-describedby="compare-evidence-coverage compare-evidence-mode"
@@ -2582,27 +2554,27 @@ epochBenchmarksWithData.forEach((b) => {
             </select>
           </label>
           <div class="compare-lens-cell" id="compare-evidence-coverage">
-            <span>Metric coverage</span>
+            <span>Comparable rows</span>
             <strong>{initialCoverageLabel}</strong>
-            <p>Coverage uses weighted fields only. Missing evidence stays missing.</p>
+            <p>Only the named measurements for this view are counted. Missing values stay missing.</p>
           </div>
           <div class="compare-lens-cell" id="compare-evidence-mode">
-            <span>Evidence mode</span>
+            <span>Data available</span>
             <strong>
               {usingIllustrativeFallback
-                ? "Illustrative fallback"
-                : "Source-backed defaults"}
+                ? "Benchmark-only Epoch rows"
+                : "Measured pricing and benchmarks"}
             </strong>
             <p>
               {usingIllustrativeFallback
-                ? "No priced source-backed rows are loaded here yet, so price estimates are synthetic."
-                : "Selections start from source-backed priced models captured by this build."}
+                ? "Current priced rows are unavailable. Epoch benchmark rows are shown without price estimates."
+                : "Selections start from priced models and named measurements captured by this build."}
             </p>
           </div>
         </div>
         <dl class="compare-hero-stats" aria-label="Initial compare coverage">
           <div>
-            <dt>Loaded</dt>
+            <dt>Priced</dt>
             <dd>{validModels.length}</dd>
           </div>
           <div>
@@ -2618,15 +2590,13 @@ epochBenchmarksWithData.forEach((b) => {
           <summary>How to read this view</summary>
           <div class="compare-guide-body">
             <p class="compare-page-lede">
-              Pick a performance metric, select models that do the same kind of work, then read price beside score. That's how
-              you find out whether the cheaper model or the one with the bigger context window actually holds up for the job.
-              There is no single overall rank here.
+              Pick a performance metric, select models with comparable measurements, then read price beside score.
+              There is no single overall rank here, and missing measurements stay visible.
             </p>
             <p class="compare-page-lede">
-              Coding, math, reasoning, long-context review, and agent tool use often point to different winners, so stay inside
-              one task family first. The charts narrow the field before you run a live test; they can't tell you how a model
-              handles your prompts, your latency budget, or your spend. Recheck candidates when providers update pricing,
-              context limits, or benchmark submissions, since small catalog changes can move the best default.
+              Coding, math, reasoning, long-context review, and agent tool use measure different capabilities. Keep comparisons
+              within one task family, then test the models with your own prompts and route. Provider pricing, context limits,
+              and benchmark submissions can change, so use the observation dates in the exact-data table before drawing conclusions.
             </p>
           </div>
         </details>
@@ -2635,23 +2605,29 @@ epochBenchmarksWithData.forEach((b) => {
         <div class="chart-grid stagger-container" data-stagger="80">
           <div class="chart-section stagger-item">
             <div class="chart-header">
-              <h2>Price Comparison</h2>
+              <h2>Price comparison</h2>
+              <p>USD per 1M input and output tokens.</p>
             </div>
             <div class="chart-container is-loading" id="price-chart">
               <div class="chart-skeleton" aria-hidden="true"></div>
-              <canvas id="price-canvas" aria-label="Input and output price comparison for selected models"></canvas>
+              <canvas id="price-canvas" aria-label="Input and output price comparison for selected models" aria-describedby="compare-chart-data"></canvas>
             </div>
           </div>
 
           <div class="chart-section stagger-item">
             <div class="chart-header">
-              <h2>Performance Comparison</h2>
+              <h2>Performance comparison</h2>
+              <p id="performance-unit-note">The selected benchmark's source-native unit is shown.</p>
             </div>
             <div class="chart-container is-loading" id="performance-chart">
               <div class="chart-skeleton" aria-hidden="true"></div>
-              <canvas id="perf-canvas" aria-label="Selected benchmark comparison for selected models"></canvas>
+              <canvas id="perf-canvas" aria-label="Selected benchmark comparison for selected models" aria-describedby="compare-chart-data"></canvas>
             </div>
           </div>
+        </div>
+        <div class="sr-only" id="compare-chart-data" aria-live="polite">
+          <h3>Exact chart data</h3>
+          <div id="compare-chart-data-tables"></div>
         </div>
       </section>
 
@@ -2672,7 +2648,7 @@ epochBenchmarksWithData.forEach((b) => {
                 <th scope="col">Context</th>
                 <th scope="col">Public price</th>
                 <th scope="col">OR usage/routes</th>
-                <th scope="col">HF signal</th>
+                <th scope="col">Hugging Face activity</th>
                 <th scope="col">Capabilities</th>
               </tr>
             </thead>
@@ -2713,7 +2689,7 @@ epochBenchmarksWithData.forEach((b) => {
                       <td data-label="OR usage/routes">
                         {openRouterUsage === "-" ? openRouterRouteDetail : `${openRouterUsage} / ${openRouterRouteDetail}`}
                       </td>
-                      <td data-label="HF signal">{hfSignal}</td>
+                      <td data-label="Hugging Face activity">{hfSignal}</td>
                       <td data-label="Capabilities">{capabilities || "-"}</td>
                     </tr>
                   );
@@ -2969,6 +2945,9 @@ epochBenchmarksWithData.forEach((b) => {
     return window.innerWidth <= 1100;
   }
 
+  let compactFilterWasOpen = false;
+  let compactFilterReturnFocus = null;
+
   function setCompareFiltersOpen(nextOpen) {
     const { rail, main, toggle, overlay, footer } = getFilterControls();
     if (!rail || !toggle) return;
@@ -2981,10 +2960,23 @@ epochBenchmarksWithData.forEach((b) => {
     const isCompact = isCompactFilterLayout();
 
     if (isCompact) {
+      const wasOpen = compactFilterWasOpen;
+      compactFilterWasOpen = nextOpen;
       rail.classList.remove("closed");
       rail.classList.toggle("open", nextOpen);
+      rail.setAttribute("role", "dialog");
+      rail.setAttribute("aria-modal", "true");
+      rail.setAttribute("aria-label", "Model comparison filters");
       overlay?.classList.toggle("active", nextOpen);
       document.body.classList.toggle("compare-filters-open", nextOpen);
+      if (main) nextOpen ? main.setAttribute("inert", "") : main.removeAttribute("inert");
+      if (footer) nextOpen ? footer.setAttribute("inert", "") : footer.removeAttribute("inert");
+      if (nextOpen && !wasOpen) {
+        compactFilterReturnFocus = document.activeElement;
+        window.requestAnimationFrame(() => rail.querySelector("#filter-close")?.focus());
+      } else if (!nextOpen && wasOpen) {
+        window.requestAnimationFrame(() => compactFilterReturnFocus?.focus?.());
+      }
       if (main) {
         main.style.marginLeft = "";
         main.style.width = "";
@@ -2995,6 +2987,12 @@ epochBenchmarksWithData.forEach((b) => {
         footer.classList.remove("filters-closed");
       }
     } else {
+      compactFilterWasOpen = false;
+      rail.removeAttribute("role");
+      rail.removeAttribute("aria-modal");
+      rail.removeAttribute("aria-label");
+      main?.removeAttribute("inert");
+      footer?.removeAttribute("inert");
       rail.classList.remove("open");
       rail.classList.toggle("closed", !nextOpen);
       overlay?.classList.remove("active");
@@ -3064,8 +3062,25 @@ epochBenchmarksWithData.forEach((b) => {
   document.addEventListener(
     "keydown",
     (event) => {
-      if (event.key !== "Escape" || !getCompareFiltersOpen()) return;
-      window.__setCompareFiltersOpen?.(false);
+      if (!getCompareFiltersOpen() || !isCompactFilterLayout()) return;
+      if (event.key === "Escape") {
+        window.__setCompareFiltersOpen?.(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const rail = document.getElementById("smart-filter-rail");
+      const items = Array.from(rail?.querySelectorAll(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+      ) ?? []).filter((item) => item instanceof HTMLElement && !item.hidden);
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
     },
     { signal: window.__compareFilterClickController.signal },
   );
@@ -3138,6 +3153,8 @@ epochBenchmarksWithData.forEach((b) => {
     const taskPresetSelect = document.getElementById("compare-task-preset");
     const evidenceCoverageEl = document.getElementById("compare-evidence-coverage");
     const evidenceModeEl = document.getElementById("compare-evidence-mode");
+    const performanceUnitNote = document.getElementById("performance-unit-note");
+    const chartDataTables = document.getElementById("compare-chart-data-tables");
 
     // Benchmark display names and epoch scores (mutable for live refresh)
     let benchmarkNames = { ...availableBenchmarks };
@@ -3172,6 +3189,21 @@ epochBenchmarksWithData.forEach((b) => {
       getTaskMetricKeys(preset).find((key) => !key.includes("price")) ||
       getTaskMetricKeys(preset)[0] ||
       "mmlu_pro";
+
+    const isExplicitPercentageMetric = (metricName) => {
+      const name = String(metricName || "").toLowerCase();
+      return (
+        name.includes("%")
+        || name.includes("percent")
+        || name.includes("accuracy")
+        || name.includes("correct")
+        || name.includes("resolved")
+        || name.includes("pass rate")
+        || name.includes("success rate")
+        || name.includes("win rate")
+        || name.includes("exact match")
+      );
+    };
 
     const syncMetricPickerValue = () => {
       if (!metricSelector || !metricPickerValue) return;
@@ -3743,14 +3775,7 @@ epochBenchmarksWithData.forEach((b) => {
 
       const epochSlug = metricKey.replace("epoch_", "");
       const metricName = String(epochScoreMetrics?.[epochSlug] || "").toLowerCase();
-      const isPercentMetric =
-        metricName.includes("%") ||
-        metricName.includes("percent") ||
-        metricName.includes("accuracy") ||
-        metricName.includes("score") ||
-        metricName.includes("average") ||
-        metricName.includes("correct") ||
-        metricName.includes("resolved");
+      const isPercentMetric = isExplicitPercentageMetric(metricName);
       const normalizeEpochMetricScore = (score) =>
         isPercentMetric && score <= 1 ? score * 100 : score;
       const { keys } = collectLookupKeys(model);
@@ -3774,14 +3799,7 @@ epochBenchmarksWithData.forEach((b) => {
 
       const epochSlug = metricKey.replace("epoch_", "");
       const metricName = String(epochScoreMetrics?.[epochSlug] || "").toLowerCase();
-      const isPercentMetric =
-        metricName.includes("%") ||
-        metricName.includes("percent") ||
-        metricName.includes("accuracy") ||
-        metricName.includes("score") ||
-        metricName.includes("average") ||
-        metricName.includes("correct") ||
-        metricName.includes("resolved");
+      const isPercentMetric = isExplicitPercentageMetric(metricName);
       if (isPercentMetric) return `${num.toFixed(3)}%`;
       return num >= 100
         ? num.toLocaleString(undefined, { maximumFractionDigits: 3 })
@@ -3846,7 +3864,11 @@ epochBenchmarksWithData.forEach((b) => {
       const metrics = {};
       (runs || []).forEach((run) => {
         if (!run.benchmark_slug || !run.score_metric) return;
-        metrics[run.benchmark_slug] ||= run.score_metric;
+        const previous = metrics[run.benchmark_slug];
+        metrics[run.benchmark_slug] =
+          previous && previous !== run.score_metric
+            ? "mixed"
+            : previous || run.score_metric;
       });
       return metrics;
     };
@@ -3903,20 +3925,20 @@ epochBenchmarksWithData.forEach((b) => {
         return presentCount >= preset.minimumCoverage;
       }).length;
 
-      const summary = `${coveredModels} / ${modelsState.length} models meet ${preset.minimumCoverage} of ${taskMetricKeys.length} weighted fields`;
-      const detail = `${selectedCovered} selected models currently meet this task lens.`;
+      const summary = `${coveredModels} / ${modelsState.length} models have ${preset.minimumCoverage} of ${taskMetricKeys.length} named measurements`;
+      const detail = `${selectedCovered} selected models currently have enough comparable measurements.`;
       const modeTitle = usingIllustrativeFallback
-        ? "Illustrative fallback"
-        : "Source-backed defaults";
+        ? "Benchmark-only Epoch rows"
+        : "Measured pricing and benchmarks";
       const modeDetail = usingIllustrativeFallback
-        ? "No priced source-backed rows are loaded here yet, so price estimates are synthetic."
-        : "Selections start from source-backed priced models captured by this build.";
+        ? "Current priced rows are unavailable. Epoch benchmark rows are shown without price estimates."
+        : "Selections start from priced models and named measurements captured by this build.";
 
       if (evidenceCoverageEl) {
-        evidenceCoverageEl.innerHTML = `<span>Metric coverage</span><strong>${sanitizeHTML(summary)}</strong><p>${sanitizeHTML(detail)}</p>`;
+        evidenceCoverageEl.innerHTML = `<span>Comparable rows</span><strong>${sanitizeHTML(summary)}</strong><p>${sanitizeHTML(detail)}</p>`;
       }
       if (evidenceModeEl) {
-        evidenceModeEl.innerHTML = `<span>Evidence mode</span><strong>${sanitizeHTML(modeTitle)}</strong><p>${sanitizeHTML(modeDetail)}</p>`;
+        evidenceModeEl.innerHTML = `<span>Data available</span><strong>${sanitizeHTML(modeTitle)}</strong><p>${sanitizeHTML(modeDetail)}</p>`;
       }
     }
 
@@ -3958,7 +3980,7 @@ epochBenchmarksWithData.forEach((b) => {
               <td data-label="Context">${formatContextLength(context)}</td>
               <td data-label="Public price">${formatCatalogPrice(publicPrice)}</td>
               <td data-label="OR usage/routes">${sanitizeHTML(openRouterUsageRoutes)}</td>
-              <td data-label="HF signal">${sanitizeHTML(hfSignal)}</td>
+              <td data-label="Hugging Face activity">${sanitizeHTML(hfSignal)}</td>
               <td data-label="Capabilities">${sanitizeHTML(capabilities)}</td>
             </tr>
           `;
@@ -3974,7 +3996,7 @@ epochBenchmarksWithData.forEach((b) => {
               <th scope="col">Context</th>
               <th scope="col">Public price</th>
               <th scope="col">OR usage/routes</th>
-              <th scope="col">HF signal</th>
+              <th scope="col">Hugging Face activity</th>
               <th scope="col">Capabilities</th>
             </tr>
           </thead>
@@ -4149,6 +4171,7 @@ epochBenchmarksWithData.forEach((b) => {
         if (!perfChart.querySelector(".no-data")) {
           perfChart.appendChild(buildEmptyState());
         }
+        if (chartDataTables) chartDataTables.textContent = "No models selected.";
         return;
       }
 
@@ -4157,6 +4180,17 @@ epochBenchmarksWithData.forEach((b) => {
         ? sortToggle.getAttribute("data-order")
         : "desc";
       const metric = metricSelector ? metricSelector.value : "mmlu_pro";
+      const epochMetricName = metric.startsWith("epoch_")
+        ? String(epochScoreMetrics?.[metric.replace("epoch_", "")] || "")
+        : "percentage";
+      const performanceUnit = isExplicitPercentageMetric(epochMetricName)
+        ? "Percent"
+        : epochMetricName && epochMetricName !== "mixed"
+          ? epochMetricName
+          : "Source-native numeric value";
+      if (performanceUnitNote) {
+        performanceUnitNote.textContent = `Unit: ${performanceUnit}. Unknown or mixed source units are not converted to percentages.`;
+      }
 
       // Update performance chart title with benchmark name
       const perfChartHeader = document
@@ -4414,6 +4448,43 @@ epochBenchmarksWithData.forEach((b) => {
       const perfLabels = chosenByMetric.map((m) => labelParts(m.name));
       const scores = chosenByMetric.map((m) => resolveMetricScore(m, metric));
       const showPerfLabels = chosenByMetric.length <= 8;
+      if (chartDataTables) {
+        const dateLabel = (value) => {
+          const date = new Date(value || "");
+          return Number.isNaN(date.getTime())
+            ? "Unavailable"
+            : new Intl.DateTimeFormat("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+                timeZone: "UTC",
+              }).format(date);
+        };
+        const priceRows = chosenByPrice.map((model) => `
+          <tr>
+            <th scope="row">${sanitizeHTML(model.name || "Unknown model")}</th>
+            <td>${formatCatalogPrice(model.price_1m_input_tokens)}</td>
+            <td>${formatCatalogPrice(model.price_1m_output_tokens)}</td>
+            <td>${sanitizeHTML(dateLabel(model.last_seen))}</td>
+          </tr>`).join("");
+        const performanceRows = chosenByMetric.map((model) => `
+          <tr>
+            <th scope="row">${sanitizeHTML(model.name || "Unknown model")}</th>
+            <td>${sanitizeHTML(formatMetricValue(resolveMetricScore(model, metric), metric))}</td>
+            <td>${sanitizeHTML(dateLabel(model.last_seen))}</td>
+          </tr>`).join("");
+        chartDataTables.innerHTML = `
+          <table>
+            <caption>Exact price data, USD per 1M tokens</caption>
+            <thead><tr><th>Model</th><th>Input</th><th>Output</th><th>Last observed</th></tr></thead>
+            <tbody>${priceRows}</tbody>
+          </table>
+          <table>
+            <caption>${sanitizeHTML(benchmarkNames[metric] || metric)} exact data, ${sanitizeHTML(performanceUnit)}</caption>
+            <thead><tr><th>Model</th><th>Value</th><th>Last observed</th></tr></thead>
+            <tbody>${performanceRows}</tbody>
+          </table>`;
+      }
       if (perfCanvas && window.Chart) {
         if (!datalabelsRegistered) {
           window.Chart.register(

@@ -33,8 +33,8 @@ const sources: SourceFreshness[] = requiredSources.map((required) =>
 );
 
 const statusLabels: Record<SourceFreshnessStatus, string> = {
-  healthy: "Healthy",
-  stale: "Stale",
+  healthy: "Current",
+  stale: "Delayed",
   partial: "Partial",
   failed: "Failed",
   unavailable: "Unavailable",
@@ -53,11 +53,11 @@ const formatObserved = (value: Date | null): string =>
   <header>
     <div>
       <span>Source health</span>
-      <p>Independent receipts. All dates UTC.</p>
+      <p>Dates and coverage are shown per source. All dates UTC.</p>
     </div>
     <p class="fallback-mode">
-      <b>Fallback mode</b>
-      {freshness.fallback.fallback ? "Static snapshot" : "Live freshness view"}
+      <b>Data mode</b>
+      {freshness.fallback.fallback ? "Checked snapshots" : "Live source status"}
     </p>
   </header>
   <div class="source-health-grid">
@@ -79,7 +79,19 @@ const formatObserved = (value: Date | null): string =>
           </div>
           <div>
             <dt>Coverage</dt>
-            <dd>{source.coverageLabel ?? "No coverage receipt"}</dd>
+            <dd>{source.coverageLabel ?? "Coverage unavailable"}</dd>
+          </div>
+          <div>
+            <dt>Last successful refresh</dt>
+            <dd>
+              {source.lastSuccessfulRunAt ? (
+                <time datetime={source.lastSuccessfulRunAt.toISOString()}>
+                  {formatObserved(source.lastSuccessfulRunAt)}
+                </time>
+              ) : (
+                "Not available"
+              )}
+            </dd>
           </div>
           <div>
             <dt>Status</dt>

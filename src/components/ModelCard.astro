@@ -107,7 +107,7 @@ const allBenchmarks = [
 
 // AA Indexes
 const aaIndexes = [
-  ["Intelligence", model.aa_intelligence_index],
+  ["AA Index", model.aa_intelligence_index],
   ["Coding", model.aa_coding_index],
   ["Math", model.aa_math_index],
 ];
@@ -233,7 +233,7 @@ const formatCompactNumber = (value: number | null | undefined): string => {
       }
       <div class="min-w-0">
         <h3
-          class="truncate text-sm font-semibold text-text group-hover:text-foam transition-colors"
+          class="break-words text-sm font-semibold text-text group-hover:text-foam transition-colors"
         >
           {model.name}
         </h3>
@@ -286,13 +286,13 @@ const formatCompactNumber = (value: number | null | undefined): string => {
           </dd>
         </div>
         <div class="mj">
-          <dt>TTFT (token)</dt>
+          <dt>First token</dt>
           <dd class="fb">
             {formatTTFT(model.median_time_to_first_token_seconds)}
           </dd>
         </div>
         <div class="mj">
-          <dt>TTFT (answer)</dt>
+          <dt>First answer token</dt>
           <dd class="fb">
             {formatTTFT(model.median_time_to_first_answer_token)}
           </dd>
@@ -363,7 +363,7 @@ const formatCompactNumber = (value: number | null | undefined): string => {
             ) : null
           }
           <div class="mj3">
-            <dt class="tsub">HF signal</dt>
+            <dt class="tsub">Hugging Face activity</dt>
             <dd class="mtr">
               {hasHuggingFaceData
                 ? `${formatCompactNumber(model.hf_downloads)} downloads, ${formatCompactNumber(model.hf_likes)} likes`
@@ -433,7 +433,7 @@ const formatCompactNumber = (value: number | null | undefined): string => {
     class="mcp2"
   >
     <div class="mcap">
-      AA Indexes
+      Artificial Analysis indexes
     </div>
     <div class="mdl4">
       {

@@ -206,7 +206,7 @@ const readStaticSources = async (
       lastObservedAt: epoch.fetchedAt,
       lastSuccessfulRunAt: epoch.fetchedAt,
       coverageLabel: epoch.simpleBenchRunCount
-        ? `${epoch.simpleBenchRunCount} Epoch-sourced results`
+        ? `${epoch.simpleBenchRunCount} SimpleBench results from the Epoch AI snapshot`
         : null,
     }),
     resolveSourceFreshness({

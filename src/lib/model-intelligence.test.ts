@@ -21,7 +21,7 @@ test("default task presets disclose weights, coverage, and comparable metric dir
   ]);
   expect(DEFAULT_TASK_PRESETS.find((preset) => preset.id === "reasoning")).toMatchObject({
     label: "Reasoning and research evidence",
-    minimumCoverage: 1,
+    minimumCoverage: 2,
   });
   expect(DEFAULT_TASK_PRESETS.find((preset) => preset.id === "coding")).toMatchObject({
     weights: {
@@ -40,7 +40,7 @@ test("default task presets disclose weights, coverage, and comparable metric dir
   ).toBe(true);
 });
 
-test("the reasoning evidence lens remains populated when current AA rows lack legacy benchmark joins", () => {
+test("the reasoning comparison requires at least two named measurements", () => {
   const reasoningPreset = modelIntelligence.DEFAULT_TASK_PRESETS.find(
     (preset) => preset.id === "reasoning",
   );
@@ -57,16 +57,37 @@ test("the reasoning evidence lens remains populated when current AA rows lack le
           price_1m_blended_3_to_1: 2,
         },
       },
+      {
+        id: "comparable-reasoning-model",
+        metrics: {
+          aa_intelligence_index: 70,
+          gpqa: 66,
+          hle: null,
+          price_1m_blended_3_to_1: 2,
+        },
+      },
     ],
     { ...reasoningPreset!, budget: 5 },
   );
 
   expect(ranked).toHaveLength(1);
   expect(ranked[0]).toMatchObject({
-    coverage: 1,
-    presentMetricKeys: ["aa_intelligence_index"],
-    missingMetricKeys: ["gpqa", "hle"],
+    model: { id: "comparable-reasoning-model" },
+    coverage: 2,
+    presentMetricKeys: ["aa_intelligence_index", "gpqa"],
+    missingMetricKeys: ["hle"],
   });
+});
+
+test("the compare fallback never invents model pricing", () => {
+  const comparePage = readFileSync(new URL("../pages/compare.astro", import.meta.url), "utf8");
+  const compareApi = readFileSync(new URL("../pages/api/compare-initial.json.ts", import.meta.url), "utf8");
+
+  for (const source of [comparePage, compareApi]) {
+    expect(source).not.toContain("getEpochDemoPrice");
+    expect(source).not.toContain("synthetic-estimate");
+    expect(source).toContain('priceEvidence: "unavailable"');
+  }
 });
 
 test("rankComparableModels excludes a one-metric perfect row below required coverage", () => {

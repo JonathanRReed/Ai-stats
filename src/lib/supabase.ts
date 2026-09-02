@@ -403,7 +403,7 @@ export type PublicCatalogModels = {
 
 const toPricePerMillion = (value: unknown): number | null => {
   const num = Number(value);
-  if (!Number.isFinite(num)) return null;
+  if (!Number.isFinite(num) || num < 0) return null;
   return num * 1_000_000;
 };
 
@@ -414,7 +414,7 @@ const toPositiveNumber = (value: unknown): number | null => {
 
 const toPriceValue = (value: unknown): number | null => {
   const num = Number(value);
-  return Number.isFinite(num) ? num : null;
+  return Number.isFinite(num) && num >= 0 ? num : null;
 };
 
 const splitOpenRouterId = (id: string): { author: string | null; slug: string | null } => {

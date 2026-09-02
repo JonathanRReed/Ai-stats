@@ -18,24 +18,24 @@ test("the compare page keeps the loading skeleton and branded empty state in sou
 });
 
 test("the compare page keeps the guidance that there is no single overall rank", () => {
-  expect(source).toContain("There is no single overall rank here.");
-  expect(source).toContain("Coding, math, reasoning, long-context review, and agent tool use often point to different winners");
+  expect(source).toContain("There is no single overall rank here");
+  expect(source).toContain("Coding, math, reasoning, long-context review, and agent tool use measure different capabilities");
 });
 
-test("the compare page starts with a compact task lens and explicit evidence coverage", () => {
+test("the compare page starts with compact controls and explicit comparable coverage", () => {
   expect(source).toContain('id="compare-task-preset"');
-  expect(source).toContain("Task lens");
+  expect(source).toContain("Compare by");
   expect(source).toContain('id="compare-evidence-coverage"');
-  expect(source).toContain("Metric coverage");
+  expect(source).toContain("Comparable rows");
   expect(source).toContain('id="compare-evidence-mode"');
   expect(source).toContain("DEFAULT_TASK_PRESETS");
   expect(source).toContain('id="compare-selected-count"');
   expect(source).toContain("selectedStatEl.textContent = String(selected.size);");
 });
 
-test("the compare page describes source-backed data as build-time evidence", () => {
+test("the compare page describes measured data as a build-time snapshot", () => {
   expect(source).toContain(
-    "Selections start from source-backed priced models captured by this build.",
+    "Selections start from priced models and named measurements captured by this build.",
   );
   expect(source).not.toContain("live data can replace the snapshot");
 });
@@ -47,9 +47,9 @@ test("the compare page revalidates its stable initial-data URL", () => {
   );
 });
 
-test("illustrative Epoch fallback is labeled and never selected as a source-backed default", () => {
-  expect(source).toContain("Illustrative fallback");
-  expect(source).toContain("price estimates are synthetic");
+test("benchmark-only Epoch fallback is labeled, unpriced, and never selected as a default", () => {
+  expect(source).toContain("Benchmark-only Epoch rows");
+  expect(source).toContain("shown without price estimates");
   expect(source).toContain(
     "const curatedSelectedModels = selectBenchmarkSnapshotModels(validModels, 3);",
   );
@@ -61,9 +61,20 @@ test("illustrative Epoch fallback is labeled and never selected as a source-back
   );
   expect(initialApiSource).toContain("validModels: validModels.map(compactCompareModelForClient)");
   expect(initialApiSource).toContain("isIllustrativeFallback: true");
-  expect(initialApiSource).toContain('priceEvidence: "synthetic-estimate"');
+  expect(initialApiSource).toContain('priceEvidence: "unavailable"');
+  expect(source).not.toContain("synthetic-estimate");
+  expect(initialApiSource).not.toContain("synthetic-estimate");
   expect(source).not.toContain("aa_intelligence_index: model.eci_score");
   expect(initialApiSource).not.toContain("aa_intelligence_index: model.eci_score");
+  expect(initialApiSource).toContain("validModels as AaModel[]");
+  expect(initialApiSource).toContain("first_seen: null");
+  expect(initialApiSource).toContain("release_date:");
+});
+
+test("Epoch metrics keep source-native units unless the source explicitly identifies a percentage", () => {
+  expect(source).not.toContain('metricName.includes("score")');
+  expect(source).not.toContain('metricName.includes("average")');
+  expect(initialApiSource).toContain("? 'mixed'");
 });
 
 test("Epoch scores do not use fuzzy token fallback across source identities", () => {

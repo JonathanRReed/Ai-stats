@@ -79,11 +79,11 @@ const simpleBenchRuns = epochRuns.filter((run) =>
   String(run.benchmark_slug ?? run.benchmark_name ?? "").toLowerCase().includes("simplebench"),
 );
 const coverageRows = [
-  { label: "AA intelligence evidence", value: aaIntelligenceCount, max: Math.max(models.length, 1), detail: `${aaIntelligenceCount} / ${models.length} priced models`, showProgress: true },
-  { label: "AA coding evidence", value: aaCodingCount, max: Math.max(models.length, 1), detail: `${aaCodingCount} / ${models.length} priced models`, showProgress: true },
-  { label: "Epoch model coverage", value: epochModelVersions.size, max: Math.max(epochModels.length, 1), detail: `${epochModelVersions.size} / ${epochModels.length} models`, showProgress: true },
-  { label: "SimpleBench observations", value: simpleBenchRuns.length, max: 0, detail: `${simpleBenchRuns.length.toLocaleString("en-US")} recorded observations`, showProgress: false },
-  { label: "PoliBench operational evidence", value: polibench?.counts.models ?? 0, max: 0, detail: polibench ? `${polibench.counts.models} models / ${polibench.counts.runs} runs` : "No checked snapshot", showProgress: false },
+  { label: "AA Index available", value: aaIntelligenceCount, max: Math.max(models.length, 1), detail: `${aaIntelligenceCount} / ${models.length} priced models`, showProgress: true },
+  { label: "Coding metrics available", value: aaCodingCount, max: Math.max(models.length, 1), detail: `${aaCodingCount} / ${models.length} priced models`, showProgress: true },
+  { label: "Epoch models with runs", value: epochModelVersions.size, max: Math.max(epochModels.length, 1), detail: `${epochModelVersions.size} / ${epochModels.length} models`, showProgress: true },
+  { label: "SimpleBench via Epoch snapshot", value: simpleBenchRuns.length, max: 0, detail: `${simpleBenchRuns.length.toLocaleString("en-US")} recorded observations`, showProgress: false },
+  { label: "PoliBench current snapshot", value: polibench?.counts.models ?? 0, max: 0, detail: polibench ? `${polibench.counts.models} models / ${polibench.counts.runs} runs` : "No checked snapshot", showProgress: false },
 ];
 
 const recentSources = [...freshness.sources]
@@ -100,11 +100,11 @@ const money = (value: number | null | undefined): string =>
   finitePositive(value) ? `$${value.toFixed(value < 1 ? 3 : 2)}` : "Missing";
 ---
 
-<section class="intelligence-overview" aria-label="Intelligence overview">
+<section class="intelligence-overview" aria-label="Compare the measurements">
   <header class="overview-header">
     <div>
-      <span>Intelligence overview</span>
-      <h2>Market evidence, without a universal score</h2>
+      <span>Compare the measurements</span>
+      <h2>Model data, without a universal score</h2>
     </div>
     <a href="/compare">View all model comparisons <span aria-hidden="true">→</span></a>
   </header>
@@ -116,7 +116,7 @@ const money = (value: number | null | undefined): string =>
       <p>Priced Artificial Analysis models in this build.</p>
     </article>
     <article>
-      <span>AA intelligence span</span>
+      <span>AA Index range</span>
       <strong>{qualityValues.length ? `${Math.min(...qualityValues).toFixed(1)}–${Math.max(...qualityValues).toFixed(1)}` : "No observations"}</strong>
       <p>{qualityValues.length} current index observations.</p>
     </article>
@@ -135,10 +135,10 @@ const money = (value: number | null | undefined): string =>
   <div class="overview-grid">
     <figure class="quality-price">
       <figcaption>
-        <span>Quality vs. price</span>
+        <span>AA Index vs. price</span>
         <p>Artificial Analysis Intelligence Index against blended price. Log price scale. Select a point for exact values.</p>
       </figcaption>
-      <div class="plot-controls" aria-label="Filter quality and price plot">
+      <div class="plot-controls" aria-label="Filter AA Index and price plot">
         <label>
           <span>Provider</span>
           <select id="plot-provider">
@@ -152,15 +152,16 @@ const money = (value: number | null | undefined): string =>
         </label>
         <label class="plot-check">
           <input id="plot-frontier-only" type="checkbox" />
-          <span>Frontier only</span>
+          <span>Not dominated only</span>
         </label>
       </div>
       <p id="plot-status" class="plot-status" aria-live="polite">Showing {qualityPriceModels.length} measured models.</p>
       {qualityPriceModels.length ? (
-        <div class="plot-stage" role="region" aria-label="Scrollable quality and price plot">
+        <p class="plot-mobile-hint">Swipe horizontally to inspect the full chart.</p>
+        <div class="plot-stage" role="region" aria-label="Scrollable AA Index and price plot">
         <svg viewBox="0 0 640 340" role="group" aria-labelledby="quality-price-title quality-price-desc">
-          <title id="quality-price-title">Quality versus price for models with comparable Artificial Analysis data</title>
-          <desc id="quality-price-desc">Each point is a model. Horizontal position is blended US dollar price per one million tokens on a logarithmic scale. Vertical position is the Artificial Analysis Intelligence Index from 0 to 100. Copper points are on the price-quality Pareto frontier.</desc>
+          <title id="quality-price-title">Artificial Analysis Intelligence Index versus price</title>
+          <desc id="quality-price-desc">Each point is a model. Horizontal position is blended US dollar price per one million tokens on a logarithmic scale. Vertical position is the Artificial Analysis Intelligence Index from 0 to 100. Copper points have no measured model that is both cheaper and higher-index.</desc>
           <rect x={chartLeft} y={chartTop} width={chartRight - chartLeft} height={chartBottom - chartTop} class="chart-frame" />
           {qualityTicks.map((tick) => (
             <g>
@@ -193,7 +194,7 @@ const money = (value: number | null | undefined): string =>
                 data-last-observed={sourceModel?.last_seen ?? ""}
                 tabindex={index === 0 ? 0 : -1}
                 role="button"
-                aria-label={`${model.label ?? model.id}, ${provider}, intelligence index ${quality.toFixed(1)}, ${money(price)} per 1M tokens${isFrontier ? ", price-quality frontier" : ""}`}
+                aria-label={`${model.label ?? model.id}, ${provider}, AA Index ${quality.toFixed(1)}, ${money(price)} per 1M tokens${isFrontier ? ", not dominated on price and AA Index" : ""}`}
               >
                 <circle
                   cx={scaleX(price)}
@@ -219,15 +220,15 @@ const money = (value: number | null | undefined): string =>
         <a id="plot-inspector-link" href="/compare">Compare selected model</a>
       </aside>
       <div class="plot-legend" aria-label="Chart legend">
-        <span><i class="frontier-swatch" /> Price-quality frontier</span>
+        <span><i class="frontier-swatch" /> Not dominated on price and AA Index</span>
         <span><i class="other-swatch" /> Other models</span>
       </div>
-      <p class="plot-how-to-read"><strong>How to read:</strong> higher points have a higher measured AA index. Moving left means a lower blended token price. Frontier points are not recommendations, they are models for which no measured model is both cheaper and higher-index.</p>
+      <p class="plot-how-to-read"><strong>How to read:</strong> higher points have a higher measured AA Index. Moving left means a lower blended token price. Copper points are models for which no measured model is both cheaper and higher-index. This is not a recommendation.</p>
       <details>
         <summary>Complete quality and price data</summary>
         <div class="table-scroll">
           <table aria-label="Quality and price data table">
-            <thead><tr><th scope="col">Model</th><th scope="col">Intelligence Index</th><th scope="col">Blended USD / 1M</th><th scope="col">Pareto frontier</th></tr></thead>
+            <thead><tr><th scope="col">Model</th><th scope="col">AA Index</th><th scope="col">Blended USD / 1M</th><th scope="col">Not dominated</th></tr></thead>
             <tbody>
               {chartRows.map((model) => (
                 <tr data-plot-row data-model-id={model.id} data-model-name={model.label ?? model.id} data-provider={chartSourceModels.get(model.id)?.company_name ?? chartSourceModels.get(model.id)?.creator_name ?? "Unknown provider"} data-frontier={frontierIds.has(model.id) ? "true" : "false"}>
@@ -253,11 +254,11 @@ const money = (value: number | null | undefined): string =>
           </div>
         ))}
       </div>
-      <p class="coverage-note">PoliBench coverage is source-native operational evidence and is not joined to AA candidates without an explicit alias.</p>
+      <p class="coverage-note">PoliBench counts come from its own checked snapshot. They are not joined to Artificial Analysis models without an explicit model match.</p>
     </section>
 
     <section class="changes-panel" aria-labelledby="changes-title">
-      <header><h3 id="changes-title">Recent source changes</h3><p>Newest observation receipts in this build.</p></header>
+      <header><h3 id="changes-title">Recent source updates</h3><p>Latest dated observations in this build.</p></header>
       {recentSources.length ? (
         <ol>
           {recentSources.map((source) => (
@@ -272,7 +273,7 @@ const money = (value: number | null | undefined): string =>
           ))}
         </ol>
       ) : (
-        <p class="changes-empty">No dated source receipt is available. Checked snapshots remain visible above.</p>
+        <p class="changes-empty">No dated source update is available. Checked snapshots remain visible above.</p>
       )}
       <a href="/about">Read source methodology <span aria-hidden="true">→</span></a>
     </section>
@@ -350,6 +351,7 @@ const money = (value: number | null | undefined): string =>
   .plot-check { display: flex !important; grid-template-columns: auto 1fr; align-items: center; min-width: auto !important; gap: 0.45rem !important; min-height: 2.25rem; }
   .plot-check input { width: 1rem; height: 1rem; accent-color: var(--intelligence-copper); }
   .plot-status { margin-top: 0.65rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.7rem; }
+  .plot-mobile-hint { display: none; margin-top: 0.6rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.68rem; }
   .plot-stage { overflow-x: auto; margin-top: 0.25rem; padding: 0.1rem 0.1rem 0.35rem; }
   .quality-price svg { display: block; width: 100%; min-width: 38rem; height: auto; margin-top: 0.7rem; overflow: visible; }
   .quality-price svg text { fill: var(--muted); font-family: var(--font-mono); font-size: 11px; }
@@ -423,6 +425,8 @@ const money = (value: number | null | undefined): string =>
     .overview-grid > *:last-child { border-bottom: 0; }
     .quality-price { grid-column: auto; }
     .plot-controls label { flex: 1 1 8rem; }
+    .plot-mobile-hint { display: block; }
+    .quality-price svg { min-width: 32rem; }
     .changes-panel li { grid-template-columns: 4.4rem minmax(0, 1fr); }
     .changes-panel li b { grid-column: 2; }
   }
@@ -475,10 +479,10 @@ const money = (value: number | null | undefined): string =>
       const quality = Number(point.dataset.quality ?? 0).toFixed(1);
       const price = Number(point.dataset.price ?? 0);
       const priceLabel = price < 1 ? `$${price.toFixed(3)}` : `$${price.toFixed(2)}`;
-      const frontierLabel = point.dataset.frontier === "true" ? " · Price-quality frontier" : "";
+      const frontierLabel = point.dataset.frontier === "true" ? " · Not dominated on price and AA Index" : "";
       const dates = ` · First tracked ${formatDate(point.dataset.firstTracked)} · Last observed ${formatDate(point.dataset.lastObserved)}`;
       if (inspectorName) inspectorName.textContent = name;
-      if (inspectorValues) inspectorValues.textContent = `${modelProvider} · Intelligence Index ${quality} · ${priceLabel} per 1M tokens${frontierLabel}${dates}`;
+      if (inspectorValues) inspectorValues.textContent = `${modelProvider} · AA Index ${quality} · ${priceLabel} per 1M tokens${frontierLabel}${dates}`;
       if (inspectorLink) {
         inspectorLink.hidden = false;
         inspectorLink.href = `/compare?model=${encodeURIComponent(name)}`;

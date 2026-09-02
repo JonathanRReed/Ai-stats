@@ -16,7 +16,6 @@ import { getPublicEpochSnapshot } from '../../lib/epoch-snapshot';
 import {
   compareOptionalMetricValues,
   hasFiniteMetricValue,
-  parseFiniteMetricValue,
 } from '../../lib/metric-values';
 import { selectBenchmarkSnapshotModels } from '../../lib/model-spotlight';
 import type { AaModel } from '../../lib/supabase';
@@ -30,15 +29,16 @@ type EpochDemoModel = {
   creator_slug: string;
   company_name: string | null | undefined;
   aa_intelligence_index: number | null | undefined;
-  price_1m_blended_3_to_1: number;
-  price_1m_input_tokens: number;
-  price_1m_output_tokens: number;
+  price_1m_blended_3_to_1: null;
+  price_1m_input_tokens: null;
+  price_1m_output_tokens: null;
   median_output_tokens_per_second: null;
   median_time_to_first_answer_token: null;
   isIllustrativeFallback: true;
-  priceEvidence: 'synthetic-estimate';
-  first_seen: string;
-  last_seen: string;
+  priceEvidence: 'unavailable';
+  first_seen: null;
+  last_seen: null;
+  release_date: string | null;
 };
 
 const normalizeModelKey = (value: string | null | undefined): string => {
@@ -47,28 +47,6 @@ const normalizeModelKey = (value: string | null | undefined): string => {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
-};
-
-const getEpochDemoPrice = (modelName: string): { input: number; output: number } => {
-  const normalized = normalizeModelKey(modelName);
-  const priceHints = [
-    { tokens: ['gpt 4o mini'], input: 0.15, output: 0.6 },
-    { tokens: ['gpt 4o'], input: 2.5, output: 10 },
-    { tokens: ['gpt 4 1 mini'], input: 0.4, output: 1.6 },
-    { tokens: ['gpt 4 1'], input: 2, output: 8 },
-    { tokens: ['claude 3 5 haiku', 'claude 3 5 haiku 20241022'], input: 0.8, output: 4 },
-    { tokens: ['claude 3 5 sonnet', 'claude 3 7 sonnet'], input: 3, output: 15 },
-    { tokens: ['gemini 1 5 flash', 'gemini 2 0 flash'], input: 0.1, output: 0.4 },
-    { tokens: ['gemini 1 5 pro'], input: 1.25, output: 5 },
-    { tokens: ['deepseek v3', 'deepseek r1'], input: 0.27, output: 1.1 },
-    { tokens: ['llama 3 1 405b', 'llama 3 3 70b'], input: 0.6, output: 0.9 },
-    { tokens: ['mistral large'], input: 2, output: 6 },
-    { tokens: ['grok'], input: 3, output: 15 },
-  ];
-  const match = priceHints.find((hint) =>
-    hint.tokens.some((token) => normalized.includes(token)),
-  );
-  return match ? { input: match.input, output: match.output } : { input: 1, output: 3 };
 };
 
 const compactCompareModelForClient = (model: CompareModelRecord) => ({
@@ -112,6 +90,9 @@ const compactCompareModelForClient = (model: CompareModelRecord) => ({
   litellm_supports_web_search: model.litellm_supports_web_search,
   isIllustrativeFallback: model.isIllustrativeFallback,
   priceEvidence: model.priceEvidence,
+  first_seen: model.first_seen,
+  last_seen: model.last_seen,
+  release_date: model.release_date,
 });
 
 const collectInitialEpochLookup = (model: CompareModelRecord) => {
@@ -241,13 +222,7 @@ export const GET: APIRoute = async () => {
             run.model_version === model.model_version &&
             hasFiniteMetricValue(run.score),
         );
-        const scores = relatedRuns
-          .map((run) => parseFiniteMetricValue(run.score))
-          .filter((score): score is number => score !== null);
-        const bestScore = scores.length
-          ? Math.max(...scores)
-          : Number.NEGATIVE_INFINITY;
-        return { model, relatedRuns, bestScore };
+        return { model, relatedRuns };
       })
       .filter((entry) => entry.relatedRuns.length > 0)
       .sort((a, b) => {
@@ -257,13 +232,14 @@ export const GET: APIRoute = async () => {
           'desc',
         );
         if (eciOrder !== 0) return eciOrder;
-        return b.bestScore - a.bestScore;
+        return String(a.model.model_version || a.model.id).localeCompare(
+          String(b.model.model_version || b.model.id),
+        );
       })
       .slice(0, 40);
 
     return scoredModels.map(({ model, relatedRuns }, index) => {
       const name = model.display_name || model.model_name || model.model_version;
-      const price = getEpochDemoPrice(name);
       return {
         id: `epoch-demo-${model.id || model.model_version || index}`,
         name,
@@ -272,15 +248,16 @@ export const GET: APIRoute = async () => {
         creator_slug: normalizeModelKey(model.organization).replace(/\s+/g, '-'),
         company_name: model.organization,
         aa_intelligence_index: null,
-        price_1m_blended_3_to_1: (price.input * 3 + price.output) / 4,
-        price_1m_input_tokens: price.input,
-        price_1m_output_tokens: price.output,
+        price_1m_blended_3_to_1: null,
+        price_1m_input_tokens: null,
+        price_1m_output_tokens: null,
         median_output_tokens_per_second: null,
         median_time_to_first_answer_token: null,
         isIllustrativeFallback: true,
-        priceEvidence: "synthetic-estimate",
-        first_seen: model.release_date || relatedRuns[0]?.release_date || '',
-        last_seen: model.release_date || relatedRuns[0]?.release_date || '',
+        priceEvidence: "unavailable",
+        first_seen: null,
+        last_seen: null,
+        release_date: model.release_date || relatedRuns[0]?.release_date || null,
       };
     });
   };
@@ -288,7 +265,7 @@ export const GET: APIRoute = async () => {
   const epochDemoModels = validModels.length > 0 ? [] : buildEpochCompareDemoModels();
   const compareModels = validModels.length > 0 ? validModels : epochDemoModels;
   const curatedDefaultModels = selectBenchmarkSnapshotModels(
-    models as AaModel[],
+    validModels as AaModel[],
     3,
   );
   const defaultModelIds = (curatedDefaultModels.length
@@ -310,7 +287,9 @@ export const GET: APIRoute = async () => {
   const initialClientEpochScoreMetrics: Record<string, string> = {};
   epochRuns.forEach((run) => {
     if (!run.benchmark_slug || !run.score_metric) return;
-    initialClientEpochScoreMetrics[run.benchmark_slug] ??= run.score_metric;
+    const previous = initialClientEpochScoreMetrics[run.benchmark_slug];
+    initialClientEpochScoreMetrics[run.benchmark_slug] =
+      previous && previous !== run.score_metric ? 'mixed' : previous ?? run.score_metric;
   });
 
   return new Response(

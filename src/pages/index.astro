@@ -5,9 +5,9 @@ import { getDataFreshness, toIsoDate } from "../lib/data-freshness";
 
 export const prerender = true;
 
-const title = "AI Stats | Source-backed AI model evidence by Jonathan R. Reed";
+const title = "AI Stats | Compare AI Model Price, Speed, and Benchmarks";
 const description =
-  "Inspect source-backed AI model pricing, speed, benchmark coverage, and freshness across transparent evidence views without opaque recommendations.";
+  "Compare AI models by price, speed, context, and benchmark results from Artificial Analysis, Epoch AI, SimpleBench, PoliBench, OpenRouter, and other named sources. No single winner score.";
 
 const { updatedAt } = await getDataFreshness();
 const dateModified = toIsoDate(updatedAt) ?? undefined;

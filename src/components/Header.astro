@@ -39,7 +39,7 @@ const { currentPage = 'dashboard' } = Astro.props;
           <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
         </svg>
       </button>
-      <button id="mobile-menu-toggle" class="hamburger" aria-label="Toggle menu" aria-expanded="false">
+      <button id="mobile-menu-toggle" class="hamburger" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-nav">
         <span class="hamburger-line"></span>
         <span class="hamburger-line"></span>
         <span class="hamburger-line"></span>
@@ -48,8 +48,8 @@ const { currentPage = 'dashboard' } = Astro.props;
   </div>
   
   <!-- Mobile nav overlay -->
-  <div id="mobile-nav-overlay" class="mobile-nav-overlay"></div>
-  <nav id="mobile-nav" class="mobile-nav" inert>
+  <div id="mobile-nav-overlay" class="mobile-nav-overlay" aria-hidden="true"></div>
+  <nav id="mobile-nav" class="mobile-nav" inert aria-label="Mobile navigation">
     <a href="/" class={`mobile-nav-item ${currentPage === 'dashboard' ? 'active' : ''}`} tabindex="-1">Stats</a>
     <a href="/compare" class={`mobile-nav-item ${currentPage === 'compare' ? 'active' : ''}`} tabindex="-1">Compare</a>
     <a href="/about" class={`mobile-nav-item ${currentPage === 'about' ? 'active' : ''}`} tabindex="-1">About</a>
@@ -439,3 +439,51 @@ html.light .theme-toggle .moon-icon {
 </style>
 
 <script is:inline src="/header.js" defer></script>
+<script is:inline>
+  (() => {
+    const bindAccessibleMobileMenu = () => {
+      const toggle = document.getElementById("mobile-menu-toggle");
+      const nav = document.getElementById("mobile-nav");
+      const overlay = document.getElementById("mobile-nav-overlay");
+      if (!toggle || !nav || toggle.dataset.focusManaged === "true") return;
+      toggle.dataset.focusManaged = "true";
+      let returnFocus = toggle;
+
+      const focusable = () => Array.from(nav.querySelectorAll('a[href]:not([tabindex="-1"])'));
+      const syncFocus = () => {
+        const open = toggle.getAttribute("aria-expanded") === "true";
+        overlay?.setAttribute("aria-hidden", String(!open));
+        if (open) focusable()[0]?.focus();
+        else returnFocus?.focus();
+      };
+
+      toggle.addEventListener("click", () => {
+        returnFocus = toggle;
+        window.requestAnimationFrame(syncFocus);
+      });
+      overlay?.addEventListener("click", () => window.requestAnimationFrame(syncFocus));
+      nav.addEventListener("keydown", (event) => {
+        if (event.key !== "Tab") return;
+        const items = focusable();
+        if (!items.length) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && toggle.getAttribute("aria-expanded") === "true") {
+          window.requestAnimationFrame(syncFocus);
+        }
+      });
+    };
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindAccessibleMobileMenu);
+    else bindAccessibleMobileMenu();
+    document.addEventListener("astro:page-load", bindAccessibleMobileMenu);
+  })();
+</script>

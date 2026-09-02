@@ -59,7 +59,7 @@ const primaryBenchmark = (
       candidate.presentMetricKeys.includes(key),
   );
   if (!metricKey) {
-    return { label: "Native benchmark", value: "Missing", unit: "No joined evidence" };
+    return { label: "Named benchmark", value: "Missing", unit: "No matching measurement" };
   }
   return {
     label: metricLabels[metricKey] ?? metricKey,
@@ -86,13 +86,13 @@ const workbenchPayloadJson = JSON.stringify({
 
 <section
   class="task-workbench"
-  aria-label="Evidence lens"
+  aria-label="Compare models by task"
   data-shortlist-state={initialCandidates.length ? "ready" : "empty"}
 >
   <form class="task-query" data-task-form>
-    <span class="task-query-label">Evidence lens</span>
+    <span class="task-query-label">Compare by</span>
     <label>
-      <span>Metric view</span>
+      <span>Task</span>
       <select id="task-preset" name="task">
         {DEFAULT_TASK_PRESETS.map((preset) => (
           <option value={preset.id}>{preset.label}</option>
@@ -115,17 +115,17 @@ const workbenchPayloadJson = JSON.stringify({
   <div class="shortlist-frame" data-shortlist-frame aria-busy="false">
     <div class="shortlist-head" aria-hidden="true">
       <span>Model</span>
-      <span>Evidence profile</span>
+      <span>Why this row is shown</span>
       <span>Price / 1M</span>
       <span>Speed</span>
-      <span>Native evidence</span>
+      <span>Named metric</span>
       <span>Coverage</span>
     </div>
 
     <p class="shortlist-status sr-only" aria-live="polite" data-shortlist-status>
       {initialCandidates.length
         ? `${initialCandidates.length} models shown in disclosed metric order.`
-        : "No models match the current evidence filter."}
+        : "No models have enough comparable measurements for these filters."}
     </p>
     <div class="shortlist-rows" data-shortlist-rows hidden={initialCandidates.length === 0}>
       {initialCandidates.map((candidate) => {
@@ -140,9 +140,9 @@ const workbenchPayloadJson = JSON.stringify({
                 <p>{model.provider}</p>
               </div>
             </div>
-            <div class="reason-cell" data-label="Evidence profile">
-              <p>Ordered by the disclosed formula within this filtered set.</p>
-              <small>{candidate.coverage} weighted {candidate.coverage === 1 ? "field" : "fields"} present</small>
+            <div class="reason-cell" data-label="Why this row is shown">
+              <p>Has enough named measurements for this comparison.</p>
+              <small>{candidate.coverage} of {weightedKeys.length} measurements present</small>
             </div>
             <div class="metric-cell" data-label="Price / 1M">
               <strong>{formatPrice(model.metrics.price_1m_blended_3_to_1)}</strong>
@@ -152,17 +152,17 @@ const workbenchPayloadJson = JSON.stringify({
               <strong>{formatMetric(model.metrics.median_output_tokens_per_second)}</strong>
               <small>median tokens/sec</small>
             </div>
-            <div class="metric-cell" data-label="Native evidence">
+            <div class="metric-cell" data-label="Named metric">
               <strong>{benchmark.value}</strong>
               <small>{benchmark.label} · {benchmark.unit}</small>
             </div>
             <div class="metric-cell coverage-cell" data-label="Coverage">
               <strong>{candidate.coverage} / {weightedKeys.length}</strong>
-              <small>weighted fields</small>
+              <small>measurements present</small>
             </div>
             {candidate.missingMetricKeys.length > 0 && (
               <p class="missing-evidence">
-                <span>Missing evidence</span>{" "}
+                <span>Missing measurements</span>{" "}
                 {candidate.missingMetricKeys.map((key) => metricLabels[key] ?? key).join(", ")}
               </p>
             )}
@@ -173,7 +173,7 @@ const workbenchPayloadJson = JSON.stringify({
 
     <div class="shortlist-loading" hidden data-shortlist-loading>
       <span aria-hidden="true" />
-      <p>Updating evidence</p>
+      <p>Updating comparison</p>
     </div>
     <div
       class="shortlist-empty"
@@ -183,13 +183,13 @@ const workbenchPayloadJson = JSON.stringify({
     >
       <p>
         {models.length
-          ? "No models match this evidence filter yet."
-          : "Evidence data unavailable in this build."}
+          ? "No models have enough comparable measurements for these filters."
+          : "Model measurements are unavailable in this build."}
       </p>
       <span>
         {models.length
           ? "Raise the budget ceiling or remove the price constraint."
-          : "Artificial Analysis observations are missing. Epoch and PoliBench evidence remain available below."}
+          : "Artificial Analysis observations are missing. Epoch and PoliBench measurements remain available below."}
       </span>
       <button type="button" data-empty-reset hidden={models.length === 0}>
         Reset constraints
@@ -197,8 +197,8 @@ const workbenchPayloadJson = JSON.stringify({
     </div>
   </div>
 
-  <aside class="weights-disclosure" aria-label="Evidence ordering method">
-    <span>Comparison formula</span>
+  <aside class="weights-disclosure" aria-label="How this order is calculated">
+    <span>How this order is calculated</span>
     <dl data-weight-list>
       {Object.entries(defaultPreset.weights).map(([key, weight]) => (
         <div>
@@ -208,7 +208,7 @@ const workbenchPayloadJson = JSON.stringify({
       ))}
     </dl>
     <p data-coverage-rule>
-      The order is a temporary within-view comparison, not a recommendation. Values are normalized only within this filtered set. Each row must have at least {defaultPreset.minimumCoverage} of {weightedKeys.length} weighted evidence fields; missing fields stay missing.
+      Values are normalized only within this filtered set. Each row must have at least {defaultPreset.minimumCoverage} of {weightedKeys.length} named measurements. Missing values stay missing. This order describes the selected measurements, it does not recommend a model.
     </p>
   </aside>
 
@@ -218,12 +218,12 @@ const workbenchPayloadJson = JSON.stringify({
         <span class="candidate-mark" aria-hidden="true"></span>
         <div><h2 data-model-name>Candidate</h2><p data-model-provider></p></div>
       </div>
-      <div class="reason-cell" data-label="Evidence profile"><p data-model-reason></p><small data-model-fields></small></div>
+      <div class="reason-cell" data-label="Why this row is shown"><p data-model-reason></p><small data-model-fields></small></div>
       <div class="metric-cell" data-label="Price / 1M"><strong data-model-price></strong><small data-model-price-detail></small></div>
       <div class="metric-cell" data-label="Speed"><strong data-model-speed></strong><small>median tokens/sec</small></div>
-      <div class="metric-cell" data-label="Native evidence"><strong data-model-benchmark></strong><small data-model-benchmark-detail></small></div>
-      <div class="metric-cell coverage-cell" data-label="Coverage"><strong data-model-coverage></strong><small>weighted fields</small></div>
-      <p class="missing-evidence" data-model-missing hidden><span>Missing evidence</span> <b></b></p>
+      <div class="metric-cell" data-label="Named metric"><strong data-model-benchmark></strong><small data-model-benchmark-detail></small></div>
+      <div class="metric-cell coverage-cell" data-label="Coverage"><strong data-model-coverage></strong><small>measurements present</small></div>
+      <p class="missing-evidence" data-model-missing hidden><span>Missing measurements</span> <b></b></p>
     </article>
   </template>
 </section>
@@ -351,11 +351,11 @@ const workbenchPayloadJson = JSON.stringify({
       text(row?.querySelector("[data-model-provider]"), model?.provider ?? "Unknown provider");
       text(
         row?.querySelector("[data-model-reason]"),
-        `Ordered by the disclosed formula for ${preset.label.toLowerCase()}${Number.isFinite(budget) ? " within this price ceiling" : ""}.`,
+        `Has enough named measurements for ${preset.label.toLowerCase()}${Number.isFinite(budget) ? " within this price ceiling" : ""}.`,
       );
       text(
         row?.querySelector("[data-model-fields]"),
-        `${candidate.coverage} weighted ${candidate.coverage === 1 ? "field" : "fields"} present`,
+        `${candidate.coverage} of ${weightedKeys.length} measurements present`,
       );
       text(row?.querySelector("[data-model-price]"), money(model?.metrics.price_1m_blended_3_to_1));
       text(row?.querySelector("[data-model-price-detail]"), `Input ${money(model?.inputPrice)} / output ${money(model?.outputPrice)}`);
@@ -365,7 +365,7 @@ const workbenchPayloadJson = JSON.stringify({
         row?.querySelector("[data-model-benchmark-detail]"),
         benchmarkKey
           ? `${metricLabels[benchmarkKey] ?? benchmarkKey} · ${benchmarkKey.startsWith("aa_") ? "index points" : "source-native score"}`
-          : "No joined evidence",
+          : "No matching measurement",
       );
       text(row?.querySelector("[data-model-coverage]"), `${candidate.coverage} / ${weightedKeys.length}`);
       const missing = row?.querySelector<HTMLElement>("[data-model-missing]");
@@ -382,10 +382,10 @@ const workbenchPayloadJson = JSON.stringify({
     root.dataset.shortlistState = isEmpty ? "empty" : ranked.length < 3 ? "partial" : "ready";
     frame.setAttribute("aria-busy", "false");
     if (loading) loading.hidden = true;
-    text(status, isEmpty ? "No models match the current evidence filter." : `${ranked.length} source-backed models shown in disclosed metric order.`);
+    text(status, isEmpty ? "No models have enough comparable measurements for these filters." : `${ranked.length} models shown with enough named measurements.`);
     text(
       coverageRule,
-      `The order is a temporary within-view comparison, not a recommendation. Values are normalized only within this filtered set. Each row must have at least ${preset.minimumCoverage} of ${weightedKeys.length} weighted evidence fields; missing fields stay missing.`,
+      `Values are normalized only within this filtered set. Each row must have at least ${preset.minimumCoverage} of ${weightedKeys.length} named measurements. Missing values stay missing. This order describes the selected measurements, it does not recommend a model.`,
     );
     renderWeights(preset);
   };
@@ -394,7 +394,7 @@ const workbenchPayloadJson = JSON.stringify({
     if (!frame) return;
     frame.setAttribute("aria-busy", "true");
     if (loading) loading.hidden = false;
-    text(status, "Updating evidence");
+    text(status, "Updating comparison");
     queueMicrotask(renderShortlist);
   };
 

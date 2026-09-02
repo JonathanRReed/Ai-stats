@@ -489,11 +489,11 @@ export default function ModelDrawer() {
                 <dd className="font-mono text-lg font-semibold text-text">{formatTPS(model.median_output_tokens_per_second)}</dd>
               </div>
               <div>
-                <dt className="font-mono text-xs text-subtle">TTFT, token</dt>
+                <dt className="font-mono text-xs text-subtle">First token</dt>
                 <dd className="font-mono text-lg font-semibold text-text">{formatTTFT(model.median_time_to_first_token_seconds)}</dd>
               </div>
               <div>
-                <dt className="font-mono text-xs text-subtle">TTFT, answer</dt>
+                <dt className="font-mono text-xs text-subtle">First answer token</dt>
                 <dd className="font-mono text-lg font-semibold text-text">{formatTTFT(model.median_time_to_first_answer_token)}</dd>
               </div>
             </dl>
@@ -522,10 +522,10 @@ export default function ModelDrawer() {
           </section>
 
           <section className="rounded-lg border border-border-color bg-surface p-4">
-            <h3 className="mb-3 font-mono text-xs font-bold text-muted">AA indexes</h3>
+            <h3 className="mb-3 font-mono text-xs font-bold text-muted">Artificial Analysis indexes</h3>
             <div className="grid gap-3 sm:grid-cols-3">
               {[
-                ['Intelligence', model.aa_intelligence_index],
+                ['AA Index', model.aa_intelligence_index],
                 ['Coding', model.aa_coding_index],
                 ['Math', model.aa_math_index],
               ].map(([label, value]) => (
@@ -596,9 +596,9 @@ export default function ModelDrawer() {
           )}
 
           <section className="rounded-lg border border-border-color bg-surface p-4">
-            <h3 className="font-mono text-xs font-bold text-muted">Measure it on your route</h3>
+            <h3 className="font-mono text-xs font-bold text-muted">Compare it from your browser</h3>
             <p className="mt-2 text-sm leading-6 text-subtle">
-              AI Stats reports published market evidence. AI Drag Racing lets you test this model from your own
+              AI Stats shows published measurements. AI Drag Racing lets you test this model from your own
               browser, provider route, and location without mixing that private result into the public benchmark data.
             </p>
             <a
@@ -607,7 +607,7 @@ export default function ModelDrawer() {
               rel="noopener noreferrer"
               className="mt-4 inline-flex min-h-11 items-center border border-love bg-love px-4 font-mono text-xs font-bold text-[var(--on-accent)] transition-colors hover:bg-base hover:text-love focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-love"
             >
-              Test this model locally
+              Open in AI Drag Racing
             </a>
           </section>
         </div>
