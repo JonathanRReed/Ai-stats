@@ -14,6 +14,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  share-database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: local-ci-only
+          POSTGRES_DB: share_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Verify anonymous share contract and retention
+        env:
+          PGHOST: localhost
+          PGUSER: postgres
+          PGPASSWORD: local-ci-only
+          PGDATABASE: share_test
+        run: |
+          psql -v ON_ERROR_STOP=1 \
+            -f supabase/tests/share_bootstrap.sql \
+            -f supabase/migrations/20260902010000_ai_drag_race_shares.sql \
+            -f supabase/migrations/20260902011000_lock_down_ai_drag_share_function_grants.sql \
+            -f supabase/tests/share_migration_path.sql \
+            -f supabase/tests/ai_drag_shares.sql
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
