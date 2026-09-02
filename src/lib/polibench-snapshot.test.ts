@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 
-import { afterAll, beforeAll, expect, test } from "bun:test";
+import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -9,6 +9,7 @@ import { getPublicPoliBenchSnapshot } from "./polibench-snapshot";
 let cwdBefore = process.cwd();
 let tempDir = "";
 let snapshotPath = "";
+let validSnapshotText = "";
 
 beforeAll(async () => {
   cwdBefore = process.cwd();
@@ -105,6 +106,11 @@ beforeAll(async () => {
     "utf8",
   );
   process.chdir(tempDir);
+  validSnapshotText = await Bun.file(snapshotPath).text();
+});
+
+beforeEach(async () => {
+  await writeFile(snapshotPath, validSnapshotText, 'utf8');
 });
 
 afterAll(async () => {

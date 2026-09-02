@@ -71,7 +71,7 @@ jobs:
           bun audit
           bun run lint
           bun run typecheck
-          bun test
+          bun run test
       - name: Build with public credentials only
         env:
           PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

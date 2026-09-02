@@ -22,7 +22,7 @@
     "preview": "astro preview",
     "astro": "astro",
     "lint": "eslint \"src/**/*.{astro,ts,tsx}\" \"scripts/**/*.{ts,mjs}\"",
-    "test": "bun test",
+    "test": "bun test --isolate",
     "typecheck": "astro check",
     "check:epoch": "bun scripts/check-epoch-smoke.ts",
     "sync:epoch": "node scripts/sync-epoch-data.mjs",
