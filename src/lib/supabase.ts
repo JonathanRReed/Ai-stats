@@ -160,6 +160,37 @@ export type AaModel = {
   litellm_supports_web_search?: boolean;
 };
 
+export type CanonicalModelRow = {
+  id: number;
+  canonical_key: string;
+  display_name: string;
+  provider_name: string | null;
+  model_family: string | null;
+  release_date: string | null;
+  metadata: Record<string, unknown>;
+  updated_at: string;
+};
+
+export type ModelAliasRow = {
+  canonical_model_id: number;
+  intelligence_source_id: number;
+  source_model_key: string;
+  source_model_name: string | null;
+  match_method: 'source_native' | 'explicit_cross_source';
+  provenance: string;
+  confidence: number;
+  updated_at: string;
+};
+
+export type IntelligenceSourceRow = {
+  id: number;
+  source_key: string;
+  display_name: string;
+  homepage_url: string | null;
+  status: string;
+  last_successful_run_at: string | null;
+};
+
 export type OpenRouterModel = {
   id: string;
   openrouter_id: string;
@@ -858,6 +889,38 @@ export async function getModels(): Promise<AaModel[]> {
     ...model,
     company_name: model.creator_name ?? null,
   })) as AaModel[]);
+}
+
+export async function getCanonicalModels(): Promise<CanonicalModelRow[]> {
+  if (!supabase) return [];
+  return fetchAllPages<CanonicalModelRow>((from, to) =>
+    supabase
+      .from('canonical_models')
+      .select('id,canonical_key,display_name,provider_name,model_family,release_date,metadata,updated_at')
+      .order('canonical_key', { ascending: true })
+      .range(from, to),
+  );
+}
+
+export async function getModelAliases(): Promise<ModelAliasRow[]> {
+  if (!supabase) return [];
+  return fetchAllPages<ModelAliasRow>((from, to) =>
+    supabase
+      .from('model_aliases')
+      .select('canonical_model_id,intelligence_source_id,source_model_key,source_model_name,match_method,provenance,confidence,updated_at')
+      .order('canonical_model_id', { ascending: true })
+      .range(from, to),
+  );
+}
+
+export async function getIntelligenceSources(): Promise<IntelligenceSourceRow[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('intelligence_sources')
+    .select('id,source_key,display_name,homepage_url,status,last_successful_run_at')
+    .order('source_key', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as IntelligenceSourceRow[];
 }
 
 /**

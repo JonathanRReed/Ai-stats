@@ -24,6 +24,14 @@ const backendHardeningPath = path.join(
   process.cwd(),
   "supabase/migrations/20260901170000_harden_cron_secrets_and_extensions.sql",
 );
+const raceSharesPath = path.join(
+  process.cwd(),
+  "supabase/migrations/20260902010000_ai_drag_race_shares.sql",
+);
+const raceShareGrantsPath = path.join(
+  process.cwd(),
+  "supabase/migrations/20260902011000_lock_down_ai_drag_share_function_grants.sql",
+);
 
 const requiredPublicTables = [
   "intelligence_sources",
@@ -226,4 +234,57 @@ test("backend hardening removes plaintext cron credentials and public extension 
   expect(sql).toContain("raise exception 'cron credential migration failed'");
   expect(sql).toContain("raise exception 'pg_net request queue must be empty before relocation'");
   expect(sql).not.toMatch(/eyj[a-z0-9_-]+\.[a-z0-9_-]+\.[a-z0-9_-]+/i);
+});
+
+test("AI Drag Racing shares are bounded, private, expiring, and prompt-free", async () => {
+  const sql = normalizeSql(await readFile(raceSharesPath, "utf8"));
+
+  expect(sql).toContain("create table if not exists public.ai_drag_race_shares");
+  expect(sql).toContain("alter table public.ai_drag_race_shares enable row level security");
+  expect(sql).toContain("revoke all on table public.ai_drag_race_shares from public, anon, authenticated");
+  expect(sql).toContain("octet_length(payload::text) <= 16384");
+  expect(sql).toContain("expires_at <= created_at + interval '30 days'");
+  expect(sql).toContain("jsonb_array_length(p_payload -> 'lanes') > 12");
+  expect(sql).toContain("p_payload ?| array['prompttext', 'responsetext', 'apikey', 'ipaddress', 'preciselocation']");
+  expect(sql).toContain("prompttext|responsetext|apikey|ipaddress|preciselocation|fingerprint");
+  expect(sql).toContain("from jsonb_object_keys(lane)");
+  expect(sql).toContain("pg_catalog.pg_advisory_xact_lock");
+  expect(sql).toContain("select count(*) >= 20");
+  expect(sql).toContain("select count(*) >= 200");
+  expect(sql).toContain("set search_path = ''");
+  expect(sql).toContain("revoke all on function public.create_ai_drag_race_share(jsonb) from public, anon, authenticated, service_role");
+  expect(sql).toContain("revoke all on function public.get_ai_drag_race_share(uuid) from public, anon, authenticated, service_role");
+  expect(sql).toContain("revoke all on function public.purge_expired_ai_drag_race_shares() from public, anon, authenticated, service_role");
+  expect(sql).toContain("grant execute on function public.create_ai_drag_race_share(jsonb) to anon, authenticated, service_role");
+  expect(sql).toContain("grant execute on function public.get_ai_drag_race_share(uuid) to anon, authenticated, service_role");
+  expect(sql).toContain("grant execute on function public.purge_expired_ai_drag_race_shares() to service_role");
+  expect(sql).not.toMatch(/create policy .* on public\.ai_drag_race_shares/);
+  expect(sql).not.toMatch(/grant (?:select|insert|update|delete) on table public\.ai_drag_race_shares to anon/);
+});
+
+test("the AI Drag Racing grant repair leaves purge service-only", async () => {
+  const sql = normalizeSql(await readFile(raceShareGrantsPath, "utf8"));
+
+  for (const signature of [
+    "public.create_ai_drag_race_share(jsonb)",
+    "public.get_ai_drag_race_share(uuid)",
+    "public.purge_expired_ai_drag_race_shares()",
+  ]) {
+    expect(sql).toContain(
+      `revoke all on function ${signature} from public, anon, authenticated, service_role`,
+    );
+  }
+
+  expect(sql).toContain(
+    "grant execute on function public.create_ai_drag_race_share(jsonb) to anon, authenticated, service_role",
+  );
+  expect(sql).toContain(
+    "grant execute on function public.get_ai_drag_race_share(uuid) to anon, authenticated, service_role",
+  );
+  expect(sql).toContain(
+    "grant execute on function public.purge_expired_ai_drag_race_shares() to service_role",
+  );
+  expect(sql).not.toMatch(
+    /grant execute on function public\.purge_expired_ai_drag_race_shares\(\) to [^;]*(?:anon|authenticated)/,
+  );
 });

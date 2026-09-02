@@ -375,6 +375,10 @@ export default function ModelDrawer() {
     pricesAreClose(model.price_1m_output_tokens, model.openrouter_completion_price_1m);
   const showOpenRouterPricing = hasOpenRouterPrice && !openRouterPriceMatchesAa;
   const effectiveContextLength = model.openrouter_context_length || model.context_window;
+  const raceModel = model.openrouter_id || model.name;
+  const raceParams = new URLSearchParams({ model: raceModel });
+  if (model.openrouter_id) raceParams.set('provider', 'openrouter');
+  const raceUrl = `https://ai-dragrace.jonathanrreed.com/?${raceParams.toString()}`;
   const sourceRows = [
     ['Artificial Analysis', 'Pricing, AA benchmarks, speed'],
     hasOpenRouterData ? ['OpenRouter', 'Catalog, context, route metadata'] : null,
@@ -590,6 +594,22 @@ export default function ModelDrawer() {
               </dl>
             </section>
           )}
+
+          <section className="rounded-lg border border-border-color bg-surface p-4">
+            <h3 className="font-mono text-xs font-bold text-muted">Measure it on your route</h3>
+            <p className="mt-2 text-sm leading-6 text-subtle">
+              AI Stats reports published market evidence. AI Drag Racing lets you test this model from your own
+              browser, provider route, and location without mixing that private result into the public benchmark data.
+            </p>
+            <a
+              href={raceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex min-h-11 items-center border border-love bg-love px-4 font-mono text-xs font-bold text-[var(--on-accent)] transition-colors hover:bg-base hover:text-love focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-love"
+            >
+              Test this model locally
+            </a>
+          </section>
         </div>
       </div>
     </>

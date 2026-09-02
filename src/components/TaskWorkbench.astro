@@ -142,7 +142,7 @@ const workbenchPayloadJson = JSON.stringify({
             </div>
             <div class="reason-cell" data-label="Evidence profile">
               <p>Ordered by the disclosed formula within this filtered set.</p>
-              <small>{candidate.coverage} weighted fields present</small>
+              <small>{candidate.coverage} weighted {candidate.coverage === 1 ? "field" : "fields"} present</small>
             </div>
             <div class="metric-cell" data-label="Price / 1M">
               <strong>{formatPrice(model.metrics.price_1m_blended_3_to_1)}</strong>
@@ -207,8 +207,8 @@ const workbenchPayloadJson = JSON.stringify({
         </div>
       ))}
     </dl>
-    <p>
-      The order is a temporary within-view comparison, not a recommendation. Values are normalized only within this filtered set. Missing values stay missing; models need at least {defaultPreset.minimumCoverage} weighted fields.
+    <p data-coverage-rule>
+      The order is a temporary within-view comparison, not a recommendation. Values are normalized only within this filtered set. Each row must have at least {defaultPreset.minimumCoverage} of {weightedKeys.length} weighted evidence fields; missing fields stay missing.
     </p>
   </aside>
 
@@ -292,6 +292,7 @@ const workbenchPayloadJson = JSON.stringify({
   const loading = root?.querySelector<HTMLElement>("[data-shortlist-loading]");
   const empty = root?.querySelector<HTMLElement>("[data-shortlist-empty]");
   const weightList = root?.querySelector<HTMLElement>("[data-weight-list]");
+  const coverageRule = root?.querySelector<HTMLElement>("[data-coverage-rule]");
   const rowTemplate = root?.querySelector<HTMLTemplateElement>("#shortlist-row-template");
   const metricLabels: Record<string, string> = {
     aa_coding_index: "AA Coding Index",
@@ -352,7 +353,10 @@ const workbenchPayloadJson = JSON.stringify({
         row?.querySelector("[data-model-reason]"),
         `Ordered by the disclosed formula for ${preset.label.toLowerCase()}${Number.isFinite(budget) ? " within this price ceiling" : ""}.`,
       );
-      text(row?.querySelector("[data-model-fields]"), `${candidate.coverage} weighted fields present`);
+      text(
+        row?.querySelector("[data-model-fields]"),
+        `${candidate.coverage} weighted ${candidate.coverage === 1 ? "field" : "fields"} present`,
+      );
       text(row?.querySelector("[data-model-price]"), money(model?.metrics.price_1m_blended_3_to_1));
       text(row?.querySelector("[data-model-price-detail]"), `Input ${money(model?.inputPrice)} / output ${money(model?.outputPrice)}`);
       text(row?.querySelector("[data-model-speed]"), metric(model?.metrics.median_output_tokens_per_second));
@@ -379,6 +383,10 @@ const workbenchPayloadJson = JSON.stringify({
     frame.setAttribute("aria-busy", "false");
     if (loading) loading.hidden = true;
     text(status, isEmpty ? "No models match the current evidence filter." : `${ranked.length} source-backed models shown in disclosed metric order.`);
+    text(
+      coverageRule,
+      `The order is a temporary within-view comparison, not a recommendation. Values are normalized only within this filtered set. Each row must have at least ${preset.minimumCoverage} of ${weightedKeys.length} weighted evidence fields; missing fields stay missing.`,
+    );
     renderWeights(preset);
   };
 

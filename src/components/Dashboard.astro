@@ -25,6 +25,7 @@ import TaskWorkbench from "./TaskWorkbench.astro";
 import LatestModelsStrip from "./LatestModelsStrip.astro";
 import SourceHealthStrip from "./SourceHealthStrip.astro";
 import IntelligenceOverview from "./IntelligenceOverview.astro";
+import PoliBenchLab from "./PoliBenchLab.astro";
 import { getPublicPoliBenchSnapshot } from "../lib/polibench-snapshot";
 import {
   hasFiniteMetricValue,
@@ -383,6 +384,7 @@ function getScoreClass(score: number | null | undefined): string {
         polibench={publicPoliBenchSnapshot}
         freshness={dataFreshness}
       />
+      <PoliBenchLab snapshot={publicPoliBenchSnapshot} />
     </div>
     <p class="dashboard-definition">
       AI Stats is a source-backed console for inspecting AI model evidence. It keeps pricing,

@@ -12,7 +12,7 @@ afterEach(() => {
   globalThis.fetch = restoreFetch;
 });
 
-test("intelligence endpoint returns a versioned static-build contract with explicit source fallback metadata", async () => {
+test("intelligence endpoint returns a versioned build contract with explicit live or fallback metadata", async () => {
   const response = await GET({} as never);
 
   expect(response.status).toBe(200);
@@ -29,13 +29,6 @@ test("intelligence endpoint returns a versioned static-build contract with expli
       mode: "build-snapshot",
       generatedAt: expect.any(String),
       refreshRequiresBuild: true,
-    },
-    freshness: {
-      fallback: {
-        mode: "static-snapshot",
-        fallback: true,
-        reason: expect.any(String),
-      },
     },
     taskPresets: expect.arrayContaining([
       expect.objectContaining({
@@ -54,6 +47,15 @@ test("intelligence endpoint returns a versioned static-build contract with expli
   expect(payload.freshness).toHaveProperty("updatedAt");
   expect(payload.freshness).toHaveProperty("aaLastSeen");
   expect(payload.freshness).toHaveProperty("epochFetchedAt");
+  expect(payload.freshness.fallback.mode).toMatch(/^(live-view|static-snapshot)$/);
+  expect(payload.freshness.fallback.fallback).toBe(
+    payload.freshness.fallback.mode === "static-snapshot",
+  );
+  if (payload.freshness.fallback.fallback) {
+    expect(payload.freshness.fallback.reason).toEqual(expect.any(String));
+  } else {
+    expect(payload.freshness.fallback.reason).toBeNull();
+  }
   expect(Array.isArray(payload.freshness.sources)).toBe(true);
   expect(payload.freshness.sources.length).toBeGreaterThan(0);
   expect(payload.freshness.sources).toEqual(
