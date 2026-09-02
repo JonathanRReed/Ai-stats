@@ -6,6 +6,7 @@ import type {
 } from './supabase';
 import { dedupeAaModelsBySlug, hydrateEpochModelsFromRuns } from './data-integrity';
 import type { TaskPreset } from './model-intelligence';
+import { preferPublishedEpoch } from './epoch-selection';
 
 type FetchOpts = {
   supabaseUrl?: string;
@@ -244,6 +245,7 @@ export const fetchIntelligenceRefresh = async (): Promise<IntelligenceRefreshPay
 };
 
 type PublicEpochSnapshot = {
+  fetched_at?: string;
   models?: Record<string, unknown>[];
   benchmarks?: Record<string, unknown>[];
   runs?: Record<string, unknown>[];
@@ -415,6 +417,7 @@ const fetchPagedJson = async (
 };
 
 const fetchPublicEpochSnapshot = async (): Promise<{
+  fetchedAt: string | null;
   epochModels: EpochModel[];
   epochBenchmarks: EpochBenchmark[];
   epochRuns: EpochBenchmarkRun[];
@@ -435,7 +438,7 @@ const fetchPublicEpochSnapshot = async (): Promise<{
     );
 
     if (!epochBenchmarks.length || !epochRuns.length) return null;
-    return { epochModels, epochBenchmarks, epochRuns };
+    return { fetchedAt: typeof snapshot.fetched_at === 'string' ? snapshot.fetched_at : null, epochModels, epochBenchmarks, epochRuns };
   } catch (error) {
     console.warn('[live-data] Failed to fetch public Epoch benchmark snapshot.', error);
     return null;
@@ -492,6 +495,17 @@ export async function fetchLiveSnapshot(opts: FetchOpts = {}): Promise<LiveSnaps
       return { aaModels, epochModels: [], epochBenchmarks: [], epochRuns: [] };
     }
 
+    const epochReceiptUrl = new URL('/rest/v1/epoch_data_files', supabaseUrl);
+    epochReceiptUrl.search = 'select=fetched_at&order=fetched_at.desc&limit=1';
+    const [publicEpochSnapshot, epochReceipt] = await Promise.all([
+      fetchPublicEpochSnapshot(),
+      fetch(epochReceiptUrl, { headers }).then(response => response.ok ? response.json() : []).catch(() => []),
+    ]);
+    const databaseFetchedAt = epochReceipt?.[0]?.fetched_at ?? null;
+    if (publicEpochSnapshot && preferPublishedEpoch(publicEpochSnapshot, databaseFetchedAt, databaseFetchedAt ? 1 : 0)) {
+      return { aaModels, ...publicEpochSnapshot };
+    }
+
     const [epochModelsRaw, epochBenchmarksRaw] = await Promise.all([
       fetchPagedJson(epochModelsUrl, headers),
       fetchPagedJson(epochBenchmarksUrl, headers),
@@ -516,11 +530,7 @@ export async function fetchLiveSnapshot(opts: FetchOpts = {}): Promise<LiveSnaps
     let selectedEpochBenchmarks = epochBenchmarks;
     let selectedEpochRuns = epochRuns;
 
-    const publicEpochSnapshot = await fetchPublicEpochSnapshot();
-    if (
-      publicEpochSnapshot &&
-      publicEpochSnapshot.epochRuns.length > selectedEpochRuns.length
-    ) {
+    if (publicEpochSnapshot && preferPublishedEpoch(publicEpochSnapshot, databaseFetchedAt, selectedEpochRuns.length)) {
       selectedEpochBenchmarks = publicEpochSnapshot.epochBenchmarks;
       selectedEpochRuns = publicEpochSnapshot.epochRuns;
       epochModels = publicEpochSnapshot.epochModels;

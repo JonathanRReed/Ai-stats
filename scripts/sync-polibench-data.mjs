@@ -207,7 +207,8 @@ const normalizeSourceRun = (value, index, modelsBySlug) => {
   };
 };
 
-export function transformPoliBenchSnapshot(input) {
+export function transformPoliBenchSnapshot(input, { commit = POLIBENCH_COMMIT } = {}) {
+  if (!/^[0-9a-f]{40}$/.test(commit)) throw new Error('PoliBench source commit must be a full Git SHA');
   const artifact = asRecord(input, "PoliBench artifact");
   const generatedAt = readRequiredText(artifact, "generatedAt", "PoliBench artifact");
   if (!Number.isFinite(Date.parse(generatedAt))) {
@@ -259,7 +260,7 @@ export function transformPoliBenchSnapshot(input) {
     schemaVersion: "1.0",
     source: {
       repository: POLIBENCH_REPOSITORY,
-      commit: POLIBENCH_COMMIT,
+      commit,
       artifactPath: POLIBENCH_ARTIFACT_PATH,
     },
     freshness: { generatedAt, suite, source },
@@ -282,9 +283,9 @@ const readArgument = (name) => {
   return index >= 0 ? process.argv[index + 1] : undefined;
 };
 
-export async function syncPoliBenchData({ sourcePath = DEFAULT_SOURCE_PATH, outputPath = DEFAULT_OUTPUT_PATH } = {}) {
+export async function syncPoliBenchData({ sourcePath = DEFAULT_SOURCE_PATH, outputPath = DEFAULT_OUTPUT_PATH, commit = POLIBENCH_COMMIT } = {}) {
   const source = await loadPoliBenchArtifact({ kind: "file", path: sourcePath });
-  const snapshot = transformPoliBenchSnapshot(source);
+  const snapshot = transformPoliBenchSnapshot(source, { commit });
   await writeFile(outputPath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
   return snapshot;
 }
@@ -293,7 +294,8 @@ const isDirectRun = process.argv[1] && path.resolve(process.argv[1]) === fileURL
 if (isDirectRun) {
   const sourcePath = readArgument("--source") ?? DEFAULT_SOURCE_PATH;
   const outputPath = readArgument("--output") ?? DEFAULT_OUTPUT_PATH;
-  syncPoliBenchData({ sourcePath, outputPath })
+  const commit = readArgument('--source-commit') ?? POLIBENCH_COMMIT;
+  syncPoliBenchData({ sourcePath, outputPath, commit })
     .then((snapshot) => {
       process.stdout.write(
         `Wrote ${snapshot.counts.models} models, ${snapshot.counts.rows} rows, and ${snapshot.counts.runs} runs to ${outputPath}\n`,

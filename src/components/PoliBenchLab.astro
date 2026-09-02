@@ -30,7 +30,7 @@ const payloadJson = JSON.stringify(models.map((model) => ({
   </header>
 
   <div class="polibench-mode" aria-label="PoliBench evidence state">
-    <button type="button" aria-pressed="true">Current snapshot</button>
+    <button type="button" aria-pressed="true">Latest checked snapshot · {generatedAt}</button>
     <button type="button" disabled aria-describedby="polibench-frozen-status">Frozen paper release</button>
     <span id="polibench-frozen-status">No frozen model roster has passed the paper-release gate.</span>
   </div>

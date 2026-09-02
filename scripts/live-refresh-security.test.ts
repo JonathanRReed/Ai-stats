@@ -54,6 +54,10 @@ test("the diagnostic live snapshot helper caps oversized table responses", async
     if (raw.startsWith("/")) return new Response(null, { status: 404 });
 
     const url = new URL(raw);
+    if (url.pathname.endsWith('/epoch_data_files')) {
+      expect(url.searchParams.get('limit')).toBe('1');
+      return Response.json([]);
+    }
     supabaseCalls.push(url);
     return Response.json(
       Array.from({ length: 1_000 }, (_, index) => rowFor(url.pathname, index)),
@@ -83,6 +87,7 @@ test("the diagnostic live snapshot helper preserves a normal short response", as
     if (raw.startsWith("/")) return new Response(null, { status: 404 });
 
     const url = new URL(raw);
+    if (url.pathname.endsWith('/epoch_data_files')) return Response.json([]);
     supabaseCalls.push(url);
     return Response.json(
       Array.from({ length: 2 }, (_, index) => rowFor(url.pathname, index)),
@@ -100,4 +105,43 @@ test("the diagnostic live snapshot helper preserves a normal short response", as
   expect(snapshot?.epochModels).toHaveLength(2);
   expect(snapshot?.epochBenchmarks).toHaveLength(2);
   expect(snapshot?.epochRuns).toHaveLength(2);
+});
+
+test('a current published Epoch snapshot avoids all large Epoch database requests', async () => {
+  const calls: string[] = [];
+  globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+    const raw = String(input);
+    calls.push(raw);
+    if (raw.startsWith('/')) return Response.json({
+      fetched_at: '2026-09-02T12:00:00Z',
+      models: [{ model_version: 'measured-model' }],
+      benchmarks: [{ id: 'b', slug: 'b', name: 'Measured benchmark' }],
+      runs: [{ model_version: 'measured-model', benchmark_id: 'b', score: 0 }],
+    });
+    if (raw.includes('/epoch_data_files')) return Response.json([{ fetched_at: '2026-09-01T12:00:00Z' }]);
+    if (raw.includes('/aa_models')) return Response.json([rowFor('/aa_models', 0)]);
+    throw new Error('Unexpected large database request');
+  }) as unknown as typeof fetch;
+  const snapshot = await fetchLiveSnapshot({ supabaseUrl: 'https://public-project.supabase.co', supabaseAnonKey: 'public-anon-key' });
+  expect(snapshot?.epochRuns).toHaveLength(1);
+  expect(snapshot?.epochRuns[0]?.score).toBe(0);
+  expect(calls).toHaveLength(3);
+});
+
+test('a newer database receipt with empty runs retains usable published Epoch evidence', async () => {
+  globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+    const raw = String(input);
+    if (raw.startsWith('/')) return Response.json({
+      fetched_at: '2026-09-01T12:00:00Z',
+      models: [{ model_version: 'retained-model' }],
+      benchmarks: [{ id: 'b', slug: 'b', name: 'Measured benchmark' }],
+      runs: [{ model_version: 'retained-model', benchmark_id: 'b', score: 42 }],
+    });
+    if (raw.includes('/epoch_data_files')) return Response.json([{ fetched_at: '2026-09-02T12:00:00Z' }]);
+    if (raw.includes('/aa_models')) return Response.json([rowFor('/aa_models', 0)]);
+    return Response.json([]);
+  }) as unknown as typeof fetch;
+  const snapshot = await fetchLiveSnapshot({ supabaseUrl: 'https://public-project.supabase.co', supabaseAnonKey: 'public-anon-key' });
+  expect(snapshot?.epochRuns).toHaveLength(1);
+  expect(snapshot?.epochModels[0]?.model_version).toBe('retained-model');
 });

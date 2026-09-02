@@ -1,9 +1,6 @@
 import type { APIRoute } from 'astro';
 import {
   getModels,
-  getHydratedEpochModels,
-  getEpochBenchmarks,
-  getEpochBenchmarkRuns,
   getPublicCatalogModels,
   enrichModelsWithPublicCatalogData,
 } from '../../lib/supabase';
@@ -12,7 +9,7 @@ import {
   getEpochBenchmarksWithRuns,
   getEpochBenchmarkLabel,
 } from '../../lib/benchmark-catalog';
-import { getPublicEpochSnapshot } from '../../lib/epoch-snapshot';
+import { getEpochEvidence } from '../../lib/epoch-evidence';
 import {
   compareOptionalMetricValues,
   hasFiniteMetricValue,
@@ -121,28 +118,14 @@ const collectInitialEpochLookup = (model: CompareModelRecord) => {
 };
 
 export const GET: APIRoute = async () => {
-  const [baseModels, publicCatalogs, initialEpochBenchmarks, initialEpochRuns] =
+  const [baseModels, publicCatalogs, epochEvidence] =
     await Promise.all([
       getModels(),
       getPublicCatalogModels(),
-      getEpochBenchmarks(),
-      getEpochBenchmarkRuns(),
+      getEpochEvidence(),
     ]);
   const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs);
-  const initialEpochModels = await getHydratedEpochModels(initialEpochRuns);
-  const publicEpochSnapshot = await getPublicEpochSnapshot();
-  const usePublicEpochSnapshot =
-    publicEpochSnapshot &&
-    publicEpochSnapshot.epochRuns.length > initialEpochRuns.length;
-  const epochBenchmarks = usePublicEpochSnapshot
-    ? publicEpochSnapshot.epochBenchmarks
-    : initialEpochBenchmarks;
-  const epochRuns = usePublicEpochSnapshot
-    ? publicEpochSnapshot.epochRuns
-    : initialEpochRuns;
-  const epochModels = usePublicEpochSnapshot
-    ? publicEpochSnapshot.epochModels
-    : initialEpochModels;
+  const { epochBenchmarks, epochRuns, epochModels } = epochEvidence;
 
   const epochAliasesByModelVersion: Record<string, string[]> = {};
   epochModels.forEach((model) => {

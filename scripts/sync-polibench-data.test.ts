@@ -170,6 +170,12 @@ test("transformPoliBenchSnapshot retains release and freshness provenance", () =
   });
 });
 
+test("transformPoliBenchSnapshot records the checked-out source revision, never a moving branch", () => {
+  const commit = '1234567890abcdef1234567890abcdef12345678';
+  expect(transformPoliBenchSnapshot(validSourceArtifact, { commit }).source.commit).toBe(commit);
+  expect(() => transformPoliBenchSnapshot(validSourceArtifact, { commit: 'main' })).toThrow('full Git SHA');
+});
+
 test("transformPoliBenchSnapshot preserves nullable run telemetry", () => {
   const snapshot = transformPoliBenchSnapshot({
     ...validSourceArtifact,

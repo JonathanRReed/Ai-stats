@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -32,13 +32,15 @@ const normalizeProjectUrl = (value) => {
 };
 
 const asFiniteNumberOrNull = (value) => {
+  if ((typeof value !== 'number' && typeof value !== 'string') ||
+    (typeof value === 'string' && !value.trim())) return null;
   const number = typeof value === "number" ? value : Number(value);
   return Number.isFinite(number) ? number : null;
 };
 
 const pricePerMillion = (value) => {
   const price = asFiniteNumberOrNull(value);
-  return price === null ? null : price * 1_000_000;
+  return price === null || price < 0 ? null : price * 1_000_000;
 };
 
 const jsonArray = (value) => Array.isArray(value) ? value.filter((item) => typeof item === "string") : [];
@@ -179,6 +181,7 @@ export async function runCli({
 } = {}) {
   const outputPath = path.resolve(readArgument("--output", argv) ?? DEFAULT_OUTPUT);
   const input = await buildIntelligenceInput({ env, fetchImpl });
+  await mkdir(path.dirname(outputPath), { recursive: true });
   await writeFile(outputPath, `${JSON.stringify(input)}\n`, { mode: 0o600 });
   const result = {
     outputPath,

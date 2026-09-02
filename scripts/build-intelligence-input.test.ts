@@ -20,6 +20,13 @@ test("normalizeOpenRouterModel preserves source data and normalizes pricing and 
   });
 });
 
+test('missing and malformed OpenRouter prices are not converted into free prices', () => {
+  for (const value of [null, undefined, '', ' ', false, -1, 'NaN']) {
+    expect(normalizeOpenRouterModel({ id: 'provider/model', pricing: { prompt: value, completion: value } }).prompt_price_1m).toBeNull();
+  }
+  expect(normalizeOpenRouterModel({ id: 'provider/free', pricing: { prompt: '0', completion: 0 } }).completion_price_1m).toBe(0);
+});
+
 test("fetchSupabaseRows paginates without placing credentials in the URL", async () => {
   const calls: Array<{ url: URL; authorization: string | null }> = [];
   const fetchImpl = async (input: string | URL | Request, init?: RequestInit) => {

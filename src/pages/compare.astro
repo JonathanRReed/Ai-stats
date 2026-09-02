@@ -1,9 +1,6 @@
 ---
 import {
   getModels,
-  getHydratedEpochModels,
-  getEpochBenchmarks,
-  getEpochBenchmarkRuns,
   getPublicCatalogModels,
   enrichModelsWithPublicCatalogData,
 } from "../lib/supabase";
@@ -17,7 +14,7 @@ import {
   getEpochBenchmarksWithRuns,
   getEpochBenchmarkLabel,
 } from "../lib/benchmark-catalog";
-import { getPublicEpochSnapshot } from "../lib/epoch-snapshot";
+import { getEpochEvidence } from "../lib/epoch-evidence";
 import { DEFAULT_TASK_PRESETS, type TaskPreset } from "../lib/model-intelligence";
 import {
   compareOptionalMetricValues,
@@ -25,28 +22,14 @@ import {
 } from "../lib/metric-values";
 import { selectBenchmarkSnapshotModels } from "../lib/model-spotlight";
 
-const [baseModels, publicCatalogs, initialEpochBenchmarks, initialEpochRuns] =
+const [baseModels, publicCatalogs, epochEvidence] =
   await Promise.all([
     getModels(),
     getPublicCatalogModels(),
-    getEpochBenchmarks(),
-    getEpochBenchmarkRuns(),
+    getEpochEvidence(),
   ]);
 const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs);
-const initialEpochModels = await getHydratedEpochModels(initialEpochRuns);
-const publicEpochSnapshot = await getPublicEpochSnapshot();
-const usePublicEpochSnapshot =
-  publicEpochSnapshot &&
-  publicEpochSnapshot.epochRuns.length > initialEpochRuns.length;
-const epochBenchmarks = usePublicEpochSnapshot
-  ? publicEpochSnapshot.epochBenchmarks
-  : initialEpochBenchmarks;
-const epochRuns = usePublicEpochSnapshot
-  ? publicEpochSnapshot.epochRuns
-  : initialEpochRuns;
-const epochModels = usePublicEpochSnapshot
-  ? publicEpochSnapshot.epochModels
-  : initialEpochModels;
+const { epochBenchmarks, epochRuns, epochModels } = epochEvidence;
 
 const normalizeModelKey = (value: string | null | undefined): string => {
   if (!value) return "";

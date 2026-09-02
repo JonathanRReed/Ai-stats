@@ -4,6 +4,7 @@ import { hydrateEpochModelsFromRuns } from './data-integrity';
 import type { EpochBenchmark, EpochBenchmarkRun, EpochModel } from './supabase';
 
 type PublicEpochSnapshot = {
+  fetched_at?: string;
   benchmarks?: Array<Record<string, unknown>>;
   models?: Array<Record<string, unknown>>;
   runs?: Array<Record<string, unknown>>;
@@ -74,6 +75,7 @@ const normalizeRun = (
 };
 
 export async function getPublicEpochSnapshot(): Promise<{
+  fetchedAt: string | null;
   epochBenchmarks: EpochBenchmark[];
   epochModels: EpochModel[];
   epochRuns: EpochBenchmarkRun[];
@@ -97,7 +99,8 @@ export async function getPublicEpochSnapshot(): Promise<{
     );
 
     if (!epochBenchmarks.length || !epochRuns.length) return null;
-    return { epochBenchmarks, epochModels, epochRuns };
+    const fetchedAt = snapshot.fetched_at && Number.isFinite(Date.parse(snapshot.fetched_at)) ? snapshot.fetched_at : null;
+    return { fetchedAt, epochBenchmarks, epochModels, epochRuns };
   } catch {
     return null;
   }

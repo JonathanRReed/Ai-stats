@@ -11,6 +11,13 @@ import {
 
 const now = new Date("2026-09-01T12:00:00.000Z");
 
+test('empty selected benchmark evidence cannot inherit a healthy database timestamp', () => {
+  const empty = resolveSourceFreshness({ sourceKey: 'simplebench', displayName: 'SimpleBench' }, now);
+  const healthy = resolveSourceFreshness({ sourceKey: 'simplebench', displayName: 'SimpleBench', lastObservedAt: now }, now);
+  expect(mergeSourceFreshness([empty], [healthy], ['simplebench'])[0].status).toBe('unavailable');
+  expect(mergeSourceFreshness([empty], [healthy], ['simplebench'])[0].lastObservedAt).toBeNull();
+});
+
 test("newer published observations do not inherit old database coverage", () => {
   const published = resolveSourceFreshness({ sourceKey: 'epoch-ai', displayName: 'Epoch AI', lastObservedAt: '2026-09-02', lastSuccessfulRunAt: '2026-09-02', coverageLabel: '5687 runs' });
   const database = resolveSourceFreshness({ sourceKey: 'epoch-ai', displayName: 'Epoch AI', lastObservedAt: '2026-04-25', lastSuccessfulRunAt: '2026-09-01', coverageLabel: '3447 runs' });
@@ -50,6 +57,15 @@ test("resolveSourceFreshness marks an old successful source stale", () => {
     ageDays: 31,
     message: "Last successful source snapshot is older than 14 days.",
   });
+});
+
+test('successfully re-importing retained PoliBench evidence does not make it fresh', () => {
+  expect(resolveSourceFreshness(source({
+    sourceKey: 'polibench',
+    lastObservedAt: '2026-08-01T12:00:00.000Z',
+    lastSuccessfulRunAt: '2026-09-01T12:00:00.000Z',
+    status: 'healthy',
+  }), now)).toMatchObject({ status: 'stale', ageDays: 31 });
 });
 
 test("resolveSourceFreshness uses the last successful run for staleness after a newer failed observation", () => {
@@ -93,6 +109,7 @@ test("resolveSourceFreshness retains a failed ingestion receipt", () => {
 });
 
 test("resolveSourceFreshness marks disabled and timestamp-free sources unavailable", () => {
+  expect(resolveSourceFreshness(source({ status: 'unavailable' }), now).status).toBe('unavailable');
   expect(
     resolveSourceFreshness(source({ isEnabled: false }), now),
   ).toMatchObject({

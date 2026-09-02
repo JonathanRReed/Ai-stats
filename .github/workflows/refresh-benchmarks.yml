@@ -1,0 +1,90 @@
+name: Refresh benchmark evidence
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '37 1,13 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-benchmark-evidence
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      HAS_POLIBENCH_KEY: ${{ secrets.POLIBENCH_READ_KEY != '' }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: '1.4.0'
+      - run: bun install --frozen-lockfile
+      - name: Check refresh configuration
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          test -n "$SUPABASE_URL"
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          test -n "$PUBLIC_SUPABASE_ANON_KEY"
+      - name: Read the private PoliBench source
+        if: env.HAS_POLIBENCH_KEY == 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: JonathanRReed/Poli-bench
+          ref: main
+          path: .tmp/polibench-source
+          ssh-key: ${{ secrets.POLIBENCH_READ_KEY }}
+          persist-credentials: false
+          sparse-checkout: src/data/liveBenchmark.generated.json
+          sparse-checkout-cone-mode: false
+      - name: Update the checked PoliBench snapshot
+        if: env.HAS_POLIBENCH_KEY == 'true'
+        run: |
+          source_revision=$(git -C .tmp/polibench-source rev-parse HEAD)
+          bun scripts/sync-polibench-data.mjs \
+            --source .tmp/polibench-source/src/data/liveBenchmark.generated.json \
+            --source-commit "$source_revision"
+      - name: Disclose retained PoliBench evidence
+        if: env.HAS_POLIBENCH_KEY != 'true'
+        run: echo '::warning::PoliBench read-only access is not configured. Keeping the existing snapshot and its original source date.'
+      - name: Refresh Epoch and normalized source evidence
+        env:
+          PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          bun scripts/sync-epoch-data.mjs --write-public-snapshot public/data/epoch-benchmark-snapshot.json
+          bun run build:intelligence-input
+          bun run sync:intelligence --input .tmp/intelligence-input.json
+      - name: Verify the release candidate
+        run: |
+          bun audit
+          bun run lint
+          bun run typecheck
+          bun test
+      - name: Build with public credentials only
+        env:
+          PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
+        run: bun run build
+      - name: Publish only the verified public snapshots
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git add -- public/data/epoch-benchmark-snapshot.json public/data/polibench-snapshot.json
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore: refresh benchmark evidence'
+          gh auth setup-git
+          git push origin HEAD:main

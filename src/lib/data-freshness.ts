@@ -1,7 +1,6 @@
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import { getPublicPoliBenchSnapshot } from './polibench-snapshot';
 import { supabase } from './supabase';
+import { getEpochEvidence } from './epoch-evidence';
 
 export type SourceFreshnessStatus =
   | 'healthy'
@@ -43,11 +42,11 @@ export type DataFreshness = {
   updatedAt: Date | null;
   /** Newest `last_seen` in the Artificial Analysis feed. */
   aaLastSeen: Date | null;
-  /** `fetched_at` recorded in public/data/epoch-benchmark-snapshot.json. */
+  /** Fetch timestamp of the Epoch dataset selected for this build. */
   epochFetchedAt: Date | null;
   /** Source-specific freshness used by the workbench and live browser refresh. */
   sources: SourceFreshness[];
-  /** Whether source status came from the read-only intelligence view or local snapshots. */
+  /** Whether database ingestion receipts were available alongside selected data. */
   fallback: FreshnessFallback;
 };
 
@@ -70,19 +69,11 @@ const readEpochSnapshotMetadata = async (): Promise<{
   simpleBenchRunCount: number;
 }> => {
   try {
-    const filePath = path.join(
-      process.cwd(),
-      'public/data/epoch-benchmark-snapshot.json',
-    );
-    const snapshot = JSON.parse(await readFile(filePath, 'utf8')) as {
-      fetched_at?: string;
-      models?: unknown[];
-      runs?: Array<{ benchmark_slug?: unknown }>;
-    };
-    const runs = Array.isArray(snapshot.runs) ? snapshot.runs : [];
+    const snapshot = await getEpochEvidence();
+    const runs = snapshot.epochRuns;
     return {
-      fetchedAt: toDateOrNull(snapshot.fetched_at),
-      modelCount: Array.isArray(snapshot.models) ? snapshot.models.length : 0,
+      fetchedAt: toDateOrNull(snapshot.fetchedAt),
+      modelCount: snapshot.epochModels.length,
       runCount: runs.length,
       simpleBenchRunCount: runs.filter((run) =>
         String(run.benchmark_slug ?? '').toLowerCase().includes('simplebench'),
@@ -144,13 +135,16 @@ export const resolveSourceFreshness = (
   const lastSuccessfulRunAt = toDateOrNull(input.lastSuccessfulRunAt);
   // A failed or partial observation can be newer than the last usable snapshot.
   // Age intentionally answers "how old is the evidence a visitor can rely on?"
-  const referenceDate = lastSuccessfulRunAt ?? lastObservedAt;
+  // Re-importing an old snapshot succeeds today but does not make its evidence newer.
+  const referenceDate = lastSuccessfulRunAt && lastObservedAt
+    ? new Date(Math.min(lastSuccessfulRunAt.getTime(), lastObservedAt.getTime()))
+    : lastSuccessfulRunAt ?? lastObservedAt;
   const ageDays = sourceAgeDays(referenceDate, now);
   const sourceStatus = asNonEmptyStringOrNull(input.status)?.toLowerCase();
   const statusMessage = asNonEmptyStringOrNull(input.statusMessage);
 
   let status: SourceFreshnessStatus;
-  if (input.isEnabled === false) {
+  if (input.isEnabled === false || sourceStatus === 'unavailable') {
     status = 'unavailable';
   } else if (sourceStatus === 'failed') {
     status = 'failed';
@@ -194,8 +188,8 @@ const readStaticSources = async (
     resolveSourceFreshness({
       sourceKey: 'epoch-ai',
       displayName: 'Epoch AI',
-      lastObservedAt: epoch.fetchedAt,
-      lastSuccessfulRunAt: epoch.fetchedAt,
+      lastObservedAt: epoch.runCount ? epoch.fetchedAt : null,
+      lastSuccessfulRunAt: epoch.runCount ? epoch.fetchedAt : null,
       coverageLabel: epoch.runCount
         ? `${epoch.modelCount} models / ${epoch.runCount} observations`
         : null,
@@ -203,8 +197,8 @@ const readStaticSources = async (
     resolveSourceFreshness({
       sourceKey: 'simplebench',
       displayName: 'SimpleBench',
-      lastObservedAt: epoch.fetchedAt,
-      lastSuccessfulRunAt: epoch.fetchedAt,
+      lastObservedAt: epoch.simpleBenchRunCount ? epoch.fetchedAt : null,
+      lastSuccessfulRunAt: epoch.simpleBenchRunCount ? epoch.fetchedAt : null,
       coverageLabel: epoch.simpleBenchRunCount
         ? `${epoch.simpleBenchRunCount} SimpleBench results from the Epoch AI snapshot`
         : null,
@@ -266,11 +260,21 @@ const readLiveSourceFreshness = async (): Promise<SourceFreshness[] | null> => {
 export const mergeSourceFreshness = (
   staticSources: SourceFreshness[],
   liveSources: SourceFreshness[] | null,
+  selectedDatasetKeys: string[] = [],
 ): SourceFreshness[] => {
   if (!liveSources?.length) return staticSources;
   const bySourceKey = new Map(staticSources.map((source) => [source.sourceKey, source]));
   liveSources.forEach((source) => {
     const published = bySourceKey.get(source.sourceKey);
+    if (published && selectedDatasetKeys.includes(source.sourceKey)) {
+      bySourceKey.set(source.sourceKey, {
+        ...published,
+        status: published.status === 'unavailable' ? 'unavailable' : ['failed', 'partial'].includes(source.status) ? source.status : published.status,
+        message: ['failed', 'partial'].includes(source.status)
+          ? `Showing the selected published evidence. Database refresh: ${source.message}` : published.message,
+      });
+      return;
+    }
     if (published?.lastObservedAt && published.lastObservedAt.getTime() > (source.lastObservedAt?.getTime() ?? 0)) {
       bySourceKey.set(source.sourceKey, {
         ...published,
@@ -313,7 +317,7 @@ const resolveDataFreshness = async (): Promise<DataFreshness> => {
     readLiveSourceFreshness(),
   ]);
   const staticSources = await readStaticSources(aaLastSeen, epoch);
-  const sources = mergeSourceFreshness(staticSources, liveSources);
+  const sources = mergeSourceFreshness(staticSources, liveSources, ['epoch-ai', 'simplebench', 'polibench']);
   const updatedAt = getFreshnessUpdatedAt(sources);
   return {
     updatedAt,

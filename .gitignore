@@ -41,6 +41,7 @@ Desktop.ini
 # Temporary folders
 tmp/
 temp/
+.tmp/
 supabase/.temp/
 
 # Runtime data
