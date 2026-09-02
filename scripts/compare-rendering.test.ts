@@ -33,6 +33,19 @@ test("the compare page starts with compact controls and explicit comparable cove
   expect(source).toContain("selectedStatEl.textContent = String(selected.size);");
 });
 
+test("the initial performance chart follows the default task preset", () => {
+  expect(source).toContain(
+    "const initialPerformanceMetric = preferredMetricForPreset(defaultTaskPreset);",
+  );
+  expect(source).toContain(
+    'selected={value === initialPerformanceMetric}',
+  );
+  expect(source).toContain(
+    '<span class="benchmark-picker-value">{initialPerformanceMetricLabel}</span>',
+  );
+  expect(source).not.toContain('selected={value === "mmlu_pro"}');
+});
+
 test("the compare page describes measured data as a build-time snapshot", () => {
   expect(source).toContain(
     "Selections start from priced models and named measurements captured by this build.",

@@ -251,6 +251,12 @@ epochBenchmarksWithData.forEach((b) => {
   availableBenchmarks[`epoch_${b.slug}`] = `${getEpochBenchmarkLabel(b)} (Epoch)`;
 });
 
+const initialPerformanceMetric = preferredMetricForPreset(defaultTaskPreset);
+const initialPerformanceMetricLabel =
+  availableBenchmarks[initialPerformanceMetric] ?? initialPerformanceMetric;
+const initialPerformanceAttribution =
+  benchmarkAttributions[initialPerformanceMetric] ?? benchmarkAttributions.mmlu_pro;
+
 ---
 
 <Layout
@@ -2455,7 +2461,7 @@ epochBenchmarksWithData.forEach((b) => {
         >
           {
             Object.entries(availableBenchmarks).map(([value, label]) => (
-              <option value={value} selected={value === "mmlu_pro"}>
+              <option value={value} selected={value === initialPerformanceMetric}>
                 {label}
               </option>
             ))
@@ -2474,7 +2480,7 @@ epochBenchmarksWithData.forEach((b) => {
             aria-expanded="false"
           >
             <span class="benchmark-picker-kicker">Selected metric</span>
-            <span class="benchmark-picker-value">MMLU Pro</span>
+            <span class="benchmark-picker-value">{initialPerformanceMetricLabel}</span>
           </button>
           <div class="benchmark-picker-popover" hidden>
             <label class="sr-only" for="benchmark-picker-search">
@@ -2497,11 +2503,11 @@ epochBenchmarksWithData.forEach((b) => {
         <p id="benchmark-attribution" class="benchmark-attribution">
           Source:
           <a
-            href={benchmarkAttributions.mmlu_pro.sourceUrl}
+            href={initialPerformanceAttribution.sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
           >
-            {benchmarkAttributions.mmlu_pro.sourceName}
+            {initialPerformanceAttribution.sourceName}
           </a>
         </p>
       </div>
