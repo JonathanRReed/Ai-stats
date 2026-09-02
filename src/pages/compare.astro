@@ -3801,6 +3801,7 @@ const initialPerformanceAttribution =
     const formatMetricValue = (value, metricKey) => {
       const num = parseFiniteMetricValue(value);
       if (num === null) return "N/A";
+      if (metricKey.startsWith("aa_")) return `${num.toFixed(1)} pts`;
       if (!metricKey.startsWith("epoch_")) return `${num.toFixed(3)}%`;
 
       const epochSlug = metricKey.replace("epoch_", "");
@@ -4188,7 +4189,7 @@ const initialPerformanceAttribution =
       const metric = metricSelector ? metricSelector.value : "mmlu_pro";
       const epochMetricName = metric.startsWith("epoch_")
         ? String(epochScoreMetrics?.[metric.replace("epoch_", "")] || "")
-        : "percentage";
+        : metric.startsWith("aa_") ? "Index points" : "percentage";
       const performanceUnit = isExplicitPercentageMetric(epochMetricName)
         ? "Percent"
         : epochMetricName && epochMetricName !== "mixed"

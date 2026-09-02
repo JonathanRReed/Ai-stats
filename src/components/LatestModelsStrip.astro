@@ -1,6 +1,6 @@
 ---
 import type { AaModel } from "../lib/supabase";
-import { formatPrice, formatScore, formatTPS } from "../lib/format-utils";
+import { formatIndex, formatPrice, formatTPS } from "../lib/format-utils";
 
 type Props = {
   models: AaModel[];
@@ -32,6 +32,7 @@ const formatTrackedDate = (value: string | null | undefined): string => {
     <p>
       One recent model per provider with AA Index, pricing, and speed available.
       Rows are ordered by AA Index, then by the number of available measurements.
+      Index values are points, not percentages.
       This describes the data, it does not recommend a model.
       {latestObserved ? ` Latest observation in this cohort: ${formatTrackedDate(latestObserved.toISOString())}.` : ""}
     </p>
@@ -55,11 +56,11 @@ const formatTrackedDate = (value: string | null | undefined): string => {
               <dl>
                 <div>
                   <dt>AA index</dt>
-                  <dd>{formatScore(model.aa_intelligence_index)}</dd>
+                  <dd>{formatIndex(model.aa_intelligence_index)}</dd>
                 </div>
                 <div>
                   <dt>Coding</dt>
-                  <dd>{formatScore(model.aa_coding_index)}</dd>
+                  <dd>{formatIndex(model.aa_coding_index)}</dd>
                 </div>
                 <div>
                   <dt>Speed</dt>

@@ -15,6 +15,13 @@ export function formatScore(score: string | number | null | undefined): string {
   return `${pct.toFixed(1)}%`;
 }
 
+/** Artificial Analysis composite indexes are points, not accuracy percentages. */
+export function formatIndex(score: string | number | null | undefined): string {
+  if (score === null || score === undefined || (typeof score === 'string' && !score.trim())) return 'N/A';
+  const value = Number(score);
+  return Number.isFinite(value) ? value.toFixed(1) : 'N/A';
+}
+
 /**
  * Format a price value with specified decimal places (truncates, doesn't round)
  * @param price - Price value to format

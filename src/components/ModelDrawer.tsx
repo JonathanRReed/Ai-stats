@@ -1,6 +1,7 @@
 import type { CSSProperties, TransitionEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { parseFiniteMetricValue } from '../lib/metric-values';
+import { formatIndex } from '../lib/format-utils';
 
 type DrawerPhase = 'closed' | 'entering' | 'open' | 'leaving';
 
@@ -522,7 +523,7 @@ export default function ModelDrawer() {
           </section>
 
           <section className="rounded-lg border border-border-color bg-surface p-4">
-            <h3 className="mb-3 font-mono text-xs font-bold text-muted">Artificial Analysis indexes</h3>
+            <h3 className="mb-3 font-mono text-xs font-bold text-muted">Artificial Analysis indexes (points)</h3>
             <div className="grid gap-3 sm:grid-cols-3">
               {[
                 ['AA Index', model.aa_intelligence_index],
@@ -532,7 +533,7 @@ export default function ModelDrawer() {
                 <div key={label as string} className="border border-highlight-med bg-overlay p-3 text-center">
                   <div className="font-mono text-xs text-subtle">{label}</div>
                   <div className={`mt-1 text-xl font-bold ${getScoreColor(value as number)}`}>
-                    {formatScore(value as number)}
+                    {formatIndex(value as number)}
                   </div>
                 </div>
               ))}

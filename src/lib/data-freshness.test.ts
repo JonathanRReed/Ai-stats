@@ -3,12 +3,21 @@
 import { expect, test } from "bun:test";
 import {
   getFreshnessUpdatedAt,
+  mergeSourceFreshness,
   resolveSourceFreshness,
   type SourceFreshness,
   type SourceFreshnessInput,
 } from "./data-freshness";
 
 const now = new Date("2026-09-01T12:00:00.000Z");
+
+test("newer published observations do not inherit old database coverage", () => {
+  const published = resolveSourceFreshness({ sourceKey: 'epoch-ai', displayName: 'Epoch AI', lastObservedAt: '2026-09-02', lastSuccessfulRunAt: '2026-09-02', coverageLabel: '5687 runs' });
+  const database = resolveSourceFreshness({ sourceKey: 'epoch-ai', displayName: 'Epoch AI', lastObservedAt: '2026-04-25', lastSuccessfulRunAt: '2026-09-01', coverageLabel: '3447 runs' });
+  expect(mergeSourceFreshness([published], [database])[0].coverageLabel).toBe('5687 runs');
+  expect(mergeSourceFreshness([published], [{ ...database, status: 'failed' }])[0].status).toBe('failed');
+  expect(mergeSourceFreshness([database], [published])[0]).toEqual(published);
+});
 
 const source = (overrides: Partial<SourceFreshnessInput> = {}): SourceFreshnessInput => ({
   sourceKey: "artificial-analysis",

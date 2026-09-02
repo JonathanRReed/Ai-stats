@@ -1,6 +1,7 @@
 ---
 import {
   formatScore,
+  formatIndex,
   formatPrice,
   formatTPS,
   formatTTFT,
@@ -433,7 +434,7 @@ const formatCompactNumber = (value: number | null | undefined): string => {
     class="mcp2"
   >
     <div class="mcap">
-      Artificial Analysis indexes
+      Artificial Analysis indexes (points)
     </div>
     <div class="mdl4">
       {
@@ -445,7 +446,7 @@ const formatCompactNumber = (value: number | null | undefined): string => {
               {label}
             </div>
             <div class={`text-xs fb ${getScoreColor(value as number)}`}>
-              {formatScore(value as number)}
+              {formatIndex(value as number)}
             </div>
           </div>
         ))

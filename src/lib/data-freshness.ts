@@ -263,13 +263,24 @@ const readLiveSourceFreshness = async (): Promise<SourceFreshness[] | null> => {
   }
 };
 
-const mergeSourceFreshness = (
+export const mergeSourceFreshness = (
   staticSources: SourceFreshness[],
   liveSources: SourceFreshness[] | null,
 ): SourceFreshness[] => {
   if (!liveSources?.length) return staticSources;
   const bySourceKey = new Map(staticSources.map((source) => [source.sourceKey, source]));
-  liveSources.forEach((source) => bySourceKey.set(source.sourceKey, source));
+  liveSources.forEach((source) => {
+    const published = bySourceKey.get(source.sourceKey);
+    if (published?.lastObservedAt && published.lastObservedAt.getTime() > (source.lastObservedAt?.getTime() ?? 0)) {
+      bySourceKey.set(source.sourceKey, {
+        ...published,
+        status: ['failed', 'partial', 'unavailable'].includes(source.status) ? source.status : published.status,
+        message: `Showing the newer published snapshot. Database refresh: ${source.message}`,
+      });
+    } else {
+      bySourceKey.set(source.sourceKey, source);
+    }
+  });
   return Array.from(bySourceKey.values());
 };
 

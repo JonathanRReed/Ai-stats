@@ -10,7 +10,9 @@ describe("not-found page", () => {
   beforeAll(async () => {
     outputDirectory = await mkdtemp(join(tmpdir(), "ai-stats-404-"));
     const build = Bun.spawn(
-      ["bun", "run", "build", "--", "--outDir", outputDirectory],
+      // This fixture checks the recovery page without data credentials. Keep it
+      // isolated from the production artifact and its populated-data gate.
+      ["bun", "run", "astro", "build", "--outDir", outputDirectory],
       {
         stdout: "pipe",
         stderr: "pipe",

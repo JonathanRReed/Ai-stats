@@ -10,7 +10,7 @@ import {
 import Header from "./Header.astro";
 import Footer from "./Footer.astro";
 import ScrollToTop from "./ScrollToTop.astro";
-import { formatScore, formatPrice } from "../lib/format-utils";
+import { formatIndex, formatScore, formatPrice } from "../lib/format-utils";
 import {
   VALUABLE_FREE_BENCHMARK_SLUGS,
   AA_BENCHMARK_ATTRIBUTION,
@@ -22,6 +22,7 @@ import { getPublicEpochSnapshot } from "../lib/epoch-snapshot";
 import { getDataFreshness } from "../lib/data-freshness";
 import ModelCard from "./ModelCard.astro";
 import TaskWorkbench from "./TaskWorkbench.astro";
+import { buildReasoningHighlights } from "../lib/reasoning-highlights";
 import LatestModelsStrip from "./LatestModelsStrip.astro";
 import SourceHealthStrip from "./SourceHealthStrip.astro";
 import IntelligenceOverview from "./IntelligenceOverview.astro";
@@ -374,7 +375,7 @@ function getScoreClass(score: number | null | undefined): string {
   >
     <div class="intelligence-stack">
       <LatestModelsStrip models={benchmarkSnapshotModels} />
-      <TaskWorkbench models={workbenchModels} />
+      <TaskWorkbench models={workbenchModels} reasoningHighlights={buildReasoningHighlights(epochRuns, epochModels)} />
       <SourceHealthStrip freshness={dataFreshness} />
       <IntelligenceOverview
         models={currentMeasuredModels}
@@ -708,7 +709,7 @@ function getScoreClass(score: number | null | undefined): string {
                               >
                                 {isEpoch
                                   ? `${(score * 100).toFixed(1)}%`
-                                  : formatScore(model[key])}
+                                  : key.startsWith("aa_") ? formatIndex(model[key]) : formatScore(model[key])}
                               </div>
                             </div>
                           </button>
@@ -2717,6 +2718,10 @@ function getScoreClass(score: number | null | undefined): string {
       };
     };
 
+    const formatIndex = (score) => {
+      const value = parseFiniteMetricValue(score);
+      return value === null ? "N/A" : value.toFixed(1);
+    };
     const formatScore = (score) => {
       const num = parseFiniteMetricValue(score);
       if (num === null) return "N/A";
@@ -3633,7 +3638,7 @@ function getScoreClass(score: number | null | undefined): string {
             ) ?? 0;
           const formatBenchmarkScore = (score) => {
             if (!Number.isFinite(score)) return "N/A";
-            if (!isEpoch) return formatScore(score);
+            if (!isEpoch) return config.key.startsWith("aa_") ? formatIndex(score) : formatScore(score);
             const metric = String(config.scoreMetric || "").toLowerCase();
             const isPercentMetric =
               score <= 1 ||
@@ -3883,11 +3888,11 @@ function getScoreClass(score: number | null | undefined): string {
             </div>
           </section>
           <section class="card-metric-panel mt-2 px-3 py-2">
-            <div class="text-[0.55rem] text-muted">Artificial Analysis indexes</div>
+            <div class="text-[0.55rem] text-muted">Artificial Analysis indexes (points)</div>
             <div class="mt-1.5 grid grid-cols-3 gap-1.5 text-center text-[0.65rem]">
-              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[0.5rem] uppercase text-muted">AA Index</div><div class="font-bold ${getScoreClass(model.aa_intelligence_index)}">${formatScore(model.aa_intelligence_index)}</div></div>
-              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[0.5rem] uppercase text-muted">Coding</div><div class="font-bold ${getScoreClass(model.aa_coding_index)}">${formatScore(model.aa_coding_index)}</div></div>
-              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[0.5rem] uppercase text-muted">Math</div><div class="font-bold ${getScoreClass(model.aa_math_index)}">${formatScore(model.aa_math_index)}</div></div>
+              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[0.5rem] uppercase text-muted">AA Index</div><div class="font-bold ${getScoreClass(model.aa_intelligence_index)}">${formatIndex(model.aa_intelligence_index)}</div></div>
+              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[0.5rem] uppercase text-muted">Coding</div><div class="font-bold ${getScoreClass(model.aa_coding_index)}">${formatIndex(model.aa_coding_index)}</div></div>
+              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[0.5rem] uppercase text-muted">Math</div><div class="font-bold ${getScoreClass(model.aa_math_index)}">${formatIndex(model.aa_math_index)}</div></div>
             </div>
           </section>
           ${catalogMarkup}

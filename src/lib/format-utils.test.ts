@@ -1,7 +1,14 @@
 /// <reference types="bun" />
 
 import { expect, test } from "bun:test";
-import { formatPrice, formatScore } from "./format-utils";
+import { formatIndex, formatPrice, formatScore } from "./format-utils";
+
+test("composite indexes retain points without percentage scaling", () => {
+  expect(formatIndex(65.7)).toBe("65.7");
+  expect(formatIndex(0.8)).toBe("0.8");
+  expect(formatIndex(0)).toBe("0.0");
+  for (const value of [null, undefined, "", " ", Number.NaN, Infinity]) expect(formatIndex(value)).toBe("N/A");
+});
 
 test("formatScore renders zero as benchmark evidence and keeps missing values unavailable", () => {
   expect(formatScore(0)).toBe("0.0%");

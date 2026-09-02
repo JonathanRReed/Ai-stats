@@ -6,6 +6,7 @@ import {
   type RankedCandidate,
   type TaskPreset,
 } from "../lib/model-intelligence";
+import type { ReasoningHighlights } from "../lib/reasoning-highlights";
 
 type WorkbenchModel = ModelEvidence & {
   provider: string;
@@ -15,9 +16,10 @@ type WorkbenchModel = ModelEvidence & {
 
 interface Props {
   models: WorkbenchModel[];
+  reasoningHighlights: ReasoningHighlights;
 }
 
-const { models } = Astro.props;
+const { models, reasoningHighlights } = Astro.props;
 const defaultBudget = 5;
 const defaultPreset = DEFAULT_TASK_PRESETS[0];
 const weightedKeys = Object.keys(defaultPreset.weights).filter(
@@ -111,6 +113,30 @@ const workbenchPayloadJson = JSON.stringify({
     </label>
     <button type="reset" class="task-reset">Reset constraints</button>
   </form>
+
+  <section class="reasoning-evidence" data-reasoning-evidence hidden aria-label="Reasoning benchmark results">
+    <p>Source-specific results from Epoch AI. These are the highest reported scores per exact model variant, not recommendations. Test settings differ. Pricing is not attached to these records, so the budget filter does not apply.</p>
+    <div class="reasoning-benchmarks">
+      {reasoningHighlights.map(benchmark => (
+        <article>
+          <h2>{benchmark.name}</h2>
+          <p>{benchmark.description} {benchmark.runCount} reported runs.</p>
+          {benchmark.rows.length ? (
+            <ol>
+              {benchmark.rows.map(row => (
+                <li>
+                  <div><strong>{row.name}</strong><small>{row.version}</small></div>
+                  <span>{row.score.toFixed(1)}%</span>
+                </li>
+              ))}
+            </ol>
+          ) : <p>No valid results in the current source snapshot.</p>}
+          <a href={`/compare?metric=epoch_${benchmark.slug}`}>Compare this benchmark</a>
+        </article>
+      ))}
+    </div>
+    <p><a href="https://epoch.ai/benchmarks" target="_blank" rel="noopener noreferrer">Source: Epoch AI Benchmarking Hub</a>. SimpleBench results are republished through Epoch, not a separate rerun. Full source records are available in the <a href="/data/epoch-benchmark-snapshot.json">downloaded snapshot</a>.</p>
+  </section>
 
   <div class="shortlist-frame" data-shortlist-frame aria-busy="false">
     <div class="shortlist-head" aria-hidden="true">
@@ -332,6 +358,19 @@ const workbenchPayloadJson = JSON.stringify({
   const renderShortlist = () => {
     if (!root || !rows || !rowTemplate || !presetSelect || !budgetSelect || !frame) return;
     const preset = getPreset();
+    const isReasoning = preset.id === 'reasoning';
+    const reasoning = root.querySelector<HTMLElement>('[data-reasoning-evidence]');
+    const weights = root.querySelector<HTMLElement>('.weights-disclosure');
+    budgetSelect.disabled = isReasoning;
+    frame.hidden = isReasoning;
+    if (reasoning) reasoning.hidden = !isReasoning;
+    if (weights) weights.hidden = isReasoning;
+    if (isReasoning) {
+      frame.setAttribute('aria-busy', 'false');
+      if (loading) loading.hidden = true;
+      root.dataset.shortlistState = 'ready';
+      return;
+    }
     const budget = budgetSelect.value === "none" ? undefined : Number(budgetSelect.value);
     const ranked = rankComparableModels(
       serializeModels,
@@ -410,6 +449,21 @@ const workbenchPayloadJson = JSON.stringify({
 </script>
 
 <style>
+  .reasoning-evidence[hidden], .shortlist-frame[hidden], .weights-disclosure[hidden] { display: none; }
+  .reasoning-evidence { padding: 1rem; color: var(--text); }
+  .reasoning-evidence > p { max-width: 85ch; font-size: 0.875rem; line-height: 1.6; }
+  .reasoning-benchmarks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; margin: 1rem 0; }
+  .reasoning-benchmarks article { min-width: 0; }
+  .reasoning-benchmarks h2 { font-size: 1rem; font-weight: 600; }
+  .reasoning-benchmarks p, .reasoning-benchmarks small { font-size: 0.8rem; color: var(--subtle); line-height: 1.5; }
+  .reasoning-benchmarks ol { list-style: none; padding: 0; }
+  .reasoning-benchmarks li { display: flex; align-items: start; gap: 0.75rem; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding: 0.75rem 0; }
+  .reasoning-benchmarks li div { min-width: 0; overflow-wrap: anywhere; }
+  .reasoning-benchmarks strong { font-size: 0.875rem; font-weight: 500; }
+  .reasoning-benchmarks small { display: block; }
+  .reasoning-benchmarks li span { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .reasoning-evidence a { display: inline-block; padding-block: 0.5rem; color: var(--intelligence-copper); text-decoration: underline; text-underline-offset: 0.2em; }
+  @media (max-width: 900px) { .reasoning-benchmarks { grid-template-columns: 1fr; } }
   .task-workbench {
     border-top: 1px solid var(--intelligence-grid);
     border-bottom: 1px solid var(--intelligence-grid);
