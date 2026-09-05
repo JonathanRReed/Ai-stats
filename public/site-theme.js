@@ -1,36 +1,37 @@
+/* Theme boot. Runs before first paint so neither theme flashes. Stored choice wins, dark is the default. */
 (function () {
-  var THEME_STORAGE_KEY = "theme";
-  // Must mirror the --base token values in Layout.astro.
-  var THEME_COLOR_DARK = "#090b0d";
-  var THEME_COLOR_LIGHT = "#efede8";
-
-  function updateThemeColorMeta(isLight) {
-    var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) {
-      meta.setAttribute("content", isLight ? THEME_COLOR_LIGHT : THEME_COLOR_DARK);
-    }
-  }
-
-  function applyTheme() {
-    var saved = null;
+  var KEY = "theme";
+  function read() {
     try {
-      saved = localStorage.getItem(THEME_STORAGE_KEY);
-    } catch (_error) {
-      // ignore storage access failures
+      var saved = localStorage.getItem(KEY);
+      if (saved === "light" || saved === "dark") return saved;
+    } catch {
+      // Storage can be blocked; fall through to the default theme.
     }
-
-    var isLight = saved === "light";
-    document.documentElement.classList.toggle("light", isLight);
-
-    var colorScheme = isLight ? "light" : "dark";
-    document.documentElement.style.colorScheme = colorScheme;
-    if (document.body) {
-      document.body.style.colorScheme = colorScheme;
-    }
-
-    updateThemeColorMeta(isLight);
+    return "dark";
   }
-
-  applyTheme();
-  document.addEventListener("astro:after-swap", applyTheme);
+  function apply(theme) {
+    var root = document.documentElement;
+    root.dataset.theme = theme;
+    root.classList.toggle("light", theme === "light");
+    root.style.colorScheme = theme;
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", theme === "light" ? "#efede8" : "#090b0d");
+  }
+  window.__ecoTheme = {
+    get: read,
+    set: function (theme) {
+      apply(theme);
+      try {
+        localStorage.setItem(KEY, theme);
+      } catch {
+        // Storage can be blocked; the theme still applies for this page.
+      }
+    },
+    toggle: function () {
+      window.__ecoTheme.set(read() === "light" ? "dark" : "light");
+    },
+  };
+  apply(read());
+  document.addEventListener("astro:after-swap", function () { apply(read()); });
 })();

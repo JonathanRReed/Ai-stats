@@ -29,6 +29,8 @@ export type ModelPassport = {
     aiStatsCompare: string;
     aiDragRace: string;
     aiNewsSearch: string;
+    promptInfo: string | null;
+    poliBench: string | null;
   };
 };
 
@@ -54,6 +56,35 @@ export type ModelPassportSnapshot = {
 
 const route = (base: string, key: string): string =>
   `${base}${encodeURIComponent(key)}`;
+
+/**
+ * Sibling-site routes. Each site reads a different key:
+ * - AI Stats compare accepts a display name or slug.
+ * - AI Drag Racing wants a provider-native model id plus the provider; the
+ *   OpenRouter alias is the one route every sibling can reach.
+ * - AI News searches free text, so it gets the display name.
+ * - Prompt Info and PoliBench key on the OpenRouter slug and are only linked
+ *   when that alias is known, so the passport never emits a dead link.
+ */
+export function buildPassportRoutes(
+  displayName: string,
+  aliases: ModelPassportAlias[],
+): ModelPassport['routes'] {
+  const openRouterKey = aliases.find((alias) => alias.sourceKey === 'openrouter')?.sourceModelKey ?? null;
+  const poliBenchKey = aliases.find((alias) => alias.sourceKey === 'polibench')?.sourceModelKey ?? null;
+  const dragRaceKey = openRouterKey ?? displayName;
+  const dragRaceParams = new URLSearchParams({ model: dragRaceKey });
+  if (openRouterKey) dragRaceParams.set('provider', 'openrouter');
+  return {
+    aiStatsCompare: route('/compare?model=', displayName),
+    aiDragRace: `https://ai-dragrace.jonathanrreed.com/?${dragRaceParams.toString()}`,
+    aiNewsSearch: route('https://ai-news.helloworldfirm.com/?q=', displayName),
+    promptInfo: openRouterKey ? route('https://prompt-info.helloworldfirm.com/?model=', openRouterKey) : null,
+    poliBench: poliBenchKey
+      ? `https://polibench.jonathanrreed.com/models/${poliBenchKey.split('/').map(encodeURIComponent).join('/')}/`
+      : null,
+  };
+}
 
 export function buildModelPassportSnapshot(input: {
   canonicalModels: CanonicalModelRow[];
@@ -81,21 +112,20 @@ export function buildModelPassportSnapshot(input: {
     aliasesByModel.set(alias.canonical_model_id, current);
   }
 
-  const models = input.canonicalModels.map((model) => ({
-    canonicalKey: model.canonical_key,
-    displayName: model.display_name,
-    provider: model.provider_name,
-    family: model.model_family,
-    releaseDate: model.release_date,
-    updatedAt: model.updated_at,
-    aliases: (aliasesByModel.get(model.id) ?? []).sort((a, b) =>
-      a.sourceKey.localeCompare(b.sourceKey) || a.sourceModelKey.localeCompare(b.sourceModelKey)),
-    routes: {
-      aiStatsCompare: route('/compare?model=', model.display_name),
-      aiDragRace: route('https://ai-dragrace.jonathanrreed.com/?model=', model.display_name),
-      aiNewsSearch: route('https://ai-news.helloworldfirm.com/?model=', model.canonical_key),
-    },
-  }));
+  const models = input.canonicalModels.map((model) => {
+    const aliases = (aliasesByModel.get(model.id) ?? []).sort((a, b) =>
+      a.sourceKey.localeCompare(b.sourceKey) || a.sourceModelKey.localeCompare(b.sourceModelKey));
+    return {
+      canonicalKey: model.canonical_key,
+      displayName: model.display_name,
+      provider: model.provider_name,
+      family: model.model_family,
+      releaseDate: model.release_date,
+      updatedAt: model.updated_at,
+      aliases,
+      routes: buildPassportRoutes(model.display_name, aliases),
+    };
+  });
 
   return {
     schemaVersion: MODEL_PASSPORT_SCHEMA,

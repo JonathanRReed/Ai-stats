@@ -30,7 +30,8 @@ describe("not-found page", () => {
     ).toBe(0);
 
     notFoundHtml = await readFile(join(outputDirectory, "404.html"), "utf8");
-  }, 60_000);
+    // A full Astro build. Slower machines and cold caches need more than a minute.
+  }, 180_000);
 
   afterAll(async () => {
     if (outputDirectory) {

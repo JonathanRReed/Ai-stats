@@ -26,30 +26,25 @@
 <style>
 .scroll-to-top {
   position: fixed;
-  bottom: 1.5rem;
-  right: 1.5rem;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--surface), var(--overlay));
-  border: 1px solid color-mix(in srgb, var(--foam) 30%, transparent);
-  color: var(--foam);
+  bottom: 1.25rem;
+  right: 1.25rem;
+  width: var(--control-h);
+  height: var(--control-h);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  border: 1px solid var(--line-1);
+  color: var(--ink-1);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(10px);
-  transition:
-    opacity var(--dur-slow) var(--ease-smooth),
-    visibility var(--dur-slow) var(--ease-smooth),
-    transform var(--dur-slow) var(--ease-spring),
-    var(--transition-colors),
-    box-shadow var(--dur-base) var(--ease-smooth);
+  transform: translateY(6px);
+  transition: opacity var(--dur-base) var(--ease-standard), visibility var(--dur-base) var(--ease-standard), transform var(--dur-base) var(--ease-out), background-color var(--dur-fast) var(--ease-standard);
   /* Below the mobile-nav overlay (998) and panel (999) so it never floats over the open menu. */
   z-index: 95;
-  box-shadow: var(--elev-2);
+  box-shadow: var(--shadow-1);
 }
 
 .scroll-to-top.visible {
@@ -59,36 +54,12 @@
 }
 
 .scroll-to-top:hover {
-  background: linear-gradient(135deg, var(--overlay), var(--highlight-med));
-  border-color: color-mix(in srgb, var(--foam) 50%, transparent);
-  box-shadow: var(--elev-2), 0 0 0 1px color-mix(in srgb, var(--foam) 20%, transparent);
-  transform: translateY(-2px);
-}
-
-.scroll-to-top:active {
-  transform: translateY(0);
+  background: var(--surface-2);
+  color: var(--ink-0);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scroll-to-top {
-    transition:
-      opacity var(--dur-base) var(--ease-smooth),
-      visibility var(--dur-base) var(--ease-smooth);
-  }
-  .scroll-to-top.visible,
-  .scroll-to-top:hover,
-  .scroll-to-top:active {
-    transform: none;
-  }
-}
-
-@media (max-width: 640px) {
-  .scroll-to-top {
-    bottom: 1rem;
-    right: 1rem;
-    width: 40px;
-    height: 40px;
-  }
+  .scroll-to-top { transition: none; transform: none; }
 }
 </style>
 

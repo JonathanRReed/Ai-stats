@@ -22,39 +22,54 @@ const formatTrackedDate = (value: string | null | undefined): string => {
     timeZone: "UTC",
   }).format(date);
 };
+const providerFor = (model: AaModel): string =>
+  model.company_name ?? model.creator_name ?? "Unknown provider";
 ---
 
 <section class="latest-models" aria-label="Current benchmark snapshot">
+  <div class="latest-models-opening">
+    <div class="latest-models-intro">
+      <h1>See how these models compare.</h1>
+      <p class="latest-models-lede">
+        Price, speed, context, and named benchmark scores from Artificial Analysis,
+        Epoch AI, OpenRouter, and PoliBench, side by side. Every number keeps its
+        source and its date. There is no combined score and no winner.
+      </p>
+    </div>
+    <div class="latest-models-actions">
+      <a href="/compare" class="eco-btn eco-btn-primary">Compare models</a>
+      <a href="/about" class="eco-btn eco-btn-secondary">How the data is gathered</a>
+    </div>
+  </div>
+
   <header class="latest-models-header">
     <div>
-      <h1>AI model benchmark snapshot</h1>
+      <h2>AI model benchmark snapshot</h2>
+      <p>
+        One recent model per provider with AA Index, pricing, and speed available.
+        Rows are ordered by AA Index, then by the number of available measurements.
+        Index values are points, not percentages.
+        This describes the data, it does not recommend a model.
+      </p>
     </div>
-    <p>
-      One recent model per provider with AA Index, pricing, and speed available.
-      Rows are ordered by AA Index, then by the number of available measurements.
-      Index values are points, not percentages.
-      This describes the data, it does not recommend a model.
-      {latestObserved ? ` Latest observation in this cohort: ${formatTrackedDate(latestObserved.toISOString())}.` : ""}
-    </p>
+    {latestObserved ? (
+      <p class="latest-models-observed">
+        <span class="eco-label">Latest observation in this cohort</span>
+        <time datetime={latestObserved.toISOString()}>{formatTrackedDate(latestObserved.toISOString())}</time>
+      </p>
+    ) : null}
   </header>
 
   {
     models.length ? (
-      <ul class="latest-model-grid">
+      <ul class="latest-model-grid eco-joined">
         {models.map((model) => (
           <li>
             <a href={`/compare?model=${encodeURIComponent(model.name ?? model.id)}`}>
-              <span class="latest-model-date">
-                First tracked <time datetime={model.first_seen}>{formatTrackedDate(model.first_seen)}</time>
-                <span aria-hidden="true"> · </span>
-                last observed <time datetime={model.last_seen}>{formatTrackedDate(model.last_seen)}</time>
-              </span>
+              <span class="latest-model-provider">{providerFor(model)}</span>
               <strong title={model.name ?? model.id}>{model.name}</strong>
-              <span class="latest-model-provider">
-                {model.company_name ?? model.creator_name ?? "Unknown provider"}
-              </span>
               <dl>
-                <div>
+                <div class="latest-model-lead">
                   <dt>AA index</dt>
                   <dd>{formatIndex(model.aa_intelligence_index)}</dd>
                 </div>
@@ -64,13 +79,17 @@ const formatTrackedDate = (value: string | null | undefined): string => {
                 </div>
                 <div>
                   <dt>Speed</dt>
-                  <dd>{formatTPS(model.median_output_tokens_per_second)} t/s</dd>
+                  <dd>{formatTPS(model.median_output_tokens_per_second)}<small> t/s</small></dd>
                 </div>
                 <div>
                   <dt>Blended</dt>
-                  <dd>{formatPrice(model.price_1m_blended_3_to_1, 2)}</dd>
+                  <dd>{formatPrice(model.price_1m_blended_3_to_1, 2)}<small> /1M</small></dd>
                 </div>
               </dl>
+              <span class="latest-model-date">
+                First tracked <time datetime={model.first_seen}>{formatTrackedDate(model.first_seen)}</time>,
+                last observed <time datetime={model.last_seen}>{formatTrackedDate(model.last_seen)}</time>
+              </span>
               <span class="latest-model-action">Compare model</span>
             </a>
           </li>
@@ -87,39 +106,68 @@ const formatTrackedDate = (value: string | null | undefined): string => {
 <style>
   .latest-models {
     display: grid;
-    gap: 1rem;
-    border-top: 1px solid var(--border-color);
-    border-bottom: 1px solid var(--border-color);
-    padding: 1.25rem 0;
+    gap: var(--space-6);
+  }
+
+  .latest-models-opening {
+    display: grid;
+    gap: var(--space-5);
+    align-items: end;
+    padding-block: var(--space-6) var(--space-4);
+  }
+
+  .latest-models-intro h1 {
+    max-width: 14ch;
+  }
+
+  .latest-models-lede {
+    max-width: 58ch;
+    margin-top: var(--space-4);
+    color: var(--ink-1);
+    font-size: var(--text-lg);
+    line-height: var(--leading-normal);
+  }
+
+  .latest-models-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
   }
 
   .latest-models-header {
     display: grid;
-    gap: 0.75rem;
+    gap: var(--space-3);
     align-items: end;
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--line-1);
   }
 
-  .latest-models-header h1 {
-    margin-top: 0.25rem;
-    max-width: 17ch;
-    color: var(--text);
-    font-size: clamp(1.75rem, 4vw, 3.4rem);
-    font-weight: 900;
-    letter-spacing: -0.045em;
-    line-height: 0.98;
+  .latest-models-header h2 {
+    font-size: var(--text-xl);
   }
 
-  .latest-models-header > p {
-    max-width: 68ch;
-    color: var(--subtle);
-    font-size: 0.82rem;
-    line-height: 1.65;
+  .latest-models-header > div > p {
+    max-width: 64ch;
+    margin-top: var(--space-2);
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+  }
+
+  .latest-models-observed {
+    display: grid;
+    gap: 0.2rem;
+    justify-items: start;
+  }
+
+  .latest-models-observed time {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--ink-0);
   }
 
   .latest-model-grid {
-    display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 0.5rem;
     margin: 0;
     padding: 0;
     list-style: none;
@@ -133,107 +181,124 @@ const formatTrackedDate = (value: string | null | undefined): string => {
   .latest-model-grid a {
     display: grid;
     height: 100%;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.5rem;
-    border: 1px solid var(--border-color);
-    background: var(--surface);
-    padding: 0.9rem;
+    gap: var(--space-2);
+    align-content: start;
+    padding: var(--space-4);
     color: inherit;
     text-decoration: none;
-    transition: border-color 150ms ease, background-color 150ms ease;
+    transition: background-color var(--dur-fast) var(--ease-standard);
   }
 
   .latest-model-grid a:hover,
   .latest-model-grid a:focus-visible {
-    border-color: var(--love);
-    background: var(--overlay);
+    background: var(--surface-1);
   }
 
   .latest-model-grid a:focus-visible {
-    outline: 2px solid var(--love);
-    outline-offset: 2px;
-  }
-
-  .latest-model-date,
-  .latest-model-provider,
-  .latest-model-action,
-  .latest-model-grid dt,
-  .latest-model-grid dd {
-    font-family: var(--font-mono);
-  }
-
-  .latest-model-date {
-    color: var(--muted);
-    font-size: 0.62rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  .latest-model-provider,
-  .latest-model-date {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .latest-model-grid strong {
-    color: var(--text);
-    font-size: 0.98rem;
-    line-height: 1.2;
-    overflow-wrap: anywhere;
+    outline-offset: -2px;
   }
 
   .latest-model-provider {
-    color: var(--subtle);
-    font-size: 0.7rem;
+    color: var(--ink-2);
+    font-size: var(--text-xs);
+    font-weight: 500;
+  }
+
+  .latest-model-grid strong {
+    color: var(--ink-0);
+    font-size: var(--text-lg);
+    font-weight: 600;
+    line-height: var(--leading-snug);
+    letter-spacing: -0.01em;
+    overflow-wrap: anywhere;
   }
 
   .latest-model-grid dl {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.5rem;
-    margin: 0.5rem 0 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-3);
+    margin: var(--space-2) 0 0;
   }
 
   .latest-model-grid dl div {
     min-width: 0;
-    border-top: 1px solid var(--highlight-low);
-    padding-top: 0.45rem;
+  }
+
+  .latest-model-lead {
+    grid-column: 1 / -1;
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--line-0);
   }
 
   .latest-model-grid dt {
-    color: var(--muted);
-    font-size: 0.58rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    color: var(--ink-2);
+    font-size: var(--text-xs);
+    font-weight: 500;
   }
 
   .latest-model-grid dd {
-    margin: 0.15rem 0 0;
-    color: var(--text);
-    font-size: 0.72rem;
-    font-weight: 750;
+    margin: 0.1rem 0 0;
+    color: var(--ink-0);
+    font-family: var(--font-mono);
+    font-size: var(--text-base);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .latest-model-lead dd {
+    font-size: var(--text-3xl);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .latest-model-grid dd small {
+    color: var(--ink-2);
+    font-size: var(--text-xs);
+    font-weight: 400;
+  }
+
+  .latest-model-date {
+    margin-top: var(--space-2);
+    color: var(--ink-3);
+    font-size: var(--text-xs);
+    line-height: var(--leading-snug);
+  }
+
+  .latest-model-date time {
+    font-family: inherit;
+    color: var(--ink-2);
   }
 
   .latest-model-action {
-    margin-top: 0.25rem;
-    color: var(--foam);
-    font-size: 0.64rem;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    color: var(--signal);
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+
+  .latest-model-grid a:hover .latest-model-action {
+    text-decoration: underline;
   }
 
   .latest-model-empty {
-    border: 1px solid var(--border-color);
-    padding: 1rem;
-    color: var(--subtle);
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
+    border: 1px solid var(--line-1);
+    padding: var(--space-4);
+    color: var(--ink-1);
+    font-size: var(--text-sm);
   }
 
   @media (min-width: 720px) {
+    .latest-models-opening {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
     .latest-models-header {
-      grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.9fr);
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .latest-models-observed {
+      justify-items: end;
+      text-align: right;
     }
 
     .latest-model-grid {
@@ -244,12 +309,6 @@ const formatTrackedDate = (value: string | null | undefined): string => {
   @media (min-width: 1080px) {
     .latest-model-grid {
       grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .latest-model-grid a {
-      transition: none;
     }
   }
 </style>

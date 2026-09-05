@@ -1,5 +1,5 @@
 ---
-// Layout.astro: Shared layout for all pages
+// Layout.astro: shared document shell for every page.
 import { ClientRouter } from "astro:transitions";
 import "../styles/tailwind.css";
 import ModelDrawer from "./ModelDrawer";
@@ -96,15 +96,14 @@ const pageSchema = {
       <link rel="preload" href="/jonathan.avif" as="image" fetchpriority="high" />
     )}
 
-    <!-- Preload critical font to improve LCP -->
-    <link
-      rel="preload"
-      href="/fonts/nebula sans/NebulaSans-Book.woff2"
-      as="font"
-      type="font/woff2"
-      crossorigin
-    />
-    <link rel="stylesheet" href="/fonts/nebula sans/nebula-sans.css" />
+    <!-- Theme boots before paint so neither theme flashes. -->
+    <script is:inline src="/site-theme.js"></script>
+
+    <!-- Ecosystem type, self-hosted -->
+    <link rel="preload" href="/fonts/nebula-sans/NebulaSans-Book.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/nebula-sans/NebulaSans-Semibold.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/jetbrains-mono/JetBrainsMono-Variable.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/fonts/fonts.css" />
 
     <!-- SEO Meta Tags -->
     <title>{title}</title>
@@ -138,112 +137,30 @@ const pageSchema = {
 
     <ClientRouter />
 
-    <script is:inline src="/site-theme.js"></script>
-
     <style is:global>
-      :root {
-        --base: #090b0d;
-        --surface: #101417;
-        --overlay: #171d20;
-        --muted: #858d90;
-        --subtle: #c5cbc8;
-        --text: #f2f1ea;
-        --love: #d86d4a;
-        --gold: #d0a85a;
-        --pine: #89c8b6;
-        --foam: #e58a5f;
-        --terminal-green: #9adf8f;
-        --highlight-low: rgba(242, 241, 234, 0.055);
-        --highlight-med: rgba(242, 241, 234, 0.13);
-        --highlight-high: rgba(242, 241, 234, 0.24);
-        --shadow-color: rgba(6, 8, 9, 0.36);
-        --border-color: rgba(242, 241, 234, 0.18);
-        --border-soft: rgba(242, 241, 234, 0.09);
-        --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.09);
-        --font-display:
-          "Geist", "Nebula Sans", "Arial Narrow", "Helvetica Neue", sans-serif;
-        --font-mono:
-          "JetBrains Mono", "SFMono-Regular", "Roboto Mono", Consolas, monospace;
-      }
+      /* Evidence colors: score tiers read as state, never as decoration. */
+      .score-high { color: var(--ok); }
+      .score-mid { color: var(--warn); }
+      .score-low { color: var(--warn); }
+      .score-poor { color: var(--bad); }
+      .score-none { color: var(--ink-2); }
 
-      html.light {
-        --base: #efede8;
-        --surface: #f8f6f1;
-        --overlay: #e3dfd6;
-        --muted: #6d6961;
-        --subtle: #393833;
-        --text: #101111;
-        --love: #b84f35;
-        --gold: #8f6723;
-        --pine: #214a42;
-        --foam: #a8462e;
-        /* Deep readable green so .score-bg-high stays legible on the light badge */
-        --terminal-green: #1f5d3a;
-        --highlight-low: rgba(12, 13, 13, 0.055);
-        --highlight-med: rgba(12, 13, 13, 0.14);
-        --highlight-high: rgba(12, 13, 13, 0.24);
-        --shadow-color: rgba(33, 27, 22, 0.16);
-        --border-color: rgba(12, 13, 13, 0.2);
-        --border-soft: rgba(12, 13, 13, 0.1);
-        --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.3);
-        color-scheme: light;
-      }
-
-      /* Score colors - Brutalist Flat */
-      .score-high {
-        color: var(--pine);
-      }
-      .score-mid {
-        color: var(--gold);
-      }
-      .score-low {
-        color: #ff9933;
-      }
-      .score-poor {
-        color: var(--love);
-      }
-      .score-none {
-        color: var(--muted);
-      }
-
-      .score-bg-high {
-        background: var(--terminal-green);
-        color: #050505;
-        border: 2px solid var(--border-color);
-      }
-      .score-bg-mid {
-        background: var(--gold);
-        color: #050505;
-        border: 2px solid var(--border-color);
-      }
-      .score-bg-low {
-        background: #a86f1f;
-        color: #050505;
-        border: 2px solid var(--border-color);
-      }
-      .score-bg-poor {
-        background: var(--love);
-        color: #fff;
-        border: 2px solid var(--border-color);
-      }
+      .score-bg-high,
+      .score-bg-mid,
+      .score-bg-low,
+      .score-bg-poor,
       .score-bg-none {
-        background: var(--highlight-low);
-        color: var(--text);
-        border: 2px solid var(--border-color);
+        color: var(--ink-0);
+        border: 1px solid var(--line-1);
+        border-radius: var(--radius-sm);
       }
+      .score-bg-high { background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+      .score-bg-mid { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+      .score-bg-low { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
+      .score-bg-poor { background: var(--bad-soft); border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
+      .score-bg-none { background: var(--surface-2); }
 
-      /* Dark logo visibility */
-      .provider-logo-dark {
-        padding: 3px;
-        background: #f6f3ea;
-        border: 1px solid rgba(0, 0, 0, 0.35);
-        border-radius: var(--radius-s);
-      }
-      html.light .provider-logo-dark {
-        background: #ffffff;
-        border: 1px solid rgba(0, 0, 0, 0.12);
-      }
-
+      /* Provider logos */
       .provider-logo-frame {
         width: 1.8rem;
         height: 1.8rem;
@@ -251,355 +168,84 @@ const pageSchema = {
         flex: 0 0 1.8rem;
         align-items: center;
         justify-content: center;
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-s);
-        background: color-mix(in srgb, var(--overlay) 82%, transparent);
+        border: 1px solid var(--line-1);
+        border-radius: var(--radius-md);
+        background: var(--surface-2);
       }
-
-      .provider-logo-frame-light {
-        background: #f6f3ea;
-        border-color: color-mix(in srgb, var(--love) 32%, #f6f3ea);
-      }
-
-      .provider-logo-image {
-        width: 1.05rem;
-        height: 1.05rem;
-        object-fit: contain;
-        display: block;
-      }
-
-      .provider-logo-fallback {
-        color: var(--subtle);
-        font-family: var(--font-mono);
-        font-size: 0.62rem;
-        font-weight: 800;
-        letter-spacing: 0;
-      }
-
-      /* Shared sizing & spacing */
-      :root {
-        /* Legacy aliases */
-        --surface-0: var(--base);
-        --surface-1: var(--surface);
-        --surface-2: var(--overlay);
-        --text-1: var(--text);
-        --text-2: var(--subtle);
-        --accent: var(--foam);
-        --accent-2: var(--pine);
-
-        /* Sizing & spacing */
-        --radius-s: 4px;
-        --radius-m: 6px;
-        --radius-l: 10px;
-        --radius-xl: 14px;
-        --space-1: 0.25rem;
-        --space-2: 0.5rem;
-        --space-3: 0.75rem;
-        --space-4: 1rem;
-        --space-5: 1.5rem;
-        --space-6: 2rem;
-        --space-7: 3rem;
-
-        /* Layout */
-        --container-max: 1200px;
-        --container-pad: 1rem;
-
-        /* Motion: easing curves */
-        --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
-        --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-        --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-
-        /* Motion: durations */
-        --dur-fast: 120ms;
-        --dur-base: 200ms;
-        --dur-slow: 360ms;
-
-        /* Motion: composed transitions */
-        --transition-colors:
-          color var(--dur-base) var(--ease-smooth),
-          background-color var(--dur-base) var(--ease-smooth),
-          border-color var(--dur-base) var(--ease-smooth);
-        --transition-elevate:
-          transform var(--dur-base) var(--ease-spring),
-          box-shadow var(--dur-base) var(--ease-smooth),
-          border-color var(--dur-base) var(--ease-smooth);
-        --transition-reveal:
-          opacity var(--dur-slow) var(--ease-out-expo),
-          transform var(--dur-slow) var(--ease-out-expo);
-
-        /* Elevation scale (uses theme-aware --shadow-color) */
-        --elev-1: 0 2px 8px var(--shadow-color);
-        --elev-2: 0 8px 24px var(--shadow-color);
-        --elev-3: 0 18px 60px var(--shadow-color);
-        --elev-4: 0 24px 76px var(--shadow-color);
-
-        /* Accent glow */
-        --glow-primary: 0 12px 32px
-          color-mix(in srgb, var(--love) 24%, transparent);
-        --glow-primary-hover: 0 16px 42px
-          color-mix(in srgb, var(--love) 30%, transparent);
-
-        /* Text color for accent/primary fills */
-        --on-accent: #ffffff;
-      }
-
-      /* Modern CSS reset */
-      *,
-      *::before,
-      *::after {
-        box-sizing: border-box;
-      }
-      * {
-        margin: 0;
-      }
-      html:focus-within {
-        scroll-behavior: smooth;
-      }
-      body {
-        line-height: 1.6;
-        -webkit-font-smoothing: antialiased;
-        background-color: var(--base);
-        color: var(--text);
-        font-family: var(--font-display);
-        font-size: clamp(15px, 1.2vw, 16px);
-        min-height: 100vh;
-        color-scheme: dark;
-        position: relative;
-        overflow-x: hidden;
-      }
-
-      body::before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        z-index: -1;
-        background-image:
-          linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px),
-          repeating-linear-gradient(
-            0deg,
-            rgba(255, 255, 255, 0.035) 0,
-            rgba(255, 255, 255, 0.035) 1px,
-            transparent 1px,
-            transparent 4px
-          );
-        background-size: 72px 72px, 72px 72px, 100% 4px;
-        opacity: 0.38;
-        pointer-events: none;
-      }
-
-      body::after {
-        content: "";
-        position: fixed;
-        inset: 0;
-        z-index: -1;
-        pointer-events: none;
-        opacity: 0.08;
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)' opacity='0.65'/%3E%3C/svg%3E");
-        mix-blend-mode: screen;
-      }
-
-      h1,
-      h2,
-      h3,
-      h4,
-      h5,
-      h6 {
-        font-weight: 800;
-      }
-      h1 {
-        font-size: clamp(3rem, 7vw, 6.7rem);
-        line-height: 0.92;
-        letter-spacing: 0;
-        text-wrap: balance;
-      }
-      h2 {
-        font-size: clamp(2rem, 4vw, 4.25rem);
-        line-height: 1;
-        letter-spacing: 0;
-      }
-      h3 {
-        font-size: clamp(1.25rem, 2vw, 1.5rem);
-        line-height: 1.2;
-      }
-      p {
-        color: var(--text);
-        font-weight: 500;
-      }
-
-      code,
-      kbd,
-      samp,
-      data,
-      output,
-      select,
-      input,
-      table,
-      .mono {
-        font-family: var(--font-mono);
-        font-variant-numeric: tabular-nums;
-      }
+      .provider-logo-frame-light { background: #f6f3ea; border-color: rgba(0, 0, 0, 0.12); }
+      .provider-logo-image { width: 1.05rem; height: 1.05rem; object-fit: contain; display: block; }
+      .provider-logo-fallback { color: var(--ink-1); font-family: var(--font-mono); font-size: 0.62rem; font-weight: 600; }
+      .provider-logo-dark { padding: 3px; background: #f6f3ea; border: 1px solid rgba(0, 0, 0, 0.12); border-radius: var(--radius-sm); }
 
       .container {
-        max-width: var(--container-max);
+        max-width: var(--container);
         margin-inline: auto;
-        padding-inline: var(--container-pad);
+        padding-inline: var(--gutter);
         width: 100%;
       }
 
-      @media (min-width: 768px) {
-        :root {
-          --container-pad: 2rem;
-        }
-      }
+      #root, main, section { min-width: 0; }
+      .no-overflow-x { overflow-x: hidden; }
 
-      /* Focus styles for accessibility */
-      :focus-visible {
-        outline: 4px solid var(--accent);
-        outline-offset: 2px;
-        border-radius: var(--radius-s);
-      }
-
-      #root,
-      main,
-      section {
-        min-width: 0;
-      }
-      .no-overflow-x {
-        overflow-x: hidden;
-      }
-
-      @media (prefers-reduced-motion: no-preference) {
-        ::view-transition-old(root),
-        ::view-transition-new(root) {
-          animation-duration: 0.2s;
-        }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        ::view-transition-old(root),
-        ::view-transition-new(root) {
-          animation: none;
-        }
-      }
-
+      /* Panels and primary action. Class names predate the contract and stay for the scripts that use them. */
       .brutalist-card {
-        background: color-mix(in srgb, var(--surface) 94%, transparent);
-        border: 1px solid var(--border-color);
-        box-shadow: var(--elev-3), var(--glass-edge);
-        border-radius: var(--radius-m);
-        transition: var(--transition-elevate);
+        background: var(--surface-1);
+        border: 1px solid var(--line-0);
+        border-radius: var(--radius-md);
+        transition: border-color var(--dur-base) var(--ease-standard);
       }
-
       .brutalist-card:hover,
-      .brutalist-card:focus-within {
-        border-color: color-mix(in srgb, var(--love) 65%, var(--border-color));
-        transform: translateY(-2px);
-        box-shadow: var(--elev-4), var(--glass-edge);
-      }
-
-      .brutalist-card:active {
-        transform: translateY(0);
-        box-shadow: var(--elev-2), var(--glass-edge);
-      }
+      .brutalist-card:focus-within { border-color: var(--line-1); }
 
       .brutalist-button {
-        position: relative;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 0.55rem;
-        min-height: 44px;
-        min-width: 0;
-        background: var(--love);
-        color: var(--on-accent);
-        border: 1px solid var(--love);
-        box-shadow: var(--glow-primary);
-        border-radius: var(--radius-s);
-        font-family: var(--font-mono);
-        font-size: 0.75rem;
-        font-weight: 800;
-        letter-spacing: 0;
-        line-height: 1.1;
-        text-transform: uppercase;
-        padding: 0.7rem 1.35rem;
-        text-align: center;
+        gap: 0.5rem;
+        min-height: var(--control-h);
+        padding: 0 var(--space-4);
+        background: var(--signal);
+        color: var(--signal-ink);
+        border: 1px solid var(--signal);
+        border-radius: var(--radius-md);
+        font-family: var(--font-sans);
+        font-size: var(--text-sm);
+        font-weight: 600;
+        line-height: 1;
         text-decoration: none;
         white-space: nowrap;
-        overflow: hidden;
-        overflow-wrap: normal;
         cursor: pointer;
-        transition: var(--transition-elevate);
+        transition: background-color var(--dur-fast) var(--ease-standard), border-color var(--dur-fast) var(--ease-standard);
       }
-
-      /* Sweep-highlight on hover (disabled under reduced motion below) */
-      .brutalist-button::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(
-          120deg,
-          transparent 0%,
-          rgba(255, 255, 255, 0.28) 50%,
-          transparent 100%
-        );
-        transform: translateX(-120%);
-        transition: transform var(--dur-slow) var(--ease-out-expo);
-        pointer-events: none;
+      .brutalist-button:hover { background: var(--signal-hover); border-color: var(--signal-hover); }
+      .brutalist-button.secondary {
+        background: transparent;
+        color: var(--ink-0);
+        border-color: var(--line-1);
       }
+      .brutalist-button.secondary:hover { background: var(--surface-2); border-color: var(--ink-2); }
 
-      .brutalist-button:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--glow-primary-hover);
-        background: color-mix(in srgb, var(--love) 92%, white);
-      }
-
-      .brutalist-button:hover::after {
-        transform: translateX(120%);
-      }
-
-      .brutalist-button:active {
-        transform: translate(1px, 1px);
-        box-shadow: var(--elev-1);
-      }
-
+      /* Reveal on scroll: progressive enhancement, one quiet fade. */
       .fade-in-section,
-      .stagger-item {
-        opacity: 1;
-        transform: none;
-      }
-
-      /* Fade in animations are progressive enhancement only. */
+      .stagger-item { opacity: 1; transform: none; }
       html.motion-ready .fade-in-section,
       html.motion-ready .stagger-item {
         opacity: 0;
-        transform: translateY(12px);
-        transition: var(--transition-reveal);
+        transform: translateY(6px);
+        transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
       }
       html.motion-ready .fade-in-section.is-visible,
-      html.motion-ready .stagger-item.is-visible {
-        opacity: 1;
-        transform: none;
-      }
+      html.motion-ready .stagger-item.is-visible { opacity: 1; transform: none; }
 
-      /* Respect reduced motion */
+      @media (prefers-reduced-motion: no-preference) {
+        ::view-transition-old(root),
+        ::view-transition-new(root) { animation-duration: 0.2s; }
+      }
       @media (prefers-reduced-motion: reduce) {
+        ::view-transition-old(root),
+        ::view-transition-new(root) { animation: none; }
         .fade-in-section,
-        .stagger-item {
-          opacity: 1;
-          transform: none;
-          transition: none;
-        }
-        .brutalist-card,
-        .brutalist-button {
-          transition: none;
-        }
-        .tilt-card {
-          transform: none !important;
-        }
-        .brutalist-button::after {
-          display: none;
-        }
+        .stagger-item { opacity: 1; transform: none; transition: none; }
       }
     </style>
     <slot name="head" />
@@ -607,11 +253,8 @@ const pageSchema = {
   <body>
     <!--
     THESIS: AI Stats organizes source-backed model evidence without presenting an opaque universal ranking or recommendation.
-    OWN-WORLD: Near-black #0F1114 and #151719 fields, warm gray type, muted copper actions, blue-gray plots, monospaced measurement labels, and a #2C2E31 hairline grid.
+    OWN-WORLD: Measurement black, warm paper ink, one copper signal, blue-gray plots, mono readouts, hairline structure. Ecosystem contract v1.
     STORY: Select an evidence lens and price ceiling, inspect comparable models, understand the formula and missing fields, then explore source health and native benchmark tradeoffs.
-    FIRST VIEWPORT: The concise introduction sits above a quiet task query and three dense candidate rows; source receipts form a narrow seam; the overview grid and quality-price plot begin below, with Compare as the primary next action.
-    FORM: Task First, ranked first in the safer grounded hand, combined with Overview First; seed be94f65f.
-    FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
     -->
     <slot />
     <ModelDrawer client:idle />

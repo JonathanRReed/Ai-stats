@@ -1,20 +1,71 @@
 @config "../../tailwind.config.js";
 @import "tailwindcss";
+@import "./ecosystem.css";
 
-@layer base {
-  :root {
-    --intelligence-base: #0f1114;
-    --intelligence-surface: #151719;
-    --intelligence-grid: #2c2e31;
-    --intelligence-copper: #c6764d;
-    --intelligence-blue: #668796;
-  }
+/*
+  Legacy token names used across the existing AI Stats stylesheets.
+  They alias the ecosystem contract so both themes flow through untouched.
+*/
+:root {
+  --base: var(--surface-0);
+  --surface: var(--surface-1);
+  --overlay: var(--surface-2);
+  --muted: var(--ink-2);
+  --subtle: var(--ink-1);
+  --text: var(--ink-0);
+  --text-1: var(--ink-0);
+  --text-2: var(--ink-1);
+  --love: var(--signal);
+  --foam: var(--signal-hover);
+  --gold: var(--warn);
+  --pine: var(--ok);
+  --terminal-green: var(--ok);
+  --rose: var(--bad);
+  --iris: var(--info);
+  --accent: var(--signal);
+  --accent-2: var(--ok);
+  --on-accent: var(--signal-ink);
+  --highlight-low: var(--line-0);
+  --highlight-med: var(--line-1);
+  --highlight-high: color-mix(in srgb, var(--ink-0) 30%, transparent);
+  --border-color: var(--line-1);
+  --border-soft: var(--line-0);
+  --shadow-color: rgba(0, 0, 0, 0.4);
+  --glass-edge: 0 0 0 0 transparent;
+  --glow-primary: 0 0 0 0 transparent;
+  --glow-primary-hover: 0 0 0 0 transparent;
+  --font-display: var(--font-sans);
+  --intelligence-base: var(--surface-0);
+  --intelligence-surface: var(--surface-1);
+  --intelligence-grid: var(--line-1);
+  --intelligence-copper: var(--signal);
+  --intelligence-blue: var(--info);
+  --radius-s: var(--radius-sm);
+  --radius-m: var(--radius-md);
+  --radius-l: var(--radius-lg);
+  --radius-xl: var(--radius-lg);
+  --container-max: var(--container);
+  --container-pad: var(--gutter);
+  --ease-smooth: var(--ease-standard);
+  --ease-out-expo: var(--ease-out);
+  --ease-spring: var(--ease-out);
+  --transition-colors:
+    color var(--dur-base) var(--ease-standard),
+    background-color var(--dur-base) var(--ease-standard),
+    border-color var(--dur-base) var(--ease-standard);
+  --transition-elevate:
+    border-color var(--dur-base) var(--ease-standard),
+    background-color var(--dur-base) var(--ease-standard);
+  --transition-reveal:
+    opacity var(--dur-slow) var(--ease-out),
+    transform var(--dur-slow) var(--ease-out);
+  --elev-1: var(--shadow-1);
+  --elev-2: var(--shadow-1);
+  --elev-3: var(--shadow-2);
+  --elev-4: var(--shadow-2);
+}
 
-  html.light {
-    --intelligence-base: #efede8;
-    --intelligence-surface: #f8f6f1;
-    --intelligence-grid: #c9c5bc;
-    --intelligence-copper: #a84f31;
-    --intelligence-blue: #3f6676;
-  }
+html.light,
+:root[data-theme="light"] {
+  --shadow-color: rgba(20, 16, 12, 0.14);
 }

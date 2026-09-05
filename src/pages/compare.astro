@@ -277,14 +277,12 @@ const initialPerformanceAttribution =
       overflow-x: hidden;
     }
     .smart-filter-rail {
-      width: 260px;
-      min-width: 260px;
+      width: 272px;
+      min-width: 272px;
       flex-shrink: 0;
-      background: color-mix(in srgb, var(--surface) 92%, transparent);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-right: 1px solid var(--border-color);
-      padding: 6.75rem 0.85rem 1rem;
+      background: var(--surface-1);
+      border-right: 1px solid var(--line-0);
+      padding: calc(var(--header-h) + 1.25rem) 1rem 1rem;
       height: 100vh;
       overflow-y: auto;
       position: fixed;
@@ -306,13 +304,8 @@ const initialPerformanceAttribution =
     }
 
     .smart-filter-rail::-webkit-scrollbar-thumb {
-      background: rgba(156, 207, 216, 0.3);
+      background: var(--line-1);
       border-radius: 3px;
-    }
-
-    html.light .smart-filter-rail {
-      background: var(--surface);
-      border-right: 2px solid var(--border-color);
     }
 
     .smart-filter-rail.closed {
@@ -428,18 +421,12 @@ const initialPerformanceAttribution =
 
     .filter-section h2,
     .filter-section h3 {
-      margin-bottom: 0.75rem;
-      font-size: 0.7rem;
-      font-weight: 700;
-      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+      font-size: var(--text-xs);
+      font-weight: 500;
       letter-spacing: 0;
-      color: var(--muted);
-      line-height: 1.1;
-    }
-
-    html.light .filter-section h2,
-    html.light .filter-section h3 {
-      color: #797593;
+      color: var(--ink-2);
+      line-height: 1.3;
     }
 
     .model-list {
@@ -451,7 +438,7 @@ const initialPerformanceAttribution =
       padding-right: 0.5rem;
       margin-right: -0.5rem;
       scrollbar-width: thin;
-      scrollbar-color: rgba(156, 207, 216, 0.3) transparent;
+      scrollbar-color: var(--line-1) transparent;
     }
 
     .model-list::-webkit-scrollbar {
@@ -463,7 +450,7 @@ const initialPerformanceAttribution =
     }
 
     .model-list::-webkit-scrollbar-thumb {
-      background: rgba(156, 207, 216, 0.3);
+      background: var(--line-1);
       border-radius: 2px;
     }
 
@@ -544,9 +531,9 @@ const initialPerformanceAttribution =
       flex-direction: column;
       gap: 1.15rem;
       min-width: 0;
-      width: calc(100% - 260px);
-      margin-left: 260px;
-      padding: 1.25rem;
+      width: calc(100% - 272px);
+      margin-left: 272px;
+      padding: var(--space-5) var(--gutter) var(--space-8);
       box-sizing: border-box;
       max-width: 100%;
       overflow-x: hidden;
@@ -559,11 +546,12 @@ const initialPerformanceAttribution =
       width: 100%;
       max-width: 1320px;
       margin: 0 auto;
-      border: 1px solid var(--border-color);
-      border-radius: 2px;
-      background: var(--surface);
+      border: 0;
+      border-bottom: 1px solid var(--line-1);
+      border-radius: 0;
+      background: transparent;
       box-shadow: none;
-      padding: clamp(0.9rem, 2vw, 1.2rem);
+      padding: 0 0 var(--space-5);
     }
     .compare-hero::before {
       content: none;
@@ -574,60 +562,56 @@ const initialPerformanceAttribution =
     }
     .compare-hero-kicker {
       display: inline-flex;
-      color: var(--subtle);
-      font-family: var(--font-mono);
-      font-size: 0.64rem;
-      font-weight: 900;
-      text-transform: uppercase;
+      color: var(--ink-2);
+      font-size: var(--text-xs);
+      font-weight: 500;
     }
     .compare-page-title {
-      max-width: 22ch;
+      max-width: 18ch;
       width: 100%;
-      margin: 0.35rem 0 0;
-      color: var(--text);
-      font-size: clamp(1.75rem, 3.4vw, 2.85rem);
-      line-height: 1;
-      font-weight: 850;
-      letter-spacing: -0.025em;
+      margin: 0;
+      color: var(--ink-0);
+      font-size: var(--text-3xl);
+      line-height: var(--leading-tight);
+      font-weight: 700;
+      letter-spacing: -0.02em;
     }
     .compare-page-lede {
       max-width: 58rem;
       width: 100%;
-      margin: 0.75rem 0 0;
-      color: var(--subtle);
-      font-size: 0.95rem;
-      line-height: 1.65;
+      margin: var(--space-3) 0 0;
+      color: var(--ink-1);
+      font-size: var(--text-base);
+      line-height: var(--leading-normal);
     }
     .compare-page-lede strong {
-      color: var(--subtle);
-      font-weight: 700;
+      color: var(--ink-0);
+      font-weight: 600;
     }
     .compare-hero-stats {
       display: grid;
       grid-template-columns: repeat(3, minmax(5.2rem, 1fr));
       gap: 1px;
       align-self: start;
-      border: 1px solid var(--highlight-low);
-      background: var(--highlight-low);
+      border: 1px solid var(--line-0);
+      background: var(--line-0);
     }
     .compare-hero-stats div {
-      background: color-mix(in srgb, var(--base) 42%, transparent);
+      background: var(--surface-1);
       min-width: 5.2rem;
-      padding: 0.62rem 0.7rem;
+      padding: var(--space-3) var(--space-4);
     }
     .compare-hero-stats dt {
-      color: var(--muted);
-      font-family: var(--font-mono);
-      font-size: 0.58rem;
-      font-weight: 900;
-      text-transform: uppercase;
+      color: var(--ink-2);
+      font-size: var(--text-xs);
+      font-weight: 500;
     }
     .compare-hero-stats dd {
-      margin-top: 0.25rem;
-      color: var(--text);
+      margin-top: 0.2rem;
+      color: var(--ink-0);
       font-family: var(--font-mono);
-      font-size: clamp(1.1rem, 2vw, 1.55rem);
-      font-weight: 950;
+      font-size: var(--text-xl);
+      font-weight: 500;
       line-height: 1;
     }
     .compare-preset-strip,
@@ -635,58 +619,56 @@ const initialPerformanceAttribution =
       grid-column: 1 / -1;
       display: grid;
       grid-template-columns: minmax(12rem, 1.15fr) repeat(2, minmax(11rem, 1fr));
-      border-block: 1px solid var(--border-color);
-      background: color-mix(in srgb, var(--base) 30%, transparent);
+      gap: 1px;
+      border: 1px solid var(--line-0);
+      background: var(--line-0);
     }
     .compare-lens-cell {
       display: grid;
       align-content: start;
       gap: 0.3rem;
       min-width: 0;
-      padding: 0.7rem 0.8rem;
-      border-right: 1px solid var(--border-color);
-    }
-    .compare-lens-cell:last-child {
-      border-right: 0;
+      padding: var(--space-3) var(--space-4);
+      background: var(--surface-1);
     }
     .compare-lens-cell > span {
-      color: var(--muted);
-      font-family: var(--font-mono);
-      font-size: 0.58rem;
-      font-weight: 800;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
+      color: var(--ink-2);
+      font-size: var(--text-xs);
+      font-weight: 500;
     }
     .compare-lens-cell strong,
     .compare-lens-cell select,
     .compare-lens-cell p {
-      font-family: var(--font-mono);
       line-height: 1.35;
     }
     .compare-lens-cell strong {
-      color: var(--text);
-      font-size: 0.7rem;
-      font-weight: 750;
+      color: var(--ink-0);
+      font-size: var(--text-sm);
+      font-weight: 600;
     }
     .compare-lens-cell p {
       margin: 0;
-      color: var(--muted);
-      font-size: 0.62rem;
+      color: var(--ink-2);
+      font-size: var(--text-xs);
     }
     .compare-lens-cell select {
       width: 100%;
-      min-height: 36px;
+      min-height: 40px;
       appearance: none;
-      border: 0;
-      border-bottom: 1px solid var(--border-color);
-      border-radius: 0;
-      color: var(--text);
-      background: transparent;
-      padding: 0.35rem 1.5rem 0.35rem 0;
-      font-size: 0.7rem;
+      border: 1px solid var(--line-1);
+      border-radius: var(--radius-md);
+      color: var(--ink-0);
+      background: var(--surface-0);
+      padding: 0 2rem 0 var(--space-2);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      background-image: linear-gradient(45deg, transparent 50%, var(--ink-2) 50%), linear-gradient(135deg, var(--ink-2) 50%, transparent 50%);
+      background-position: calc(100% - 0.95rem) 50%, calc(100% - 0.65rem) 50%;
+      background-size: 0.3rem 0.3rem;
+      background-repeat: no-repeat;
     }
     .compare-lens-cell select:focus-visible {
-      outline: 2px solid color-mix(in srgb, var(--love) 70%, white);
+      outline: 2px solid var(--focus);
       outline-offset: 2px;
     }
     .compare-guide {
@@ -694,9 +676,9 @@ const initialPerformanceAttribution =
       max-width: 1320px;
       width: 100%;
       margin: 0.2rem auto 0;
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-m);
-      background: color-mix(in srgb, var(--base) 34%, transparent);
+      border: 1px solid var(--line-0);
+      border-radius: var(--radius-md);
+      background: var(--surface-1);
       box-shadow: none;
       overflow: hidden;
     }
@@ -707,14 +689,11 @@ const initialPerformanceAttribution =
       justify-content: space-between;
       gap: 1rem;
       padding: 0.75rem 0.95rem;
-      color: var(--text);
+      color: var(--ink-0);
       cursor: pointer;
-      font-family: var(--font-mono);
-      font-size: 0.72rem;
-      font-weight: 800;
-      letter-spacing: 0.04em;
+      font-size: var(--text-sm);
+      font-weight: 500;
       list-style: none;
-      text-transform: uppercase;
       user-select: none;
     }
     .compare-guide summary::-webkit-details-marker {
@@ -791,10 +770,10 @@ const initialPerformanceAttribution =
       margin: 0 auto;
     }
     .chart-section {
-      background: var(--surface);
-      border-radius: 2px;
-      padding: 1rem;
-      border: 1px solid var(--border-color);
+      background: var(--surface-1);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+      border: 1px solid var(--line-0);
       box-shadow: none;
       width: 100%;
       position: relative;
@@ -815,14 +794,10 @@ const initialPerformanceAttribution =
     .chart-header h2,
     .chart-header h3 {
       margin: 0;
-      font-size: 0.9rem;
-      font-weight: 700;
-      color: var(--text);
+      font-size: var(--text-lg);
+      font-weight: 600;
+      color: var(--ink-0);
       line-height: 1.15;
-    }
-    html.light .chart-header h2,
-    html.light .chart-header h3 {
-      color: var(--subtle);
     }
 
     /* Branded chart skeleton — palette shimmer shown until charts paint. */
@@ -1239,9 +1214,9 @@ const initialPerformanceAttribution =
       width: 100%;
       max-width: 1320px;
       margin: 0 auto;
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-m);
-      background: color-mix(in srgb, var(--surface) 92%, transparent);
+      border: 1px solid var(--line-0);
+      border-radius: var(--radius-md);
+      background: var(--surface-1);
       overflow: hidden;
       container: catalog-section / inline-size;
     }
@@ -1290,10 +1265,10 @@ const initialPerformanceAttribution =
     }
 
     .catalog-disclosure .catalog-summary-label {
-      color: var(--text);
-      font-size: 0.82rem;
-      font-weight: 800;
-      line-height: 1.15;
+      color: var(--ink-0);
+      font-size: var(--text-base);
+      font-weight: 600;
+      line-height: 1.2;
     }
 
     .catalog-disclosure .catalog-summary-note {
@@ -1305,11 +1280,9 @@ const initialPerformanceAttribution =
 
     .catalog-disclosure .catalog-summary-action {
       flex-shrink: 0;
-      color: var(--muted);
-      font-family: var(--font-mono);
-      font-size: 0.56rem;
-      font-weight: 900;
-      text-transform: uppercase;
+      color: var(--signal);
+      font-size: var(--text-sm);
+      font-weight: 500;
     }
 
     .catalog-disclosure[open] summary {
@@ -1407,33 +1380,23 @@ const initialPerformanceAttribution =
       margin-bottom: 0.75rem;
     }
     .model-search {
-      background: var(--surface);
-      border: 2px solid var(--border-color);
-      box-shadow: 2px 2px 0px var(--shadow-color);
-      border-radius: 4px;
-      color: var(--text);
-      padding: 0.625rem 1rem;
+      background: var(--surface-0);
+      border: 1px solid var(--line-1);
+      border-radius: var(--radius-md);
+      color: var(--ink-0);
+      padding: 0 var(--space-3);
+      min-height: 40px;
       width: 100%;
-      font-size: 0.8rem;
-      transition: all 0.1s ease;
-      outline: none;
+      font-size: var(--text-sm);
+      transition: border-color var(--dur-fast) var(--ease-standard);
     }
-    .model-search:focus {
-      border-color: var(--border-color);
-      background: var(--highlight-low);
-      transform: translate(-1px, -1px);
-      box-shadow: 3px 3px 0px var(--shadow-color);
+    .model-search:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 0;
+      border-color: transparent;
     }
     .model-search::placeholder {
-      color: #6e6a86;
-    }
-    html.light .model-search {
-      background: var(--surface);
-      border: 2px solid var(--border-color);
-      color: var(--text);
-    }
-    html.light .model-search::placeholder {
-      color: var(--muted);
+      color: var(--ink-3);
     }
     .filter-toggle {
       position: relative;
@@ -1441,13 +1404,13 @@ const initialPerformanceAttribution =
       left: auto;
       bottom: auto;
       z-index: 35;
-      background: var(--base);
-      color: var(--text);
-      border: 2px solid var(--border-color);
-      box-shadow: 0 12px 32px var(--shadow-color);
-      border-radius: 4px;
+      background: var(--surface-1);
+      color: var(--ink-0);
+      border: 1px solid var(--line-1);
+      box-shadow: none;
+      border-radius: var(--radius-md);
       min-width: 6.5rem;
-      min-height: 42px;
+      min-height: 44px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -1460,14 +1423,8 @@ const initialPerformanceAttribution =
     }
 
     .filter-toggle:hover {
-      transform: translate(-2px, -2px);
-      box-shadow: 6px 6px 0px var(--shadow-color);
-      background: var(--highlight-low);
-    }
-
-    .filter-toggle:active {
-      transform: translate(2px, 2px);
-      box-shadow: 2px 2px 0px var(--shadow-color);
+      background: var(--surface-2);
+      border-color: var(--ink-2);
     }
 
     .filter-toggle[aria-expanded="true"] {
@@ -1482,17 +1439,14 @@ const initialPerformanceAttribution =
     }
 
     .filter-label {
-      font-size: 0.72rem;
-      font-weight: 800;
+      font-size: var(--text-sm);
+      font-weight: 500;
       display: flex;
       align-items: center;
       justify-content: center;
       width: 100%;
       height: 100%;
-      font-family: var(--font-mono);
-      letter-spacing: 0;
       line-height: 1;
-      text-transform: uppercase;
       white-space: nowrap;
       opacity: 1;
     }
@@ -1598,68 +1552,55 @@ const initialPerformanceAttribution =
       }
     }
     .sort-toggle {
-      background: var(--surface);
-      border: 1px solid var(--border-color);
+      background: var(--surface-0);
+      border: 1px solid var(--line-1);
       box-shadow: none;
-      border-radius: var(--radius-s);
-      color: var(--text);
-      padding: 0.625rem 1rem;
+      border-radius: var(--radius-md);
+      color: var(--ink-0);
+      padding: 0 var(--space-3);
+      min-height: 40px;
       width: 100%;
-      font-size: 0.8rem;
+      font-size: var(--text-sm);
       cursor: pointer;
-      transition: all 0.1s ease;
+      transition: background-color var(--dur-fast) var(--ease-standard), border-color var(--dur-fast) var(--ease-standard);
       text-align: center;
-      font-weight: 700;
-      text-transform: uppercase;
+      font-weight: 500;
     }
     .sort-toggle:hover {
-      border-color: var(--border-color);
-      background: var(--highlight-low);
-      transform: translate(-1px, -1px);
-      box-shadow: 3px 3px 0px var(--shadow-color);
-    }
-    html.light .sort-toggle {
-      background: var(--surface);
-      border: 2px solid var(--border-color);
-      color: var(--text);
+      border-color: var(--ink-2);
+      background: var(--surface-2);
     }
 
     .metric-dropdown {
-      background: var(--surface);
-      border: 1px solid var(--border-color);
+      background: var(--surface-0);
+      border: 1px solid var(--line-1);
       box-shadow: none;
-      border-radius: var(--radius-s);
-      color: var(--text);
-      padding: 0.625rem 1rem;
+      border-radius: var(--radius-md);
+      color: var(--ink-0);
+      padding: 0 2.25rem 0 var(--space-3);
+      min-height: 40px;
       width: 100%;
-      font-size: 0.8rem;
-      font-weight: 700;
-      text-transform: uppercase;
+      font-size: var(--text-sm);
+      font-weight: 500;
       cursor: pointer;
-      transition: all 0.1s ease;
+      transition: border-color var(--dur-fast) var(--ease-standard);
       appearance: none;
       -webkit-appearance: none;
       -moz-appearance: none;
-      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+      background-image: linear-gradient(45deg, transparent 50%, var(--ink-2) 50%), linear-gradient(135deg, var(--ink-2) 50%, transparent 50%);
+      background-position: calc(100% - 1.05rem) 50%, calc(100% - 0.75rem) 50%;
+      background-size: 0.3rem 0.3rem;
       background-repeat: no-repeat;
-      background-position: right 0.75rem center;
-      background-size: 0.875rem;
-      padding-right: 2.5rem;
     }
 
     .metric-dropdown:hover {
-      border-color: var(--border-color);
-      background-color: var(--highlight-low);
-      transform: translate(-1px, -1px);
-      box-shadow: 3px 3px 0px var(--shadow-color);
+      border-color: var(--ink-2);
     }
 
-    .metric-dropdown:focus {
-      outline: none;
-      border-color: var(--border-color);
-      background-color: var(--highlight-med);
-      box-shadow: 0 0 0 0px var(--shadow-color);
-      transform: translate(2px, 2px);
+    .metric-dropdown:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 0;
+      border-color: transparent;
     }
 
     .metric-dropdown option {
@@ -2409,6 +2350,119 @@ const initialPerformanceAttribution =
       font-size: 9px !important;
       margin-top: 4px !important;
     }
+
+    /* Ecosystem contract normalization for the filter rail and chart headers. */
+    .smart-filter-rail,
+    .smart-filter-rail .filter-label,
+    .smart-filter-rail .filter-section h2,
+    .smart-filter-rail .filter-section h3,
+    .smart-filter-rail .benchmark-attribution,
+    .smart-filter-rail .filter-drawer-title,
+    .smart-filter-rail .filter-close,
+    .smart-filter-rail .sort-toggle,
+    .smart-filter-rail .metric-dropdown,
+    .smart-filter-rail .model-search,
+    .smart-filter-rail .selected-count,
+    .smart-filter-rail .model-item label,
+    .smart-filter-rail .benchmark-picker-kicker,
+    .smart-filter-rail .benchmark-picker-value,
+    .smart-filter-rail .benchmark-picker-search {
+      font-family: var(--font-sans);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    .smart-filter-rail .filter-label {
+      display: block;
+      text-align: left;
+      color: var(--ink-2);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      height: auto;
+    }
+    .smart-filter-rail .filter-section h2,
+    .smart-filter-rail .filter-section h3 {
+      color: var(--ink-2);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      line-height: 1.3;
+    }
+    .smart-filter-rail .benchmark-attribution {
+      color: var(--ink-2);
+      font-size: var(--text-xs);
+    }
+    .smart-filter-rail .benchmark-attribution a {
+      color: var(--ink-1);
+      text-decoration-color: var(--line-1);
+    }
+    .smart-filter-rail .sort-toggle,
+    .smart-filter-rail .metric-dropdown,
+    .smart-filter-rail .model-search {
+      font-size: var(--text-sm);
+      font-weight: 500;
+    }
+    .smart-filter-rail .selected-count {
+      color: var(--ink-1);
+      font-size: var(--text-xs);
+    }
+    .smart-filter-rail .benchmark-picker-kicker {
+      color: var(--ink-2);
+      font-size: 0.7rem;
+      font-weight: 500;
+    }
+    .smart-filter-rail .benchmark-picker-value {
+      color: var(--ink-0);
+      font-size: var(--text-sm);
+      font-weight: 500;
+    }
+    .smart-filter-rail .filter-drawer-title {
+      color: var(--ink-0);
+      font-size: var(--text-sm);
+      font-weight: 600;
+    }
+    .smart-filter-rail .filter-close {
+      background: transparent;
+      border: 1px solid var(--line-1);
+      color: var(--ink-0);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      border-radius: var(--radius-md);
+    }
+    .smart-filter-rail .filter-close:hover,
+    .smart-filter-rail .filter-close:focus-visible {
+      background: var(--surface-2);
+      outline-color: var(--focus);
+    }
+    .chart-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.25rem;
+    }
+    .chart-header p {
+      color: var(--ink-2);
+      font-size: var(--text-sm);
+    }
+    .compare-container .insight-card h3 {
+      font-family: var(--font-sans) !important;
+      text-transform: none !important;
+      font-size: var(--text-xs) !important;
+      font-weight: 500 !important;
+    }
+    .catalog-table td::before {
+      font-family: var(--font-sans);
+      text-transform: none;
+      font-weight: 500;
+      font-size: var(--text-xs);
+    }
+    .catalog-table th {
+      font-family: var(--font-sans);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    @media (min-width: 1101px) {
+      .filter-drawer-header {
+        display: none;
+      }
+    }
   </style>
 <div
   class="compare-container"
@@ -2516,7 +2570,7 @@ const initialPerformanceAttribution =
       </div>
     </aside>
 
-    <main class="compare-main">
+    <main class="compare-main" id="main-content">
       <section class="compare-hero fade-in-section" aria-label="Model comparison overview">
         <div>
           <h1 class="compare-page-title">Compare AI Models</h1>

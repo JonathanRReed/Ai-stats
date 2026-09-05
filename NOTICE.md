@@ -11,7 +11,7 @@ Excluded from the MIT License:
 - Third-party logos, marks, and brand assets, including files under
   `public/icons/`.
 - The Nebula Sans font files and related stylesheet under
-  `public/fonts/nebula sans/`.
+  `public/fonts/nebula-sans/` (JetBrains Mono under `public/fonts/jetbrains-mono/` is SIL OFL 1.1, see its LICENSE file).
 - Any third-party trademarks, service marks, trade dress, or branding.
 
 ArtificialAnalysis, Epoch AI, Nebula, and other third-party names remain the

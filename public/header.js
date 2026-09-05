@@ -1,1 +1,59 @@
-!function(){var e="theme";function s(){var e=document.querySelector(".header");if(e){var t=window.scrollY>8;e.classList.toggle("scrolled",t)}}function u(){if(!document.documentElement.dataset.headerScrollBound){document.documentElement.dataset.headerScrollBound="1";var e=!1;window.addEventListener("scroll",function(){e||(e=!0,window.requestAnimationFrame(function(){s(),e=!1}))},{passive:!0})}s()}function t(){var t=document.getElementById("mobile-menu-toggle"),n=document.getElementById("mobile-nav"),o=document.getElementById("mobile-nav-overlay"),c=document.getElementById("theme-toggle"),l=document.getElementById("theme-toggle-mobile");function d(e){(n&&n.classList.toggle("open",e),t&&t.classList.toggle("open",e),o&&o.classList.toggle("open",e),t&&t.setAttribute("aria-expanded",String(e)),n)&&(e?n.removeAttribute("inert"):n.setAttribute("inert",""),n.querySelectorAll("a").forEach(function(t){t.setAttribute("tabindex",e?"0":"-1")}))}function i(){var t="light"===function(){try{var t=localStorage.getItem(e);if("light"===t||"dark"===t)return t}catch(e){}return document.documentElement.classList.contains("light")?"light":"dark"}()?"dark":"light";!function(e){var t="light"===e;document.documentElement.classList.toggle("light",t);var n=t?"light":"dark";document.documentElement.style.colorScheme=n,document.body&&(document.body.style.colorScheme=n);var o=document.querySelector('meta[name="theme-color"]');o&&o.setAttribute("content",t?"#efede8":"#090b0d")}(t),function(t){try{localStorage.setItem(e,t)}catch(e){}}(t)}if(t){var a=t.cloneNode(!0);t.parentNode.replaceChild(a,t),(t=a).addEventListener("click",function(){d(!(n&&n.classList.contains("open")))})}if(o){var r=o.cloneNode(!0);o.parentNode.replaceChild(r,o),(o=r).addEventListener("click",function(){d(!1)})}[c,l].forEach(function(e){if(e){var t=e.cloneNode(!0);e.parentNode.replaceChild(t,e),t.addEventListener("click",i)}}),document.addEventListener("keydown",function(e){"Escape"===e.key&&d(!1)}),d(!1),u()}"loading"===document.readyState?document.addEventListener("DOMContentLoaded",t):t(),document.addEventListener("astro:page-load",t)}();
+/* Header behaviour: scroll state, theme toggle, accessible mobile menu. Rebinds after Astro view transitions. */
+(function () {
+  function syncScrolled() {
+    var header = document.querySelector(".header");
+    if (header) header.classList.toggle("scrolled", window.scrollY > 8);
+  }
+  function bindScroll() {
+    if (document.documentElement.dataset.headerScrollBound) return syncScrolled();
+    document.documentElement.dataset.headerScrollBound = "1";
+    var ticking = false;
+    window.addEventListener("scroll", function () {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(function () { syncScrolled(); ticking = false; });
+    }, { passive: true });
+    syncScrolled();
+  }
+  function fresh(el) {
+    if (!el) return null;
+    var clone = el.cloneNode(true);
+    el.parentNode.replaceChild(clone, el);
+    return clone;
+  }
+  function bind() {
+    var toggle = fresh(document.getElementById("mobile-menu-toggle"));
+    var nav = document.getElementById("mobile-nav");
+    var overlay = fresh(document.getElementById("mobile-nav-overlay"));
+    var themeButtons = [document.getElementById("theme-toggle"), document.getElementById("theme-toggle-mobile")];
+
+    function setOpen(open) {
+      if (nav) {
+        nav.classList.toggle("open", open);
+        if (open) nav.removeAttribute("inert"); else nav.setAttribute("inert", "");
+        nav.querySelectorAll("a").forEach(function (a) { a.setAttribute("tabindex", open ? "0" : "-1"); });
+      }
+      if (toggle) {
+        toggle.classList.toggle("open", open);
+        toggle.setAttribute("aria-expanded", String(open));
+      }
+      if (overlay) {
+        overlay.classList.toggle("open", open);
+        overlay.setAttribute("aria-hidden", String(!open));
+      }
+      document.documentElement.classList.toggle("menu-open", open);
+    }
+
+    if (toggle) toggle.addEventListener("click", function () { setOpen(!(nav && nav.classList.contains("open"))); });
+    if (overlay) overlay.addEventListener("click", function () { setOpen(false); });
+    themeButtons.forEach(function (button) {
+      var b = fresh(button);
+      if (b) b.addEventListener("click", function () { if (window.__ecoTheme) window.__ecoTheme.toggle(); });
+    });
+    document.addEventListener("keydown", function (event) { if (event.key === "Escape") setOpen(false); });
+    setOpen(false);
+    bindScroll();
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind); else bind();
+  document.addEventListener("astro:page-load", bind);
+})();

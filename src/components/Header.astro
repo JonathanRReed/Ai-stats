@@ -3,439 +3,190 @@ interface Props {
   currentPage?: string;
 }
 
-const { currentPage = 'dashboard' } = Astro.props;
+const { currentPage = "dashboard" } = Astro.props;
+const links = [
+  { href: "/", label: "Stats", key: "dashboard" },
+  { href: "/compare", label: "Compare", key: "compare" },
+  { href: "/about", label: "About", key: "about" },
+  { href: "/contact", label: "Contact", key: "contact" },
+];
 ---
 
-<header class="header">
-  <div class="header-container">
-    <a href="/" class="logo-link">
-      <img src="/logo.png" alt="AI Stats" class="logo" width="120" height="32" />
+<a href="#main-content" class="eco-skip">Skip to content</a>
+<header class="header eco-header">
+  <div class="eco-container eco-header-inner header-container">
+    <a href="/" class="eco-lockup logo-link" aria-label="AI Stats home">
+      <svg class="eco-mark" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6.5 3.5H3.5v17h3" fill="none" stroke="var(--signal)" stroke-width="2" stroke-linecap="square" />
+        <path d="M17.5 3.5h3v17h-3" fill="none" stroke="var(--signal)" stroke-width="2" stroke-linecap="square" />
+        <rect x="9" y="6" width="6" height="2.4" fill="var(--ink-1)" />
+        <rect x="9" y="10.8" width="6" height="2.4" fill="var(--signal)" />
+        <rect x="9" y="15.6" width="6" height="2.4" fill="var(--ink-1)" />
+      </svg>
+      <span class="eco-wordmark">AI Stats</span>
     </a>
-    <div class="header-glow" aria-hidden="true"></div>
-    
-    <!-- Desktop nav -->
-    <nav class="nav desktop-nav">
-      <a href="/" class={`nav-item ${currentPage === 'dashboard' ? 'active' : ''}`}>Stats</a>
-      <a href="/compare" class={`nav-item ${currentPage === 'compare' ? 'active' : ''}`}>Compare</a>
-      <a href="/about" class={`nav-item ${currentPage === 'about' ? 'active' : ''}`}>About</a>
-      <a href="/contact" class={`nav-item ${currentPage === 'contact' ? 'active' : ''}`}>Contact</a>
-      <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark theme">
-        <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+
+    <nav class="eco-nav desktop-nav" aria-label="Primary">
+      {links.map((link) => (
+        <a
+          href={link.href}
+          class="eco-nav-link nav-item"
+          aria-current={currentPage === link.key ? "page" : undefined}
+        >
+          {link.label}
+        </a>
+      ))}
+      <button id="theme-toggle" class="eco-icon-btn eco-theme-toggle theme-toggle" type="button" aria-label="Toggle light and dark theme" title="Toggle light and dark theme">
+        <svg class="eco-icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
         </svg>
-        <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="eco-icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
         </svg>
       </button>
     </nav>
-    
-    <!-- Mobile hamburger -->
+
     <div class="mobile-controls">
-      <button id="theme-toggle-mobile" class="theme-toggle" aria-label="Toggle theme">
-        <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <button id="theme-toggle-mobile" class="eco-icon-btn eco-theme-toggle theme-toggle" type="button" aria-label="Toggle light and dark theme">
+        <svg class="eco-icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
         </svg>
-        <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="eco-icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
         </svg>
       </button>
-      <button id="mobile-menu-toggle" class="hamburger" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-nav">
+      <button id="mobile-menu-toggle" class="eco-icon-btn eco-menu-btn hamburger" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-nav">
         <span class="hamburger-line"></span>
         <span class="hamburger-line"></span>
         <span class="hamburger-line"></span>
       </button>
     </div>
   </div>
-  
-  <!-- Mobile nav overlay -->
+
   <div id="mobile-nav-overlay" class="mobile-nav-overlay" aria-hidden="true"></div>
   <nav id="mobile-nav" class="mobile-nav" inert aria-label="Mobile navigation">
-    <a href="/" class={`mobile-nav-item ${currentPage === 'dashboard' ? 'active' : ''}`} tabindex="-1">Stats</a>
-    <a href="/compare" class={`mobile-nav-item ${currentPage === 'compare' ? 'active' : ''}`} tabindex="-1">Compare</a>
-    <a href="/about" class={`mobile-nav-item ${currentPage === 'about' ? 'active' : ''}`} tabindex="-1">About</a>
-    <a href="/contact" class={`mobile-nav-item ${currentPage === 'contact' ? 'active' : ''}`} tabindex="-1">Contact</a>
+    <a href="/" class="mobile-nav-item" aria-current={currentPage === "dashboard" ? "page" : undefined} tabindex="-1">Stats</a>
+    <a href="/compare" class="mobile-nav-item" aria-current={currentPage === "compare" ? "page" : undefined} tabindex="-1">Compare</a>
+    <a href="/about" class="mobile-nav-item" aria-current={currentPage === "about" ? "page" : undefined} tabindex="-1">About</a>
+    <a href="/contact" class="mobile-nav-item" aria-current={currentPage === "contact" ? "page" : undefined} tabindex="-1">Contact</a>
   </nav>
 </header>
 
 <style is:global>
-.header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: color-mix(in srgb, var(--base) 82%, transparent);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border-color);
-  height: 56px;
-  width: 100%;
-  max-width: 100vw;
-  overflow: visible;
-  box-sizing: border-box;
-  transition:
-    background var(--dur-base) var(--ease-smooth),
-    border-color var(--dur-base) var(--ease-smooth),
-    box-shadow var(--dur-base) var(--ease-smooth),
-    backdrop-filter var(--dur-base) var(--ease-smooth);
-}
-
-/* Scroll state: stronger blur, raised shadow, love-tinted bottom border */
-.header.scrolled {
-  background: color-mix(in srgb, var(--base) 90%, transparent);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-bottom-color: color-mix(in srgb, var(--love) 38%, var(--border-color));
-  box-shadow: var(--elev-2);
-}
-
-/* Glow echo: thin love-tinted line along the header's bottom edge,
-   mirrors Footer's .footer-glow to tie top/bottom chrome together. */
-.header-glow {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(900px, 90vw);
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--love), transparent);
-  opacity: 0.4;
-  pointer-events: none;
-  will-change: opacity;
-  transition: opacity var(--dur-base) var(--ease-smooth);
-}
-
-.header.scrolled .header-glow {
-  opacity: 0.7;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .header,
-  .header-glow {
-    transition: none;
+  .header.scrolled {
+    border-bottom-color: var(--line-1);
   }
-}
 
-.header-container {
-  max-width: 1400px;
-  height: 56px;
-  margin: 0 auto;
-  padding: 0 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  box-sizing: border-box;
-}
-
-.logo-link,
-.mobile-controls {
-  flex-shrink: 0;
-}
-
-.logo-link {
-  text-decoration: none;
-  transition:
-    transform var(--dur-fast) var(--ease-smooth),
-    color var(--dur-fast) var(--ease-smooth);
-}
-
-.logo-link:hover {
-  transform: translateX(2px);
-}
-
-.logo {
-  display: block;
-  height: 32px;
-  width: auto;
-  object-fit: contain;
-}
-
-.nav {
-  display: flex;
-  gap: 0.25rem;
-  align-items: center;
-  background: color-mix(in srgb, var(--surface) 76%, transparent);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-m);
-  padding: 0.2rem;
-}
-
-.nav-item {
-  position: relative;
-  color: var(--subtle);
-  text-decoration: none;
-  font-family: var(--font-mono);
-  font-weight: 650;
-  padding: 0 0.85rem;
-  border-radius: var(--radius-s);
-  transition: var(--transition-colors);
-  font-size: 0.7rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  display: inline-flex;
-  align-items: center;
-  min-height: 36px;
-  background: transparent;
-  box-sizing: border-box;
-}
-
-/* Animated underline mirrors the legacy `inset 0 -2px 0 var(--love)`
-   but glides on active-state changes (nice with ClientRouter). */
-.nav-item::after {
-  content: "";
-  position: absolute;
-  left: 0.85rem;
-  right: 0.85rem;
-  bottom: 0;
-  height: 2px;
-  background: var(--love);
-  border-radius: var(--radius-s);
-  transform: scaleX(0);
-  transform-origin: center;
-  transition: transform var(--dur-base) var(--ease-spring);
-}
-
-.nav-item:hover {
-  color: var(--text);
-  background: var(--overlay);
-}
-
-.nav-item:active {
-  transform: scale(0.97);
-}
-
-.nav-item.active {
-  color: var(--text);
-  background: transparent;
-}
-
-.nav-item.active::after {
-  transform: scaleX(1);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .nav-item::after {
-    transition: none;
-  }
-}
-
-
-/* Theme toggle */
-.theme-toggle {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-s);
-  background: transparent;
-  color: var(--text);
-  cursor: pointer;
-  transition: var(--transition-colors);
-}
-
-.theme-toggle:hover {
-  background: var(--love);
-  border-color: var(--love);
-  color: var(--on-accent);
-}
-
-.theme-toggle:active {
-  transform: scale(0.92);
-}
-
-/* Sun/moon crossfade + rotate (stacked absolutely), switching on html.light */
-.theme-toggle .sun-icon,
-.theme-toggle .moon-icon {
-  position: absolute;
-  display: block;
-  transition:
-    opacity var(--dur-base) var(--ease-spring),
-    transform var(--dur-base) var(--ease-spring);
-}
-
-.theme-toggle .sun-icon {
-  opacity: 0;
-  transform: rotate(-90deg) scale(0.5);
-}
-
-.theme-toggle .moon-icon {
-  opacity: 1;
-  transform: rotate(0deg) scale(1);
-}
-
-html.light .theme-toggle .sun-icon {
-  opacity: 1;
-  transform: rotate(0deg) scale(1);
-}
-
-html.light .theme-toggle .moon-icon {
-  opacity: 0;
-  transform: rotate(90deg) scale(0.5);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .theme-toggle .sun-icon,
-  .theme-toggle .moon-icon {
-    transition: none;
-    transform: none;
-  }
-  html.light .theme-toggle .sun-icon,
-  html.light .theme-toggle .moon-icon {
-    transform: none;
-  }
-}
-
-/* Mobile controls */
-.mobile-controls {
-  display: none;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-/* Hamburger button */
-.hamburger {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  width: 44px;
-  height: 44px;
-  padding: 6px;
-  background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-s);
-  cursor: pointer;
-  gap: 4px;
-  transition: var(--transition-colors);
-}
-
-.hamburger:hover {
-  background: var(--overlay);
-  border-color: var(--love);
-}
-
-.hamburger-line {
-  width: 16px;
-  height: 2px;
-  background: var(--text);
-  border-radius: 0;
-  transition:
-    transform var(--dur-slow) var(--ease-smooth),
-    opacity var(--dur-slow) var(--ease-smooth);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hamburger,
-  .hamburger-line {
-    transition: none;
-  }
-}
-
-.hamburger.open .hamburger-line:nth-child(1) {
-  transform: rotate(45deg) translate(4px, 4px);
-}
-
-.hamburger.open .hamburger-line:nth-child(2) {
-  opacity: 0;
-}
-
-.hamburger.open .hamburger-line:nth-child(3) {
-  transform: rotate(-45deg) translate(4px, -4px);
-}
-
-/* Mobile nav overlay */
-.mobile-nav-overlay {
-  position: fixed;
-  inset: 0;
-  background: color-mix(in srgb, var(--base) 72%, transparent);
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity var(--dur-slow) var(--ease-smooth),
-    visibility var(--dur-slow) var(--ease-smooth);
-  z-index: 998;
-}
-
-.mobile-nav-overlay.open {
-  opacity: 1;
-  visibility: visible;
-}
-
-/* Mobile nav */
-.mobile-nav {
-  position: fixed;
-  top: 56px;
-  right: 0;
-  width: min(280px, calc(100vw - 2rem));
-  background: var(--surface);
-  border-left: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-  border-radius: 0 0 0 var(--radius-m);
-  padding: 0;
-  display: none;
-  flex-direction: column;
-  gap: 0.5rem;
-  transform: translateX(100%);
-  transition: transform var(--dur-slow) var(--ease-out-expo);
-  z-index: 999;
-  box-shadow: -20px 24px 80px var(--shadow-color);
-}
-
-.mobile-nav.open {
-  transform: translateX(0);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .mobile-nav-overlay,
-  .mobile-nav {
-    transition: none;
-  }
-}
-
-.mobile-nav-item {
-  color: var(--subtle);
-  text-decoration: none;
-  font-family: var(--font-mono);
-  font-weight: 800;
-  padding: 1rem;
-  border-bottom: 1px solid var(--border-color);
-  border-radius: var(--radius-s);
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  transition: var(--transition-colors);
-}
-
-.mobile-nav-item:hover {
-  color: var(--on-accent);
-  background: var(--overlay);
-}
-
-.mobile-nav-item.active {
-  color: var(--text);
-  background: color-mix(in srgb, var(--love) 18%, transparent);
-  box-shadow: inset 3px 0 0 var(--love);
-}
-
-@media (max-width: 640px) {
   .header-container {
-    width: 100%;
-    max-width: 100%;
-    padding: 0 0.75rem;
+    max-width: var(--container);
   }
-  .desktop-nav {
-    display: none;
+
+  .logo-link:hover .eco-wordmark {
+    color: var(--ink-0);
   }
+
+  /* Mobile controls */
   .mobile-controls {
-    display: flex;
-    margin-left: auto;
-    z-index: 1000;
+    display: none;
+    align-items: center;
+    gap: var(--space-2);
   }
+
+  .hamburger {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .hamburger-line {
+    width: 16px;
+    height: 2px;
+    background: currentColor;
+    transition: transform var(--dur-base) var(--ease-standard), opacity var(--dur-base) var(--ease-standard);
+  }
+
+  .hamburger.open .hamburger-line:nth-child(1) { transform: rotate(45deg) translate(4px, 4px); }
+  .hamburger.open .hamburger-line:nth-child(2) { opacity: 0; }
+  .hamburger.open .hamburger-line:nth-child(3) { transform: rotate(-45deg) translate(4px, -4px); }
+
+  .mobile-nav-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 998;
+    background: color-mix(in srgb, var(--surface-0) 70%, transparent);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--dur-base) var(--ease-standard), visibility var(--dur-base) var(--ease-standard);
+  }
+
+  .mobile-nav-overlay.open {
+    opacity: 1;
+    visibility: visible;
+  }
+
   .mobile-nav {
-    display: flex;
+    position: fixed;
+    top: var(--header-h);
+    right: 0;
+    left: 0;
+    z-index: 999;
+    display: none;
+    padding: var(--space-2) var(--gutter) var(--space-4);
+    background: var(--surface-0);
+    border-bottom: 1px solid var(--line-1);
+    box-shadow: var(--shadow-2);
+    transform: translateY(-8px);
+    opacity: 0;
+    transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-standard);
   }
-}
+
+  .mobile-nav.open {
+    transform: none;
+    opacity: 1;
+  }
+
+  .mobile-nav-item {
+    display: flex;
+    align-items: center;
+    min-height: var(--control-h);
+    padding: 0 var(--space-2);
+    border-bottom: 1px solid var(--line-0);
+    color: var(--ink-1);
+    font-size: var(--text-base);
+    font-weight: 500;
+    text-decoration: none;
+  }
+
+  .mobile-nav-item:last-child { border-bottom: 0; }
+
+  .mobile-nav-item[aria-current="page"] {
+    color: var(--ink-0);
+    box-shadow: inset 3px 0 0 var(--signal);
+    padding-left: var(--space-3);
+  }
+
+  @media (max-width: 640px) {
+    .desktop-nav {
+      display: none;
+    }
+    .mobile-controls {
+      display: flex;
+      z-index: 1000;
+    }
+    .mobile-nav {
+      display: grid;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mobile-nav,
+    .mobile-nav-overlay,
+    .hamburger-line {
+      transition: none;
+    }
+  }
 </style>
 
 <script is:inline src="/header.js" defer></script>
@@ -453,6 +204,7 @@ html.light .theme-toggle .moon-icon {
       const syncFocus = () => {
         const open = toggle.getAttribute("aria-expanded") === "true";
         overlay?.setAttribute("aria-hidden", String(!open));
+        toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
         if (open) focusable()[0]?.focus();
         else returnFocus?.focus();
       };

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { buildModelPassportSnapshot, MODEL_PASSPORT_SCHEMA } from './model-passport';
+import { buildModelPassportSnapshot, buildPassportRoutes, MODEL_PASSPORT_SCHEMA } from './model-passport';
 
 describe('model passport snapshot', () => {
   test('joins aliases to canonical models without creating public model-card claims', () => {
@@ -39,6 +39,40 @@ describe('model passport snapshot', () => {
     expect(snapshot.counts).toEqual({ models: 1, aliases: 1, sources: 1 });
     expect(snapshot.models[0].aliases[0].sourceKey).toBe('artificial-analysis');
     expect(snapshot.models[0].routes.aiDragRace).toContain('GPT-5');
+    expect(snapshot.models[0].routes.aiDragRace).not.toContain('provider=');
+    expect(snapshot.models[0].routes.aiNewsSearch).toBe('https://ai-news.helloworldfirm.com/?q=GPT-5');
+    expect(snapshot.models[0].routes.promptInfo).toBeNull();
+    expect(snapshot.models[0].routes.poliBench).toBeNull();
     expect(JSON.stringify(snapshot)).not.toContain('recommendation');
+  });
+
+  test('routes siblings through the OpenRouter slug when that alias is known', () => {
+    const routes = buildPassportRoutes('GPT-5', [
+      {
+        sourceKey: 'openrouter',
+        sourceName: 'OpenRouter',
+        sourceModelKey: 'openai/gpt-5',
+        sourceModelName: 'OpenAI: GPT-5',
+        matchMethod: 'explicit_cross_source',
+        confidence: 1,
+        provenance: 'Exact normalized name match',
+        updatedAt: '2026-09-01T00:00:00.000Z',
+      },
+      {
+        sourceKey: 'polibench',
+        sourceName: 'PoliBench',
+        sourceModelKey: 'openai/gpt-5',
+        sourceModelName: 'GPT-5',
+        matchMethod: 'explicit_cross_source',
+        confidence: 1,
+        provenance: 'Exact normalized name match',
+        updatedAt: '2026-09-01T00:00:00.000Z',
+      },
+    ]);
+
+    expect(routes.aiDragRace).toBe('https://ai-dragrace.jonathanrreed.com/?model=openai%2Fgpt-5&provider=openrouter');
+    expect(routes.promptInfo).toBe('https://prompt-info.helloworldfirm.com/?model=openai%2Fgpt-5');
+    expect(routes.poliBench).toBe('https://polibench.jonathanrreed.com/models/openai/gpt-5/');
+    expect(routes.aiStatsCompare).toBe('/compare?model=GPT-5');
   });
 });

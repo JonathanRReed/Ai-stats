@@ -11,13 +11,13 @@ const description =
 
 <Layout title={title} description={description} image="/logo.png" noindex={true}>
   <Header currentPage="not-found" />
-  <main class="mx-auto grid min-h-[calc(100vh-7rem)] w-full max-w-6xl items-center gap-10 px-6 py-16 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.48fr)]">
+  <main id="main-content" class="mx-auto grid min-h-[calc(100vh-7rem)] w-full max-w-6xl items-center gap-10 px-[var(--gutter)] py-12 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.48fr)]">
     <section>
-      <p class="text-xs font-bold uppercase tracking-[0.16em] text-foam">
+      <p class="text-sm font-medium text-subtle">
         404 / Page not found
       </p>
       <p class="error-code mt-5" aria-hidden="true">404</p>
-      <h1 class="mt-4 max-w-4xl text-4xl font-black leading-tight text-text md:text-6xl">
+      <h1 class="mt-4 max-w-4xl text-4xl font-bold leading-tight text-text md:text-5xl">
         This page is not in the dataset.
       </h1>
       <p class="mt-6 max-w-2xl text-lg leading-8 text-subtle">
@@ -30,20 +30,20 @@ const description =
     </section>
 
     <aside class="brutalist-card p-6 md:p-8" aria-labelledby="recovery-heading">
-      <p class="text-xs font-bold uppercase tracking-[0.16em] text-pine">
+      <p class="text-sm font-medium text-subtle">
         Keep exploring
       </p>
-      <h2 id="recovery-heading" class="mt-4 text-2xl font-black text-text">
+      <h2 id="recovery-heading" class="mt-4 text-2xl font-bold text-text">
         Find the right route.
       </h2>
       <nav class="mt-6 grid gap-3" aria-label="Page recovery links">
         <a class="recovery-link" href="/about">
           <span>About the data</span>
-          <span aria-hidden="true">↗</span>
+          
         </a>
         <a class="recovery-link" href="/contact">
           <span>Report a broken link</span>
-          <span aria-hidden="true">↗</span>
+          
         </a>
       </nav>
     </aside>
@@ -60,8 +60,7 @@ const description =
     font-weight: 900;
     letter-spacing: -0.09em;
     line-height: 0.72;
-    -webkit-text-stroke: 2px var(--border-color);
-    text-shadow: 8px 8px 0 color-mix(in srgb, var(--love) 28%, transparent);
+    -webkit-text-stroke: 2px var(--line-1);
   }
 
   .recovery-link {
@@ -88,7 +87,7 @@ const description =
 
   .recovery-link:focus-visible {
     border-radius: var(--radius-s);
-    outline: 2px solid var(--pine);
+    outline: 2px solid var(--focus);
     outline-offset: 3px;
   }
 

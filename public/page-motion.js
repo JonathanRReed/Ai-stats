@@ -1,1 +1,40 @@
-!function(){var t=".fade-in-section",e=t+", .stagger-item";function n(){document.querySelectorAll(e).forEach(function(t){t.classList.add("is-visible")})}function o(){var e;(document.documentElement.classList.add("motion-ready"),"function"==typeof window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches)?n():("IntersectionObserver"in window?(e=new IntersectionObserver(function(t){t.forEach(function(t){t.isIntersecting&&(t.target.classList.add("is-visible"),e.unobserve(t.target))})},{threshold:.01,rootMargin:"50px 0px 0px 0px"}),document.querySelectorAll(t).forEach(function(t){t.classList.contains("is-visible")||e.observe(t)}),function(){var t=new IntersectionObserver(function(e){e.forEach(function(e){if(e.isIntersecting){var n=e.target,o=parseInt(n.getAttribute("data-stagger"),10);(isNaN(o)||o<0)&&(o=40),n.querySelectorAll(".stagger-item:not(.is-visible)").forEach(function(t,e){window.setTimeout(function(){t.classList.add("is-visible")},o*e)}),t.unobserve(n)}})},{threshold:.01,rootMargin:"50px 0px 0px 0px"});document.querySelectorAll(".stagger-container").forEach(function(e){"1"!==e.dataset.staggerBound&&(e.dataset.staggerBound="1",t.observe(e))})}()):n(),window.setTimeout(n,700),document.querySelectorAll(".tilt-card").forEach(function(t){"1"!==t.dataset.tiltBound&&(t.dataset.tiltBound="1",t.addEventListener("mousemove",function(e){var n=t.getBoundingClientRect(),o=(e.clientX-n.left)/n.width,i=6*((e.clientY-n.top)/n.height-.5),r=-6*(o-.5);t.style.transition="transform 0s",t.style.transform="perspective(1000px) rotateX("+i+"deg) rotateY("+r+"deg) translateY(-4px)"}),t.addEventListener("mouseleave",function(){t.style.transition="transform var(--dur-slow) var(--ease-spring)",t.style.transform=""}))}))}"loading"===document.readyState?document.addEventListener("DOMContentLoaded",o,{once:!0}):o(),document.addEventListener("astro:page-load",o),document.addEventListener("astro:after-swap",o)}();
+/* Reveal on scroll, progressive enhancement only. Reduced motion shows everything immediately. */
+(function () {
+  var SECTION = ".fade-in-section";
+  var ALL = SECTION + ", .stagger-item";
+  function showAll() { document.querySelectorAll(ALL).forEach(function (el) { el.classList.add("is-visible"); }); }
+  function init() {
+    document.documentElement.classList.add("motion-ready");
+    var reduce = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || !("IntersectionObserver" in window)) return showAll();
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("is-visible");
+        io.unobserve(entry.target);
+      });
+    }, { threshold: 0.01, rootMargin: "50px 0px 0px 0px" });
+    document.querySelectorAll(SECTION).forEach(function (el) { if (!el.classList.contains("is-visible")) io.observe(el); });
+    var so = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        var container = entry.target;
+        var step = parseInt(container.getAttribute("data-stagger"), 10);
+        if (isNaN(step) || step < 0) step = 40;
+        container.querySelectorAll(".stagger-item:not(.is-visible)").forEach(function (item, i) {
+          window.setTimeout(function () { item.classList.add("is-visible"); }, Math.min(step * i, 400));
+        });
+        so.unobserve(container);
+      });
+    }, { threshold: 0.01, rootMargin: "50px 0px 0px 0px" });
+    document.querySelectorAll(".stagger-container").forEach(function (c) {
+      if (c.dataset.staggerBound === "1") return;
+      c.dataset.staggerBound = "1";
+      so.observe(c);
+    });
+    window.setTimeout(showAll, 700);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true }); else init();
+  document.addEventListener("astro:page-load", init);
+  document.addEventListener("astro:after-swap", init);
+})();
