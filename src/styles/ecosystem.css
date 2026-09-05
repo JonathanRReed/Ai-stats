@@ -36,6 +36,7 @@
   --signal-hover: #e8805d;
   --signal-ink: #140b07;
   --signal-soft: rgba(216, 109, 74, 0.14);
+  --signal-text: #d86d4a;
 
   --ok: #89c8b6;
   --ok-soft: rgba(137, 200, 182, 0.16);
@@ -74,6 +75,7 @@ html.light {
   --signal-hover: #9a3f26;
   --signal-ink: #ffffff;
   --signal-soft: rgba(176, 76, 48, 0.12);
+  --signal-text: #b04c30;
 
   --ok: #1f6b4f;
   --ok-soft: rgba(31, 107, 79, 0.14);

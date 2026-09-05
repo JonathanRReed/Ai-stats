@@ -20,7 +20,7 @@ the values in the "Site palette" block differ.
 | Surfaces | `--surface-0` page, `--surface-1` panel, `--surface-2` raised, `--surface-3` hover |
 | Ink | `--ink-0` primary, `--ink-1` secondary, `--ink-2` muted, `--ink-3` faint |
 | Lines | `--line-0` hairline, `--line-1` strong |
-| Signal | `--signal`, `--signal-hover`, `--signal-ink`, `--signal-soft` |
+| Signal | `--signal`, `--signal-hover`, `--signal-ink`, `--signal-soft`, `--signal-text` (a signal tint that passes 4.5:1 as small text on surface-0) |
 | Status | `--ok`, `--warn`, `--bad`, `--info`, each with a `-soft` tint |
 | Focus | `--focus` |
 | Type | `--font-sans`, `--font-mono`, `--text-xs` to `--text-4xl`, `--leading-*` |
