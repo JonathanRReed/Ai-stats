@@ -28,7 +28,6 @@ const providerFor = (model: AaModel): string =>
 ---
 
 <section class="latest-models" aria-label="Current benchmark snapshot">
-  <p>{[...new Set(models.map((model) => aaEvidenceNote(model.source_metadata)))].join(' ')}</p>
   <div class="latest-models-opening">
     <div class="latest-models-intro">
       <h1>See how these models compare.</h1>
@@ -53,6 +52,7 @@ const providerFor = (model: AaModel): string =>
         Index values are points, not percentages.
         This describes the data, it does not recommend a model.
       </p>
+      <p>{[...new Set(models.map((model) => aaEvidenceNote(model.source_metadata)))].join(' ')}</p>
     </div>
     {latestObserved ? (
       <p class="latest-models-observed">
