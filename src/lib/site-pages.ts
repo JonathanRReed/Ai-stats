@@ -27,6 +27,7 @@ export const SITE_PAGES: SitePage[] = [
   { path: '/', changefreq: 'weekly', priority: '1.0', dataDriven: true },
   { path: '/about', changefreq: 'monthly', priority: '0.7' },
   { path: '/compare', changefreq: 'monthly', priority: '0.7' },
+  { path: '/models', changefreq: 'weekly', priority: '0.8', dataDriven: true },
   { path: '/contact', changefreq: 'monthly', priority: '0.5' },
   { path: '/privacy', changefreq: 'yearly', priority: '0.5' },
   { path: '/subprocessors', changefreq: 'yearly', priority: '0.5' },

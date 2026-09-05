@@ -190,19 +190,19 @@ const money = (value: number | null | undefined): string =>
                 data-frontier={isFrontier ? "true" : "false"}
                 data-quality={quality}
                 data-price={price}
-                data-first-tracked={sourceModel?.first_seen ?? ""}
-                data-last-observed={sourceModel?.last_seen ?? ""}
+                data-first-tracked={(sourceModel?.first_seen ?? "").slice(0, 10)}
+                data-last-observed={(sourceModel?.last_seen ?? "").slice(0, 10)}
                 tabindex={index === 0 ? 0 : -1}
                 role="button"
                 aria-label={`${model.label ?? model.id}, ${provider}, AA Index ${quality.toFixed(1)}, ${money(price)} per 1M tokens${isFrontier ? ", not dominated on price and AA Index" : ""}`}
               >
                 <circle
-                  cx={scaleX(price)}
-                  cy={scaleY(quality)}
+                  cx={scaleX(price).toFixed(1)}
+                  cy={scaleY(quality).toFixed(1)}
                   r={isFrontier ? 4.2 : 2.8}
                   class={isFrontier ? "plot-frontier" : "plot-other"}
                 />
-                <circle cx={scaleX(price)} cy={scaleY(quality)} r="10" class="plot-hit-area" aria-hidden="true" />
+                <circle cx={scaleX(price).toFixed(1)} cy={scaleY(quality).toFixed(1)} r="10" class="plot-hit-area" aria-hidden="true" />
                 <title>{model.label ?? model.id}: index {quality.toFixed(1)}, {money(price)} per 1M tokens</title>
               </g>
             );

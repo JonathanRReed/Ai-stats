@@ -1,0 +1,182 @@
+---
+import Layout from "../../components/Layout.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import ScrollToTop from "../../components/ScrollToTop.astro";
+import { getModelPageRecords } from "../../lib/model-pages-data";
+import { getDataFreshness, toIsoDate, formatDataDate } from "../../lib/data-freshness";
+import { AUTHOR_REF } from "../../lib/author";
+import { SITE_ORIGIN, type ModelPageRecord } from "../../lib/model-pages";
+
+export const prerender = true;
+
+const [records, freshness] = await Promise.all([getModelPageRecords(), getDataFreshness()]);
+const dateModified = toIsoDate(freshness.updatedAt) ?? undefined;
+const refreshed = formatDataDate(freshness.updatedAt) ?? "unknown";
+
+const byProvider = new Map<string, ModelPageRecord[]>();
+for (const record of records) {
+  const group = byProvider.get(record.provider) ?? [];
+  group.push(record);
+  byProvider.set(record.provider, group);
+}
+const providers = [...byProvider.entries()]
+  .map(([provider, group]) => ({
+    provider,
+    id: provider.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "provider",
+    models: [...group].sort(
+      (a, b) =>
+        Number(b.indexes[0]?.value ?? -1) - Number(a.indexes[0]?.value ?? -1) || a.name.localeCompare(b.name),
+    ),
+  }))
+  .sort((a, b) => b.models.length - a.models.length || a.provider.localeCompare(b.provider));
+const currentCount = records.filter((record) => record.current).length;
+
+const title = "Every AI model tracked, with its price, speed, and benchmark receipt | AI Stats";
+const description = `${records.length} models from ${providers.length} providers, each with a page listing price per million tokens, output speed, context length, benchmark scores, and catalog identifiers with source and observation dates.`;
+
+const get = (group: { key: string; value: number | null }[], key: string) => group.find((m) => m.key === key)?.value ?? null;
+const money = (value: number | null): string => (value === null ? "n/a" : `$${value.toFixed(value < 0.01 ? 4 : 2)}`);
+const points = (value: number | null): string => (value === null ? "n/a" : value.toFixed(1));
+const tps = (value: number | null): string => (value === null ? "n/a" : value.toFixed(0));
+const ctx = (value: number | null): string => {
+  if (value === null) return "n/a";
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(value % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (value >= 1_000) return `${Math.round(value / 1_000)}K`;
+  return String(value);
+};
+
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Dataset",
+      "@id": `${SITE_ORIGIN}/models#dataset`,
+      name: "AI Stats model measurements",
+      description,
+      url: `${SITE_ORIGIN}/models`,
+      creator: AUTHOR_REF,
+      isPartOf: { "@id": `${SITE_ORIGIN}/#website` },
+      ...(dateModified ? { dateModified } : {}),
+      isBasedOn: [
+        "https://artificialanalysis.ai/",
+        "https://epoch.ai/benchmarks",
+        "https://openrouter.ai/",
+        "https://huggingface.co/",
+        "https://github.com/BerriAI/litellm",
+      ],
+      distribution: [
+        { "@type": "DataDownload", encodingFormat: "application/json", contentUrl: `${SITE_ORIGIN}/api/models.json` },
+        { "@type": "DataDownload", encodingFormat: "text/plain", contentUrl: `${SITE_ORIGIN}/llms-full.txt` },
+      ],
+      hasPart: providers.slice(0, 40).flatMap((group) =>
+        group.models.slice(0, 3).map((record) => ({ "@id": `${record.url}#dataset` })),
+      ),
+      inLanguage: "en-US",
+    },
+    {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "AI Stats", item: `${SITE_ORIGIN}/` },
+        { "@type": "ListItem", position: 2, name: "Models", item: `${SITE_ORIGIN}/models` },
+      ],
+    },
+  ],
+});
+---
+
+<Layout title={title} description={description} dateModified={dateModified}>
+  <Fragment slot="head">
+    <script type="application/ld+json" is:inline set:html={jsonLd} />
+  </Fragment>
+  <Header currentPage="models" />
+
+  <main id="main-content" class="eco-container models-index">
+    <header class="models-hero">
+      <p class="eco-label">Model pages</p>
+      <h1>Every model tracked, one receipt each.</h1>
+      <p class="models-lead">
+        {records.length} models from {providers.length} providers. Each page lists price, speed, context, benchmark scores, and catalog identifiers with the source and the date it was last observed. {currentCount} pass the current-cohort filter used on the front page. Nothing here is a ranking.
+      </p>
+      <dl class="models-facts eco-joined">
+        <div><dt>Data refreshed</dt><dd>{refreshed}</dd></div>
+        <div><dt>Models</dt><dd>{records.length}</dd></div>
+        <div><dt>Providers</dt><dd>{providers.length}</dd></div>
+        <div><dt>Machine-readable</dt><dd><a href="/api/models.json">models.json</a> · <a href="/llms-full.txt">llms-full.txt</a></dd></div>
+      </dl>
+      <nav class="models-jump" aria-label="Jump to provider">
+        {providers.map((group) => (
+          <a href={`#${group.id}`}>{group.provider} <span>{group.models.length}</span></a>
+        ))}
+      </nav>
+    </header>
+
+    {providers.map((group) => (
+      <section class="eco-panel models-group" aria-labelledby={`${group.id}-heading`} id={group.id}>
+        <header class="eco-panel-head">
+          <div>
+            <h2 id={`${group.id}-heading`}>{group.provider}</h2>
+            <p>{group.models.length} {group.models.length === 1 ? "model" : "models"}, ordered by AA Index where one is published.</p>
+          </div>
+        </header>
+        <div class="models-table-wrap">
+          <table class="models-table">
+            <thead>
+              <tr>
+                <th scope="col">Model</th>
+                <th scope="col" class="num">AA Index</th>
+                <th scope="col" class="num">Input $/1M</th>
+                <th scope="col" class="num">Output $/1M</th>
+                <th scope="col" class="num">Tokens/s</th>
+                <th scope="col" class="num">Context</th>
+                <th scope="col">Last observed</th>
+              </tr>
+            </thead>
+            <tbody>
+              {group.models.map((record) => (
+                <tr>
+                  <th scope="row"><a href={record.path}>{record.name}</a></th>
+                  <td class="num">{points(get(record.indexes, "aa_intelligence_index"))}</td>
+                  <td class="num">{money(get(record.pricing, "price_1m_input_tokens"))}</td>
+                  <td class="num">{money(get(record.pricing, "price_1m_output_tokens"))}</td>
+                  <td class="num">{tps(get(record.speed, "median_output_tokens_per_second"))}</td>
+                  <td class="num">{ctx(get(record.context, "openrouter_context_length"))}</td>
+                  <td>{record.lastSeenDate ?? "n/a"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    ))}
+  </main>
+
+  <Footer />
+  <ScrollToTop />
+</Layout>
+
+<style is:global>
+  .models-index { padding-block: var(--space-6) var(--space-8); display: grid; gap: var(--space-5); }
+  .models-hero { display: grid; gap: var(--space-3); max-width: 64rem; }
+  .models-hero h1 { font-size: var(--text-3xl); font-weight: 700; letter-spacing: -0.02em; line-height: var(--leading-tight); color: var(--ink-0); margin: 0; }
+  .models-lead { color: var(--ink-1); max-width: 64ch; margin: 0; line-height: var(--leading-relaxed); }
+  .models-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); margin: var(--space-2) 0 0; }
+  .models-facts div { padding: var(--space-3) var(--space-4); display: grid; gap: var(--space-1); }
+  .models-facts dt { font-size: var(--text-xs); color: var(--ink-2); }
+  .models-facts dd { margin: 0; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink-0); }
+  .models-facts a { color: var(--signal-text); }
+  .models-jump { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .models-jump a { display: inline-flex; gap: 0.4rem; align-items: baseline; padding: 0.35rem 0.6rem; border: 1px solid var(--line-0); background: var(--surface-1); color: var(--ink-1); text-decoration: none; font-size: var(--text-xs); border-radius: var(--radius-sm); }
+  .models-jump a span { font-family: var(--font-mono); color: var(--ink-2); }
+  .models-jump a:hover { border-color: var(--signal); color: var(--ink-0); }
+  .models-group { display: grid; gap: var(--space-3); scroll-margin-top: calc(var(--header-h) + var(--space-3)); }
+  .models-table-wrap { overflow-x: auto; }
+  .models-table { width: 100%; min-width: 44rem; border-collapse: collapse; font-size: var(--text-sm); }
+  .models-table th, .models-table td { padding: var(--space-2) var(--space-3); border-top: 1px solid var(--line-0); text-align: left; vertical-align: top; }
+  .models-table thead th { border-top: 0; font-size: var(--text-xs); color: var(--ink-2); font-weight: 500; }
+  .models-table tbody th { font-weight: 500; }
+  .models-table tbody th a { color: var(--ink-0); text-decoration: none; }
+  .models-table tbody th a:hover { color: var(--signal-text); text-decoration: underline; }
+  .models-table .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  .models-table td:last-child { font-family: var(--font-mono); color: var(--ink-2); font-size: var(--text-xs); white-space: nowrap; }
+</style>

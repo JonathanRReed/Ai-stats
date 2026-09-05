@@ -4,6 +4,7 @@ import { ClientRouter } from "astro:transitions";
 import "../styles/tailwind.css";
 import ModelDrawer from "./ModelDrawer";
 import { STATIC_PAGE_DATE_MODIFIED } from "../lib/site-pages";
+import { AUTHOR_PERSON, AUTHOR_REF } from "../lib/author";
 
 interface Props {
   title?: string;
@@ -16,16 +17,12 @@ interface Props {
 }
 
 const siteName = "AI Stats";
-const siteAuthor = "Jonathan R. Reed";
-const authorSameAs = [
-  "https://jonathanrreed.com/",
-  "https://github.com/JonathanRReed",
-];
+const siteAuthor = AUTHOR_PERSON.name;
 
 const {
   title = "AI Stats | AI model stats, LLM ranking & benchmarks by Jonathan R. Reed",
   description = "Compare AI model pricing, benchmark scores, context limits, and speed. Public data covering OpenAI, Anthropic, Google, Meta, and other model providers.",
-  image = "/jonathan.avif",
+  image = "/social-card.png",
   ogType = "website",
   noindex = false,
   robots,
@@ -51,14 +48,10 @@ const pageSchema = {
       description:
         "Compare AI model pricing, performance benchmarks, and technical specifications",
       url: Astro.site?.href || canonicalURL,
-      author: {
-        "@type": "Person",
-        name: siteAuthor,
-        alternateName: "Jonathan Reed",
-        url: "https://jonathanrreed.com",
-        sameAs: authorSameAs,
-      },
+      author: AUTHOR_REF,
+      publisher: AUTHOR_REF,
     },
+    AUTHOR_PERSON,
     {
       "@type": "WebPage",
       "@id": `${canonicalURL}#webpage`,
@@ -68,13 +61,7 @@ const pageSchema = {
       isPartOf: {
         "@id": `${Astro.site?.href || canonicalURL}#website`,
       },
-      author: {
-        "@type": "Person",
-        name: siteAuthor,
-        alternateName: "Jonathan Reed",
-        url: "https://jonathanrreed.com",
-        sameAs: authorSameAs,
-      },
+      author: AUTHOR_REF,
       datePublished: "2026-04-21",
       dateModified,
       inLanguage: "en-US",

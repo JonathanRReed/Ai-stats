@@ -1,5 +1,7 @@
-Contact: https://jonathanrreed.com/contact/
-Expires: 2027-04-21T00:00:00Z
+# Security contact for aistats.jonathanrreed.com
+Contact: https://aistats.jonathanrreed.com/contact
+Contact: https://jonathanrreed.com/
+Expires: 2027-09-01T00:00:00.000Z
 Preferred-Languages: en
 Canonical: https://aistats.jonathanrreed.com/.well-known/security.txt
 Policy: https://aistats.jonathanrreed.com/privacy

@@ -7,6 +7,7 @@ const { currentPage = "dashboard" } = Astro.props;
 const links = [
   { href: "/", label: "Stats", key: "dashboard" },
   { href: "/compare", label: "Compare", key: "compare" },
+  { href: "/models", label: "Models", key: "models" },
   { href: "/about", label: "About", key: "about" },
   { href: "/contact", label: "Contact", key: "contact" },
 ];
@@ -67,6 +68,7 @@ const links = [
   <nav id="mobile-nav" class="mobile-nav" inert aria-label="Mobile navigation">
     <a href="/" class="mobile-nav-item" aria-current={currentPage === "dashboard" ? "page" : undefined} tabindex="-1">Stats</a>
     <a href="/compare" class="mobile-nav-item" aria-current={currentPage === "compare" ? "page" : undefined} tabindex="-1">Compare</a>
+    <a href="/models" class="mobile-nav-item" aria-current={currentPage === "models" ? "page" : undefined} tabindex="-1">Models</a>
     <a href="/about" class="mobile-nav-item" aria-current={currentPage === "about" ? "page" : undefined} tabindex="-1">About</a>
     <a href="/contact" class="mobile-nav-item" aria-current={currentPage === "contact" ? "page" : undefined} tabindex="-1">Contact</a>
   </nav>

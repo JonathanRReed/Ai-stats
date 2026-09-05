@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getDataFreshness, toIsoDate } from '../lib/data-freshness';
 import { SITE_PAGES, STATIC_PAGE_DATE_MODIFIED } from '../lib/site-pages';
+import { getModelPageRecords } from '../lib/model-pages-data';
 
 export const prerender = true;
 
@@ -15,21 +16,33 @@ export const prerender = true;
  */
 export const GET: APIRoute = async ({ site }) => {
   const origin = site?.href ?? 'https://aistats.jonathanrreed.com/';
-  const { updatedAt } = await getDataFreshness();
+  const [{ updatedAt }, modelRecords] = await Promise.all([getDataFreshness(), getModelPageRecords()]);
   const dataDrivenDate = toIsoDate(updatedAt) ?? STATIC_PAGE_DATE_MODIFIED;
 
-  const urls = SITE_PAGES.map((page) => {
-    const loc = new URL(page.path, origin).href;
-    const lastmod = page.dataDriven ? dataDrivenDate : STATIC_PAGE_DATE_MODIFIED;
-    return [
+  const entry = (loc: string, lastmod: string, changefreq: string, priority: string) =>
+    [
       '  <url>',
       `    <loc>${loc}</loc>`,
       `    <lastmod>${lastmod}</lastmod>`,
-      `    <changefreq>${page.changefreq}</changefreq>`,
-      `    <priority>${page.priority}</priority>`,
+      `    <changefreq>${changefreq}</changefreq>`,
+      `    <priority>${priority}</priority>`,
       '  </url>',
     ].join('\n');
-  }).join('\n');
+
+  const pageUrls = SITE_PAGES.map((page) =>
+    entry(
+      new URL(page.path, origin).href,
+      page.dataDriven ? dataDrivenDate : STATIC_PAGE_DATE_MODIFIED,
+      page.changefreq,
+      page.priority,
+    ),
+  );
+  // Model pages stamp the row's own last observation, so a model that stopped
+  // being observed keeps an honest, older lastmod.
+  const modelUrls = modelRecords.map((record) =>
+    entry(new URL(record.path, origin).href, record.lastSeenDate ?? dataDrivenDate, 'weekly', '0.6'),
+  );
+  const urls = [...pageUrls, ...modelUrls].join('\n');
 
   const body = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

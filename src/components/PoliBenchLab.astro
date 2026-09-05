@@ -15,10 +15,6 @@ const generatedAt = snapshot?.freshness.generatedAt
   : 'Unavailable';
 const percent = (value: number): string => `${value.toFixed(1)}%`;
 const signed = (value: number): string => `${value > 0 ? '+' : ''}${value.toFixed(1)}`;
-const payloadJson = JSON.stringify(models.map((model) => ({
-  ...model,
-  expectedResponses: expectedByRunId.get(model.runId) ?? null,
-}))).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026');
 ---
 
 <section class="polibench-lab" aria-labelledby="polibench-title">
@@ -83,7 +79,6 @@ const payloadJson = JSON.stringify(models.map((model) => ({
   )}
 </section>
 
-<script id="polibench-data" type="application/json" is:inline set:html={payloadJson}></script>
 
 <script>
   type Axis = { axis: string; score: number; answeredItems: number };
@@ -94,9 +89,27 @@ const payloadJson = JSON.stringify(models.map((model) => ({
   };
   const root = document.querySelector<HTMLElement>('.polibench-lab');
   const select = root?.querySelector<HTMLSelectElement>('#polibench-model');
-  const payload = document.querySelector<HTMLScriptElement>('#polibench-data');
+  // The model list lives in /api/polibench-lab.json (same build, same snapshot)
+  // and loads once the visitor touches the selector, keeping it off the home
+  // document's critical path.
   let models: Model[] = [];
-  try { models = JSON.parse(payload?.textContent ?? '[]') as Model[]; } catch { models = []; }
+  let loading: Promise<Model[]> | null = null;
+  const loadModels = (): Promise<Model[]> => {
+    if (models.length) return Promise.resolve(models);
+    loading ??= fetch('/api/polibench-lab.json')
+      .then((response) => (response.ok ? response.json() : []))
+      .then((payload: unknown) => {
+        models = Array.isArray(payload) ? (payload as Model[]) : [];
+        return models;
+      })
+      .catch(() => {
+        loading = null;
+        return [];
+      });
+    return loading;
+  };
+  select?.addEventListener('focus', () => void loadModels(), { once: true });
+  select?.addEventListener('pointerenter', () => void loadModels(), { once: true });
   const setText = (selector: string, value: string) => {
     const node = root?.querySelector<HTMLElement>(selector);
     if (node) node.textContent = value;

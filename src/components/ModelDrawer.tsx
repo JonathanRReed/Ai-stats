@@ -437,6 +437,14 @@ export default function ModelDrawer() {
               <p className="font-mono text-xs text-muted">Model detail</p>
               <h2 id="model-drawer-title" className="mt-1 text-xl font-black text-text">{model.name}</h2>
               <p className="font-mono text-sm text-subtle">{provider.providerName}</p>
+              {model.slug ? (
+                <a
+                  href={`/models/${encodeURIComponent(model.slug)}`}
+                  className="mt-2 inline-flex min-h-8 items-center gap-1 font-mono text-xs font-bold text-love underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-love"
+                >
+                  Open the full receipt page
+                </a>
+              ) : null}
             </div>
           </div>
           <button

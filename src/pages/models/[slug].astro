@@ -1,0 +1,468 @@
+---
+import type { GetStaticPaths } from "astro";
+import Layout from "../../components/Layout.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import ScrollToTop from "../../components/ScrollToTop.astro";
+import { getModelPageRecords } from "../../lib/model-pages-data";
+import {
+  buildModelJsonLd,
+  modelPageDescription,
+  type ModelPageMetric,
+  type ModelPageRecord,
+} from "../../lib/model-pages";
+
+export const prerender = true;
+
+export const getStaticPaths = (async () => {
+  const records = await getModelPageRecords();
+  const byProvider = new Map<string, ModelPageRecord[]>();
+  for (const record of records) {
+    const group = byProvider.get(record.provider) ?? [];
+    group.push(record);
+    byProvider.set(record.provider, group);
+  }
+  return records.map((record) => {
+    const siblings = (byProvider.get(record.provider) ?? [])
+      .filter((other) => other.slug !== record.slug)
+      .slice(0, 8)
+      .map((other) => ({ name: other.name, path: other.path }));
+    return { params: { slug: record.slug }, props: { record, siblings } };
+  });
+}) satisfies GetStaticPaths;
+
+type Props = {
+  record: ModelPageRecord;
+  siblings: { name: string; path: string }[];
+};
+
+const { record, siblings } = Astro.props;
+const title = `${record.name} price, speed, and benchmarks | AI Stats`;
+const description = modelPageDescription(record);
+const graph = buildModelJsonLd(record);
+const jsonLd = JSON.stringify({ "@context": "https://schema.org", "@graph": graph });
+
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+const formatDate = (value: string | null): string => {
+  if (!value) return "Not recorded";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Not recorded" : dateFormatter.format(date);
+};
+const money = (value: number | null): string =>
+  value === null ? "Not published" : `$${value.toFixed(value < 0.01 ? 4 : 2)}`;
+const formatMetric = (m: ModelPageMetric): string => {
+  if (m.value === null) return "Not published";
+  switch (m.unit) {
+    case "USD":
+      return money(m.value);
+    case "tokens per second":
+      return `${m.value.toFixed(1)} tokens/s`;
+    case "seconds":
+      return m.value < 1 ? `${(m.value * 1000).toFixed(0)} ms` : `${m.value.toFixed(2)} s`;
+    case "tokens":
+      return `${m.value.toLocaleString("en-US")} tokens`;
+    case "fraction correct":
+      return m.value <= 1 ? `${(m.value * 100).toFixed(1)}%` : m.value.toFixed(1);
+    case "points":
+      return m.value.toFixed(1);
+    default:
+      return String(m.value);
+  }
+};
+const published = (group: ModelPageMetric[]) => group.filter((m) => m.value !== null);
+const compact = (value: number | null): string =>
+  value === null ? "Not published" : new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(value);
+const runScore = (value: number | null): string =>
+  value === null ? "Not published" : value <= 1 ? `${(value * 100).toFixed(1)}%` : value.toFixed(1);
+const runError = (value: number | null): string =>
+  value === null ? "n/a" : value <= 1 ? `${(value * 100).toFixed(1)}%` : value.toFixed(2);
+
+const aaPricing = record.pricing.filter((m) => m.source === "Artificial Analysis");
+const aaPrice = (key: string) => aaPricing.find((m) => m.key === key)?.value ?? null;
+const close = (a: number | null, b: number | null) => a !== null && b !== null && Math.abs(a - b) < 0.001;
+// OpenRouter list prices repeat the AA figure for most models; only show them when they differ.
+const openRouterMatchesAa =
+  close(aaPrice("price_1m_input_tokens"), record.pricing.find((m) => m.key === "openrouter_prompt_price_1m")?.value ?? null) &&
+  close(aaPrice("price_1m_output_tokens"), record.pricing.find((m) => m.key === "openrouter_completion_price_1m")?.value ?? null);
+const routePricing = published(
+  record.pricing.filter((m) => m.source !== "Artificial Analysis" && !(openRouterMatchesAa && m.key.startsWith("openrouter_") && !m.key.includes("endpoint_min"))),
+);
+const measuredCount = published([...record.pricing, ...record.speed, ...record.context, ...record.benchmarks, ...record.indexes]).length;
+const sourceNames = [...new Set(record.aliases.map((alias) => alias.sourceName))];
+if (record.epochRuns.length) sourceNames.push("Epoch AI");
+
+const links = [
+  { href: record.routes.aiStatsCompare, label: "Compare on AI Stats", primary: true, external: false },
+  { href: record.routes.aiDragRace, label: "Race it from your connection", primary: false, external: true },
+  record.routes.promptInfo ? { href: record.routes.promptInfo, label: "Cost a workload on Prompt Info", primary: false, external: true } : null,
+  { href: record.routes.aiNewsSearch, label: "Announcements on AI News", primary: false, external: true },
+  record.routes.poliBench ? { href: record.routes.poliBench, label: "Political-response profile on PoliBench", primary: false, external: true } : null,
+  { href: `/api/model-pages/${record.slug}.json`, label: "This receipt as JSON", primary: false, external: false },
+].filter((link): link is NonNullable<typeof link> => link !== null);
+
+const sourceLinks = [
+  { name: "Artificial Analysis", href: "https://artificialanalysis.ai/", note: "Prices, speed, latency, benchmark scores, and the three indexes." },
+  record.catalog.openRouterUrl ? { name: "OpenRouter", href: record.catalog.openRouterUrl, note: "Catalog identity, context length, route prices, and modalities." } : null,
+  record.catalog.huggingFaceUrl ? { name: "Hugging Face Hub", href: record.catalog.huggingFaceUrl, note: "Public repository activity." } : null,
+  record.catalog.liteLlmId ? { name: "LiteLLM", href: "https://github.com/BerriAI/litellm", note: "Token limits and capability flags." } : null,
+  record.epochRuns.length ? { name: "Epoch AI Benchmarking Hub", href: "https://epoch.ai/benchmarks", note: "Independent benchmark runs listed below." } : null,
+  record.poliBench ? { name: "PoliBench", href: record.poliBench.url, note: "Measured political-response profile, no claim about beliefs." } : null,
+].filter((link): link is NonNullable<typeof link> => link !== null);
+---
+
+<Layout title={title} description={description} dateModified={record.lastSeenDate ?? undefined}>
+  <Fragment slot="head">
+    <script type="application/ld+json" is:inline set:html={jsonLd} />
+  </Fragment>
+  <Header currentPage="models" />
+
+  <main id="main-content" class="eco-container model-page">
+    <nav class="model-crumbs" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/">AI Stats</a></li>
+        <li><a href="/models">Models</a></li>
+        <li aria-current="page">{record.name}</li>
+      </ol>
+    </nav>
+
+    <header class="model-hero">
+      <p class="eco-label">Model receipt</p>
+      <h1>{record.name}</h1>
+      <p class="model-provider">{record.provider}</p>
+      <p class="model-summary">
+        Every number below is copied from a named source with the date it was last observed. AI Stats does not combine them into a score or a recommendation.
+      </p>
+      <dl class="model-facts eco-joined">
+        <div>
+          <dt>First observed</dt>
+          <dd><time datetime={record.firstSeen ?? undefined}>{formatDate(record.firstSeen)}</time></dd>
+        </div>
+        <div>
+          <dt>Last observed</dt>
+          <dd><time datetime={record.lastSeen ?? undefined}>{formatDate(record.lastSeen)}</time></dd>
+        </div>
+        <div>
+          <dt>Measurements</dt>
+          <dd>{measuredCount}</dd>
+        </div>
+        <div>
+          <dt>Status</dt>
+          <dd>{record.current ? "Current, fully measured" : "Not in the current cohort"}</dd>
+        </div>
+      </dl>
+      <div class="model-actions">
+        {links.map((link) => (
+          <a
+            href={link.href}
+            class={`eco-btn ${link.primary ? "eco-btn-primary" : "eco-btn-secondary"}`}
+            rel={link.external ? "noopener" : undefined}
+          >
+            {link.label}
+          </a>
+        ))}
+      </div>
+    </header>
+
+    <div class="model-grid">
+      <section class="eco-panel" aria-labelledby="pricing-heading">
+        <header class="eco-panel-head">
+          <div>
+            <h2 id="pricing-heading">Pricing</h2>
+            <p>US dollars per one million tokens.</p>
+          </div>
+        </header>
+        <table class="receipt receipt-sourced">
+          <thead>
+            <tr><th scope="col">Measure</th><th scope="col" class="num">Value</th><th scope="col">Source</th></tr>
+          </thead>
+          <tbody>
+            {aaPricing.map((m) => (
+              <tr><th scope="row">{m.label}</th><td class="num">{formatMetric(m)}</td><td>{m.source}</td></tr>
+            ))}
+            {routePricing.map((m) => (
+              <tr><th scope="row">{m.label}</th><td class="num">{formatMetric(m)}</td><td>{m.source}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      <section class="eco-panel" aria-labelledby="speed-heading">
+        <header class="eco-panel-head">
+          <div>
+            <h2 id="speed-heading">Speed and latency</h2>
+            <p>Medians published by Artificial Analysis. Your own route will differ.</p>
+          </div>
+        </header>
+        <table class="receipt receipt-sourced">
+          <thead>
+            <tr><th scope="col">Measure</th><th scope="col" class="num">Value</th><th scope="col">Source</th></tr>
+          </thead>
+          <tbody>
+            {record.speed.map((m) => (
+              <tr><th scope="row">{m.label}</th><td class="num">{formatMetric(m)}</td><td>{m.source}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      <section class="eco-panel" aria-labelledby="context-heading">
+        <header class="eco-panel-head">
+          <div>
+            <h2 id="context-heading">Context and capabilities</h2>
+            <p>Limits as listed by public catalogs, not measured here.</p>
+          </div>
+        </header>
+        <table class="receipt receipt-sourced">
+          <thead>
+            <tr><th scope="col">Measure</th><th scope="col" class="num">Value</th><th scope="col">Source</th></tr>
+          </thead>
+          <tbody>
+            {record.context.map((m) => (
+              <tr><th scope="row">{m.label}</th><td class="num">{formatMetric(m)}</td><td>{m.source}</td></tr>
+            ))}
+            <tr>
+              <th scope="row">Capabilities</th>
+              <td class="num">{record.catalog.capabilities.length ? record.catalog.capabilities.join(", ") : "Not listed"}</td>
+              <td>OpenRouter, LiteLLM</td>
+            </tr>
+            {record.catalog.inputModalities.length ? (
+              <tr>
+                <th scope="row">Modalities</th>
+                <td class="num">{record.catalog.inputModalities.join(", ")} in, {record.catalog.outputModalities.join(", ") || "text"} out</td>
+                <td>OpenRouter</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </section>
+
+      <section class="eco-panel" aria-labelledby="benchmarks-heading">
+        <header class="eco-panel-head">
+          <div>
+            <h2 id="benchmarks-heading">Benchmark scores</h2>
+            <p>Share of items correct, as published by Artificial Analysis. Blank rows mean no published score.</p>
+          </div>
+        </header>
+        <table class="receipt receipt-sourced">
+          <thead>
+            <tr><th scope="col">Benchmark</th><th scope="col" class="num">Score</th><th scope="col">Source</th></tr>
+          </thead>
+          <tbody>
+            {record.benchmarks.map((m) => (
+              <tr><th scope="row">{m.label}</th><td class="num">{formatMetric(m)}</td><td>{m.source}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      <section class="eco-panel" aria-labelledby="indexes-heading">
+        <header class="eco-panel-head">
+          <div>
+            <h2 id="indexes-heading">Artificial Analysis indexes</h2>
+            <p>Points from 0 to 100 on scales defined by Artificial Analysis, not by this site.</p>
+          </div>
+        </header>
+        <table class="receipt receipt-sourced">
+          <thead>
+            <tr><th scope="col">Index</th><th scope="col" class="num">Points</th><th scope="col">Source</th></tr>
+          </thead>
+          <tbody>
+            {record.indexes.map((m) => (
+              <tr><th scope="row">{m.label}</th><td class="num">{formatMetric(m)}</td><td>{m.source}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      {record.epochRuns.length ? (
+        <section class="eco-panel" aria-labelledby="epoch-heading">
+          <header class="eco-panel-head">
+            <div>
+              <h2 id="epoch-heading">Epoch AI benchmark runs</h2>
+              <p>Independent runs matched by model name. Standard error is shown when Epoch publishes one.</p>
+            </div>
+          </header>
+          <table class="receipt">
+            <thead>
+              <tr><th scope="col">Benchmark</th><th scope="col" class="num">Score</th><th scope="col" class="num">Std. error</th><th scope="col">Run source</th></tr>
+            </thead>
+            <tbody>
+              {record.epochRuns.map((run) => (
+                <tr>
+                  <th scope="row">{run.benchmark}</th>
+                  <td class="num">{runScore(run.score)}</td>
+                  <td class="num">{runError(run.stderr)}</td>
+                  <td>{run.sourceLink ? <a href={run.sourceLink} rel="noopener noreferrer">{run.sourceName ?? "Epoch AI"}</a> : run.sourceName ?? "Epoch AI"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
+
+      <section class="eco-panel" aria-labelledby="catalog-heading">
+        <header class="eco-panel-head">
+          <div>
+            <h2 id="catalog-heading">Catalog identity</h2>
+            <p>The keys other tools use for this model. Exact matches only, so a missing row means no confirmed alias.</p>
+          </div>
+        </header>
+        <table class="receipt">
+          <thead>
+            <tr><th scope="col">Source</th><th scope="col">Identifier</th><th scope="col">Detail</th></tr>
+          </thead>
+          <tbody>
+            {record.aliases.map((alias) => (
+              <tr>
+                <th scope="row">{alias.sourceName}</th>
+                <td><code>{alias.sourceModelKey}</code></td>
+                <td>{alias.sourceModelName && alias.sourceModelName !== record.name ? alias.sourceModelName : alias.matchMethod === "source_native" ? "Source of record" : "Exact catalog match"}</td>
+              </tr>
+            ))}
+            {record.catalog.usageRank ? (
+              <tr><th scope="row">OpenRouter usage rank</th><td>#{record.catalog.usageRank}</td><td>{compact(record.catalog.usageTokens)} tokens in the ranking window</td></tr>
+            ) : null}
+            {record.catalog.endpointProviderCount ? (
+              <tr><th scope="row">OpenRouter routes</th><td>{record.catalog.endpointProviderCount} providers</td><td>{record.catalog.endpointProviders.slice(0, 8).join(", ")}{record.catalog.quantizations.length ? ` · ${record.catalog.quantizations.join(", ")}` : ""}</td></tr>
+            ) : null}
+            {record.catalog.huggingFaceDownloads ? (
+              <tr><th scope="row">Hugging Face activity</th><td>{compact(record.catalog.huggingFaceDownloads)} downloads</td><td>{compact(record.catalog.huggingFaceLikes)} likes · updated {formatDate(record.catalog.huggingFaceLastModified)}</td></tr>
+            ) : null}
+          </tbody>
+        </table>
+      </section>
+
+      {record.poliBench ? (
+        <section class="eco-panel" aria-labelledby="polibench-heading">
+          <header class="eco-panel-head">
+            <div>
+              <h2 id="polibench-heading">PoliBench profile</h2>
+              <p>Measured model output on political items. It says nothing about what a model believes.</p>
+            </div>
+          </header>
+          <table class="receipt">
+            <tbody>
+              <tr><th scope="row">Evidence</th><td colspan="2">{record.poliBench.evidenceLabel}</td></tr>
+              <tr><th scope="row">Run status</th><td colspan="2">{record.poliBench.status}</td></tr>
+              <tr><th scope="row">Completion rate</th><td class="num">{record.poliBench.completionRate.toFixed(1)}%</td><td>Share of expected responses received</td></tr>
+              <tr><th scope="row">Robustness</th><td class="num">{record.poliBench.robustness.toFixed(1)}%</td><td>Stability across paraphrases and reruns</td></tr>
+              <tr><th scope="row">Last run finished</th><td colspan="2">{formatDate(record.poliBench.lastRunFinishedAt)}</td></tr>
+            </tbody>
+          </table>
+          <p class="panel-foot"><a href={record.poliBench.url} rel="noopener">Full profile and artifacts on PoliBench</a></p>
+        </section>
+      ) : null}
+
+      <section class="eco-panel" aria-labelledby="sources-heading">
+        <header class="eco-panel-head">
+          <div>
+            <h2 id="sources-heading">Sources</h2>
+            <p>Where each value came from. Corrections go to the source first, then to the contact page.</p>
+          </div>
+        </header>
+        <ul class="source-list">
+          {sourceLinks.map((source) => (
+            <li>
+              <a href={source.href} rel="noopener noreferrer">{source.name}</a>
+              <span>{source.note}</span>
+            </li>
+          ))}
+        </ul>
+        <p class="panel-foot">Counted sources for this model: {sourceNames.join(", ")}. Contents belong to the named sources. Search and AI answers with a link back are welcome, training is not. <a href="/about">How the data is gathered</a>.</p>
+      </section>
+    </div>
+
+    {siblings.length ? (
+      <nav class="model-siblings" aria-labelledby="siblings-heading">
+        <h2 id="siblings-heading">More from {record.provider}</h2>
+        <ul class="eco-joined">
+          {siblings.map((sibling) => (
+            <li><a href={sibling.path}>{sibling.name}</a></li>
+          ))}
+        </ul>
+        <p><a href="/models">Every model with a page</a></p>
+      </nav>
+    ) : null}
+  </main>
+
+  <Footer />
+  <ScrollToTop />
+</Layout>
+
+<style is:global>
+  .model-page {
+    padding-block: var(--space-6) var(--space-8);
+    display: grid;
+    gap: var(--space-6);
+  }
+  .model-crumbs ol {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--ink-2);
+  }
+  .model-crumbs li + li::before {
+    content: "/";
+    margin-inline-end: var(--space-2);
+    color: var(--ink-3);
+  }
+  .model-crumbs a { color: var(--ink-1); text-decoration: none; }
+  .model-crumbs a:hover { color: var(--signal-text); text-decoration: underline; }
+  .model-hero { display: grid; gap: var(--space-3); max-width: 64rem; }
+  .model-hero h1 {
+    font-size: var(--text-3xl);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: var(--leading-tight);
+    color: var(--ink-0);
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  .model-provider { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink-1); margin: 0; }
+  .model-summary { color: var(--ink-1); max-width: 60ch; margin: 0; line-height: var(--leading-relaxed); }
+  .model-facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    margin: var(--space-2) 0 0;
+  }
+  .model-facts div { padding: var(--space-3) var(--space-4); display: grid; gap: var(--space-1); }
+  .model-facts dt { font-size: var(--text-xs); color: var(--ink-2); }
+  .model-facts dd { margin: 0; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink-0); }
+  .model-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+  .model-grid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); }
+  .model-grid .eco-panel { display: grid; gap: var(--space-3); align-content: start; }
+  .receipt { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+  .receipt th, .receipt td { padding: var(--space-2) var(--space-3); border-top: 1px solid var(--line-0); text-align: left; vertical-align: top; }
+  .receipt thead th { border-top: 0; font-size: var(--text-xs); color: var(--ink-2); font-weight: 500; }
+  .receipt tbody th { font-weight: 500; color: var(--ink-1); }
+  .receipt td { color: var(--ink-0); }
+  .receipt .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .receipt td:last-child { color: var(--ink-2); font-size: var(--text-xs); }
+  .receipt code { font-family: var(--font-mono); font-size: var(--text-xs); overflow-wrap: anywhere; }
+  .panel-foot { margin: 0; font-size: var(--text-xs); color: var(--ink-2); line-height: var(--leading-relaxed); }
+  .panel-foot a, .source-list a { color: var(--signal-text); }
+  .source-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+  .source-list li { display: grid; gap: 0.15rem; }
+  .source-list span { color: var(--ink-2); font-size: var(--text-xs); }
+  .model-siblings { display: grid; gap: var(--space-3); }
+  .model-siblings h2 { font-size: var(--text-lg); font-weight: 600; color: var(--ink-0); margin: 0; }
+  .model-siblings ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); }
+  .model-siblings li a { display: block; padding: var(--space-3) var(--space-4); color: var(--ink-0); text-decoration: none; font-size: var(--text-sm); }
+  .model-siblings li a:hover { background: var(--surface-2); color: var(--signal-text); }
+  .model-siblings p { margin: 0; font-size: var(--text-sm); }
+  .model-siblings p a { color: var(--signal-text); }
+  @media (max-width: 640px) {
+    .receipt th, .receipt td { padding-inline: var(--space-2); }
+    .receipt-sourced td:last-child, .receipt-sourced thead th:last-child { display: none; }
+  }
+</style>
