@@ -277,7 +277,12 @@ const main = async () => {
     await downloadEpochZip(zipPath);
     await execFileAsync('unzip', ['-q', zipPath, '-d', workDir]);
 
-    const eciRows = await readCsv(path.join(workDir, 'epoch_capabilities_index.csv'));
+    // Epoch's current archive omits the retired ECI file. Benchmark runs still
+    // carry model identity; absent ECI scores must remain null.
+    const eciRows = await readCsv(path.join(workDir, 'epoch_capabilities_index.csv')).catch(error => {
+      if (error.code === 'ENOENT') return [];
+      throw error;
+    });
     const modelByVersion = new Map();
 
     for (const row of eciRows) {
@@ -385,6 +390,9 @@ const main = async () => {
     }
 
     const dedupedRunRows = dedupeRowsByKey(runRows, (row) => row.epoch_run_id);
+    if (!benchmarkRows.length || !modelByVersion.size || !dedupedRunRows.some(row => row.score !== null)) {
+      throw new Error('Epoch archive has no usable benchmark evidence; refusing an empty replacement.');
+    }
 
     if (snapshotPath) {
       const snapshot = {

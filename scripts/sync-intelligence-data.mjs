@@ -41,6 +41,7 @@ const SOURCE_CATALOG = [
 const AA_METRICS = [
   ["aa_intelligence_index", "Artificial Analysis Intelligence Index", "quality", "index_points", true],
   ["aa_coding_index", "Artificial Analysis Coding Index", "coding", "index_points", true],
+  ["aa_agentic_index", "Artificial Analysis Agentic Index", "agentic", "index_points", true],
   ["aa_math_index", "Artificial Analysis Math Index", "math", "index_points", true],
   ["mmlu_pro", "MMLU-Pro", "knowledge", "score", true],
   ["gpqa", "GPQA", "reasoning", "score", true],
@@ -187,8 +188,16 @@ const buildValidatedInput = (value) => {
   const aaObservedAt = asTimestamp(aa.observedAt, "input.aa.observedAt");
   const aaModels = asArray(aa.models, "input.aa.models").map((value, index) => {
     const model = asRecord(value, `input.aa.models[${index}]`);
+    // A retained legacy column is not a new observation from a Free-tier response.
+    const current = { ...model };
+    if (model.source_metadata?.endpoint?.startsWith('language/')) {
+      for (const key of ['aa_intelligence_index', 'aa_coding_index', 'aa_math_index', 'aa_agentic_index', 'mmlu_pro', 'gpqa', 'hle', 'livecodebench', 'scicode', 'math_500', 'aime']) {
+        const sourceKey = key.startsWith('aa_') ? key.replace('aa_', 'artificial_analysis_') : key === 'gpqa' ? 'gpqa_diamond' : key;
+        current[key] = model.evaluations?.[sourceKey] ?? null;
+      }
+    }
     return {
-      ...model,
+      ...current,
       slug: asText(model.slug, `input.aa.models[${index}].slug`),
       name: asText(model.name, `input.aa.models[${index}].name`),
       last_seen: model.last_seen ? asTimestamp(model.last_seen, `input.aa.models[${index}].last_seen`) : aaObservedAt,
@@ -583,10 +592,16 @@ export function buildIntelligencePayloads(value) {
       metadata: { evidenceType: domain === "cost" ? "price" : domain },
       updated_at: input.aa.observedAt,
     });
-    benchmarkVersions.push({
+    const versionFor = (model) => {
+      const metadata = model.source_metadata;
+      if (domain === 'speed' || domain === 'latency') return `prompt-${metadata?.performance_prompt ?? 'unknown'}`;
+      if (domain === 'cost') return 'source-native-current';
+      return metadata?.intelligence_index_version == null ? 'source-native-unversioned' : `aa-index-${metadata.intelligence_index_version}`;
+    };
+    for (const version of new Set(metricModels.map(versionFor))) benchmarkVersions.push({
       source_key: "artificial-analysis",
       benchmark_key: property,
-      version_key: "source-native-current",
+      version_key: version,
       methodology_url: "https://artificialanalysis.ai/methodology/intelligence-benchmarking",
       published_at: null,
       metadata: {},
@@ -597,13 +612,13 @@ export function buildIntelligencePayloads(value) {
         source_key: "artificial-analysis",
         canonical_key: canonicalKeyBySourceIdentity.get(`artificial-analysis:${model.slug}`),
         benchmark_key: property,
-        version_key: "source-native-current",
+        version_key: versionFor(model),
         observation_key: `artificial-analysis:${model.slug}:${property}:${model.last_seen}`,
         source_model_key: model.slug,
         value: model[property],
         observed_at: model.last_seen,
         source_url: null,
-        metadata: {},
+        metadata: model.source_metadata ?? {},
         updated_at: model.last_seen,
       });
     }

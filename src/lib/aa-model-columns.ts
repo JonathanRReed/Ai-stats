@@ -6,6 +6,7 @@ export const AA_MODEL_SELECT_COLUMNS = [
   'creator_name',
   'creator_slug',
   'evaluations',
+  'source_metadata',
   'aa_intelligence_index',
   'aa_coding_index',
   'aa_math_index',

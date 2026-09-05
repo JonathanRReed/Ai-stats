@@ -252,6 +252,8 @@ type PublicEpochSnapshot = {
 };
 
 const CLIENT_AA_MODEL_SELECT_COLUMNS = [
+  'evaluations',
+  'source_metadata',
   'id',
   'name',
   'slug',
@@ -306,6 +308,7 @@ const normalizeAaModel = (row: Record<string, unknown>): AaModel => ({
   creator_name: toStringOrNull(row.creator_name),
   creator_slug: toStringOrNull(row.creator_slug),
   evaluations: (row.evaluations as Record<string, unknown> | null) ?? null,
+  source_metadata: (row.source_metadata as AaModel['source_metadata']) ?? null,
   aa_intelligence_index: toNumberOrNull(row.aa_intelligence_index),
   aa_coding_index: toNumberOrNull(row.aa_coding_index),
   aa_math_index: toNumberOrNull(row.aa_math_index),

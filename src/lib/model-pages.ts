@@ -10,6 +10,7 @@ import type { AaModel, EpochBenchmark, EpochBenchmarkRun } from './supabase';
 import type { PublicPoliBenchModel, PublicPoliBenchSnapshot } from './polibench-snapshot';
 import { buildPassportRoutes, type ModelPassport, type ModelPassportAlias } from './model-passport';
 import { AUTHOR_REF } from './author';
+import { aaEvidenceNote } from './aa-evidence';
 import { isCurrentMeasuredModel } from './model-spotlight';
 
 export const SITE_ORIGIN = 'https://aistats.jonathanrreed.com';
@@ -68,6 +69,7 @@ export type ModelPageRecord = {
   name: string;
   provider: string;
   aaSlug: string | null;
+  aaEvidenceNote: string;
   firstSeen: string | null;
   lastSeen: string | null;
   /** YYYY-MM-DD form of lastSeen for sitemap lastmod and dateModified. */
@@ -296,6 +298,7 @@ export const buildModelPageRecord = (
     name,
     provider,
     aaSlug: text(model.slug),
+    aaEvidenceNote: aaEvidenceNote(model.source_metadata),
     firstSeen: text(model.first_seen),
     lastSeen: text(model.last_seen),
     lastSeenDate: isoDate(text(model.last_seen)),
@@ -331,6 +334,7 @@ export const buildModelPageRecord = (
     indexes: [
       metric('aa_intelligence_index', 'Artificial Analysis Intelligence Index', finite(model.aa_intelligence_index), 'points', 'Artificial Analysis'),
       metric('aa_coding_index', 'Artificial Analysis Coding Index', finite(model.aa_coding_index), 'points', 'Artificial Analysis'),
+      metric('aa_agentic_index', 'Artificial Analysis Agentic Index', finite(model.aa_agentic_index), 'points', 'Artificial Analysis'),
       metric('aa_math_index', 'Artificial Analysis Math Index', finite(model.aa_math_index), 'points', 'Artificial Analysis'),
     ],
     epochRuns: matchEpochRuns(model, context.epochRuns ?? [], context.epochBenchmarks ?? []),

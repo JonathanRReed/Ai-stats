@@ -1,4 +1,5 @@
 import type { AaModel, EpochBenchmarkRun, EpochModel } from './supabase';
+import { normalizeAaEvidence } from './aa-evidence';
 import {
   findComparableCoverageLeader,
   type ModelEvidence,
@@ -50,7 +51,7 @@ export const normalizeAaOperationalMetrics = (model: AaModel): AaModel => {
       : null;
 
   return {
-    ...model,
+    ...normalizeAaEvidence(model),
     price_1m_input_tokens: inputPrice,
     price_1m_output_tokens: outputPrice,
     price_1m_blended_3_to_1:

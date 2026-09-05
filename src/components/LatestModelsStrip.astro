@@ -1,6 +1,7 @@
 ---
 import type { AaModel } from "../lib/supabase";
 import { formatIndex, formatPrice, formatTPS } from "../lib/format-utils";
+import { aaEvidenceNote } from "../lib/aa-evidence";
 
 type Props = {
   models: AaModel[];
@@ -27,6 +28,7 @@ const providerFor = (model: AaModel): string =>
 ---
 
 <section class="latest-models" aria-label="Current benchmark snapshot">
+  <p>{[...new Set(models.map((model) => aaEvidenceNote(model.source_metadata)))].join(' ')}</p>
   <div class="latest-models-opening">
     <div class="latest-models-intro">
       <h1>See how these models compare.</h1>

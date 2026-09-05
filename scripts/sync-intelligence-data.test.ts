@@ -13,6 +13,20 @@ import {
 const observedAt = "2026-08-30T07:15:38.021Z";
 const productionSupabaseUrl = "https://bgbqdzmgxkwstjihgeef.supabase.co";
 
+test('AA observations retain index version and timing conditions without reviving retired scores', () => {
+  const input = createInput();
+  Object.assign(input.aa.models[0], {
+    source_metadata: { endpoint: 'language/models/free', intelligence_index_version: 4.2, performance_prompt: 'long' },
+    evaluations: { artificial_analysis_intelligence_index: 0.7, artificial_analysis_agentic_index: 33 },
+    aa_math_index: 99,
+  });
+  const payloads = buildIntelligencePayloads(input);
+  expect(payloads.observations).toContainEqual(expect.objectContaining({ benchmark_key: 'aa_intelligence_index', version_key: 'aa-index-4.2', value: 0.7 }));
+  expect(payloads.observations).toContainEqual(expect.objectContaining({ benchmark_key: 'aa_agentic_index', version_key: 'aa-index-4.2', value: 33 }));
+  expect(payloads.observations).toContainEqual(expect.objectContaining({ benchmark_key: 'median_time_to_first_token_seconds', version_key: 'prompt-long' }));
+  expect(payloads.observations.some((row: {benchmark_key: string}) => row.benchmark_key === 'aa_math_index')).toBe(false);
+});
+
 const createInput = (explicitAliases: unknown[] = []) => ({
   aa: {
     observedAt,

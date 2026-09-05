@@ -548,7 +548,7 @@ function getScoreClass(score: number | null | undefined): string {
             >
               {
                 benchmarkConfigs.map(({ key, label }) => (
-                  <option value={key} selected={key === "mmlu_pro"}>
+                  <option value={key} selected={key === "aa_intelligence_index"}>
                     {label}
                   </option>
                 ))
@@ -609,7 +609,7 @@ function getScoreClass(score: number | null | undefined): string {
           id="leaderboard-panels"
         >
           {
-            benchmarkConfigs.filter(({ key }) => key === "mmlu_pro").map(({ key, source }) => {
+            benchmarkConfigs.filter(({ key }) => key === "aa_intelligence_index").map(({ key, source }) => {
               const list = topByBenchmark[key] ?? [];
               if (!list.length) return null;
               const isEpoch = source === "epoch";
@@ -622,7 +622,7 @@ function getScoreClass(score: number | null | undefined): string {
                 <div
                   data-metric={key}
                   class="overflow-hidden border border-highlight-low/60"
-                  hidden={key !== "mmlu_pro"}
+                  hidden={key !== "aa_intelligence_index"}
                 >
                   <ul class="divide-y divide-highlight-low/40">
                     {list.map((model: any, index: number) => {

@@ -95,9 +95,18 @@ export type AaModel = {
   creator_id: string | null;
   creator_name: string | null;
   creator_slug: string | null;
+  source_metadata?: {
+    endpoint?: string;
+    intelligence_index_version?: string | number | null;
+    performance_prompt?: string | null;
+    tier?: string | null;
+    observed_at?: string | null;
+    release_date?: string | null;
+  } | null;
   evaluations: Record<string, unknown> | null;
   aa_intelligence_index: number | null;
   aa_coding_index: number | null;
+  aa_agentic_index?: number | null;
   aa_math_index: number | null;
   mmlu_pro: number | null;
   gpqa: number | null;
