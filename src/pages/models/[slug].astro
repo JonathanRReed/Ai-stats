@@ -177,7 +177,7 @@ const sourceLinks = [
             <p>US dollars per one million tokens.</p>
           </div>
         </header>
-        <table class="receipt receipt-sourced">
+        <div class="receipt-wrap"><table class="receipt receipt-sourced">
           <thead>
             <tr><th scope="col">Measure</th><th scope="col" class="num">Value</th><th scope="col">Source</th></tr>
           </thead>
@@ -189,7 +189,7 @@ const sourceLinks = [
               <tr><th scope="row">{m.label}</th><td class="num">{formatMetric(m)}</td><td>{m.source}</td></tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </section>
 
       <section class="eco-panel" aria-labelledby="speed-heading">
@@ -199,7 +199,7 @@ const sourceLinks = [
             <p>Medians published by Artificial Analysis. Your own route will differ.</p>
           </div>
         </header>
-        <table class="receipt receipt-sourced">
+        <div class="receipt-wrap"><table class="receipt receipt-sourced">
           <thead>
             <tr><th scope="col">Measure</th><th scope="col" class="num">Value</th><th scope="col">Source</th></tr>
           </thead>
@@ -208,7 +208,7 @@ const sourceLinks = [
               <tr><th scope="row">{m.label}</th><td class="num">{formatMetric(m)}</td><td>{m.source}</td></tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </section>
 
       <section class="eco-panel" aria-labelledby="context-heading">
@@ -218,7 +218,7 @@ const sourceLinks = [
             <p>Limits as listed by public catalogs, not measured here.</p>
           </div>
         </header>
-        <table class="receipt receipt-sourced">
+        <div class="receipt-wrap"><table class="receipt receipt-sourced">
           <thead>
             <tr><th scope="col">Measure</th><th scope="col" class="num">Value</th><th scope="col">Source</th></tr>
           </thead>
@@ -228,18 +228,18 @@ const sourceLinks = [
             ))}
             <tr>
               <th scope="row">Capabilities</th>
-              <td class="num">{record.catalog.capabilities.length ? record.catalog.capabilities.join(", ") : "Not listed"}</td>
+              <td>{record.catalog.capabilities.length ? record.catalog.capabilities.join(", ") : "Not listed"}</td>
               <td>OpenRouter, LiteLLM</td>
             </tr>
             {record.catalog.inputModalities.length ? (
               <tr>
                 <th scope="row">Modalities</th>
-                <td class="num">{record.catalog.inputModalities.join(", ")} in, {record.catalog.outputModalities.join(", ") || "text"} out</td>
+                <td>{record.catalog.inputModalities.join(", ")} in, {record.catalog.outputModalities.join(", ") || "text"} out</td>
                 <td>OpenRouter</td>
               </tr>
             ) : null}
           </tbody>
-        </table>
+        </table></div>
       </section>
 
       <section class="eco-panel" aria-labelledby="benchmarks-heading">
@@ -249,7 +249,7 @@ const sourceLinks = [
             <p>Share of items correct, as published by Artificial Analysis. Blank rows mean no published score.</p>
           </div>
         </header>
-        <table class="receipt receipt-sourced">
+        <div class="receipt-wrap"><table class="receipt receipt-sourced">
           <thead>
             <tr><th scope="col">Benchmark</th><th scope="col" class="num">Score</th><th scope="col">Source</th></tr>
           </thead>
@@ -258,7 +258,7 @@ const sourceLinks = [
               <tr><th scope="row">{m.label}</th><td class="num">{formatMetric(m)}</td><td>{m.source}</td></tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </section>
 
       <section class="eco-panel" aria-labelledby="indexes-heading">
@@ -268,7 +268,7 @@ const sourceLinks = [
             <p>Points from 0 to 100 on scales defined by Artificial Analysis, not by this site.</p>
           </div>
         </header>
-        <table class="receipt receipt-sourced">
+        <div class="receipt-wrap"><table class="receipt receipt-sourced">
           <thead>
             <tr><th scope="col">Index</th><th scope="col" class="num">Points</th><th scope="col">Source</th></tr>
           </thead>
@@ -277,7 +277,7 @@ const sourceLinks = [
               <tr><th scope="row">{m.label}</th><td class="num">{formatMetric(m)}</td><td>{m.source}</td></tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </section>
 
       {record.epochRuns.length ? (
@@ -288,7 +288,7 @@ const sourceLinks = [
               <p>Independent runs matched by model name. Standard error is shown when Epoch publishes one.</p>
             </div>
           </header>
-          <table class="receipt">
+          <div class="receipt-wrap"><table class="receipt">
             <thead>
               <tr><th scope="col">Benchmark</th><th scope="col" class="num">Score</th><th scope="col" class="num">Std. error</th><th scope="col">Run source</th></tr>
             </thead>
@@ -302,7 +302,7 @@ const sourceLinks = [
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </section>
       ) : null}
 
@@ -313,7 +313,7 @@ const sourceLinks = [
             <p>The keys other tools use for this model. Exact matches only, so a missing row means no confirmed alias.</p>
           </div>
         </header>
-        <table class="receipt">
+        <div class="receipt-wrap"><table class="receipt">
           <thead>
             <tr><th scope="col">Source</th><th scope="col">Identifier</th><th scope="col">Detail</th></tr>
           </thead>
@@ -326,7 +326,7 @@ const sourceLinks = [
               </tr>
             ))}
             {record.catalog.usageRank ? (
-              <tr><th scope="row">OpenRouter usage rank</th><td>#{record.catalog.usageRank}</td><td>{compact(record.catalog.usageTokens)} tokens in the ranking window</td></tr>
+              <tr><th scope="row">OpenRouter usage position</th><td>#{record.catalog.usageRank}</td><td>{compact(record.catalog.usageTokens)} tokens in the usage window</td></tr>
             ) : null}
             {record.catalog.endpointProviderCount ? (
               <tr><th scope="row">OpenRouter routes</th><td>{record.catalog.endpointProviderCount} providers</td><td>{record.catalog.endpointProviders.slice(0, 8).join(", ")}{record.catalog.quantizations.length ? ` · ${record.catalog.quantizations.join(", ")}` : ""}</td></tr>
@@ -335,7 +335,7 @@ const sourceLinks = [
               <tr><th scope="row">Hugging Face activity</th><td>{compact(record.catalog.huggingFaceDownloads)} downloads</td><td>{compact(record.catalog.huggingFaceLikes)} likes · updated {formatDate(record.catalog.huggingFaceLastModified)}</td></tr>
             ) : null}
           </tbody>
-        </table>
+        </table></div>
       </section>
 
       {record.poliBench ? (
@@ -346,7 +346,7 @@ const sourceLinks = [
               <p>Measured model output on political items. It says nothing about what a model believes.</p>
             </div>
           </header>
-          <table class="receipt">
+          <div class="receipt-wrap"><table class="receipt">
             <tbody>
               <tr><th scope="row">Evidence</th><td colspan="2">{record.poliBench.evidenceLabel}</td></tr>
               <tr><th scope="row">Run status</th><td colspan="2">{record.poliBench.status}</td></tr>
@@ -354,7 +354,7 @@ const sourceLinks = [
               <tr><th scope="row">Robustness</th><td class="num">{record.poliBench.robustness.toFixed(1)}%</td><td>Stability across paraphrases and reruns</td></tr>
               <tr><th scope="row">Last run finished</th><td colspan="2">{formatDate(record.poliBench.lastRunFinishedAt)}</td></tr>
             </tbody>
-          </table>
+          </table></div>
           <p class="panel-foot"><a href={record.poliBench.url} rel="noopener">Full profile and artifacts on PoliBench</a></p>
         </section>
       ) : null}
@@ -462,8 +462,9 @@ const sourceLinks = [
   .model-siblings li a:hover { background: var(--surface-2); color: var(--signal-text); }
   .model-siblings p { margin: 0; font-size: var(--text-sm); }
   .model-siblings p a { color: var(--signal-text); }
+  .receipt-wrap { overflow-x: auto; }
   @media (max-width: 640px) {
     .receipt th, .receipt td { padding-inline: var(--space-2); }
-    .receipt-sourced td:last-child, .receipt-sourced thead th:last-child { display: none; }
+    .receipt-sourced { min-width: 32rem; }
   }
 </style>

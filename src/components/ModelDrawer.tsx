@@ -5,6 +5,11 @@ import { formatIndex } from '../lib/format-utils';
 
 type DrawerPhase = 'closed' | 'entering' | 'open' | 'leaving';
 
+interface DrawerLoadError {
+  id: string;
+  label?: string;
+}
+
 interface ModelData {
   id: string;
   name: string;
@@ -176,6 +181,10 @@ function getProviderIdentity(model: ModelData) {
 export default function ModelDrawer() {
   const [phase, setPhase] = useState<DrawerPhase>('closed');
   const [model, setModel] = useState<ModelData | null>(null);
+  // Set when the model detail request failed, so the drawer can say so instead
+  // of leaving the click with no visible result.
+  const [loadError, setLoadError] = useState<DrawerLoadError | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   const phaseRef = useRef<DrawerPhase>('closed');
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -210,6 +219,8 @@ export default function ModelDrawer() {
     }
     setPhaseTracked('closed');
     setModel(null);
+    setLoadError(null);
+    setRetrying(false);
     document.body.style.overflow = '';
     const trigger = triggerRef.current;
     triggerRef.current = null;
@@ -244,6 +255,8 @@ export default function ModelDrawer() {
         leaveTimerRef.current = null;
       }
       setModel(e.detail);
+      setLoadError(null);
+      setRetrying(false);
       document.body.style.overflow = 'hidden';
 
       if (reducedMotionRef.current) {
@@ -263,8 +276,38 @@ export default function ModelDrawer() {
       beginClose();
     };
 
+    const handleError = (e: CustomEvent<DrawerLoadError>) => {
+      const active = document.activeElement;
+      if (phaseRef.current === 'closed') {
+        triggerRef.current = active instanceof HTMLElement ? active : null;
+      }
+
+      cancelRaf();
+      if (leaveTimerRef.current !== null) {
+        clearTimeout(leaveTimerRef.current);
+        leaveTimerRef.current = null;
+      }
+      setModel(null);
+      setLoadError(e.detail);
+      setRetrying(false);
+      document.body.style.overflow = 'hidden';
+
+      if (reducedMotionRef.current) {
+        setPhaseTracked('open');
+        return;
+      }
+
+      setPhaseTracked('entering');
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = requestAnimationFrame(() => {
+          setPhaseTracked('open');
+        });
+      });
+    };
+
     window.addEventListener('open-model-drawer', handleOpen as EventListener);
     window.addEventListener('close-model-drawer', handleClose as EventListener);
+    window.addEventListener('model-drawer-error', handleError as EventListener);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (phaseRef.current === 'closed') return;
@@ -299,6 +342,7 @@ export default function ModelDrawer() {
     return () => {
       window.removeEventListener('open-model-drawer', handleOpen as EventListener);
       window.removeEventListener('close-model-drawer', handleClose as EventListener);
+      window.removeEventListener('model-drawer-error', handleError as EventListener);
       document.removeEventListener('keydown', handleKeyDown);
       cancelRaf();
       if (leaveTimerRef.current !== null) {
@@ -315,7 +359,7 @@ export default function ModelDrawer() {
     }
   }, [phase]);
 
-  if (phase === 'closed' || !model) return null;
+  if (phase === 'closed' || (!model && !loadError)) return null;
 
   const isActive = phase === 'open';
   const reduced = reducedMotionRef.current;
@@ -356,6 +400,72 @@ export default function ModelDrawer() {
       finishClose();
     }
   };
+
+  if (!model && loadError) {
+    return (
+      <>
+        <div
+          className="fixed inset-0 z-40 bg-black/75"
+          style={backdropStyle}
+          onClick={beginClose}
+          aria-hidden="true"
+        />
+        <div
+          ref={panelRef}
+          className="fixed right-0 top-0 z-50 h-full w-full max-w-lg overflow-y-auto border-l border-border-color bg-base shadow-[-24px_0_80px_var(--shadow-color)]"
+          style={panelStyle}
+          onTransitionEnd={handlePanelTransitionEnd}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="model-drawer-title"
+        >
+          <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border-color bg-base/95 px-6 py-5 backdrop-blur">
+            <div className="min-w-0">
+              <p className="font-mono text-xs text-muted">Model detail</p>
+              <h2 id="model-drawer-title" className="mt-1 text-xl font-black text-text">
+                Details could not be loaded
+              </h2>
+            </div>
+            <button
+              ref={closeButtonRef}
+              onClick={beginClose}
+              className="drawer-close inline-grid h-11 w-11 shrink-0 place-items-center border border-border-color p-0 leading-none text-subtle transition-colors hover:border-love hover:bg-love hover:text-[var(--on-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-love"
+              aria-label="Close drawer"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </header>
+
+          <div className="p-6">
+            <section className="rounded-lg border border-border-color bg-surface p-4" role="alert">
+              <p className="text-sm leading-6 text-subtle">
+                The measurements for {loadError.label || 'this model'} did not load. The
+                request to the model detail endpoint failed, so nothing is shown here
+                rather than showing stale numbers.
+              </p>
+              <button
+                type="button"
+                disabled={retrying}
+                onClick={() => {
+                  setRetrying(true);
+                  window.dispatchEvent(
+                    new CustomEvent('retry-model-drawer', { detail: { id: loadError.id } }),
+                  );
+                }}
+                className="mt-4 inline-flex min-h-11 items-center border border-love bg-love px-4 font-mono text-xs font-bold text-[var(--on-accent)] transition-colors hover:bg-base hover:text-love focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-love disabled:opacity-60"
+              >
+                {retrying ? 'Retrying' : 'Try again'}
+              </button>
+            </section>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (!model) return null;
 
   const provider = getProviderIdentity(model);
   const openRouterParameters = Array.isArray(model.openrouter_supported_parameters)

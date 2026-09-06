@@ -20,7 +20,7 @@ const siteName = "AI Stats";
 const siteAuthor = AUTHOR_PERSON.name;
 
 const {
-  title = "AI Stats | AI model stats, LLM ranking & benchmarks by Jonathan R. Reed",
+  title = "AI Stats | AI model stats and benchmarks by Jonathan R. Reed",
   description = "Compare AI model pricing, benchmark scores, context limits, and speed. Public data covering OpenAI, Anthropic, Google, Meta, and other model providers.",
   image = "/social-card.png",
   ogType = "website",
@@ -128,7 +128,9 @@ const pageSchema = {
       /* Evidence colors: score tiers read as state, never as decoration. */
       .score-high { color: var(--ok); }
       .score-mid { color: var(--warn); }
-      .score-low { color: var(--warn); }
+      /* One step past mid, one step short of poor. Mixed from contract tokens
+         so the four tiers stay distinguishable in both themes. */
+      .score-low { color: color-mix(in srgb, var(--warn) 55%, var(--bad)); }
       .score-poor { color: var(--bad); }
       .score-none { color: var(--ink-2); }
 

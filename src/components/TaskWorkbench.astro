@@ -139,7 +139,7 @@ const workbenchPayloadJson = JSON.stringify({
   </section>
 
   <div class="shortlist-frame" data-shortlist-frame aria-busy="false">
-    <div class="shortlist-head" aria-hidden="true">
+    <div class="shortlist-head">
       <span>Model</span>
       <span>Why this row is shown</span>
       <span>Price / 1M</span>
@@ -160,6 +160,7 @@ const workbenchPayloadJson = JSON.stringify({
         return (
           <article class="shortlist-row" data-shortlist-row>
             <div class="candidate-cell" data-label="Model">
+              <span class="cell-label">Model</span>
               <span class="candidate-mark" aria-hidden="true" />
               <div>
                 <h2>{model.label ?? model.id}</h2>
@@ -167,22 +168,27 @@ const workbenchPayloadJson = JSON.stringify({
               </div>
             </div>
             <div class="reason-cell" data-label="Why this row is shown">
+              <span class="cell-label">Why this row is shown</span>
               <p>Has enough named measurements for this comparison.</p>
               <small>{candidate.coverage} of {weightedKeys.length} measurements present</small>
             </div>
             <div class="metric-cell" data-label="Price / 1M">
+              <span class="cell-label">Price / 1M</span>
               <strong>{formatPrice(model.metrics.price_1m_blended_3_to_1)}</strong>
               <small>Input {formatPrice(model.inputPrice)} / output {formatPrice(model.outputPrice)}</small>
             </div>
             <div class="metric-cell" data-label="Speed">
+              <span class="cell-label">Speed</span>
               <strong>{formatMetric(model.metrics.median_output_tokens_per_second)}</strong>
               <small>median tokens/sec</small>
             </div>
             <div class="metric-cell" data-label="Named metric">
+              <span class="cell-label">Named metric</span>
               <strong>{benchmark.value}</strong>
               <small>{benchmark.label} · {benchmark.unit}</small>
             </div>
             <div class="metric-cell coverage-cell" data-label="Coverage">
+              <span class="cell-label">Coverage</span>
               <strong>{candidate.coverage} / {weightedKeys.length}</strong>
               <small>measurements present</small>
             </div>
@@ -241,14 +247,15 @@ const workbenchPayloadJson = JSON.stringify({
   <template id="shortlist-row-template">
     <article class="shortlist-row" data-shortlist-row>
       <div class="candidate-cell" data-label="Model">
+        <span class="cell-label">Model</span>
         <span class="candidate-mark" aria-hidden="true"></span>
         <div><h2 data-model-name>Candidate</h2><p data-model-provider></p></div>
       </div>
-      <div class="reason-cell" data-label="Why this row is shown"><p data-model-reason></p><small data-model-fields></small></div>
-      <div class="metric-cell" data-label="Price / 1M"><strong data-model-price></strong><small data-model-price-detail></small></div>
-      <div class="metric-cell" data-label="Speed"><strong data-model-speed></strong><small>median tokens/sec</small></div>
-      <div class="metric-cell" data-label="Named metric"><strong data-model-benchmark></strong><small data-model-benchmark-detail></small></div>
-      <div class="metric-cell coverage-cell" data-label="Coverage"><strong data-model-coverage></strong><small>measurements present</small></div>
+      <div class="reason-cell" data-label="Why this row is shown"><span class="cell-label">Why this row is shown</span><p data-model-reason></p><small data-model-fields></small></div>
+      <div class="metric-cell" data-label="Price / 1M"><span class="cell-label">Price / 1M</span><strong data-model-price></strong><small data-model-price-detail></small></div>
+      <div class="metric-cell" data-label="Speed"><span class="cell-label">Speed</span><strong data-model-speed></strong><small>median tokens/sec</small></div>
+      <div class="metric-cell" data-label="Named metric"><span class="cell-label">Named metric</span><strong data-model-benchmark></strong><small data-model-benchmark-detail></small></div>
+      <div class="metric-cell coverage-cell" data-label="Coverage"><span class="cell-label">Coverage</span><strong data-model-coverage></strong><small>measurements present</small></div>
       <p class="missing-evidence" data-model-missing hidden><span>Missing measurements</span> <b></b></p>
     </article>
   </template>
@@ -569,6 +576,19 @@ const workbenchPayloadJson = JSON.stringify({
     padding: var(--space-4);
   }
 
+  /* Column name for each cell. Hidden visually while the head row is on
+     screen, shown inline once the head collapses below 900px. */
+  .cell-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
   .candidate-cell {
     display: flex;
     align-items: flex-start;
@@ -693,10 +713,15 @@ const workbenchPayloadJson = JSON.stringify({
       grid-template-columns: repeat(2, minmax(0, 1fr));
       padding: var(--space-2) 0;
     }
-    .shortlist-row > div::before {
-      content: attr(data-label);
+    .shortlist-row > div .cell-label {
+      position: static;
+      width: auto;
+      height: auto;
+      margin: 0 0 0.35rem;
+      overflow: visible;
+      clip-path: none;
+      white-space: normal;
       display: block;
-      margin-bottom: 0.35rem;
       color: var(--ink-2);
       font-size: var(--text-xs);
       font-weight: 500;
@@ -708,7 +733,7 @@ const workbenchPayloadJson = JSON.stringify({
       column-gap: var(--space-3);
       row-gap: 0.35rem;
     }
-    .candidate-cell::before {
+    .candidate-cell .cell-label {
       grid-column: 1 / -1;
       margin-bottom: 0;
     }

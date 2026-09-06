@@ -40,9 +40,6 @@ test("the initial performance chart follows the default task preset", () => {
   expect(source).toContain(
     'selected={value === initialPerformanceMetric}',
   );
-  expect(source).toContain(
-    '<span class="benchmark-picker-value">{initialPerformanceMetricLabel}</span>',
-  );
   expect(source).not.toContain('selected={value === "mmlu_pro"}');
 });
 

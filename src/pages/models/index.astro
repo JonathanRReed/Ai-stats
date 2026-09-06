@@ -21,16 +21,28 @@ for (const record of records) {
   byProvider.set(record.provider, group);
 }
 const providers = [...byProvider.entries()]
-  .map(([provider, group]) => ({
-    provider,
-    id: provider.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "provider",
-    models: [...group].sort(
+  .map(([provider, group]) => {
+    const models = [...group].sort(
       (a, b) =>
         Number(b.indexes[0]?.value ?? -1) - Number(a.indexes[0]?.value ?? -1) || a.name.localeCompare(b.name),
-    ),
-  }))
+    );
+    const indexes = models
+      .map((model) => model.indexes.find((m) => m.key === "aa_intelligence_index")?.value ?? null)
+      .filter((value): value is number => value !== null);
+    return {
+      provider,
+      id: provider.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "provider",
+      models,
+      indexRange: indexes.length
+        ? indexes.length === 1
+          ? indexes[0].toFixed(1)
+          : `${Math.min(...indexes).toFixed(1)} to ${Math.max(...indexes).toFixed(1)}`
+        : null,
+    };
+  })
   .sort((a, b) => b.models.length - a.models.length || a.provider.localeCompare(b.provider));
 const currentCount = records.filter((record) => record.current).length;
+const hasRecords = records.length > 0;
 
 const title = "Every AI model tracked, with its price, speed, and benchmark receipt | AI Stats";
 const description = `${records.length} models from ${providers.length} providers, each with a page listing price per million tokens, output speed, context length, benchmark scores, and catalog identifiers with source and observation dates.`;
@@ -96,29 +108,63 @@ const jsonLd = JSON.stringify({
       <p class="eco-label">Model pages</p>
       <h1>Every model tracked, one receipt each.</h1>
       <p class="models-lead">
-        {records.length} models from {providers.length} providers. Each page lists price, speed, context, benchmark scores, and catalog identifiers with the source and the date it was last observed. {currentCount} pass the current-cohort filter used on the front page. Nothing here is a ranking.
+        {hasRecords
+          ? `${records.length} models from ${providers.length} providers. Each page lists price, speed, context, benchmark scores, and catalog identifiers with the source and the date it was last observed. ${currentCount} pass the current-cohort filter used on the front page. Nothing here is a ranking.`
+          : "Model data is unavailable in this build, so there is nothing to list or search on this page."}
       </p>
+      {hasRecords ? (
       <dl class="models-facts eco-joined">
         <div><dt>Data refreshed</dt><dd>{refreshed}</dd></div>
         <div><dt>Models</dt><dd>{records.length}</dd></div>
         <div><dt>Providers</dt><dd>{providers.length}</dd></div>
         <div><dt>Machine-readable</dt><dd><a href="/api/models.json">models.json</a> · <a href="/llms-full.txt">llms-full.txt</a></dd></div>
       </dl>
-      <nav class="models-jump" aria-label="Jump to provider">
-        {providers.map((group) => (
-          <a href={`#${group.id}`}>{group.provider} <span>{group.models.length}</span></a>
-        ))}
-      </nav>
+      ) : null}
+      {hasRecords ? (
+      <div class="models-find" id="models-find" hidden>
+        <label class="models-search">
+          <span class="eco-label">Find a model</span>
+          <input
+            type="search"
+            id="models-search-input"
+            placeholder="Model or provider name"
+            autocomplete="off"
+            spellcheck="false"
+            aria-describedby="models-search-status"
+          />
+        </label>
+        <div class="models-find-actions">
+          <button type="button" id="models-expand" class="eco-btn eco-btn-secondary eco-btn-sm">Open every provider</button>
+          <button type="button" id="models-collapse" class="eco-btn eco-btn-secondary eco-btn-sm">Close every provider</button>
+        </div>
+        <p class="models-search-status" id="models-search-status" role="status">Providers are closed. Open one, or search to look across all {records.length} models.</p>
+      </div>
+      ) : null}
     </header>
 
-    {providers.map((group) => (
-      <section class="eco-panel models-group" aria-labelledby={`${group.id}-heading`} id={group.id}>
-        <header class="eco-panel-head">
-          <div>
-            <h2 id={`${group.id}-heading`}>{group.provider}</h2>
-            <p>{group.models.length} {group.models.length === 1 ? "model" : "models"}, ordered by AA Index where one is published.</p>
-          </div>
-        </header>
+    {!hasRecords ? (
+      <section class="eco-panel models-unavailable">
+        <h2>Model data is unavailable in this build</h2>
+        <p>
+          No model records were generated when this page was built, so no provider
+          sections and no search are shown. The machine-readable exports carry the
+          same snapshot: <a href="/api/models.json">models.json</a> and{" "}
+          <a href="/llms-full.txt">llms-full.txt</a>.
+        </p>
+      </section>
+    ) : null}
+
+    {hasRecords ? providers.map((group) => (
+      <details class="eco-panel models-group" id={group.id} data-provider={group.provider.toLowerCase()}>
+        <summary>
+          <h2 id={`${group.id}-heading`}>{group.provider}</h2>
+          <span class="models-group-meta">
+            {group.models.length} {group.models.length === 1 ? "model" : "models"}
+            {group.indexRange ? <> · AA Index {group.indexRange}</> : null}
+          </span>
+          <span class="models-group-hint" aria-hidden="true"></span>
+        </summary>
+        <p class="models-group-note">Ordered by AA Index where one is published. This describes the data, it does not recommend a model.</p>
         <div class="models-table-wrap">
           <table class="models-table">
             <thead>
@@ -147,9 +193,88 @@ const jsonLd = JSON.stringify({
             </tbody>
           </table>
         </div>
-      </section>
-    ))}
+      </details>
+    )) : null}
   </main>
+
+  <script>
+    // Progressive enhancement: the page works with every provider closed and
+    // opened by click. With JavaScript the search filters rows across all
+    // providers and opens only the sections that still have a match.
+    const find = document.getElementById("models-find");
+    const input = document.getElementById("models-search-input") as HTMLInputElement | null;
+    const status = document.getElementById("models-search-status");
+    const groups = Array.from(document.querySelectorAll<HTMLDetailsElement>(".models-group"));
+    if (find && input && status && groups.length) {
+      find.hidden = false;
+      const rows = groups.map((group) => ({
+        group,
+        provider: group.dataset.provider ?? "",
+        items: Array.from(group.querySelectorAll<HTMLTableRowElement>("tbody tr")).map((row) => ({
+          row,
+          name: (row.querySelector("th a")?.textContent ?? "").toLowerCase(),
+        })),
+      }));
+      const closedMessage = status.textContent ?? "";
+
+      const apply = (raw: string) => {
+        const query = raw.trim().toLowerCase();
+        if (!query) {
+          for (const entry of rows) {
+            for (const item of entry.items) item.row.hidden = false;
+            entry.group.hidden = false;
+            entry.group.open = false;
+          }
+          status.textContent = closedMessage;
+          return;
+        }
+        let matches = 0;
+        let shownGroups = 0;
+        for (const entry of rows) {
+          const providerHit = entry.provider.includes(query);
+          let groupMatches = 0;
+          for (const item of entry.items) {
+            const hit = providerHit || item.name.includes(query);
+            item.row.hidden = !hit;
+            if (hit) groupMatches += 1;
+          }
+          matches += groupMatches;
+          entry.group.hidden = groupMatches === 0;
+          entry.group.open = groupMatches > 0;
+          if (groupMatches > 0) shownGroups += 1;
+        }
+        status.textContent = matches
+          ? `${matches} ${matches === 1 ? "model" : "models"} across ${shownGroups} ${shownGroups === 1 ? "provider" : "providers"}.`
+          : "No model or provider matches that search.";
+      };
+
+      let frame = 0;
+      input.addEventListener("input", () => {
+        window.cancelAnimationFrame(frame);
+        frame = window.requestAnimationFrame(() => apply(input.value));
+      });
+
+      document.getElementById("models-expand")?.addEventListener("click", () => {
+        for (const entry of rows) if (!entry.group.hidden) entry.group.open = true;
+      });
+      document.getElementById("models-collapse")?.addEventListener("click", () => {
+        for (const entry of rows) entry.group.open = false;
+      });
+
+      // A link to #provider must reveal that provider, not just scroll to a closed row.
+      const openFromHash = () => {
+        const id = decodeURIComponent(window.location.hash.replace("#", ""));
+        if (!id) return;
+        const target = document.getElementById(id);
+        if (target instanceof HTMLDetailsElement) {
+          target.open = true;
+          target.scrollIntoView({ block: "start" });
+        }
+      };
+      window.addEventListener("hashchange", openFromHash);
+      openFromHash();
+    }
+  </script>
 
   <Footer />
   <ScrollToTop />
@@ -165,11 +290,55 @@ const jsonLd = JSON.stringify({
   .models-facts dt { font-size: var(--text-xs); color: var(--ink-2); }
   .models-facts dd { margin: 0; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink-0); }
   .models-facts a { color: var(--signal-text); }
-  .models-jump { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-  .models-jump a { display: inline-flex; gap: 0.4rem; align-items: baseline; padding: 0.35rem 0.6rem; border: 1px solid var(--line-0); background: var(--surface-1); color: var(--ink-1); text-decoration: none; font-size: var(--text-xs); border-radius: var(--radius-sm); }
-  .models-jump a span { font-family: var(--font-mono); color: var(--ink-2); }
-  .models-jump a:hover { border-color: var(--signal); color: var(--ink-0); }
+  .models-find { display: grid; gap: var(--space-3); grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+  .models-search { display: grid; gap: var(--space-1); }
+  .models-search input {
+    width: 100%;
+    min-height: var(--control-h);
+    padding: 0 var(--space-3);
+    border: 1px solid var(--line-1);
+    border-radius: var(--radius-sm);
+    background: var(--surface-1);
+    color: var(--ink-0);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+  }
+  .models-search input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-color: var(--signal); }
+  .models-find-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .models-search-status { grid-column: 1 / -1; margin: 0; color: var(--ink-2); font-size: var(--text-xs); }
   .models-group { display: grid; gap: var(--space-3); scroll-margin-top: calc(var(--header-h) + var(--space-3)); }
+  .models-group > summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2) var(--space-3);
+    cursor: pointer;
+    list-style: none;
+    padding: var(--space-1) 0;
+  }
+  .models-group > summary::-webkit-details-marker { display: none; }
+  .models-group > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
+  .models-group > summary h2 { margin: 0; font-size: var(--text-lg); font-weight: 600; color: var(--ink-0); }
+  .models-group-meta { color: var(--ink-2); font-family: var(--font-mono); font-size: var(--text-xs); }
+  .models-group-hint {
+    margin-inline-start: auto;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-right: 2px solid var(--ink-2);
+    border-bottom: 2px solid var(--ink-2);
+    transform: rotate(45deg) translate(-0.15rem, -0.15rem);
+    transition: transform var(--dur-fast) var(--ease-standard);
+  }
+  .models-group[open] > summary .models-group-hint { transform: rotate(225deg) translate(-0.1rem, -0.1rem); }
+  .models-group > summary:hover h2 { color: var(--signal-text); }
+  .models-group-note { margin: 0; color: var(--ink-2); font-size: var(--text-xs); }
+  .models-unavailable { padding: var(--space-5); display: grid; gap: var(--space-3); }
+  .models-unavailable h2 { margin: 0; font-size: var(--text-lg); font-weight: 600; color: var(--ink-0); }
+  .models-unavailable p { margin: 0; color: var(--ink-1); max-width: 64ch; line-height: var(--leading-relaxed); }
+  .models-unavailable a { color: var(--signal-text); }
+  @media (max-width: 640px) {
+    .models-find { grid-template-columns: minmax(0, 1fr); }
+  }
   .models-table-wrap { overflow-x: auto; }
   .models-table { width: 100%; min-width: 44rem; border-collapse: collapse; font-size: var(--text-sm); }
   .models-table th, .models-table td { padding: var(--space-2) var(--space-3); border-top: 1px solid var(--line-0); text-align: left; vertical-align: top; }

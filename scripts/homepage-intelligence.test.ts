@@ -165,9 +165,17 @@ test("the homepage components preserve non-color state labels and reduced-motion
 });
 
 test("compact shortlist cards reserve their own row for the candidate label", () => {
-  expect(workbenchSource).toContain(".candidate-cell::before {");
+  // The column name is a real element, not generated content, so assistive
+  // technology reads it at every width.
+  expect(workbenchSource).toContain('<span class="cell-label">Model</span>');
+  expect(workbenchSource).toContain(".candidate-cell .cell-label {");
   expect(workbenchSource).toContain("grid-column: 1 / -1;");
   expect(workbenchSource).not.toContain(
-    ".candidate-cell::before { position: absolute; }",
+    ".candidate-cell .cell-label { position: absolute; }",
   );
+});
+
+test("the shortlist head is exposed to assistive technology", () => {
+  expect(workbenchSource).toContain('<div class="shortlist-head">');
+  expect(workbenchSource).not.toContain('class="shortlist-head" aria-hidden');
 });

@@ -400,7 +400,7 @@ function getScoreClass(score: number | null | undefined): string {
               <h2>Public catalog data</h2>
             </div>
             <div class="openrouter-actions">
-              <label for="openrouter-rank-metric">Rank by</label>
+              <label for="openrouter-rank-metric">Order by</label>
               <div class="openrouter-select-wrap">
                 <select id="openrouter-rank-metric" class="openrouter-rank-select">
                   {openRouterRankOptions.map((option) => (
@@ -418,6 +418,10 @@ function getScoreClass(score: number | null | undefined): string {
               </a>
             </div>
           </header>
+          <p class="openrouter-notice" id="openrouter-catalog-notice" role="status" hidden>
+            <span>Live public catalog data could not be loaded. The figures below are the ones stored when this page was built.</span>
+            <button type="button" id="openrouter-catalog-retry" class="toolbar-control px-3 py-1 text-xs text-text">Retry</button>
+          </p>
           <div class="openrouter-grid">
             <section class="openrouter-stats" aria-label="Public catalog totals">
               <dl>
@@ -462,15 +466,15 @@ function getScoreClass(score: number | null | undefined): string {
                 Routing and availability signals. Benchmark scores stay AA and Epoch.
               </p>
             </section>
-            <section class="openrouter-table" aria-label="Public catalog provider leaderboard">
+            <section class="openrouter-table" aria-label="Public catalog providers by usage">
               <div class="openrouter-table-meta">
                 <span id="openrouter-board-title">Provider coverage</span>
-                <small id="openrouter-board-note">OpenRouter route catalog ranking</small>
+                <small id="openrouter-board-note">OpenRouter route catalog by usage</small>
               </div>
-              <div class="openrouter-table-head" aria-hidden="true">
+              <div class="openrouter-table-head">
                 <span>Provider</span>
-                <span>Leader</span>
-                <span>Usage</span>
+                <span id="openrouter-col-detail">Requests</span>
+                <span id="openrouter-col-value">Usage tokens</span>
                 <span>Models</span>
                 <span>Max ctx</span>
               </div>
@@ -480,6 +484,7 @@ function getScoreClass(score: number | null | undefined): string {
                     <button
                       type="button"
                       class="openrouter-provider-row"
+                      aria-label={`Provider ${provider.provider}. Requests ${formatCompactNumber(provider.usageRequests)}. Usage tokens ${formatCompactNumber(provider.usageTokens)}. Models ${provider.total}. Max context ${formatContextLength(provider.maxContext)}.`}
                       data-openrouter-provider={provider.provider}
                       data-openrouter-provider-query={provider.provider}
                     >
@@ -505,7 +510,7 @@ function getScoreClass(score: number | null | undefined): string {
               </span>
               <small>
                 {topLiteLlmContextMatch
-                  ? `Top OpenRouter usage match: ${topOpenRouterUsageModel?.name ?? "-"}, ${topOpenRouterUsageModel ? formatCompactNumber(topOpenRouterUsageModel.openrouter_usage_tokens) : "-"} tokens`
+                  ? `Most OpenRouter usage: ${topOpenRouterUsageModel?.name ?? "-"}, ${topOpenRouterUsageModel ? formatCompactNumber(topOpenRouterUsageModel.openrouter_usage_tokens) : "-"} tokens`
                   : `${openRouterToolModels.length} OpenRouter tool-ready routes, ${openRouterVisionModels.length} vision routes, ${openRouterEndpointSummaries.length} endpoint checks`}
               </small>
             </aside>
@@ -514,18 +519,18 @@ function getScoreClass(score: number | null | undefined): string {
       ) : null
     }
 
-    <!-- Leaderboard -->
-    <section id="leaderboard" aria-label="Leaderboard" class="space-y-4 fade-in-section scroll-mt-28">
+    <!-- Models by metric -->
+    <section id="leaderboard" aria-label="Models by metric" class="space-y-4 fade-in-section scroll-mt-28">
       <article class="brutalist-card">
         <header
           class="relative z-20 flex flex-col gap-3 border-b border-highlight-low/80 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6"
         >
           <div>
             <h2 class="text-lg font-semibold text-text">
-              Leaderboard
+              Models by metric
             </h2>
-            <p class="text-[0.7rem] text-subtle md:text-xs">
-              Switch metrics to see different top-5 rankings.
+            <p class="text-[length:var(--text-xs)] text-subtle md:text-xs">
+              Switch metrics to reorder the table.
             </p>
           </div>
           <div class="leaderboard-controls relative z-30">
@@ -538,7 +543,7 @@ function getScoreClass(score: number | null | undefined): string {
             </a>
             <label
               for="leaderboard-metric"
-              class="text-[0.7rem] font-medium text-subtle"
+              class="text-[length:var(--text-xs)] font-medium text-subtle"
             >
               Metric
             </label>
@@ -554,39 +559,6 @@ function getScoreClass(score: number | null | undefined): string {
                 ))
               }
             </select>
-            <div
-              class="benchmark-picker"
-              data-benchmark-picker
-              data-target-select="leaderboard-metric"
-              hidden
-            >
-              <button
-                type="button"
-                class="benchmark-picker-trigger"
-                aria-haspopup="listbox"
-                aria-expanded="false"
-              >
-                <span class="benchmark-picker-kicker">Selected metric</span>
-                <span class="benchmark-picker-value">MMLU Pro</span>
-              </button>
-              <div class="benchmark-picker-popover" hidden>
-                <label class="sr-only" for="leaderboard-benchmark-search">
-                  Search benchmarks
-                </label>
-                <input
-                  id="leaderboard-benchmark-search"
-                  class="benchmark-picker-search"
-                  type="search"
-                  placeholder="Search benchmarks..."
-                  autocomplete="off"
-                />
-                <div
-                  class="benchmark-picker-list"
-                  role="listbox"
-                  aria-label="Leaderboard metric"
-                ></div>
-              </div>
-            </div>
           </div>
         </header>
         <p
@@ -791,7 +763,7 @@ function getScoreClass(score: number | null | undefined): string {
                   id="model-sort-direction"
                   class="toolbar-control w-full px-3 py-2 text-sm text-text sm:w-32"
                 >
-                  <option value="desc">Top first</option>
+                  <option value="desc">Highest first</option>
                   <option value="asc">Lowest first</option>
                 </select>
               </div>
@@ -907,6 +879,10 @@ function getScoreClass(score: number | null | undefined): string {
                 <tr
                   class="cursor-pointer transition-colors hover:bg-highlight-low/50"
                   data-table-row
+                  tabindex="0"
+                  role="button"
+                  aria-label={`Open details for ${model.name ?? "Unknown model"}, ${model.company_name ?? "Unknown provider"}`}
+                  data-card-label={`${model.name ?? "Unknown model"}, ${model.company_name ?? "Unknown provider"}`}
                   data-model-id={model.id}
                   data-name={(model.name ?? "").toLowerCase()}
                   data-company={(model.company_name ?? "").toLowerCase()}
@@ -1239,8 +1215,26 @@ function getScoreClass(score: number | null | undefined): string {
   }
 
   .openrouter-rank-select:focus-visible {
-    outline: 2px solid var(--focus-ring);
+    outline: 2px solid var(--focus);
     outline-offset: 2px;
+  }
+
+  .openrouter-notice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    margin: 0;
+    border-block: 1px solid color-mix(in srgb, var(--bad) 40%, transparent);
+    background: var(--bad-soft);
+    padding: var(--space-3) var(--space-4);
+    color: var(--ink-0);
+    font-size: var(--text-xs);
+  }
+
+  .openrouter-notice span {
+    min-width: 0;
+    flex: 1 1 18rem;
   }
 
   .openrouter-grid {
@@ -1382,7 +1376,7 @@ function getScoreClass(score: number | null | undefined): string {
   }
 
   .openrouter-provider-row:focus-visible {
-    outline: 2px solid var(--focus-ring);
+    outline: 2px solid var(--focus);
     outline-offset: -2px;
   }
 
@@ -1488,10 +1482,9 @@ function getScoreClass(score: number | null | undefined): string {
     margin-top: 1rem;
     color: var(--muted);
     font-family: var(--font-mono);
-    font-size: 0.6rem;
-    font-weight: 900;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.02em;
   }
 
   html.motion-ready .empty-state:not(.hidden) {
@@ -1590,256 +1583,6 @@ function getScoreClass(score: number | null | undefined): string {
     pointer-events: none;
   }
 
-  .benchmark-picker {
-    position: relative;
-    width: 100%;
-    min-width: min(22rem, 100%);
-    z-index: 40;
-  }
-
-  .benchmark-picker-trigger {
-    min-height: 44px;
-    width: 100%;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.55rem;
-    align-items: center;
-    border: 1px solid var(--line-1);
-    border-radius: var(--radius-md);
-    background: var(--surface-0);
-    color: var(--text);
-    cursor: pointer;
-    padding: 0.45rem 2.4rem 0.45rem 0.7rem;
-    position: relative;
-    text-align: left;
-    transition:
-      border-color 0.2s ease,
-      background-color 0.2s ease,
-      box-shadow 0.2s ease;
-  }
-
-  .benchmark-picker-trigger::after {
-    content: "";
-    position: absolute;
-    right: 0.8rem;
-    top: 50%;
-    width: 0.46rem;
-    height: 0.46rem;
-    border-bottom: 2px solid var(--subtle);
-    border-right: 2px solid var(--subtle);
-    transform: translateY(-60%) rotate(45deg);
-    transition: transform 0.18s ease;
-  }
-
-  .benchmark-picker.open .benchmark-picker-trigger::after {
-    transform: translateY(-35%) rotate(225deg);
-  }
-
-  .benchmark-picker-trigger:hover,
-  .benchmark-picker-trigger:focus-visible {
-    border-color: var(--love);
-    background: color-mix(in srgb, var(--surface) 82%, var(--highlight-low));
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--love) 18%, transparent);
-    outline: none;
-  }
-
-  .benchmark-picker-kicker {
-    grid-column: 1 / -1;
-    color: var(--ink-2);
-    font-size: 0.7rem;
-    font-weight: 500;
-    line-height: 1;
-  }
-
-  .benchmark-picker-value {
-    min-width: 0;
-    overflow: hidden;
-    color: var(--ink-0);
-    font-size: var(--text-sm);
-    font-weight: 500;
-    line-height: 1.2;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .benchmark-picker-popover {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: calc(100% + 0.4rem);
-    z-index: 80;
-    display: grid;
-    gap: 0.45rem;
-    max-height: min(28rem, 72vh);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-s);
-    background: color-mix(in srgb, var(--base) 97%, black);
-    box-shadow: 0 24px 60px color-mix(in srgb, var(--shadow-color) 85%, black);
-    padding: 0.5rem;
-  }
-
-  .benchmark-picker-popover[hidden] {
-    display: none;
-  }
-
-  .benchmark-picker-search {
-    width: 100%;
-    min-height: 40px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-s);
-    background: var(--surface);
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    font-weight: 700;
-    padding: 0.55rem 0.65rem;
-  }
-
-  .benchmark-picker-search:focus {
-    outline: none;
-    border-color: color-mix(in srgb, var(--love) 58%, var(--border-color));
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--love) 20%, transparent);
-  }
-
-  .benchmark-picker-list {
-    display: grid;
-    gap: 0.25rem;
-    max-height: 21rem;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding-right: 0.15rem;
-  }
-
-  .benchmark-picker-group {
-    margin: 0.35rem 0 0.15rem;
-    color: var(--muted);
-    font-family: var(--font-mono);
-    font-size: 0.58rem;
-    font-weight: 900;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .benchmark-picker-option {
-    min-height: 38px;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0.55rem;
-    border: 1px solid transparent;
-    border-radius: var(--radius-s);
-    background: transparent;
-    color: var(--subtle);
-    cursor: pointer;
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    font-weight: 800;
-    padding: 0.5rem 0.55rem;
-    text-align: left;
-    text-transform: uppercase;
-  }
-
-  .benchmark-picker-option span:first-child {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .benchmark-picker-option:hover,
-  .benchmark-picker-option:focus-visible {
-    border-color: var(--border-color);
-    background: var(--highlight-low);
-    color: var(--text);
-    outline: none;
-  }
-
-  .benchmark-picker-option[aria-selected="true"] {
-    border-color: color-mix(in srgb, var(--love) 55%, var(--border-color));
-    background: color-mix(in srgb, var(--love) 16%, var(--highlight-low));
-    color: var(--text);
-  }
-
-  .benchmark-picker-source {
-    color: var(--muted);
-    font-size: 0.56rem;
-    letter-spacing: 0.06em;
-  }
-
-  .benchmark-picker-empty {
-    color: var(--muted);
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    padding: 0.7rem;
-    text-align: center;
-    text-transform: uppercase;
-  }
-
-  .benchmark-picker-group {
-    margin: 0.35rem 0 0.15rem;
-    color: var(--muted);
-    font-family: var(--font-mono);
-    font-size: 0.58rem;
-    font-weight: 900;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .benchmark-picker-option {
-    min-height: 38px;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0.55rem;
-    border: 1px solid transparent;
-    border-radius: var(--radius-s);
-    background: transparent;
-    color: var(--subtle);
-    cursor: pointer;
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    font-weight: 800;
-    padding: 0.5rem 0.55rem;
-    text-align: left;
-    text-transform: uppercase;
-  }
-
-  .benchmark-picker-option span:first-child {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .benchmark-picker-option:hover,
-  .benchmark-picker-option:focus-visible {
-    border-color: var(--border-color);
-    background: var(--highlight-low);
-    color: var(--text);
-    outline: none;
-  }
-
-  .benchmark-picker-option[aria-selected="true"] {
-    border-color: color-mix(in srgb, var(--love) 55%, var(--border-color));
-    background: color-mix(in srgb, var(--love) 16%, var(--highlight-low));
-    color: var(--text);
-  }
-
-  .benchmark-picker-source {
-    color: var(--muted);
-    font-size: 0.56rem;
-    letter-spacing: 0.06em;
-  }
-
-  .benchmark-picker-empty {
-    color: var(--muted);
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    padding: 0.7rem;
-    text-align: center;
-    text-transform: uppercase;
-  }
-
   #model-sort,
   #model-sort-direction {
     padding-right: 3.25rem;
@@ -1896,55 +1639,6 @@ function getScoreClass(score: number | null | undefined): string {
     border-bottom: 0;
   }
 
-  .openrouter-provider-row {
-    display: grid;
-    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr) minmax(3.8rem, 0.45fr) minmax(3.6rem, 0.38fr) minmax(4.8rem, 0.44fr);
-    align-items: center;
-    gap: 0.75rem;
-    width: 100%;
-    min-height: 2.7rem;
-    border: 0;
-    background: transparent;
-    color: var(--subtle);
-    cursor: pointer;
-    font-size: 0.73rem;
-    padding: 0;
-    text-align: left;
-    transition:
-      background-color 0.18s ease,
-      color 0.18s ease;
-  }
-
-  .openrouter-provider-row:hover,
-  .openrouter-provider-row:focus-visible {
-    background: var(--highlight-low);
-    color: var(--text);
-  }
-
-  .openrouter-provider-row:focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: -2px;
-  }
-
-  .openrouter-model,
-  .openrouter-leader {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .openrouter-model {
-    color: var(--text);
-    font-weight: 800;
-  }
-
-  .openrouter-score {
-    color: var(--foam);
-    font-family: var(--font-mono);
-    font-weight: 900;
-  }
-
   .leaderboard-controls {
     display: grid;
     grid-template-columns: max-content max-content minmax(11rem, 22rem);
@@ -1968,6 +1662,12 @@ function getScoreClass(score: number | null | undefined): string {
     outline: none;
     border-color: var(--love);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--love) 25%, transparent);
+  }
+
+  [data-table-row]:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: -2px;
+    background: var(--surface-2);
   }
 
   .lr {
@@ -2050,27 +1750,29 @@ function getScoreClass(score: number | null | undefined): string {
     position: absolute;
     inset: 0 auto 0 0;
     width: var(--w);
+    transform-origin: left center;
     border-left: 1px solid var(--highlight-med);
     transition: filter var(--dur-fast) var(--ease-smooth);
   }
 
-  /* Animated bar fill: collapse to 0, then grow to --w when revealed. */
+  /* Animated bar fill: the bar always occupies --w, the reveal scales it in
+     from the left so the browser composites instead of relaying out. */
   html.motion-ready #leaderboard .lbb {
-    width: 0;
+    transform: scaleX(0);
     transition:
-      width var(--dur-slow) var(--ease-out-expo),
+      transform var(--dur-slow) var(--ease-out-expo),
       filter var(--dur-fast) var(--ease-smooth);
     transition-delay: calc(var(--row-index, 0) * 60ms), 0ms;
   }
 
   html.motion-ready #leaderboard .leaderboard-revealed .lbb {
-    width: var(--w);
+    transform: scaleX(1);
   }
 
   @media (prefers-reduced-motion: reduce) {
     html.motion-ready #leaderboard .lbb,
     html.motion-ready #leaderboard .leaderboard-revealed .lbb {
-      width: var(--w);
+      transform: none;
       transition: none;
     }
   }
@@ -2294,10 +1996,6 @@ function getScoreClass(score: number | null | undefined): string {
       min-width: 38rem;
     }
 
-    .openrouter-provider-row {
-      min-width: 38rem;
-    }
-
     .telemetry-bento {
       grid-template-columns: 1fr;
     }
@@ -2386,24 +2084,6 @@ function getScoreClass(score: number | null | undefined): string {
     const leaderboardAttribution = document.getElementById(
       "leaderboard-attribution",
     );
-    const metricPicker = document.querySelector(
-      '[data-benchmark-picker][data-target-select="leaderboard-metric"]',
-    );
-    const metricPickerTrigger = metricPicker?.querySelector(
-      ".benchmark-picker-trigger",
-    );
-    const metricPickerValue = metricPicker?.querySelector(
-      ".benchmark-picker-value",
-    );
-    const metricPickerPopover = metricPicker?.querySelector(
-      ".benchmark-picker-popover",
-    );
-    const metricPickerSearch = metricPicker?.querySelector(
-      ".benchmark-picker-search",
-    );
-    const metricPickerList = metricPicker?.querySelector(
-      ".benchmark-picker-list",
-    );
     const leaderboardCompareLink = document.getElementById(
       "leaderboard-compare-link",
     );
@@ -2417,6 +2097,28 @@ function getScoreClass(score: number | null | undefined): string {
       "openrouter-board-title",
     );
     const openRouterBoardNote = document.getElementById("openrouter-board-note");
+    const openRouterColDetail = document.getElementById("openrouter-col-detail");
+    const openRouterColValue = document.getElementById("openrouter-col-value");
+    const publicCatalogNotice = document.getElementById(
+      "openrouter-catalog-notice",
+    );
+    const publicCatalogRetry = document.getElementById(
+      "openrouter-catalog-retry",
+    );
+    const setPublicCatalogNotice = (visible) => {
+      if (publicCatalogNotice) publicCatalogNotice.hidden = !visible;
+      // A select whose options describe data that never arrived is not usable.
+      if (openRouterRankSelect) openRouterRankSelect.disabled = visible;
+    };
+    publicCatalogRetry?.addEventListener("click", () => {
+      publicCatalogRetry.disabled = true;
+      setPublicCatalogNotice(false);
+      void loadPublicCatalogData()
+        .then(() => renderOpenRouterProviderLeaderboard())
+        .finally(() => {
+          publicCatalogRetry.disabled = false;
+        });
+    });
     const emptyState = document.getElementById("empty-state");
     const viewCardsBtn = document.getElementById("view-cards");
     const viewTableBtn = document.getElementById("view-table");
@@ -2428,7 +2130,6 @@ function getScoreClass(score: number | null | undefined): string {
     let matchedTotal = 0;
     let currentView = "cards";
     let focusedCardIndex = -1;
-    let benchmarkPickerOptions = [];
     let publicCatalogLoadPromise = null;
 
     const loadPublicCatalogData = () => {
@@ -2446,6 +2147,7 @@ function getScoreClass(score: number | null | undefined): string {
           return response.json();
         })
         .then((catalogs) => {
+          setPublicCatalogNotice(false);
           window.__aistatsOpenRouterModels = catalogs.openRouterModels || [];
           window.__aistatsHuggingFaceModels = catalogs.huggingFaceModels || [];
           window.__aistatsLiteLlmModels = catalogs.liteLlmModels || [];
@@ -2456,6 +2158,9 @@ function getScoreClass(score: number | null | undefined): string {
           window.__aistatsPublicCatalogLoaded = true;
         })
         .catch((error) => {
+          // Drop the cached promise so the retry control can refetch.
+          publicCatalogLoadPromise = null;
+          setPublicCatalogNotice(true);
           console.warn("Failed to load public catalog data", error);
         });
 
@@ -2479,148 +2184,6 @@ function getScoreClass(score: number | null | undefined): string {
       const str = String(value ?? "").trim();
       return str || fallback;
     };
-
-    const getBenchmarkGroup = (value) => {
-      if (value.startsWith("epoch_")) return "Epoch benchmark pool";
-      if (value.startsWith("aa_")) return "Artificial Analysis indexes";
-      return "Artificial Analysis benchmarks";
-    };
-
-    const syncMetricPickerValue = () => {
-      if (!metricSelect || !metricPickerValue) return;
-      const current = benchmarkPickerOptions.find(
-        (option) => option.key === metricSelect.value,
-      );
-      metricPickerValue.textContent =
-        current?.label ||
-        metricSelect.selectedOptions?.[0]?.textContent ||
-        metricSelect.value ||
-        "Select metric";
-    };
-
-    const renderMetricPickerOptions = () => {
-      if (!metricSelect || !metricPickerList) return;
-      const query =
-        metricPickerSearch instanceof HTMLInputElement
-          ? metricPickerSearch.value.trim().toLowerCase()
-          : "";
-      const options = benchmarkPickerOptions.filter((option) => {
-        const haystack = `${option.label} ${option.key}`.toLowerCase();
-        return !query || haystack.includes(query);
-      });
-
-      if (!options.length) {
-        metricPickerList.innerHTML =
-          '<div class="benchmark-picker-empty">No matching benchmarks</div>';
-        return;
-      }
-
-      let lastGroup = "";
-      metricPickerList.innerHTML = options
-        .map((option) => {
-          const group = getBenchmarkGroup(option.key);
-          const groupHtml =
-            group !== lastGroup
-              ? `<div class="benchmark-picker-group">${escapeHtml(group)}</div>`
-              : "";
-          lastGroup = group;
-          const source = option.source === "epoch" ? "Epoch" : "AA";
-          return `${groupHtml}<button type="button" class="benchmark-picker-option" role="option" data-metric-value="${escapeHtml(option.key)}" aria-selected="${String(metricSelect.value === option.key)}"><span>${escapeHtml(option.label)}</span><span class="benchmark-picker-source">${source}</span></button>`;
-        })
-        .join("");
-    };
-
-    const setMetricPickerOptions = (configs) => {
-      benchmarkPickerOptions = (configs || []).map((config) => ({
-        key: config.key,
-        label: config.label,
-        source: config.source,
-      }));
-      syncMetricPickerValue();
-      renderMetricPickerOptions();
-    };
-
-    const setMetricPickerOpen = (open) => {
-      if (!metricPicker || !metricPickerTrigger || !metricPickerPopover) return;
-      metricPicker.classList.toggle("open", open);
-      metricPickerTrigger.setAttribute("aria-expanded", String(open));
-      metricPickerPopover.hidden = !open;
-      if (open) {
-        renderMetricPickerOptions();
-        if (metricPickerSearch instanceof HTMLInputElement) {
-          metricPickerSearch.value = "";
-          window.requestAnimationFrame(() => metricPickerSearch.focus());
-        }
-      }
-    };
-
-    const selectMetric = (value) => {
-      if (!metricSelect) return;
-      const hasOption = benchmarkPickerOptions.some(
-        (option) => option.key === value,
-      );
-      if (!hasOption) return;
-      metricSelect.value = value;
-      syncMetricPickerValue();
-      setMetricPickerOpen(false);
-      metricSelect.dispatchEvent(new Event("change", { bubbles: true }));
-      metricPickerTrigger?.focus();
-    };
-
-    let metricPickerPointerHandled = false;
-    const toggleMetricPicker = () => {
-      setMetricPickerOpen(!metricPicker?.classList.contains("open"));
-    };
-
-    metricPickerTrigger?.addEventListener("pointerdown", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      metricPickerPointerHandled = true;
-      toggleMetricPicker();
-      window.setTimeout(() => {
-        metricPickerPointerHandled = false;
-      }, 0);
-    });
-
-    metricPickerTrigger?.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (metricPickerPointerHandled) return;
-      toggleMetricPicker();
-    });
-
-    metricPickerTrigger?.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      event.stopPropagation();
-      toggleMetricPicker();
-    });
-
-    metricPickerPopover?.addEventListener("click", (event) => {
-      event.stopPropagation();
-    });
-
-    metricPickerSearch?.addEventListener("input", renderMetricPickerOptions);
-
-    metricPickerList?.addEventListener("click", (event) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      const option = target.closest("[data-metric-value]");
-      if (!(option instanceof HTMLElement)) return;
-      selectMetric(option.dataset.metricValue || "");
-    });
-
-    metricPicker?.addEventListener("keydown", (event) => {
-      if (event.key !== "Escape") return;
-      setMetricPickerOpen(false);
-      metricPickerTrigger?.focus();
-    });
-
-    document.addEventListener("click", (event) => {
-      if (!metricPicker || !event.target) return;
-      if (metricPicker.contains(event.target)) return;
-      setMetricPickerOpen(false);
-    });
 
     const METRIC_ATTRIBUTIONS = window.__benchmarkAttributions || {};
     const renderAttributionText = (metricKey) => {
@@ -3120,14 +2683,14 @@ function getScoreClass(score: number | null | undefined): string {
     };
 
     const OPENROUTER_RANK_METRICS = [
-      { key: "usage", label: "Usage tokens", note: "OpenRouter weekly ranking tokens", kind: "usage", direction: "desc" },
-      { key: "requests", label: "Usage requests", note: "OpenRouter weekly ranking requests", kind: "requests", direction: "desc" },
-      { key: "catalog", label: "Catalog coverage", note: "OpenRouter catalog", kind: "catalog", direction: "desc" },
-      { key: "tools", label: "Tool-ready routes", note: "OpenRouter supported parameters", kind: "tools", direction: "desc" },
-      { key: "vision", label: "Vision coverage", note: "OpenRouter input modalities", kind: "vision", direction: "desc" },
-      { key: "context", label: "Max context", note: "OpenRouter context windows", kind: "context", direction: "desc" },
-      { key: "input_price", label: "Lowest input price", note: "OpenRouter route pricing", kind: "input_price", direction: "asc" },
-      { key: "output_price", label: "Lowest output price", note: "OpenRouter route pricing", kind: "output_price", direction: "asc" },
+      { key: "usage", label: "Usage tokens", detailLabel: "Requests", note: "OpenRouter weekly usage tokens", kind: "usage", direction: "desc" },
+      { key: "requests", label: "Usage requests", detailLabel: "Usage tokens", note: "OpenRouter weekly usage requests", kind: "requests", direction: "desc" },
+      { key: "catalog", label: "Catalog coverage", detailLabel: "Route detail", note: "OpenRouter catalog", kind: "catalog", direction: "desc" },
+      { key: "tools", label: "Tool-ready routes", detailLabel: "Vision routes", note: "OpenRouter supported parameters", kind: "tools", direction: "desc" },
+      { key: "vision", label: "Vision coverage", detailLabel: "Tool-ready routes", note: "OpenRouter input modalities", kind: "vision", direction: "desc" },
+      { key: "context", label: "Max context", detailLabel: "Largest context model", note: "OpenRouter context windows", kind: "context", direction: "desc" },
+      { key: "input_price", label: "Lowest input price", detailLabel: "Cheapest route model", note: "OpenRouter route pricing", kind: "input_price", direction: "asc" },
+      { key: "output_price", label: "Lowest output price", detailLabel: "Cheapest route model", note: "OpenRouter route pricing", kind: "output_price", direction: "asc" },
     ];
 
     const getOpenRouterRankMetric = (key) =>
@@ -3299,6 +2862,8 @@ function getScoreClass(score: number | null | undefined): string {
 
       if (openRouterBoardTitle) openRouterBoardTitle.textContent = metric.label;
       if (openRouterBoardNote) openRouterBoardNote.textContent = metric.note;
+      if (openRouterColDetail) openRouterColDetail.textContent = metric.detailLabel;
+      if (openRouterColValue) openRouterColValue.textContent = metric.label;
 
       openRouterProviderBoard.innerHTML = rows
         .map((row) => {
@@ -3308,11 +2873,15 @@ function getScoreClass(score: number | null | undefined): string {
             ? ` data-model-id="${escapeHtml(row.model.id)}"`
             : "";
           const providerQuery = escapeHtml(getProviderSearchValue(row.provider));
+          const rowLabel = escapeHtml(
+            `Provider ${row.provider}. ${metric.detailLabel} ${row.leaderName}. ${metric.label} ${row.displayScore}. Models ${row.total}. Max context ${formatContextLength(row.maxContext)}.`,
+          );
           return `
             <li>
               <button
                 type="button"
                 class="openrouter-provider-row"
+                aria-label="${rowLabel}"
                 data-openrouter-provider="${provider}"
                 data-openrouter-provider-query="${providerQuery}"
                 ${modelPayload}
@@ -3683,7 +3252,6 @@ function getScoreClass(score: number | null | undefined): string {
       if (!panelKeys.has(metricSelect.value)) {
         metricSelect.value = metricSelect.options[0]?.value ?? "mmlu_pro";
       }
-      setMetricPickerOptions(benchmarkConfigs);
       updateLeaderboardCompareLink();
       renderAttributionText(metricSelect.value);
 
@@ -3765,8 +3333,8 @@ function getScoreClass(score: number | null | undefined): string {
       const catalogMarkup = hasPublicCatalogData
         ? `
           <section class="card-metric-panel mt-2 px-3 py-2">
-            <div class="text-[0.55rem] text-muted">Public catalog</div>
-            <dl class="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-[0.65rem] text-text">
+            <div class="text-[length:var(--text-xs)] text-muted">Public catalog</div>
+            <dl class="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-[length:var(--text-xs)] text-text">
               <div class="flex items-center justify-between gap-2"><dt class="text-subtle">Tools</dt><dd class="font-bold">${openRouterParameters.includes("tools") || model.litellm_supports_function_calling ? "Yes" : "No"}</dd></div>
               <div class="flex items-center justify-between gap-2"><dt class="text-subtle">Route</dt><dd class="font-bold">${hasOpenRouterData ? (model.openrouter_is_free ? "Free" : "Paid") : "-"}</dd></div>
               ${
@@ -3788,6 +3356,7 @@ function getScoreClass(score: number | null | undefined): string {
         <div
           data-model-card
           data-model-id="${escapeHtml(model.id)}"
+          data-card-label="${name}, ${company}"
           data-name="${escapeHtml(String(model.name ?? "").toLowerCase())}"
           data-company="${escapeHtml(String(model.company_name ?? "").toLowerCase())}"
           data-mmlu="${Number(model.mmlu_pro) || 0}"
@@ -3808,26 +3377,26 @@ function getScoreClass(score: number | null | undefined): string {
               <span>${dataSourceBadge}</span>
             </div>
           </header>
-          <div class="mt-3 grid gap-2 text-[0.7rem] text-subtle sm:grid-cols-2 xl:grid-cols-3">
+          <div class="mt-3 grid gap-2 text-[length:var(--text-xs)] text-subtle sm:grid-cols-2 xl:grid-cols-3">
             <section class="card-metric-panel px-3 py-2">
-              <div class="text-[0.55rem] text-muted">Pricing</div>
-              <dl class="mt-1.5 space-y-0.5 text-text text-[0.65rem]">
+              <div class="text-[length:var(--text-xs)] text-muted">Pricing</div>
+              <dl class="mt-1.5 space-y-0.5 text-text text-[length:var(--text-xs)]">
                 <div class="flex items-center justify-between"><dt>Input</dt><dd class="font-semibold">${formatPrice(model.price_1m_input_tokens, 3)}</dd></div>
                 <div class="flex items-center justify-between"><dt>Output</dt><dd class="font-semibold">${formatPrice(model.price_1m_output_tokens, 3)}</dd></div>
                 <div class="flex items-center justify-between"><dt>Blended</dt><dd class="font-semibold">${formatPrice(model.price_1m_blended_3_to_1, 3)}</dd></div>
               </dl>
             </section>
             <section class="card-metric-panel px-3 py-2">
-              <div class="text-[0.55rem] text-muted">Performance</div>
-              <dl class="mt-1.5 space-y-0.5 text-text text-[0.65rem]">
+              <div class="text-[length:var(--text-xs)] text-muted">Performance</div>
+              <dl class="mt-1.5 space-y-0.5 text-text text-[length:var(--text-xs)]">
                 <div class="flex items-center justify-between"><dt>TPS</dt><dd class="font-semibold">${formatTps(model.median_output_tokens_per_second)}</dd></div>
                 <div class="flex items-center justify-between"><dt>First token</dt><dd class="font-semibold">${formatTtft(model.median_time_to_first_token_seconds)}</dd></div>
                 <div class="flex items-center justify-between"><dt>First answer token</dt><dd class="font-semibold">${formatTtft(model.median_time_to_first_answer_token)}</dd></div>
               </dl>
             </section>
             <section class="card-metric-panel px-3 py-2">
-              <div class="text-[0.55rem] text-muted">Specs</div>
-              <dl class="mt-1.5 space-y-0.5 text-text text-[0.65rem]">
+              <div class="text-[length:var(--text-xs)] text-muted">Specs</div>
+              <dl class="mt-1.5 space-y-0.5 text-text text-[length:var(--text-xs)]">
                 <div class="flex items-center justify-between"><dt>Context</dt><dd class="font-semibold">${formatContextLength(effectiveContextLength)}</dd></div>
                 <div class="flex items-center justify-between"><dt>Max output</dt><dd class="font-semibold">${formatContextLength(model.max_output_tokens)}</dd></div>
                 <div class="flex items-center justify-between"><dt>Source</dt><dd class="font-semibold">${dataSourceBadge}</dd></div>
@@ -3835,8 +3404,8 @@ function getScoreClass(score: number | null | undefined): string {
             </section>
           </div>
           <section class="card-metric-panel mt-2 px-3 py-2">
-            <div class="text-[0.55rem] text-muted">Benchmarks</div>
-            <div class="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-[0.65rem]">
+            <div class="text-[length:var(--text-xs)] text-muted">Benchmarks</div>
+            <div class="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-[length:var(--text-xs)]">
               <div class="flex items-center justify-between"><span class="text-subtle">MMLU</span><span class="font-semibold ${getScoreClass(model.mmlu_pro)}">${formatScore(model.mmlu_pro)}</span></div>
               <div class="flex items-center justify-between"><span class="text-subtle">GPQA</span><span class="font-semibold ${getScoreClass(model.gpqa)}">${formatScore(model.gpqa)}</span></div>
               <div class="flex items-center justify-between"><span class="text-subtle">HLE</span><span class="font-semibold ${getScoreClass(model.hle)}">${formatScore(model.hle)}</span></div>
@@ -3847,11 +3416,11 @@ function getScoreClass(score: number | null | undefined): string {
             </div>
           </section>
           <section class="card-metric-panel mt-2 px-3 py-2">
-            <div class="text-[0.55rem] text-muted">Artificial Analysis indexes (points)</div>
-            <div class="mt-1.5 grid grid-cols-3 gap-1.5 text-center text-[0.65rem]">
-              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[0.5rem] uppercase text-muted">AA Index</div><div class="font-bold ${getScoreClass(model.aa_intelligence_index)}">${formatIndex(model.aa_intelligence_index)}</div></div>
-              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[0.5rem] uppercase text-muted">Coding</div><div class="font-bold ${getScoreClass(model.aa_coding_index)}">${formatIndex(model.aa_coding_index)}</div></div>
-              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[0.5rem] uppercase text-muted">Math</div><div class="font-bold ${getScoreClass(model.aa_math_index)}">${formatIndex(model.aa_math_index)}</div></div>
+            <div class="text-[length:var(--text-xs)] text-muted">Artificial Analysis indexes (points)</div>
+            <div class="mt-1.5 grid grid-cols-3 gap-1.5 text-center text-[length:var(--text-xs)]">
+              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[length:var(--text-xs)] text-muted">AA Index</div><div class="font-bold ${getScoreClass(model.aa_intelligence_index)}">${formatIndex(model.aa_intelligence_index)}</div></div>
+              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[length:var(--text-xs)] text-muted">Coding</div><div class="font-bold ${getScoreClass(model.aa_coding_index)}">${formatIndex(model.aa_coding_index)}</div></div>
+              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[length:var(--text-xs)] text-muted">Math</div><div class="font-bold ${getScoreClass(model.aa_math_index)}">${formatIndex(model.aa_math_index)}</div></div>
             </div>
           </section>
           ${catalogMarkup}
@@ -3863,6 +3432,10 @@ function getScoreClass(score: number | null | undefined): string {
       <tr
         class="cursor-pointer transition-colors hover:bg-highlight-low/50"
         data-table-row
+        tabindex="0"
+        role="button"
+        aria-label="Open details for ${escapeHtml(toDisplayName(model.name))}, ${escapeHtml(toDisplayName(model.company_name, "Unknown provider"))}"
+        data-card-label="${escapeHtml(toDisplayName(model.name))}, ${escapeHtml(toDisplayName(model.company_name, "Unknown provider"))}"
         data-model-id="${escapeHtml(model.id)}"
         data-name="${escapeHtml(String(model.name ?? "").toLowerCase())}"
         data-company="${escapeHtml(String(model.company_name ?? "").toLowerCase())}"
@@ -3887,14 +3460,58 @@ function getScoreClass(score: number | null | undefined): string {
       const model = await resolveDrawerModel(element);
       if (model) {
         window.dispatchEvent(new CustomEvent("open-model-drawer", { detail: model }));
+        return;
       }
+      const id = element?.dataset?.modelId;
+      if (!id) return;
+      lastDrawerTrigger = element;
+      window.dispatchEvent(
+        new CustomEvent("model-drawer-error", {
+          detail: { id: String(id), label: describeModelRow(element) },
+        }),
+      );
+    };
+
+    // The drawer's retry control asks for the same model again.
+    const handleDrawerRetry = (event) => {
+      const id = event?.detail?.id;
+      if (!id) return;
+      const element =
+        (lastDrawerTrigger && lastDrawerTrigger.dataset?.modelId === String(id)
+          ? lastDrawerTrigger
+          : null) ||
+        document.querySelector(`[data-model-id="${CSS.escape(String(id))}"]`);
+      if (!element) return;
+      void openModelDrawerFromElement(element);
+    };
+    window.addEventListener("retry-model-drawer", handleDrawerRetry);
+
+    let lastDrawerTrigger = null;
+
+    const describeModelRow = (element) => {
+      const explicit = element.dataset.cardLabel;
+      if (explicit) return explicit;
+      const name =
+        element.querySelector("h3")?.textContent?.trim() ||
+        element.querySelector("td")?.textContent?.trim() ||
+        element.dataset.name ||
+        "this model";
+      const provider =
+        element.querySelector("h3")?.parentElement?.querySelector("p")?.textContent?.trim() ||
+        element.querySelector("td + td")?.textContent?.trim() ||
+        element.dataset.company ||
+        "";
+      return provider ? `${name}, ${provider}` : name;
     };
 
     const bindCardFocus = () => {
       getCards().forEach((card) => {
         card.setAttribute("tabindex", "0");
         card.setAttribute("role", "button");
-        card.removeAttribute("aria-label");
+        card.setAttribute(
+          "aria-label",
+          `Open details for ${describeModelRow(card)}`,
+        );
         card.addEventListener("focus", () => {
           focusedCardIndex = getVisibleCards().indexOf(card);
         });
@@ -3911,6 +3528,12 @@ function getScoreClass(score: number | null | undefined): string {
 
     const bindTableRows = () => {
       getTableRows().forEach((row) => {
+        row.setAttribute("tabindex", "0");
+        row.setAttribute("role", "button");
+        row.setAttribute(
+          "aria-label",
+          `Open details for ${describeModelRow(row)}`,
+        );
         if (row.dataset.drawerBound === "true") return;
         row.dataset.drawerBound = "true";
         row.addEventListener("click", () => void openModelDrawerFromElement(row));
@@ -4178,8 +3801,6 @@ function getScoreClass(score: number | null | undefined): string {
       const metric = metricSelect.value;
       updateLeaderboardCompareLink();
       renderAttributionText(metric);
-      syncMetricPickerValue();
-      renderMetricPickerOptions();
       swapLeaderboardMetric(metric);
     });
 

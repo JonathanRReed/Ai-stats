@@ -201,6 +201,7 @@ const formatCompactNumber = (value: number | null | undefined): string => {
 <div
   data-model-card
   data-model-id={model.id}
+  data-card-label={`${model.name ?? "Unknown model"}, ${providerName}`}
   data-name={(model.name ?? "").toLowerCase()}
   data-company={(model.company_name ?? "").toLowerCase()}
   data-mmlu={Number(model.mmlu_pro) || 0}
@@ -442,7 +443,7 @@ const formatCompactNumber = (value: number | null | undefined): string => {
           <div
             class={`border px-1.5 py-1.5 text-center ${getScoreBg(value as number)}`}
           >
-            <div class="text-[0.65rem] text-muted">
+            <div class="text-[length:var(--text-xs)] text-muted">
               {label}
             </div>
             <div class={`text-xs fb ${getScoreColor(value as number)}`}>

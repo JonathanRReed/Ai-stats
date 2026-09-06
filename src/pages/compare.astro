@@ -235,8 +235,6 @@ epochBenchmarksWithData.forEach((b) => {
 });
 
 const initialPerformanceMetric = preferredMetricForPreset(defaultTaskPreset);
-const initialPerformanceMetricLabel =
-  availableBenchmarks[initialPerformanceMetric] ?? initialPerformanceMetric;
 const initialPerformanceAttribution =
   benchmarkAttributions[initialPerformanceMetric] ?? benchmarkAttributions.mmlu_pro;
 
@@ -396,14 +394,6 @@ const initialPerformanceAttribution =
         background-color: var(--accent);
         border-radius: 3px;
       }
-      .chart-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        flex: 1;
-        min-width: 50px;
-        max-width: 70px;
-      }
       .filter-toggle {
         display: inline-flex;
       }
@@ -420,7 +410,8 @@ const initialPerformanceAttribution =
     }
 
     .filter-section h2,
-    .filter-section h3 {
+    .filter-section h3,
+    .filter-section .eco-label {
       margin-bottom: 0.5rem;
       font-size: var(--text-xs);
       font-weight: 500;
@@ -876,11 +867,39 @@ const initialPerformanceAttribution =
       margin: 0;
       color: var(--muted);
       font-family: var(--font-mono);
-      font-size: 0.58rem;
-      font-weight: 900;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+      font-size: var(--text-xs);
+      font-weight: 600;
+      letter-spacing: 0.02em;
     }
+    .chart-retry {
+      min-height: var(--control-h);
+      margin-top: var(--space-3);
+      border: 1px solid var(--line-1);
+      border-radius: var(--radius-md);
+      background: var(--surface-2);
+      padding: 0 var(--space-4);
+      color: var(--ink-0);
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .chart-retry:hover {
+      border-color: var(--signal);
+      color: var(--signal-text);
+    }
+
+    .chart-retry:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .chart-retry[disabled] {
+      cursor: progress;
+      opacity: 0.6;
+    }
+
     .chart-empty-title {
       margin: 0;
       color: var(--subtle);
@@ -950,264 +969,19 @@ const initialPerformanceAttribution =
       margin: 0 auto;
       scrollbar-width: thin;
     }
-    .chart-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      width: 72px;
-      position: relative;
-      flex: none;
+
+
+    @media (prefers-reduced-motion: reduce) {
     }
-    .chart-bar {
-      width: 100%;
-      min-width: 40px;
-      border-radius: 12px;
-      transition:
-        background 0.2s ease,
-        border-color 0.2s ease,
-        box-shadow 0.2s ease;
-      position: relative;
-      margin-top: auto;
-      background: rgba(122, 162, 194, 0.22);
-      backdrop-filter: blur(20px) saturate(1.2);
-      -webkit-backdrop-filter: blur(20px) saturate(1.2);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      box-shadow:
-        0 8px 32px rgba(0, 0, 0, 0.15),
-        0 2px 8px rgba(0, 0, 0, 0.1),
-        inset 0 1px 0 rgba(255, 255, 255, 0.3),
-        inset 0 -1px 0 rgba(0, 0, 0, 0.1);
-      display: block;
-      opacity: 1;
-      visibility: visible;
-      overflow: hidden;
+    @media (prefers-reduced-motion: reduce) {
     }
 
-    .chart-bar::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: linear-gradient(
-        135deg,
-        rgba(255, 255, 255, 0.2) 0%,
-        rgba(255, 255, 255, 0.1) 30%,
-        rgba(255, 255, 255, 0.02) 70%,
-        rgba(0, 0, 0, 0.05) 100%
-      );
-      border-radius: inherit;
-      pointer-events: none;
-      opacity: 0.8;
+    @media (prefers-reduced-motion: reduce) {
     }
 
-    .chart-bar::after {
-      content: "";
-      position: absolute;
-      top: 1px;
-      left: 1px;
-      right: 1px;
-      height: 30%;
-      background: linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.15) 0%,
-        rgba(255, 255, 255, 0.05) 50%,
-        transparent 100%
-      );
-      border-radius: 10px 10px 0 0;
-      pointer-events: none;
-    }
-    @media (prefers-reduced-motion: no-preference) {
-      .chart-bar:hover {
-        background: rgba(122, 162, 194, 0.28);
-        border-color: rgba(255, 255, 255, 0.25);
-        box-shadow:
-          0 12px 36px rgba(122, 162, 194, 0.25),
-          0 4px 12px rgba(0, 0, 0, 0.15),
-          inset 0 1px 0 rgba(255, 255, 255, 0.35);
-      }
+    @media (prefers-reduced-motion: reduce) {
     }
     @media (prefers-reduced-motion: reduce) {
-      .chart-bar:hover {
-        background: rgba(122, 162, 194, 0.28);
-        border-color: rgba(255, 255, 255, 0.25);
-      }
-    }
-    .input-price-bar {
-      background: rgba(34, 197, 94, 0.25);
-      border-color: rgba(34, 197, 94, 0.4);
-    }
-    @media (prefers-reduced-motion: no-preference) {
-      .input-price-bar:hover {
-        background: rgba(34, 197, 94, 0.35);
-        border-color: rgba(34, 197, 94, 0.5);
-        box-shadow:
-          0 12px 36px rgba(34, 197, 94, 0.25),
-          0 4px 12px rgba(0, 0, 0, 0.15),
-          inset 0 1px 0 rgba(255, 255, 255, 0.35);
-      }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .input-price-bar:hover {
-        background: rgba(34, 197, 94, 0.35);
-        border-color: rgba(34, 197, 94, 0.5);
-      }
-    }
-
-    .output-price-bar {
-      background: rgba(239, 68, 68, 0.25);
-      border-color: rgba(239, 68, 68, 0.4);
-    }
-    @media (prefers-reduced-motion: no-preference) {
-      .output-price-bar:hover {
-        background: rgba(239, 68, 68, 0.35);
-        border-color: rgba(239, 68, 68, 0.5);
-        box-shadow:
-          0 12px 36px rgba(239, 68, 68, 0.25),
-          0 4px 12px rgba(0, 0, 0, 0.15),
-          inset 0 1px 0 rgba(255, 255, 255, 0.35);
-      }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .output-price-bar:hover {
-        background: rgba(239, 68, 68, 0.35);
-        border-color: rgba(239, 68, 68, 0.5);
-      }
-    }
-
-    .performance-bar {
-      background: rgba(122, 162, 194, 0.22);
-      border-color: rgba(122, 162, 194, 0.38);
-    }
-    @media (prefers-reduced-motion: no-preference) {
-      .performance-bar:hover {
-        background: rgba(122, 162, 194, 0.3);
-        border-color: rgba(122, 162, 194, 0.5);
-        box-shadow:
-          0 12px 36px rgba(122, 162, 194, 0.25),
-          0 4px 12px rgba(0, 0, 0, 0.15),
-          inset 0 1px 0 rgba(255, 255, 255, 0.35);
-      }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .performance-bar:hover {
-        background: rgba(122, 162, 194, 0.3);
-        border-color: rgba(122, 162, 194, 0.5);
-      }
-    }
-    .bar-value {
-      position: absolute;
-      top: -2rem;
-      width: 100%;
-      font-size: 0.8rem;
-      font-weight: 900;
-      color: #000000;
-      text-align: center;
-      padding: 0.4rem;
-      text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
-      line-height: 1.2;
-      background: rgba(255, 255, 255, 0.9);
-      border-radius: 4px;
-      margin-bottom: 0.5rem;
-      z-index: 20;
-      box-sizing: border-box;
-    }
-    .bar-label {
-      margin-top: 0.5rem;
-      font-size: 0.9rem;
-      color: rgba(255, 255, 255, 0.92);
-      font-weight: 800;
-      text-align: center;
-      word-wrap: break-word;
-      white-space: normal;
-      line-height: 1.15;
-      max-width: 100%;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-    }
-    .bar-label .bar-name {
-      display: block;
-    }
-    .bar-label .bar-variant {
-      display: block;
-      font-weight: 600;
-      opacity: 0.85;
-      font-size: 0.8rem;
-    }
-    .insights-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
-      gap: 0.45rem;
-      margin-top: 0;
-      max-width: 1320px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-    .insight-card {
-      background: var(--surface);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-radius: var(--radius-m);
-      min-height: 4rem;
-      padding: 0.52rem 0.6rem;
-      border: 1px solid var(--border-color);
-      box-shadow: none;
-      transition:
-        transform 0.1s ease,
-        box-shadow 0.1s ease;
-    }
-    html.light .insight-card {
-      background: var(--surface);
-      border: 1px solid var(--border-color);
-      box-shadow: none;
-    }
-    @media (prefers-reduced-motion: no-preference) {
-      .insight-card:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 12px 36px var(--shadow-color);
-        border-color: color-mix(in srgb, var(--love) 45%, var(--border-color));
-      }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .insight-card:hover {
-        border-color: var(--border-color);
-      }
-    }
-    .insight-card h3,
-    .insight-card h4 {
-      margin: 0 0 0.35rem 0;
-      font-family: var(--font-mono);
-      font-size: 0.5rem;
-      font-weight: 900;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0;
-      line-height: 1.1;
-    }
-    html.light .insight-card h3,
-    html.light .insight-card h4 {
-      color: #797593;
-    }
-    .insight-card p {
-      margin: 0;
-      font-size: 0.62rem;
-      font-weight: 700;
-      color: var(--text);
-      line-height: 1.2;
-      overflow: hidden;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow-wrap: anywhere;
-    }
-    .insight-card span {
-      display: block;
-      margin-top: 0.25rem;
-      font-size: 0.54rem !important;
-      color: var(--muted) !important;
-    }
-    html.light .insight-card p {
-      color: #575279;
     }
 
     .catalog-section {
@@ -1346,26 +1120,39 @@ const initialPerformanceAttribution =
       text-align: right;
     }
 
+    /* Seven columns: model, catalog match, context, public price,
+       OR usage/routes, Hugging Face activity, capabilities. Widths total 100%. */
     .catalog-table th:nth-child(1) {
-      width: 30%;
+      width: 20%;
     }
 
     .catalog-table th:nth-child(2) {
-      width: 22%;
+      width: 18%;
     }
 
-    .catalog-table th:nth-child(3),
-    .catalog-table th:nth-child(4),
+    .catalog-table th:nth-child(3) {
+      width: 9%;
+    }
+
+    .catalog-table th:nth-child(4) {
+      width: 10%;
+    }
+
     .catalog-table th:nth-child(5) {
-      width: 11%;
-    }
-
-    .catalog-table th:nth-child(6) {
       width: 15%;
     }
 
+    .catalog-table th:nth-child(6) {
+      width: 14%;
+    }
+
+    .catalog-table th:nth-child(7) {
+      width: 14%;
+    }
+
     .catalog-table td:nth-child(2),
-    .catalog-table td:nth-child(6) {
+    .catalog-table td:nth-child(6),
+    .catalog-table td:nth-child(7) {
       white-space: normal;
       overflow-wrap: anywhere;
     }
@@ -1504,10 +1291,6 @@ const initialPerformanceAttribution =
         grid-template-columns: 1fr;
         gap: 1rem;
       }
-      .insights-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.75rem;
-      }
       .nav-content {
         padding: 1rem;
       }
@@ -1517,20 +1300,9 @@ const initialPerformanceAttribution =
         height: 320px;
         width: 100%;
       }
-      .chart-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        flex: 1;
-        min-width: 50px;
-        max-width: 70px;
-      }
     }
 
     @media (max-width: 500px) {
-      .insights-grid {
-        grid-template-columns: 1fr;
-      }
       .layout {
         margin: 0 auto;
       }
@@ -1545,10 +1317,6 @@ const initialPerformanceAttribution =
       .chart-container {
         padding: 0.5rem;
         height: 300px;
-      }
-      .chart-item {
-        min-width: 45px;
-        max-width: 60px;
       }
     }
     .sort-toggle {
@@ -1615,192 +1383,6 @@ const initialPerformanceAttribution =
       height: 1px;
       opacity: 0;
       pointer-events: none;
-    }
-
-    .benchmark-picker {
-      position: relative;
-      width: 100%;
-      z-index: 20;
-    }
-
-    .benchmark-picker-trigger {
-      min-height: 48px;
-      width: 100%;
-      display: grid;
-      gap: 0.2rem;
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-s);
-      background: color-mix(in srgb, var(--surface) 92%, black);
-      color: var(--text);
-      cursor: pointer;
-      padding: 0.62rem 2.25rem 0.62rem 0.72rem;
-      position: relative;
-      text-align: left;
-      transition:
-        border-color 0.16s ease,
-        background-color 0.16s ease,
-        box-shadow 0.16s ease;
-    }
-
-    .benchmark-picker-trigger::after {
-      content: "";
-      position: absolute;
-      right: 0.82rem;
-      top: 50%;
-      width: 0.55rem;
-      height: 0.55rem;
-      border-bottom: 2px solid var(--subtle);
-      border-right: 2px solid var(--subtle);
-      transform: translateY(-65%) rotate(45deg);
-      transition: transform 0.16s ease;
-    }
-
-    .benchmark-picker.open .benchmark-picker-trigger::after {
-      transform: translateY(-25%) rotate(225deg);
-    }
-
-    .benchmark-picker-trigger:hover,
-    .benchmark-picker-trigger:focus-visible {
-      border-color: color-mix(in srgb, var(--love) 58%, var(--border-color));
-      background: var(--highlight-low);
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--love) 22%, transparent);
-      outline: none;
-    }
-
-    .benchmark-picker-kicker {
-      color: var(--muted);
-      font-family: var(--font-mono);
-      font-size: 0.58rem;
-      font-weight: 900;
-      letter-spacing: 0.08em;
-      line-height: 1;
-      text-transform: uppercase;
-    }
-
-    .benchmark-picker-value {
-      overflow: hidden;
-      color: var(--text);
-      font-family: var(--font-mono);
-      font-size: 0.74rem;
-      font-weight: 900;
-      line-height: 1.25;
-      text-overflow: ellipsis;
-      text-transform: uppercase;
-      white-space: nowrap;
-    }
-
-    .benchmark-picker-popover {
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: calc(100% + 0.42rem);
-      z-index: 70;
-      display: grid;
-      gap: 0.45rem;
-      max-height: min(28rem, 72vh);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-m);
-      background: color-mix(in srgb, var(--base) 97%, black);
-      box-shadow: var(--elev-2), var(--glass-edge);
-      padding: 0.5rem;
-    }
-
-    .benchmark-picker-popover[hidden] {
-      display: none;
-    }
-
-    .benchmark-picker-search {
-      width: 100%;
-      min-height: 40px;
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-s);
-      background: var(--surface);
-      color: var(--text);
-      font-family: var(--font-mono);
-      font-size: 0.72rem;
-      font-weight: 700;
-      padding: 0.55rem 0.65rem;
-    }
-
-    .benchmark-picker-search:focus {
-      outline: none;
-      border-color: color-mix(in srgb, var(--love) 58%, var(--border-color));
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--love) 20%, transparent);
-    }
-
-    .benchmark-picker-list {
-      display: grid;
-      gap: 0.25rem;
-      max-height: 21rem;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      padding-right: 0.15rem;
-    }
-
-    .benchmark-picker-group {
-      margin: 0.35rem 0 0.15rem;
-      color: var(--muted);
-      font-family: var(--font-mono);
-      font-size: 0.58rem;
-      font-weight: 900;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .benchmark-picker-option {
-      min-height: 38px;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      align-items: center;
-      gap: 0.55rem;
-      border: 1px solid transparent;
-      border-radius: var(--radius-s);
-      background: transparent;
-      color: var(--subtle);
-      cursor: pointer;
-      font-family: var(--font-mono);
-      font-size: 0.68rem;
-      font-weight: 800;
-      padding: 0.5rem 0.55rem;
-      text-align: left;
-      text-transform: uppercase;
-      transition: var(--transition-colors);
-    }
-
-    .benchmark-picker-option span:first-child {
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .benchmark-picker-option:hover,
-    .benchmark-picker-option:focus-visible {
-      border-color: var(--border-color);
-      background: var(--highlight-low);
-      color: var(--text);
-      outline: none;
-    }
-
-    .benchmark-picker-option[aria-selected="true"] {
-      border-color: color-mix(in srgb, var(--love) 55%, var(--border-color));
-      background: color-mix(in srgb, var(--love) 16%, var(--highlight-low));
-      color: var(--text);
-    }
-
-    .benchmark-picker-source {
-      color: var(--muted);
-      font-size: 0.56rem;
-      letter-spacing: 0.06em;
-    }
-
-    .benchmark-picker-empty {
-      color: var(--muted);
-      font-family: var(--font-mono);
-      font-size: 0.7rem;
-      padding: 0.7rem;
-      text-align: center;
-      text-transform: uppercase;
     }
 
     .benchmark-attribution {
@@ -1897,8 +1479,7 @@ const initialPerformanceAttribution =
       border-color: color-mix(in srgb, var(--love) 55%, var(--border-color));
     }
 
-    .chart-section,
-    .insight-card {
+    .chart-section {
       background: color-mix(in srgb, var(--surface) 92%, transparent);
     }
 
@@ -2039,10 +1620,6 @@ const initialPerformanceAttribution =
       letter-spacing: 0;
       line-height: 1;
       text-transform: uppercase;
-    }
-
-    .smart-filter-rail .benchmark-picker.open {
-      z-index: 40;
     }
 
     .filter-close:hover,
@@ -2296,60 +1873,25 @@ const initialPerformanceAttribution =
     }
 
     .compare-container .catalog-table table {
-      font-size: 10px !important;
+      font-size: var(--text-xs);
     }
 
     .compare-container .catalog-table th {
-      font-size: 9px !important;
+      font-size: var(--text-xs);
       line-height: 1.15 !important;
       padding: 6px 8px !important;
     }
 
     .compare-container .catalog-table td {
-      font-size: 10px !important;
+      font-size: var(--text-xs);
       line-height: 1.2 !important;
       padding: 6px 8px !important;
     }
 
-    .compare-container .insights-grid {
-      gap: 8px !important;
-      grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)) !important;
-    }
 
-    .compare-container .insight-card {
-      min-height: 64px !important;
-      padding: 8px 10px !important;
-    }
 
-    .compare-container .insight-card h3 {
-      color: var(--muted) !important;
-      font-family: var(--font-mono) !important;
-      font-size: 10px !important;
-      font-weight: 900 !important;
-      line-height: 1.05 !important;
-      margin: 0 0 6px !important;
-      text-transform: uppercase !important;
-    }
 
-    .compare-container .insight-card p {
-      display: -webkit-box !important;
-      -webkit-box-orient: vertical !important;
-      -webkit-line-clamp: 2 !important;
-      color: var(--text) !important;
-      font-size: 11px !important;
-      font-weight: 700 !important;
-      line-height: 1.15 !important;
-      margin: 0 !important;
-      overflow: hidden !important;
-      overflow-wrap: anywhere !important;
-    }
 
-    .compare-container .insight-card span {
-      color: var(--muted) !important;
-      display: block !important;
-      font-size: 9px !important;
-      margin-top: 4px !important;
-    }
 
     /* Ecosystem contract normalization for the filter rail and chart headers. */
     .smart-filter-rail,
@@ -2363,10 +1905,7 @@ const initialPerformanceAttribution =
     .smart-filter-rail .metric-dropdown,
     .smart-filter-rail .model-search,
     .smart-filter-rail .selected-count,
-    .smart-filter-rail .model-item label,
-    .smart-filter-rail .benchmark-picker-kicker,
-    .smart-filter-rail .benchmark-picker-value,
-    .smart-filter-rail .benchmark-picker-search {
+    .smart-filter-rail .model-item label {
       font-family: var(--font-sans);
       text-transform: none;
       letter-spacing: 0;
@@ -2404,16 +1943,6 @@ const initialPerformanceAttribution =
       color: var(--ink-1);
       font-size: var(--text-xs);
     }
-    .smart-filter-rail .benchmark-picker-kicker {
-      color: var(--ink-2);
-      font-size: 0.7rem;
-      font-weight: 500;
-    }
-    .smart-filter-rail .benchmark-picker-value {
-      color: var(--ink-0);
-      font-size: var(--text-sm);
-      font-weight: 500;
-    }
     .smart-filter-rail .filter-drawer-title {
       color: var(--ink-0);
       font-size: var(--text-sm);
@@ -2440,12 +1969,6 @@ const initialPerformanceAttribution =
     .chart-header p {
       color: var(--ink-2);
       font-size: var(--text-sm);
-    }
-    .compare-container .insight-card h3 {
-      font-family: var(--font-sans) !important;
-      text-transform: none !important;
-      font-size: var(--text-xs) !important;
-      font-weight: 500 !important;
     }
     .catalog-table td::before {
       font-family: var(--font-sans);
@@ -2490,7 +2013,7 @@ const initialPerformanceAttribution =
       </div>
       <div class="filter-section">
         <label for="metric-selector" class="filter-label">
-          <h2>Performance Metric</h2>
+          <span class="eco-label">Performance metric</span>
         </label>
         <select
           id="metric-selector"
@@ -2504,39 +2027,6 @@ const initialPerformanceAttribution =
             ))
           }
         </select>
-        <div
-          class="benchmark-picker"
-          data-benchmark-picker
-          data-target-select="metric-selector"
-          hidden
-        >
-          <button
-            type="button"
-            class="benchmark-picker-trigger"
-            aria-haspopup="listbox"
-            aria-expanded="false"
-          >
-            <span class="benchmark-picker-kicker">Selected metric</span>
-            <span class="benchmark-picker-value">{initialPerformanceMetricLabel}</span>
-          </button>
-          <div class="benchmark-picker-popover" hidden>
-            <label class="sr-only" for="benchmark-picker-search">
-              Search benchmarks
-            </label>
-            <input
-              id="benchmark-picker-search"
-              class="benchmark-picker-search"
-              type="search"
-              placeholder="Search benchmarks..."
-              autocomplete="off"
-            />
-            <div
-              class="benchmark-picker-list"
-              role="listbox"
-              aria-label="Performance metric"
-            ></div>
-          </div>
-        </div>
         <p id="benchmark-attribution" class="benchmark-attribution">
           Source:
           <a
@@ -2549,13 +2039,13 @@ const initialPerformanceAttribution =
         </p>
       </div>
       <div class="filter-section">
-        <h2>Sort Order</h2>
+        <span class="eco-label">Sort order</span>
         <button id="sort-toggle" class="sort-toggle" data-order="desc">
-          <span class="sort-text">High to Low</span>
+          <span class="sort-text">High to low</span>
         </button>
       </div>
       <div class="filter-section">
-        <h2>Model Selection</h2>
+        <span class="eco-label">Model selection</span>
         <div class="search-container">
           <label for="model-search" class="sr-only">Search models</label>
           <input
@@ -2573,7 +2063,7 @@ const initialPerformanceAttribution =
     <main class="compare-main" id="main-content">
       <section class="compare-hero fade-in-section" aria-label="Model comparison overview">
         <div>
-          <h1 class="compare-page-title">Compare AI Models</h1>
+          <h1 class="compare-page-title">Compare AI models</h1>
           <p class="compare-page-lede">
             Select models and compare named benchmarks, prices, speed, latency,
             context, and catalog fields side by side.
@@ -2785,6 +2275,9 @@ const initialPerformanceAttribution =
   let initialClientEpochScoreMetrics = {};
   let defaultModelIds = [];
   let compareInitialDataPromise = null;
+  // Set when /api/compare-initial.json cannot be read, so the charts can say
+  // the data is missing instead of pretending nothing was selected.
+  let compareInitialDataFailed = false;
 
   const loadCompareInitialData = () => {
     if (compareInitialDataPromise) return compareInitialDataPromise;
@@ -2811,8 +2304,12 @@ const initialPerformanceAttribution =
         defaultModelIds = Array.isArray(data.defaultModelIds)
           ? data.defaultModelIds
           : [];
+        compareInitialDataFailed = false;
       })
       .catch((error) => {
+        compareInitialDataFailed = true;
+        // Drop the cached promise so the retry control can refetch.
+        compareInitialDataPromise = null;
         console.warn("Failed to load compare initial data", error);
       });
 
@@ -2995,10 +2492,6 @@ const initialPerformanceAttribution =
     const { rail, main, toggle, overlay, footer } = getFilterControls();
     if (!rail || !toggle) return;
 
-    if (!nextOpen) {
-      window.__setCompareMetricPickerOpen?.(false);
-    }
-
     const label = toggle.querySelector(".filter-label");
     const isCompact = isCompactFilterLayout();
 
@@ -3175,24 +2668,6 @@ const initialPerformanceAttribution =
     const performanceMetricTitle = document.getElementById(
       "performance-metric-title",
     );
-    const metricPicker = document.querySelector(
-      '[data-benchmark-picker][data-target-select="metric-selector"]',
-    );
-    const metricPickerTrigger = metricPicker?.querySelector(
-      ".benchmark-picker-trigger",
-    );
-    const metricPickerValue = metricPicker?.querySelector(
-      ".benchmark-picker-value",
-    );
-    const metricPickerPopover = metricPicker?.querySelector(
-      ".benchmark-picker-popover",
-    );
-    const metricPickerSearch = metricPicker?.querySelector(
-      ".benchmark-picker-search",
-    );
-    const metricPickerList = metricPicker?.querySelector(
-      ".benchmark-picker-list",
-    );
     const taskPresetSelect = document.getElementById("compare-task-preset");
     const evidenceCoverageEl = document.getElementById("compare-evidence-coverage");
     const evidenceModeEl = document.getElementById("compare-evidence-mode");
@@ -3218,11 +2693,6 @@ const initialPerformanceAttribution =
         if (aRank !== bRank) return aRank - bRank;
         return String(a.name || a.slug).localeCompare(String(b.name || b.slug));
       });
-    const getBenchmarkGroup = (value) => {
-      if (value.startsWith("epoch_")) return "Epoch benchmark pool";
-      if (value.startsWith("aa_")) return "Artificial Analysis indexes";
-      return "Artificial Analysis benchmarks";
-    };
     const getTaskPreset = () =>
       DEFAULT_TASK_PRESETS.find((preset) => preset.id === taskPresetSelect?.value) ??
       DEFAULT_TASK_PRESETS[0];
@@ -3248,132 +2718,6 @@ const initialPerformanceAttribution =
       );
     };
 
-    const syncMetricPickerValue = () => {
-      if (!metricSelector || !metricPickerValue) return;
-      metricPickerValue.textContent =
-        benchmarkNames[metricSelector.value] || metricSelector.value || "Select metric";
-    };
-
-    const setMetricPickerOpen = (open) => {
-      if (!metricPicker || !metricPickerTrigger || !metricPickerPopover) return;
-      metricPicker.classList.toggle("open", open);
-      metricPickerTrigger.setAttribute("aria-expanded", String(open));
-      metricPickerPopover.hidden = !open;
-      if (open) {
-        renderMetricPickerOptions();
-        if (metricPickerSearch instanceof HTMLInputElement) {
-          metricPickerSearch.value = "";
-          window.requestAnimationFrame(() => metricPickerSearch.focus());
-        }
-      }
-    };
-    window.__setCompareMetricPickerOpen = setMetricPickerOpen;
-    registerCleanup(() => {
-      if (window.__setCompareMetricPickerOpen === setMetricPickerOpen) {
-        delete window.__setCompareMetricPickerOpen;
-      }
-    });
-
-    const selectMetric = (value) => {
-      if (!metricSelector || !benchmarkNames[value]) return;
-      metricSelector.value = value;
-      syncMetricPickerValue();
-      setMetricPickerOpen(false);
-      metricSelector.dispatchEvent(new Event("change", { bubbles: true }));
-      if (isCompactFilterLayout()) setCompareFiltersOpen(false);
-      metricPickerTrigger?.focus();
-    };
-
-    const renderMetricPickerOptions = () => {
-      if (!metricSelector || !metricPickerList) return;
-      const query =
-        metricPickerSearch instanceof HTMLInputElement
-          ? metricPickerSearch.value.trim().toLowerCase()
-          : "";
-      const entries = Object.entries(benchmarkNames).filter(([value, label]) => {
-        const haystack = `${label} ${value}`.toLowerCase();
-        return !query || haystack.includes(query);
-      });
-      if (!entries.length) {
-        metricPickerList.innerHTML =
-          '<div class="benchmark-picker-empty">No matching benchmarks</div>';
-        return;
-      }
-
-      let lastGroup = "";
-      metricPickerList.innerHTML = entries
-        .map(([value, label]) => {
-          const group = getBenchmarkGroup(value);
-          const groupHtml =
-            group !== lastGroup
-              ? `<div class="benchmark-picker-group">${sanitizeHTML(group)}</div>`
-              : "";
-          lastGroup = group;
-          const source = value.startsWith("epoch_") ? "Epoch" : "AA";
-          return `${groupHtml}<button type="button" class="benchmark-picker-option" role="option" data-metric-value="${sanitizeHTML(value)}" aria-selected="${String(metricSelector.value === value)}"><span>${sanitizeHTML(label)}</span><span class="benchmark-picker-source">${source}</span></button>`;
-        })
-        .join("");
-    };
-
-    let metricPickerPointerHandled = false;
-    const toggleMetricPicker = () => {
-      setMetricPickerOpen(!metricPicker?.classList.contains("open"));
-    };
-
-    metricPickerTrigger?.addEventListener("pointerdown", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      metricPickerPointerHandled = true;
-      toggleMetricPicker();
-      window.setTimeout(() => {
-        metricPickerPointerHandled = false;
-      }, 0);
-    });
-
-    metricPickerTrigger?.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (metricPickerPointerHandled) return;
-      toggleMetricPicker();
-    });
-
-    metricPickerTrigger?.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      event.stopPropagation();
-      toggleMetricPicker();
-    });
-
-    metricPickerPopover?.addEventListener("click", (event) => {
-      event.stopPropagation();
-    });
-
-    metricPickerSearch?.addEventListener("input", renderMetricPickerOptions);
-
-    metricPickerList?.addEventListener("click", (event) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      const option = target.closest("[data-metric-value]");
-      if (!(option instanceof HTMLElement)) return;
-      selectMetric(option.dataset.metricValue || "");
-    });
-
-    metricPicker?.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
-        setMetricPickerOpen(false);
-        metricPickerTrigger?.focus();
-      }
-    });
-
-    const handleMetricPickerDocumentClick = (event) => {
-      if (!metricPicker || !event.target) return;
-      if (metricPicker.contains(event.target)) return;
-      setMetricPickerOpen(false);
-    };
-    document.addEventListener("click", handleMetricPickerDocumentClick);
-    registerCleanup(() =>
-      document.removeEventListener("click", handleMetricPickerDocumentClick),
-    );
 
     const renderBenchmarkAttribution = (metricKey) => {
       if (!benchmarkAttributionEl) return;
@@ -3783,8 +3127,6 @@ const initialPerformanceAttribution =
         ? previousValue
         : Object.keys(benchmarkNames)[0] || "mmlu_pro";
       renderBenchmarkAttribution(metricSelector.value);
-      syncMetricPickerValue();
-      renderMetricPickerOptions();
     };
 
     const rebuildEpochScores = (runs, aliasesByVersion = {}) => {
@@ -4049,112 +3391,6 @@ const initialPerformanceAttribution =
       `;
     }
 
-    function updateInsights(models) {
-      if (models.length === 0) return;
-
-      // Find cheapest tokens model (lowest blended price)
-      let cheapestTokensModel = null;
-      let lowestBlendedPrice = Infinity;
-
-      // Find cheapest input, output, top performer, TPS winner, and TTFT winner for current metric
-      let cheapestInputModel = models[0];
-      let cheapestOutputModel = models[0];
-      let topPerformerModel = null;
-      let tpsWinnerModel = null;
-      let ttftWinnerModel = null;
-      let highestTPS = 0;
-      let fastestTTFT = Infinity;
-
-      const currentMetric = metricSelector?.value || "mmlu_pro";
-
-      models.forEach((model) => {
-        // Find model with lowest blended price
-        const blendedPrice = model.price_1m_blended_3_to_1;
-        const priceNum = parseFloat(blendedPrice);
-
-        if (
-          blendedPrice !== null &&
-          blendedPrice !== undefined &&
-          !isNaN(priceNum) &&
-          priceNum > 0 &&
-          priceNum < lowestBlendedPrice
-        ) {
-          lowestBlendedPrice = priceNum;
-          cheapestTokensModel = model;
-        }
-
-        if (
-          (Number(model.price_1m_input_tokens) || Infinity) <
-          (Number(cheapestInputModel.price_1m_input_tokens) || Infinity)
-        ) {
-          cheapestInputModel = model;
-        }
-
-        if (
-          (Number(model.price_1m_output_tokens) || Infinity) <
-          (Number(cheapestOutputModel.price_1m_output_tokens) || Infinity)
-        ) {
-          cheapestOutputModel = model;
-        }
-
-        const currentScore = resolveMetricScore(model, currentMetric);
-        const topScore = topPerformerModel
-          ? resolveMetricScore(topPerformerModel, currentMetric)
-          : null;
-        if (
-          currentScore !== null &&
-          (topScore === null || currentScore > topScore)
-        ) {
-          topPerformerModel = model;
-        }
-
-        // Find TPS winner (highest tokens per second)
-        const modelTPS = model.median_output_tokens_per_second;
-        const winnerTpsNum = parseFloat(modelTPS);
-        if (
-          modelTPS !== null &&
-          modelTPS !== undefined &&
-          !isNaN(winnerTpsNum) &&
-          winnerTpsNum > 0 &&
-          winnerTpsNum > highestTPS
-        ) {
-          highestTPS = winnerTpsNum;
-          tpsWinnerModel = model;
-        }
-
-        // Find TTFT winner (fastest time to first token - lower is better)
-        const modelTTFT = model.median_time_to_first_answer_token;
-        const ttftNum = parseFloat(modelTTFT);
-        if (
-          modelTTFT !== null &&
-          modelTTFT !== undefined &&
-          !isNaN(ttftNum) &&
-          ttftNum > 0 &&
-          ttftNum < fastestTTFT
-        ) {
-          fastestTTFT = ttftNum;
-          ttftWinnerModel = model;
-        }
-      });
-
-      // Update the insight cards
-      const insightCards = document.querySelectorAll(".insight-card p");
-      if (insightCards.length >= 6) {
-        insightCards[0].textContent = cheapestTokensModel
-          ? cheapestTokensModel.name
-          : "-";
-        insightCards[1].textContent = cheapestInputModel.name;
-        insightCards[2].textContent = cheapestOutputModel.name;
-        insightCards[3].textContent = tpsWinnerModel
-          ? tpsWinnerModel.name
-          : "-";
-        insightCards[4].textContent = ttftWinnerModel
-          ? ttftWinnerModel.name
-          : "-";
-        insightCards[5].textContent = topPerformerModel?.name ?? "-";
-      }
-    }
-
     // Branded empty state (replaces the plain #666 "Select models" text).
     const buildEmptyState = () => {
       const wrap = document.createElement("div");
@@ -4176,6 +3412,43 @@ const initialPerformanceAttribution =
       return wrap;
     };
 
+    // Distinct from the empty state: the data never arrived, so "pick a model"
+    // would be misleading advice.
+    const buildLoadErrorState = () => {
+      const wrap = document.createElement("div");
+      wrap.className = "no-data chart-empty chart-error";
+      wrap.innerHTML = `
+        <p class="chart-empty-kicker">Data unavailable</p>
+        <p class="chart-empty-title">Model data could not be loaded</p>
+        <p class="chart-empty-sub">The compare snapshot did not respond, so there
+          is nothing to plot. Check the connection and try again.</p>
+        <button type="button" class="chart-retry" data-compare-retry>Retry</button>`;
+      return wrap;
+    };
+
+    const retryCompareInitialData = async (button) => {
+      button.disabled = true;
+      button.textContent = "Retrying";
+      await loadCompareInitialData();
+      button.disabled = false;
+      button.textContent = "Retry";
+      updateMetricSelectorOptions();
+      renderModelList();
+      updateCount();
+      renderCharts();
+    };
+
+    const handleRetryClick = (event) => {
+      if (!(event.target instanceof Element)) return;
+      const button = event.target.closest("[data-compare-retry]");
+      if (!button) return;
+      void retryCompareInitialData(button);
+    };
+    document.addEventListener("click", handleRetryClick);
+    registerCleanup(() =>
+      document.removeEventListener("click", handleRetryClick),
+    );
+
     function renderCharts(animate = true) {
       let chosen = getSelected();
 
@@ -4189,8 +3462,6 @@ const initialPerformanceAttribution =
       priceChart.classList.remove("is-loading");
       perfChart.classList.remove("is-loading");
 
-      // Update insights section
-      updateInsights(chosen);
       renderCatalogTable(chosen);
 
       // Clear any existing "no data" messages but preserve the container structure
@@ -4209,13 +3480,20 @@ const initialPerformanceAttribution =
           perfChartInstance.destroy();
           perfChartInstance = null;
         }
+        const buildPlaceholder = compareInitialDataFailed
+          ? buildLoadErrorState
+          : buildEmptyState;
         if (!priceChart.querySelector(".no-data")) {
-          priceChart.appendChild(buildEmptyState());
+          priceChart.appendChild(buildPlaceholder());
         }
         if (!perfChart.querySelector(".no-data")) {
-          perfChart.appendChild(buildEmptyState());
+          perfChart.appendChild(buildPlaceholder());
         }
-        if (chartDataTables) chartDataTables.textContent = "No models selected.";
+        if (chartDataTables) {
+          chartDataTables.textContent = compareInitialDataFailed
+            ? "Model data could not be loaded."
+            : "No models selected.";
+        }
         return;
       }
 
@@ -4683,11 +3961,9 @@ const initialPerformanceAttribution =
       const selectedMetric = metricSelector.value;
       const displayName = benchmarkNames[selectedMetric] || selectedMetric;
       if (performanceMetricTitle) {
-        performanceMetricTitle.textContent = `Top ${displayName}`;
+        performanceMetricTitle.textContent = `Highest ${displayName}`;
       }
       renderBenchmarkAttribution(selectedMetric);
-      syncMetricPickerValue();
-      renderMetricPickerOptions();
 
       // Re-render charts with new metric (crossfade, no entry replay)
       crossfadeRerender();
@@ -4724,7 +4000,7 @@ const initialPerformanceAttribution =
       const textEl = currentSortToggle.querySelector(".sort-text");
       if (textEl) {
         textEl.textContent =
-          newOrder === "desc" ? "High to Low" : "Low to High";
+          newOrder === "desc" ? "High to low" : "Low to high";
       }
       crossfadeRerender();
     };
@@ -4827,84 +4103,6 @@ const initialPerformanceAttribution =
     renderCharts();
   }
 
-  // Auto-fit functionality for charts
-  function initAutoFit() {
-    const priceChart = document.getElementById("price-chart");
-    const perfChart = document.getElementById("performance-chart");
-
-    function fitModelsToChart(chart) {
-      if (!chart) return;
-
-      const chartItems = chart.querySelectorAll(".chart-item");
-      if (!chartItems.length) return;
-
-      // Calculate the minimum width needed to fit all items
-      const totalItems = chartItems.length;
-      const containerWidth = chart.clientWidth;
-      // Account for gap between items (0.75rem = ~12px) and ensure all fit
-      const totalGapWidth = (totalItems - 1) * 12;
-      const availableWidth = containerWidth - totalGapWidth - 10; // 10px buffer
-      const minItemWidth = Math.max(
-        20,
-        Math.floor(availableWidth / totalItems),
-      );
-
-      // Apply the calculated width to all items
-      chartItems.forEach((item) => {
-        item.style.minWidth = minItemWidth + "px";
-        item.style.maxWidth = minItemWidth + "px";
-        item.style.flex = "0 0 auto";
-
-        // Improve overlapping names: allow up to 2 lines with ellipsis
-        const label = item.querySelector(".bar-label");
-        if (label) {
-          label.style.maxWidth = minItemWidth + "px";
-          label.style.overflow = "hidden";
-          label.style.display = "-webkit-box";
-          label.style.webkitBoxOrient = "vertical";
-          label.style.webkitLineClamp = "2";
-          label.setAttribute("title", label.textContent || "");
-        }
-      });
-
-      // Center items in the container
-      chart.style.justifyContent = "center";
-    }
-
-    // Apply auto-fit when charts are rendered
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
-          if (mutation.target === priceChart || mutation.target === perfChart) {
-            fitModelsToChart(mutation.target);
-          }
-        }
-      });
-    });
-    registerCleanup(() => observer.disconnect());
-
-    // Observe both charts for changes
-    if (priceChart) {
-      observer.observe(priceChart, { childList: true });
-      // Initial fit if chart already has content
-      fitModelsToChart(priceChart);
-    }
-
-    if (perfChart) {
-      observer.observe(perfChart, { childList: true });
-      // Initial fit if chart already has content
-      fitModelsToChart(perfChart);
-    }
-
-    // Re-fit on window resize
-    const handleResize = () => {
-      fitModelsToChart(priceChart);
-      fitModelsToChart(perfChart);
-    };
-    window.addEventListener("resize", handleResize);
-    registerCleanup(() => window.removeEventListener("resize", handleResize));
-  }
-
   let initializeSequence = 0;
 
   // Initialize on both initial load and after view transitions
@@ -4914,8 +4112,6 @@ const initialPerformanceAttribution =
     await loadCompareInitialData();
     if (currentSequence !== initializeSequence) return;
     await initCompare();
-    if (currentSequence !== initializeSequence) return;
-    initAutoFit();
   }
 
   // Handle initial page load
