@@ -39,11 +39,10 @@
     "astro": "7.2.10",
     "chart.js": "^4.5.1",
     "chartjs-plugin-datalabels": "^2.2.0",
-    "clsx": "^2.1.1",
+    "cn": "^0.2.6",
     "lucide-react": "1.39.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "tailwind-merge": "^3.6.0",
     "typescript": "6.0.3"
   },
   "devDependencies": {

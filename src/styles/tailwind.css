@@ -1,6 +1,48 @@
-@config "../../tailwind.config.js";
 @import "tailwindcss";
+/*
+  Order matters: ecosystem.css must come after Tailwind so the contract's
+  :root wins for --font-sans and --font-mono, which Tailwind's default
+  theme also declares. Verified in the browser, not assumed.
+*/
 @import "./ecosystem.css";
+
+/*
+  Moved here from tailwind.config.js when this project went v4-native.
+  Legacy palette names stay mapped so existing markup keeps working, and
+  each resolves to an ecosystem contract token so both themes flow through.
+*/
+@theme inline {
+  --color-base: var(--surface-0);
+  --color-surface: var(--surface-1);
+  --color-overlay: var(--surface-2);
+  --color-muted: var(--ink-2);
+  --color-subtle: var(--ink-1);
+  --color-text: var(--ink-0);
+  --color-love: var(--signal);
+  --color-signal: var(--signal);
+  --color-gold: var(--warn);
+  --color-rose: var(--bad);
+  --color-pine: var(--ok);
+  --color-foam: var(--signal-hover);
+  --color-iris: var(--info);
+  --color-border-color: var(--line-1);
+  --color-highlight-low: var(--line-0);
+  --color-highlight-med: var(--line-1);
+  --color-highlight-high: color-mix(in srgb, var(--ink-0) 30%, transparent);
+}
+
+/*
+  The contract owns --font-sans and --font-mono in ecosystem.css. Declaring
+  them in @theme would emit a self-referential :root value and break
+  preflight, so point Tailwind's preflight defaults at them instead.
+*/
+@theme inline {
+  --default-font-family: var(--font-sans);
+  --default-mono-font-family: var(--font-mono);
+}
+
+/* Dark is this site's default; light is opt-in via data-theme or .light. */
+@custom-variant dark (&:where(:root:not([data-theme="light"]):not(.light) *));
 
 /*
   Legacy token names used across the existing AI Stats stylesheets.
