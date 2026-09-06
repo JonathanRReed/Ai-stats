@@ -37,6 +37,18 @@ const links = [
           {link.label}
         </a>
       ))}
+      <button
+        id="model-search-open"
+        class="eco-icon-btn model-search-trigger"
+        type="button"
+        aria-label="Find a model"
+        title="Find a model. Press Command K or Control K"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+        </svg>
+        <kbd aria-hidden="true">&#8984;K</kbd>
+      </button>
       <button id="theme-toggle" class="eco-icon-btn eco-theme-toggle theme-toggle" type="button" aria-label="Toggle light and dark theme" title="Toggle light and dark theme">
         <svg class="eco-icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
@@ -112,6 +124,29 @@ const links = [
   .hamburger.open .hamburger-line:nth-child(1) { transform: rotate(45deg) translate(4px, 4px); }
   .hamburger.open .hamburger-line:nth-child(2) { opacity: 0; }
   .hamburger.open .hamburger-line:nth-child(3) { transform: rotate(-45deg) translate(4px, -4px); }
+
+  .model-search-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding-inline: 0.5rem;
+    width: auto;
+  }
+
+  .model-search-trigger svg { width: 1rem; height: 1rem; }
+
+  .model-search-trigger kbd {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--ink-2);
+    border: 1px solid var(--line-0);
+    border-radius: var(--radius-sm);
+    padding: 0.05rem 0.3rem;
+  }
+
+  @media (max-width: 900px) {
+    .model-search-trigger kbd { display: none; }
+  }
 
   .mobile-nav-overlay {
     position: fixed;
@@ -193,6 +228,20 @@ const links = [
 
 <script is:inline src="/header.js" defer></script>
 <script is:inline>
+  // The palette island listens for this, so the header button works whether or
+  // not that island has hydrated yet.
+  (function () {
+    const bind = () => {
+      const trigger = document.getElementById("model-search-open");
+      if (!trigger || trigger.dataset.bound === "true") return;
+      trigger.dataset.bound = "true";
+      trigger.addEventListener("click", () => {
+        window.dispatchEvent(new Event("ai-stats:open-model-search"));
+      });
+    };
+    bind();
+    document.addEventListener("astro:page-load", bind);
+  })();
   (() => {
     const bindAccessibleMobileMenu = () => {
       const toggle = document.getElementById("mobile-menu-toggle");

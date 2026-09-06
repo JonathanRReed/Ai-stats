@@ -3,6 +3,7 @@
 import { ClientRouter } from "astro:transitions";
 import "../styles/tailwind.css";
 import ModelDrawer from "./ModelDrawer";
+import ModelSearchPalette from "./ModelSearchPalette";
 import { STATIC_PAGE_DATE_MODIFIED } from "../lib/site-pages";
 import { AUTHOR_PERSON, AUTHOR_REF } from "../lib/author";
 
@@ -247,6 +248,7 @@ const pageSchema = {
     -->
     <slot />
     <ModelDrawer client:idle />
+    <ModelSearchPalette client:idle />
 
     <script is:inline src="/page-motion.js" defer></script>
   </body>

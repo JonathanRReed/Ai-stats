@@ -14,6 +14,9 @@ export default defineConfig({
   integrations: [react()],
   vite: {
     plugins: [tailwindcss()],
+    // Radix and cmdk ship ESM that Astro must bundle for the island rather
+    // than externalize, or the dialog loses its context on hydration.
+    ssr: { noExternal: ['radix-ui', 'cmdk'] },
   },
   compressHTML: true,
 });

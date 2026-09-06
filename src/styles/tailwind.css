@@ -5,6 +5,7 @@
   theme also declares. Verified in the browser, not assumed.
 */
 @import "./ecosystem.css";
+@import "tw-animate-css";
 
 /*
   Moved here from tailwind.config.js when this project went v4-native.
@@ -29,6 +30,36 @@
   --color-highlight-low: var(--line-0);
   --color-highlight-med: var(--line-1);
   --color-highlight-high: color-mix(in srgb, var(--ink-0) 30%, transparent);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
 }
 
 /*
@@ -49,65 +80,72 @@
   They alias the ecosystem contract so both themes flow through untouched.
 */
 :root {
-  --base: var(--surface-0);
-  --surface: var(--surface-1);
-  --overlay: var(--surface-2);
-  --muted: var(--ink-2);
-  --subtle: var(--ink-1);
-  --text: var(--ink-0);
-  --text-1: var(--ink-0);
-  --text-2: var(--ink-1);
-  --love: var(--signal);
-  --foam: var(--signal-hover);
-  --gold: var(--warn);
-  --pine: var(--ok);
-  --terminal-green: var(--ok);
-  --rose: var(--bad);
-  --iris: var(--info);
-  --accent: var(--signal);
-  --accent-2: var(--ok);
-  --on-accent: var(--signal-ink);
-  --highlight-low: var(--line-0);
-  --highlight-med: var(--line-1);
-  --highlight-high: color-mix(in srgb, var(--ink-0) 30%, transparent);
-  --border-color: var(--line-1);
-  --border-soft: var(--line-0);
-  --shadow-color: rgba(0, 0, 0, 0.4);
-  --glass-edge: 0 0 0 0 transparent;
-  --glow-primary: 0 0 0 0 transparent;
-  --glow-primary-hover: 0 0 0 0 transparent;
-  --font-display: var(--font-sans);
-  --intelligence-base: var(--surface-0);
-  --intelligence-surface: var(--surface-1);
-  --intelligence-grid: var(--line-1);
-  --intelligence-copper: var(--signal);
-  --intelligence-blue: var(--info);
-  --radius-s: var(--radius-sm);
-  --radius-m: var(--radius-md);
-  --radius-l: var(--radius-lg);
-  --radius-xl: var(--radius-lg);
-  --container-max: var(--container);
-  --container-pad: var(--gutter);
-  --ease-smooth: var(--ease-standard);
-  --ease-out-expo: var(--ease-out);
-  --ease-spring: var(--ease-out);
-  --transition-colors:
-    color var(--dur-base) var(--ease-standard),
-    background-color var(--dur-base) var(--ease-standard),
-    border-color var(--dur-base) var(--ease-standard);
-  --transition-elevate:
-    border-color var(--dur-base) var(--ease-standard),
-    background-color var(--dur-base) var(--ease-standard);
-  --transition-reveal:
-    opacity var(--dur-slow) var(--ease-out),
-    transform var(--dur-slow) var(--ease-out);
-  --elev-1: var(--shadow-1);
-  --elev-2: var(--shadow-1);
-  --elev-3: var(--shadow-2);
-  --elev-4: var(--shadow-2);
+  /*
+    shadcn/ui semantic palette in ecosystem contract tokens. The contract
+    already flips per theme, so there is one set of values and no .dark
+    palette. --font-sans and --font-mono are deliberately absent: the
+    contract owns them, and declaring them here breaks preflight.
+  */
+  --background: var(--surface-0);
+  --foreground: var(--ink-0);
+  --card: var(--surface-1);
+  --card-foreground: var(--ink-0);
+  --popover: var(--surface-1);
+  --popover-foreground: var(--ink-0);
+  --primary: var(--signal);
+  --primary-foreground: var(--signal-ink);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--ink-0);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--ink-2);
+  --accent: var(--surface-3);
+  --accent-foreground: var(--ink-0);
+  --destructive: var(--bad);
+  --destructive-foreground: var(--signal-ink);
+  --border: var(--line-0);
+  --input: var(--line-1);
+  --ring: var(--focus);
+  --chart-1: var(--signal);
+  --chart-2: var(--info);
+  --chart-3: var(--ok);
+  --chart-4: var(--warn);
+  --chart-5: var(--ink-2);
+  /* Literal, not var(--radius-md): that name is the contract's and would loop. */
+  --radius: 4px;
+  --sidebar: var(--surface-1);
+  --sidebar-foreground: var(--ink-0);
+  --sidebar-primary: var(--signal);
+  --sidebar-primary-foreground: var(--signal-ink);
+  --sidebar-accent: var(--surface-2);
+  --sidebar-accent-foreground: var(--ink-0);
+  --sidebar-border: var(--line-0);
+  --sidebar-ring: var(--focus);
+}
+/*
+  ---break---
+*/
+
+/*
+  This project's legacy Tailwind palette predates shadcn and gives some names
+  a different meaning: `muted` here is muted *text* (--ink-2), while shadcn's
+  components use bg-muted to mean a muted *surface*. Until those legacy names
+  are retired, shadcn components get their own resolution.
+
+  It also fixes a real bug in the upstream class list: `data-selected:` matches
+  the attribute's presence, so cmdk items styled that way highlight even when
+  data-selected is "false".
+*/
+[data-slot="command-item"] {
+  background-color: transparent;
+  color: var(--ink-0);
 }
 
-html.light,
-:root[data-theme="light"] {
-  --shadow-color: rgba(20, 16, 12, 0.14);
+[data-slot="command-item"][data-selected="true"],
+[data-slot="command-item"]:hover {
+  background-color: var(--signal-soft);
+  color: var(--ink-0);
+}
+
+[data-slot="command-item"] .text-muted-foreground {
+  color: var(--ink-2);
 }
