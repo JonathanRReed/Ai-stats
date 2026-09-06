@@ -556,6 +556,9 @@ html.light {
 
   .eco-footer-meta a {
     color: var(--ink-1);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
   }
 
   /* Buttons and controls ------------------------------------------- */
