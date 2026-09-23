@@ -9,6 +9,7 @@ import { buildModelSiblingLinks } from "../../lib/model-siblings";
 import {
   buildModelJsonLd,
   modelPageDescription,
+  modelPageTitle,
   type ModelPageMetric,
   type ModelPageRecord,
 } from "../../lib/model-pages";
@@ -30,7 +31,7 @@ type Props = {
 };
 
 const { record, siblings } = Astro.props;
-const title = `${record.name} price, speed, and benchmarks | AI Stats`;
+const title = modelPageTitle(record.name);
 const description = modelPageDescription(record);
 const graph = buildModelJsonLd(record);
 const jsonLd = JSON.stringify({ "@context": "https://schema.org", "@graph": graph });

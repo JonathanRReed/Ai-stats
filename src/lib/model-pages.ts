@@ -410,6 +410,13 @@ const SOURCE_URLS = {
   PoliBench: 'https://polibench.jonathanrreed.com/',
 } as const;
 
+export const modelPageTitle = (name: string): string => {
+  const detailed = `${name} price, speed, and benchmarks | AI Stats`;
+  if (detailed.length <= 70) return detailed;
+  const branded = `${name} | AI Stats`;
+  return branded.length <= 70 ? branded : name;
+};
+
 export const modelPageDescription = (record: ModelPageRecord): string => {
   const parts: string[] = [];
   const input = record.pricing.find((m) => m.key === 'price_1m_input_tokens')?.value;

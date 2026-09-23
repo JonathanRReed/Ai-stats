@@ -7,6 +7,7 @@ import {
   buildModelPageRecords,
   matchEpochRuns,
   modelPageSlug,
+  modelPageTitle,
   modelRecordToText,
 } from "./model-pages";
 
@@ -45,6 +46,15 @@ test("slugs come from the AA slug and fall back to the name", () => {
   expect(modelPageSlug({ slug: "gpt-6-astra", name: "GPT-6 Astra", id: "x" })).toBe("gpt-6-astra");
   expect(modelPageSlug({ slug: null, name: "Claude Fable 5.1 (Max Effort)", id: "x" })).toBe("claude-fable-5-1-max-effort");
   expect(modelPageSlug({ slug: null, name: null, id: "9b16-6bf3" })).toBe("9b16-6bf3");
+});
+
+test("model titles keep the full model name without redundant text", () => {
+  expect(modelPageTitle("Claude 2.0"))
+    .toBe("Claude 2.0 price, speed, and benchmarks | AI Stats");
+  expect(modelPageTitle("Claude Opus 4.7 (Adaptive Reasoning, Max Effort)"))
+    .toBe("Claude Opus 4.7 (Adaptive Reasoning, Max Effort) | AI Stats");
+  expect(modelPageTitle("Claude Fable 5.1 (Adaptive Reasoning, Max Effort, Default Fallback)"))
+    .toBe("Claude Fable 5.1 (Adaptive Reasoning, Max Effort, Default Fallback)");
 });
 
 test("colliding slugs get a numeric suffix instead of overwriting a page", () => {

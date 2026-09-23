@@ -44,7 +44,7 @@ const providers = [...byProvider.entries()]
 const currentCount = records.filter((record) => record.current).length;
 const hasRecords = records.length > 0;
 
-const title = "Every AI model tracked, with its price, speed, and benchmark receipt | AI Stats";
+const title = "AI model prices, speed, and benchmark receipts | AI Stats";
 const description = `${records.length} models from ${providers.length} providers, each with a page listing price per million tokens, output speed, context length, benchmark scores, and catalog identifiers with source and observation dates.`;
 
 const get = (group: { key: string; value: number | null }[], key: string) => group.find((m) => m.key === key)?.value ?? null;
