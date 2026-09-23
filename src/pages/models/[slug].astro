@@ -81,6 +81,10 @@ const runScore = (value: number | null): string =>
   value === null ? "Not published" : value <= 1 ? `${(value * 100).toFixed(1)}%` : value.toFixed(1);
 const runError = (value: number | null): string =>
   value === null ? "n/a" : value <= 1 ? `${(value * 100).toFixed(1)}%` : value.toFixed(2);
+const runSourceLabel = (run: ModelPageRecord["epochRuns"][number]): string =>
+  run.sourceName && !/^https?:\/\//i.test(run.sourceName)
+    ? run.sourceName
+    : `${run.benchmark} benchmark source`;
 
 const aaPricing = record.pricing.filter((m) => m.source === "Artificial Analysis");
 const aaPrice = (key: string) => aaPricing.find((m) => m.key === key)?.value ?? null;
@@ -298,7 +302,7 @@ const sourceLinks = [
                   <th scope="row">{run.benchmark}</th>
                   <td class="num">{runScore(run.score)}</td>
                   <td class="num">{runError(run.stderr)}</td>
-                  <td>{run.sourceLink ? <a href={run.sourceLink} rel="noopener noreferrer">{run.sourceName ?? "Epoch AI"}</a> : run.sourceName ?? "Epoch AI"}</td>
+                  <td>{run.sourceLink ? <a href={run.sourceLink} rel="noopener noreferrer">{runSourceLabel(run)}</a> : runSourceLabel(run)}</td>
                 </tr>
               ))}
             </tbody>
