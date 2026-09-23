@@ -18,10 +18,11 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build && bun scripts/validate-build.mjs",
+    "build": "bun run build:static-js && astro build && bun scripts/validate-build.mjs",
+    "build:static-js": "bun build scripts/static-js/header.js scripts/static-js/page-motion.js scripts/static-js/site-theme.js --target browser --format iife --minify --outdir public",
     "preview": "astro preview",
     "astro": "astro",
-    "lint": "eslint \"src/**/*.{astro,ts,tsx}\" \"scripts/**/*.{ts,mjs}\"",
+    "lint": "eslint \"src/**/*.{astro,ts,tsx}\" \"scripts/**/*.{ts,mjs}\" \"scripts/static-js/*.js\"",
     "test": "bun test --isolate",
     "typecheck": "astro check",
     "check:epoch": "bun scripts/check-epoch-smoke.ts",
