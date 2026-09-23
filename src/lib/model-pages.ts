@@ -145,6 +145,9 @@ const normalizeName = (value: unknown): string =>
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 
+const VPCT_EPOCH_PAGE = 'https://epoch.ai/benchmarks/vpct';
+const retiredVpctLinks = new Set(['https://cbrower.dev/vpct', 'https://cbrower.dev/vpct/']);
+
 /** Same alias rule the dashboard uses so a page never shows runs the chart would not. */
 export const matchEpochRuns = (
   model: Pick<AaModel, 'name' | 'slug'>,
@@ -167,14 +170,17 @@ export const matchEpochRuns = (
     })
     .map((run) => {
       const benchmark = benchmarkById.get(run.benchmark_id);
+      const sourceLink = text(run.source_link);
+      // The creator's leaderboard is unavailable; Epoch still publishes these VPCT runs.
+      const useEpochVpctPage = sourceLink !== null && retiredVpctLinks.has(sourceLink);
       return {
         benchmarkSlug: run.benchmark_slug ?? benchmark?.slug ?? run.benchmark_id,
         benchmark: run.benchmark_name ?? benchmark?.name ?? run.benchmark_id,
         score: finite(run.score),
         stderr: finite(run.stderr),
         scoreMetric: text(run.score_metric),
-        sourceName: text(run.source_name),
-        sourceLink: text(run.source_link),
+        sourceName: useEpochVpctPage ? 'Epoch AI VPCT benchmark' : text(run.source_name),
+        sourceLink: useEpochVpctPage ? VPCT_EPOCH_PAGE : sourceLink,
         releaseDate: text(run.release_date),
       };
     })

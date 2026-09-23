@@ -116,6 +116,31 @@ test("Epoch runs join on the same normalized aliases the dashboard uses", () => 
   expect(runs[0]).toMatchObject({ benchmark: "GPQA Diamond", score: 0.55, stderr: 0.02, sourceLink: "https://epoch.ai/x" });
 });
 
+test("VPCT runs link to Epoch's published benchmark when the creator site is unavailable", () => {
+  const runs = matchEpochRuns(
+    { name: "Test Model 1", slug: "test-model-1" },
+    [{
+      id: "vpct-run",
+      model_version: "Test Model 1",
+      benchmark_id: "vpct",
+      score: 0.6,
+      release_date: null,
+      organization: null,
+      country: null,
+      stderr: null,
+      source_name: "VPCT",
+      source_link: "https://cbrower.dev/vpct",
+    }],
+    [{ id: "vpct", slug: "vpct_external", name: "VPCT", description: null, source: null }],
+  );
+  expect(runs[0]).toMatchObject({
+    benchmark: "VPCT",
+    score: 0.6,
+    sourceName: "Epoch AI VPCT benchmark",
+    sourceLink: "https://epoch.ai/benchmarks/vpct",
+  });
+});
+
 test("the JSON-LD graph exposes a Dataset with a download and measured variables", () => {
   const [record] = buildModelPageRecords([model({ openrouter_id: "test-labs/test-model-1" })]);
   const graph = buildModelJsonLd(record);
