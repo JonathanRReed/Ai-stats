@@ -120,7 +120,7 @@ test("the JSON-LD graph exposes a Dataset with a download and measured variables
   const [record] = buildModelPageRecords([model({ openrouter_id: "test-labs/test-model-1" })]);
   const graph = buildModelJsonLd(record);
   const dataset = graph.find((node) => node["@type"] === "Dataset") as Record<string, unknown>;
-  const application = graph.find((node) => node["@type"] === "SoftwareApplication") as Record<string, unknown>;
+  const modelEntity = graph.find((node) => node["@id"] === `${record.url}#model`) as Record<string, unknown>;
 
   expect(dataset.dateModified).toBe("2026-09-04");
   expect(dataset.temporalCoverage).toBe("2026-06-01/2026-09-04");
@@ -131,7 +131,9 @@ test("the JSON-LD graph exposes a Dataset with a download and measured variables
   const measured = dataset.variableMeasured as Array<{ propertyID: string; value: number }>;
   expect(measured.some((entry) => entry.propertyID === "hle")).toBe(false);
   expect(measured.find((entry) => entry.propertyID === "median_output_tokens_per_second")?.value).toBe(88.4);
-  expect(application.sameAs).toEqual(["https://openrouter.ai/test-labs/test-model-1"]);
+  expect(modelEntity["@type"]).toBe("Thing");
+  expect(modelEntity.sameAs).toEqual(["https://openrouter.ai/test-labs/test-model-1"]);
+  expect(graph.some((node) => node["@type"] === "SoftwareApplication")).toBe(false);
   expect(graph.some((node) => node["@type"] === "BreadcrumbList")).toBe(true);
 });
 

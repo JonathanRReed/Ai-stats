@@ -6,6 +6,7 @@ import {
   normalizeAaOperationalMetrics,
   sortAaModelsByIntelligence,
 } from './data-integrity';
+import { parseOpenRouterRankingRows, type OpenRouterRankingRow } from './openrouter-ranking-parser';
 
 // Public client for server-side fetching (Astro on the server).
 // Uses anon key; RLS allows read on public tables.
@@ -367,20 +368,6 @@ type LiteLLMPriceEntry = {
   supports_web_search?: boolean;
 };
 
-type OpenRouterRankingRow = {
-  date?: string;
-  model_permaslug?: string;
-  variant?: string;
-  variant_permaslug?: string;
-  total_completion_tokens?: number;
-  total_prompt_tokens?: number;
-  total_native_tokens_reasoning?: number;
-  count?: number;
-  total_tool_calls?: number;
-  requests_with_tool_call_errors?: number;
-  change?: number | null;
-};
-
 type OpenRouterApiProvider = {
   name?: string;
   slug?: string;
@@ -602,41 +589,6 @@ async function fetchLiteLlmPublicModels(limit: number): Promise<LiteLLMCatalogMo
     .slice(0, limit);
 }
 
-const extractJsonArrayAfterKey = (text: string, key: string): string | null => {
-  const keyIndex = text.indexOf(key);
-  if (keyIndex < 0) return null;
-  const start = text.indexOf('[', keyIndex + key.length);
-  if (start < 0) return null;
-
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-  for (let index = start; index < text.length; index += 1) {
-    const char = text[index];
-    if (inString) {
-      if (escaped) {
-        escaped = false;
-      } else if (char === '\\') {
-        escaped = true;
-      } else if (char === '"') {
-        inString = false;
-      }
-      continue;
-    }
-
-    if (char === '"') {
-      inString = true;
-    } else if (char === '[') {
-      depth += 1;
-    } else if (char === ']') {
-      depth -= 1;
-      if (depth === 0) return text.slice(start, index + 1);
-    }
-  }
-
-  return null;
-};
-
 const extractNextFlightText = (html: string): string => {
   const chunks = html.matchAll(/self\.__next_f\.push\((.*?)\)<\/script>/gs);
   let result = '';
@@ -664,10 +616,7 @@ async function fetchOpenRouterUsageRankings(limit: number): Promise<OpenRouterUs
 
   const html = await response.text();
   const flightText = extractNextFlightText(html);
-  const rankingJson = extractJsonArrayAfterKey(flightText, 'rankingData":');
-  if (!rankingJson) return [];
-
-  const rows = JSON.parse(rankingJson) as OpenRouterRankingRow[];
+  const rows = parseOpenRouterRankingRows(flightText);
   const normalized = rows
     .map((row) => {
       const modelPermaslug = String(row.model_permaslug || '').trim();

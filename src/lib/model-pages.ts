@@ -449,11 +449,9 @@ export const buildModelJsonLd = (record: ModelPageRecord): Record<string, unknow
 
   return [
     {
-      '@type': 'SoftwareApplication',
+      '@type': 'Thing',
       '@id': `${record.url}#model`,
       name: record.name,
-      applicationCategory: 'Large language model',
-      provider: { '@type': 'Organization', name: record.provider },
       identifier: identifiers,
       ...(sameAs.length ? { sameAs } : {}),
       url: record.url,
