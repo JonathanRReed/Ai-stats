@@ -29,13 +29,14 @@
 # AND RELATED RIGHTS IN THE DIGITAL SINGLE MARKET.
 # ---------------------------------------------------------------------------
 
-# === DEFAULT: search + AI grounding allowed; training refused except Google-Extended
+# === DEFAULT: search + AI grounding allowed; model-prefill URLs are not search pages
 User-agent: *
 Content-Signal: search=yes, ai-input=yes, ai-train=no, use=reference
 Allow: /
 Disallow: /search/
 Disallow: /*?s=
 Disallow: /*?q=
+Disallow: /*?*model=
 
 # NOTE (RFC 9309): a crawler obeys only the FIRST matching user-agent group.
 # Any bot named below never reads the "*" group above, so the Content-Signal
@@ -53,6 +54,7 @@ Allow: /
 Disallow: /search/
 Disallow: /*?s=
 Disallow: /*?q=
+Disallow: /*?*model=
 
 # Anthropic — Claude search index.
 User-agent: Claude-SearchBot
@@ -61,6 +63,7 @@ Allow: /
 Disallow: /search/
 Disallow: /*?s=
 Disallow: /*?q=
+Disallow: /*?*model=
 
 # Perplexity — search index. Operator states it is NOT used for foundation models.
 User-agent: PerplexityBot
@@ -69,6 +72,7 @@ Allow: /
 Disallow: /search/
 Disallow: /*?s=
 Disallow: /*?q=
+Disallow: /*?*model=
 
 # Meta — Meta AI search index (distinct from meta-externalagent, which trains).
 User-agent: meta-webindexer
@@ -77,6 +81,7 @@ Allow: /
 Disallow: /search/
 Disallow: /*?s=
 Disallow: /*?q=
+Disallow: /*?*model=
 
 # Amazon — search only; operator states it does NOT crawl for GenAI training.
 User-agent: Amzn-SearchBot
@@ -85,6 +90,7 @@ Allow: /
 Disallow: /search/
 Disallow: /*?s=
 Disallow: /*?q=
+Disallow: /*?*model=
 
 # ===========================================================================
 # ALLOWED — user-initiated fetchers (a human asked for this page)
@@ -139,6 +145,7 @@ Allow: /
 Disallow: /search/
 Disallow: /*?s=
 Disallow: /*?q=
+Disallow: /*?*model=
 
 # Apple training opt-out. Does not crawl; Applebot itself stays allowed via "*".
 User-agent: Applebot-Extended
