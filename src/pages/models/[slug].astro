@@ -5,6 +5,7 @@ import Header from "../../components/Header.astro";
 import Footer from "../../components/Footer.astro";
 import ScrollToTop from "../../components/ScrollToTop.astro";
 import { getModelPageRecords } from "../../lib/model-pages-data";
+import { buildModelSiblingLinks } from "../../lib/model-siblings";
 import {
   buildModelJsonLd,
   modelPageDescription,
@@ -16,17 +17,9 @@ export const prerender = true;
 
 export const getStaticPaths = (async () => {
   const records = await getModelPageRecords();
-  const byProvider = new Map<string, ModelPageRecord[]>();
-  for (const record of records) {
-    const group = byProvider.get(record.provider) ?? [];
-    group.push(record);
-    byProvider.set(record.provider, group);
-  }
+  const siblingLinks = buildModelSiblingLinks(records);
   return records.map((record) => {
-    const siblings = (byProvider.get(record.provider) ?? [])
-      .filter((other) => other.slug !== record.slug)
-      .slice(0, 8)
-      .map((other) => ({ name: other.name, path: other.path }));
+    const siblings = siblingLinks.get(record.slug) ?? [];
     return { params: { slug: record.slug }, props: { record, siblings } };
   });
 }) satisfies GetStaticPaths;
