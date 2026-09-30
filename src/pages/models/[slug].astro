@@ -19,19 +19,28 @@ export const prerender = true;
 export const getStaticPaths = (async () => {
   const records = await getModelPageRecords();
   const siblingLinks = buildModelSiblingLinks(records);
+  const titleCounts = new Map<string, number>();
+  for (const record of records) {
+    const title = modelPageTitle(record.name);
+    titleCounts.set(title, (titleCounts.get(title) ?? 0) + 1);
+  }
   return records.map((record) => {
     const siblings = siblingLinks.get(record.slug) ?? [];
-    return { params: { slug: record.slug }, props: { record, siblings } };
+    const defaultTitle = modelPageTitle(record.name);
+    const pageTitle = (titleCounts.get(defaultTitle) ?? 0) > 1
+      ? modelPageTitle(record.name, record.slug)
+      : defaultTitle;
+    return { params: { slug: record.slug }, props: { record, siblings, pageTitle } };
   });
 }) satisfies GetStaticPaths;
 
 type Props = {
   record: ModelPageRecord;
+  pageTitle: string;
   siblings: { name: string; path: string }[];
 };
 
-const { record, siblings } = Astro.props;
-const title = modelPageTitle(record.name);
+const { record, siblings, pageTitle: title } = Astro.props;
 const description = modelPageDescription(record);
 const graph = buildModelJsonLd(record);
 const jsonLd = JSON.stringify({ "@context": "https://schema.org", "@graph": graph });
