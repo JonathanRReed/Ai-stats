@@ -410,11 +410,13 @@ const SOURCE_URLS = {
   PoliBench: 'https://polibench.jonathanrreed.com/',
 } as const;
 
-export const modelPageTitle = (name: string): string => {
-  const detailed = `${name} price, speed, and benchmarks | AI Stats`;
+export const modelPageTitle = (name: string, catalogSlug?: string): string => {
+  // Keep source names intact; only colliding titles need their existing catalog key.
+  const label = catalogSlug ? `${name} (${catalogSlug})` : name;
+  const detailed = `${label} price, speed, and benchmarks | AI Stats`;
   if (detailed.length <= 70) return detailed;
-  const branded = `${name} | AI Stats`;
-  return branded.length <= 70 ? branded : name;
+  const branded = `${label} | AI Stats`;
+  return branded.length <= 70 ? branded : label;
 };
 
 export const modelPageDescription = (record: ModelPageRecord): string => {
