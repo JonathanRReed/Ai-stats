@@ -180,3 +180,17 @@ test("the text form is compact and names its sources", () => {
   expect(text).toContain("MMLU-Pro 81.0%");
   expect(text).toContain("Observed: first 2026-06-01, last 2026-09-04");
 });
+
+
+test("duplicate model names can retain their distinct catalog slugs in page titles", () => {
+  const titles = [
+    modelPageTitle("Command A", "command-a"),
+    modelPageTitle("Command A", "command-a-plus"),
+    modelPageTitle("Command R", "command-r"),
+    modelPageTitle("Command R", "command-r-plus"),
+  ];
+  expect(new Set(titles).size).toBe(4);
+  expect(titles[0]).toContain("Command A (command-a)");
+  expect(titles[1]).toContain("Command A (command-a-plus)");
+  expect(modelPageTitle("Claude 2.0")).toBe("Claude 2.0 price, speed, and benchmarks | AI Stats");
+});
