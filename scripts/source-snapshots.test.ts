@@ -52,8 +52,8 @@ test('publication stages validated data before promoting its returned identity',
 test('unsafe origins and invalid payloads fail before any credential transmission', async () => {
   let calls = 0;
   const fetchImpl = async () => { calls++; return new Response('41'); };
-  await expect(async () => snapshots.publishSourceSnapshot?.({ input,
-    baseUrl: 'https://example.test', serviceKey: 'test-only', fetchImpl })).toThrow('origin');
+  await expect(snapshots.publishSourceSnapshot({ input,
+    baseUrl: 'https://example.test', serviceKey: 'test-only', fetchImpl })).rejects.toThrow('origin');
   expect(calls).toBe(0);
 });
 test('failed staging never triggers promotion or leaks server response bodies', async () => {
@@ -61,8 +61,30 @@ test('failed staging never triggers promotion or leaks server response bodies', 
   const fetchImpl = async (url: string | URL) => {
     calls.push(String(url)); return new Response('private upstream details', {status: 503});
   };
-  await expect(async () => snapshots.publishSourceSnapshot?.({ input,
+  await expect(snapshots.publishSourceSnapshot({ input,
     baseUrl: 'https://bgbqdzmgxkwstjihgeef.supabase.co', serviceKey: 'test-only', fetchImpl }))
-    .toThrow('Source snapshot stage failed (503)');
+    .rejects.toThrow('Source snapshot stage failed (503)');
   expect(calls).toHaveLength(1);
+});
+
+const epoch = { fetched_at: '2026-10-02T00:00:00Z',
+  models: [{ model_version: 'model', display_name: 'Model', updated_at: '2026-10-02T00:00:00Z' }],
+  benchmarks: [{ slug: 'test', name: 'Test' }],
+  runs: [{ id: 'run', model_version: 'model', benchmark_slug: 'test', score: 0,
+    conditions: { Shots: '0' }, evaluation_date: null, score_unit: 'native' }],
+};
+test('Epoch cache records preserve membership and omit download-only timestamps', () => {
+  const first = snapshots.buildEpochCacheInput?.(epoch);
+  expect(first?.sourceKey).toBe('epoch-ai');
+  expect(first?.observedAt).toBeNull();
+  expect(first?.records).toHaveLength(3);
+  expect(first?.records.find((r: {kind: string}) => r.kind === 'run')?.data.conditions).toEqual({ Shots: '0' });
+  const second = snapshots.buildEpochCacheInput?.({ ...epoch, fetched_at: '2026-10-02T06:00:00Z',
+    models: [{ ...epoch.models[0], updated_at: '2026-10-02T06:00:00Z' }] });
+  expect(first).toBeDefined();
+  expect(snapshots.prepareSourceSnapshot(first).contentHash).toBe(snapshots.prepareSourceSnapshot(second).contentHash);
+});
+test('partial Epoch corpora cannot be promoted as valid snapshots', () => {
+  expect(() => snapshots.buildEpochCacheInput?.({ ...epoch, runs: [] })).toThrow('incomplete');
+  expect(() => snapshots.buildEpochCacheInput?.({ ...epoch, runs: [{ ...epoch.runs[0], model_version: 'missing' }] })).toThrow('identity');
 });
