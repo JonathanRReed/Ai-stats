@@ -32,10 +32,10 @@ test('invalid arguments and partial artifacts cannot reach publication', async (
   let calls = 0;
   for (const argv of [[], ['--input'], ['--input', 'x', '--force']]) {
     await expect(runEpochCachePublication({ argv, env: {}, readFileImpl: async () => '{}',
-      publishImpl: async () => { calls++; } })).rejects.toThrow();
+      publishImpl: async () => { calls++; throw new Error('unexpected publication'); } })).rejects.toThrow();
   }
   await expect(runEpochCachePublication({ argv: ['--input', 'x'], env: {},
     readFileImpl: async () => JSON.stringify({...snapshot, runs: []}),
-    publishImpl: async () => { calls++; } })).rejects.toThrow('incomplete');
+    publishImpl: async () => { calls++; throw new Error('unexpected publication'); } })).rejects.toThrow('incomplete');
   expect(calls).toBe(0);
 });

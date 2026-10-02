@@ -12,6 +12,7 @@ export const getRefreshPolicy = sourceKey => ({ ...(POLICIES[sourceKey] ?? { int
 const millis = value => value === null || value === undefined ? NaN : value instanceof Date ? value.getTime() : Date.parse(value);
 const iso = value => Number.isFinite(millis(value)) ? new Date(millis(value)).toISOString() : null;
 
+/** @param {Record<string, any>} receipt @param {string | Date} now */
 export function resolveReceipt(receipt, now = new Date()) {
   const fetchedAt = iso(receipt.fetchedAt);
   const current = millis(now);
@@ -31,6 +32,7 @@ export function retryDelayMs(retryAfter, attempt = 0, now = Date.now()) {
   return Number.isFinite(delay) && delay >= 0 ? Math.max(exponential, delay) : exponential;
 }
 
+/** @param {{sourceKey: string, now?: string | Date, lastFetchedAt?: string | Date | null, notBefore?: string | Date | null, active?: boolean, requestsUsed?: number, requestCost?: number, dailyLimit?: number, reserve?: number}} options */
 export function refreshDecision({ sourceKey, now = new Date(), lastFetchedAt = null, notBefore = null,
   active = false, requestsUsed = 0, requestCost = 1, dailyLimit = Infinity, reserve = 0 }) {
   const current = millis(now);
