@@ -5,16 +5,21 @@ import {epochConditionKey,type EpochObservation} from '../../lib/epoch-observati
 import {formatChartNumber} from '../../lib/compare-geometry';
 import {seriesCsv,downloadText,downloadChartPng,chartExportCaption} from '../../lib/compare-export';
 import {availableCompareCharts,availableAaMetrics,buildComparePresets,COMPARE_VIEW_LABELS} from '../../lib/compare-presets';
+import {expandCatalog,createMeasurementLoader,type CompareDelivery} from '../../lib/compare-delivery';
 import ComparisonChart from './ComparisonChart';
 import ModelSelector from './ModelSelector';
 import ObservationDetails from './ObservationDetails';
 export type ExplorerBenchmark={slug:string;name:string};
-type Props={models:ExplorerModel[];benchmarks:ExplorerBenchmark[];defaultModelIds:string[]};
+type Props={models:ExplorerModel[];benchmarks:ExplorerBenchmark[];defaultModelIds:string[];delivery?:CompareDelivery};
 const EMPTY_OBSERVATIONS:EpochObservation[]=[];
-export default function CompareExplorer({models,benchmarks,defaultModelIds}:Props){
-  const charts=useMemo(()=>availableCompareCharts(models),[models]);
-  const aaMetrics=useMemo(()=>availableAaMetrics(models),[models]);
-  const presets=useMemo(()=>buildComparePresets(models),[models]);
+export default function CompareExplorer({models:initialModels,benchmarks,defaultModelIds,delivery}:Props){
+  const models=useMemo(()=>delivery?expandCatalog(delivery.catalog):initialModels,[delivery,initialModels]);
+  const [loaded,setLoaded]=useState(()=>new Map(initialModels.map(model=>[model.id,model])));
+  const loader=useMemo(()=>delivery?createMeasurementLoader(delivery.revision,models):null,[delivery,models]);
+  const [measurementStatus,setMeasurementStatus]=useState('');const [measurementFailed,setMeasurementFailed]=useState(false);const [measurementAttempt,setMeasurementAttempt]=useState(0);
+  const charts=useMemo(()=>delivery?.charts??availableCompareCharts(models),[delivery,models]);
+  const aaMetrics=useMemo(()=>delivery?.aaMetrics??availableAaMetrics(models),[delivery,models]);
+  const presets=useMemo(()=>delivery?.presets??buildComparePresets(models),[delivery,models]);
   const [presetDescription,setPresetDescription]=useState('');
   const [state,setState]=useState(()=>parseCompareState(new URLSearchParams(),models,defaultModelIds));
   const [benchmarkCache,setBenchmarkCache]=useState<Record<string,EpochObservation[]>>({});
@@ -40,7 +45,18 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
   },[epochSlug,benchmarkCache,benchmarks,retryAttempt]);
   useEffect(()=>{if(filtersOpen&&!dialog.current?.open)dialog.current?.showModal();
     if(!filtersOpen&&dialog.current?.open){dialog.current.close();filterButton.current?.focus();}},[filtersOpen]);
-  const series=useMemo(()=>buildCompareSeries({models,observations},state),[models,observations,state]);
+  const pendingIds=state.modelIds.filter(id=>!loaded.has(id)&&models.find(model=>model.id===id)?.detailAvailable);
+  const pendingKey=pendingIds.slice().sort().join('\n');
+  useEffect(()=>{
+    if(!loader||!pendingKey){setMeasurementStatus('');setMeasurementFailed(false);return;}
+    let cancelled=false;setMeasurementStatus('Loading selected measurements…');setMeasurementFailed(false);
+    loader.load(pendingKey.split('\n')).then(rows=>{if(cancelled)return;
+      setLoaded(previous=>new Map([...previous,...rows.map(model=>[model.id,model] as const)]));setMeasurementStatus('');
+    }).catch(()=>{if(cancelled)return;setMeasurementFailed(true);setMeasurementStatus('Selected measurements could not load. Retry, or reload the page if a new snapshot was published.');});
+    return()=>{cancelled=true;};
+  },[loader,pendingKey,measurementAttempt]);
+  const measuredModels=useMemo(()=>models.filter(model=>!delivery||!model.detailAvailable||loaded.has(model.id)).map(model=>loaded.get(model.id)??model),[models,loaded,delivery]);
+  const series=useMemo(()=>buildCompareSeries({models:measuredModels,observations},state),[measuredModels,observations,state]);
   const active=series.points.find(point=>point.id===(pinned??hovered))??null;
   const visibleModels=models;
   const conditions=useMemo(()=>[...new Set(observations.map(row=>epochConditionKey(row.conditions)))].sort(),[observations]);
@@ -95,6 +111,8 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
           <button type="button" disabled={!series.points.length} onClick={exportPng}>PNG chart</button></div></details>
       </div>
       {state.missingModelIds.length?<p className="explorer-warning">Unavailable models in this link: {state.missingModelIds.join(', ')}</p>:null}
+      {measurementStatus?<p className="explorer-warning" role="status">{measurementStatus}</p>:null}
+      {measurementFailed?<button type="button" onClick={()=>setMeasurementAttempt(value=>value+1)}>Retry measurements</button>:null}
       {loadState?<p className="explorer-warning" role="status">{loadState}</p>:null}
       {epochSlug&&scoreOptions.missing&&observations.length?<p className="explorer-warning">The saved score metric is no longer available. Choose a recorded score metric above.</p>:null}
       {loadFailed?<button type="button" onClick={()=>setRetryAttempt(value=>value+1)}>Retry benchmark</button>:null}

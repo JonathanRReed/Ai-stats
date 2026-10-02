@@ -8,10 +8,11 @@ test('Compare is a small chart-first Astro shell over focused explorer component
   expect(source).toContain('<CompareExplorer');
   expect(source).toContain('client:load');
   expect(source.length).toBeLessThan(6000);
-  expect(source).toContain('defaultExplorerSelection');
+  expect(readFileSync('src/lib/compare-delivery-server.ts','utf8')).toContain('defaultExplorerSelection');
 });
 test('public comparison data stays server-backed and clients fetch only a selected benchmark',()=>{
-  expect(source).toContain('getModelCatalogData');
+  expect(source).toContain('getCompareDelivery');
+  expect(readFileSync('src/lib/compare-delivery-server.ts','utf8')).toContain('getModelCatalogData');
   expect(readFileSync('src/lib/model-catalog-data.ts','utf8')).toContain('getModels(true,true)');
   expect(explorer).toContain("fetch('/api/compare-benchmarks/'");
   expect(explorer).not.toContain('fetchLiveSnapshot');

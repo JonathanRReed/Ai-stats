@@ -8,7 +8,7 @@ export type ExplorerModel = {
   aaTaskCost?:number|null; aaEvaluationCost?:number|null; inputModalities?:string[]; outputModalities?:string[];
   priceBlended?:number|null; outputSpeed?:number|null; latency?:number|null;
   indexVersion?:string|null; performancePrompt?:string|null; observedAt?:string|null; fetchedAt?:string|null; sourceUrl?:string|null;
-  metrics?:Record<string,number|null>;
+  metrics?:Record<string,number|null>; hasTokenPrices?:boolean; detailAvailable?:boolean;
 };
 export const EXPLORER_SOURCE_LABELS:Record<ExplorerModel['source'],string>={aa:'Artificial Analysis',epoch:'Epoch AI',openrouter:'OpenRouter',huggingface:'Hugging Face',litellm:'LiteLLM',catalog:'Database inventory'};
 export type ExplorerEvidence = {models:ExplorerModel[]; observations:EpochObservation[]};
