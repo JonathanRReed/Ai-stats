@@ -87,3 +87,5 @@ export function normalizeCatalog(sourceKey, payload) {
   if (new Set(records.map(row => row.id)).size !== records.length) throw new Error('Catalog has duplicate identities');
   return records.sort((a,b) => a.id.localeCompare(b.id));
 }
+
+export const catalogPricePerMillion=price;

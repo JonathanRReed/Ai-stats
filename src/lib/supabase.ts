@@ -1,3 +1,4 @@
+import {normalizeCatalog,catalogPricePerMillion} from '../../scripts/public-catalogs.mjs';
 import {parseCatalogCache} from './catalog-cache';
 import { readAaCohort } from './aa-membership';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -357,11 +358,7 @@ export type PublicCatalogModels = {
   openRouterEndpointSummaries: OpenRouterEndpointSummary[];
 };
 
-const toPricePerMillion = (value: unknown): number | null => {
-  const num = Number(value);
-  if (!Number.isFinite(num) || num < 0) return null;
-  return num * 1_000_000;
-};
+const toPricePerMillion = (value: unknown): number | null => catalogPricePerMillion(value);
 
 const normalizeModelLookupKey = (value: string | null | undefined): string => {
   if (!value) return '';
@@ -536,10 +533,9 @@ async function fetchOpenRouterEmbeddingModels(limit: number): Promise<OpenRouter
     throw new Error(`OpenRouter embedding model fetch failed with HTTP ${response.status}`);
   }
 
-  const body = (await response.json()) as { data?: OpenRouterApiModel[] };
-  return (body.data ?? [])
-    .map(normalizeOpenRouterModel)
-    .filter((model): model is OpenRouterModel => model !== null)
+  const body:unknown = await response.json();
+  const fetchedAt=new Date().toISOString();
+  return (normalizeCatalog('openrouter',body) as unknown as Omit<OpenRouterModel,'fetched_at'>[])
     .map((model) => ({
       id: model.id,
       openrouter_id: model.openrouter_id,
@@ -551,7 +547,7 @@ async function fetchOpenRouterEmbeddingModels(limit: number): Promise<OpenRouter
       input_modalities: model.input_modalities,
       output_modalities: model.output_modalities,
       supported_parameters: model.supported_parameters,
-      fetched_at: model.fetched_at,
+      fetched_at: fetchedAt,
     }))
     .slice(0, limit);
 }
