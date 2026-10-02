@@ -194,3 +194,12 @@ test("duplicate model names can retain their distinct catalog slugs in page titl
   expect(titles[1]).toContain("Command A (command-a-plus)");
   expect(modelPageTitle("Claude 2.0")).toBe("Claude 2.0 price, speed, and benchmarks | AI Stats");
 });
+
+test('matching names alone do not attach Epoch runs to an AA receipt',()=>{
+ const runs=matchEpochRuns({name:'Same',slug:'same'},[{id:'r',model_version:'same',benchmark_id:'b',score:1,release_date:null,organization:null,country:null,stderr:null}],[]);
+ expect(runs).toEqual([]);
+});
+test('measured zero token prices survive the model receipt',()=>{
+ const [record]=buildModelPageRecords([model({price_1m_input_tokens:0,price_1m_output_tokens:0,price_1m_blended_3_to_1:0})]);
+ expect(record.pricing.slice(0,3).map(item=>item.value)).toEqual([0,0,0]);
+});
