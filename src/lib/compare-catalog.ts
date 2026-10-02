@@ -60,6 +60,8 @@ export function buildExplorerCatalog(aaRows:unknown[],epochRows:unknown[],catalo
   // Exact source-native aliases suppress duplicate inventory entries. Never join by name.
   const sourceKeys=new Map((inventory.sources??[]).map(input=>{const row=record(input);return [row.id,row.source_key];}));
   const nativeKeys=new Set(models.map(model=>JSON.stringify([model.source==='aa'?'artificial-analysis':model.source==='epoch'?'epoch-ai':model.source,model.sourceModelId])));
+  // AA's registry keys are source slugs; chart selection still preserves each UUID.
+  for(const model of models)if(model.source==='aa'&&model.slug)nativeKeys.add(JSON.stringify(['artificial-analysis',model.slug]));
   const represented=new Set((inventory.aliases??[]).filter(input=>{
     const row=record(input);return nativeKeys.has(JSON.stringify([sourceKeys.get(row.intelligence_source_id),row.source_model_key]));
   }).map(input=>record(input).canonical_model_id));

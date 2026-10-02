@@ -71,3 +71,10 @@ test('bulk selection only changes rendered records, never hidden same-name sourc
  const selector=readFileSync('src/components/compare/ModelSelector.tsx','utf8');
  expect(selector).toContain('onGroup?.(group.map(model=>model.id),!groupChosen(group))');
 });
+
+test('AA registry slugs represent all exact UUID variants without duplicate inventory rows',()=>{
+ const models=buildExplorerCatalog([{id:'uuid1',slug:'a-high',name:'A'},{id:'uuid2',slug:'a-high',name:'A'}],[],{},{
+ sources:[{id:1,source_key:'artificial-analysis'}],aliases:[{canonical_model_id:1,intelligence_source_id:1,source_model_key:'a-high'}],
+ models:[{id:1,canonical_key:'artificial-analysis:a-high',display_name:'A'}]});
+ expect(models.map(model=>model.id)).toEqual(['uuid1','uuid2']);
+});
