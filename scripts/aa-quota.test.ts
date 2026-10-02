@@ -11,7 +11,7 @@ test('request gate reserves before fetch and persists every response including t
  await gate('https://artificialanalysis.ai/api/v2/language/models',{});
  expect(calls).toEqual(['reserve_aa_request','fetch','record_aa_response']);
 });
-test('quota exhaustion and failed state persistence never make another upstream call',async()=>{
+test('quota exhaustion prevents the first upstream call',async()=>{
  let calls=0;const gate=createAaRequestGate({rpc:async()=>({data:false,error:null})},'lease',async()=>{calls++;return new Response();});
  await expect(gate('https://artificialanalysis.ai/api/v2/language/models',{})).rejects.toThrow();
  expect(calls).toBe(0);
@@ -20,4 +20,15 @@ test('quota exhaustion and failed state persistence never make another upstream 
 test('an unrepresentably long upstream delay never becomes a short local retry',()=>{
  const result=readAaRateHeaders(new Headers({'Retry-After':'9'.repeat(400)}),429,Date.parse('2026-10-02T20:00:00Z'));
  expect(result.notBefore).toBe('9999-12-31T23:59:59.999Z');
+});
+
+test('failed response receipt persistence stops a sequential paginated refresh',async()=>{
+ const calls:string[]=[];
+ const gate=createAaRequestGate({rpc:async(name:string)=>{calls.push(name);return name==='reserve_aa_request'?{data:true,error:null}:{data:null,error:{message:'receipt write failed'}};}},'lease',async()=>{calls.push('fetch');return new Response('{}',{status:200});});
+ const refresh=async()=>{
+ await gate('https://artificialanalysis.ai/api/v2/language/models?page=1',{});
+ await gate('https://artificialanalysis.ai/api/v2/language/models?page=2',{});
+ };
+ await expect(refresh()).rejects.toThrow('Could not persist AA quota receipt');
+ expect(calls).toEqual(['reserve_aa_request','fetch','record_aa_response']);
 });

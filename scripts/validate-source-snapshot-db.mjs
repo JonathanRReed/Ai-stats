@@ -19,7 +19,7 @@ try {
     grant usage on schema public, private to service_role;
     grant select on public.intelligence_sources to service_role;
   `);
-  await db.exec(await readFile('supabase/migrations/20261002014704_validated_source_snapshots.sql', 'utf8'));
+  await db.exec(await readFile('supabase/migrations/20261002032322_validated_source_snapshots.sql', 'utf8'));
   const registered = await db.query("select to_regprocedure('public.promote_source_snapshot(bigint)') is not null as ready");
   assert.equal(registered.rows[0].ready, true, 'Snapshot promotion RPC must exist');
   const payload = { schemaVersion: 1, sourceKey: 'epoch-ai', observedAt: '2026-10-01T00:00:00.000Z', records: [{ id: 'one', value: 0 }] };
