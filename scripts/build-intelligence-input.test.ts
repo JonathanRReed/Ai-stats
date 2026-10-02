@@ -123,3 +123,19 @@ test("buildIntelligenceInput keeps the freshest Artificial Analysis row for each
   ]);
   expect(input.aa.observedAt).toBe("2026-09-01T00:00:00.000Z");
 });
+
+test('input builder excludes historical models using the complete AA source receipt', async () => {
+  const fetchImpl = async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes('/rest/v1/aa_fetches')) return Response.json([{id:'receipt',status:200,endpoint:'language/models/free',
+      fetched_at:'2026-10-02T00:00:00Z',data:[{id:'current'}]}]);
+    if (url.includes('/rest/v1/aa_models')) return Response.json([
+      {id:'current',slug:'current',last_seen:'2026-10-02T00:00:01Z'},
+      {id:'retired',slug:'retired',last_seen:'2026-09-01T00:00:00Z'}]);
+    return Response.json({data:[{id:'provider/model'}]});
+  };
+  const result = await buildIntelligenceInput({env:{SUPABASE_URL:'https://bgbqdzmgxkwstjihgeef.supabase.co',
+    SUPABASE_SERVICE_ROLE_KEY:'test-only'},fetchImpl,readJson:async()=>({})});
+  expect(result.aa.models.map((row: {id: string})=>row.id)).toEqual(['current']);
+  expect(result.aa.snapshotId).toBe('receipt');
+});
