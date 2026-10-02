@@ -77,6 +77,7 @@ export async function verifyRecovery(directory, modulePath) {
       }
       let count = 0, bytes = 0;
       const hash = createHash('md5');
+      const rowHashes = [];
       for (const [offset, parts] of [...groups].sort((a,b) => a[0]-b[0])) {
         assert.equal(offset, count, 'Missing or overlapping row batch');
         let assembled = '', charOffset = 0, first;
@@ -98,7 +99,7 @@ export async function verifyRecovery(directory, modulePath) {
         assert.equal(digest(assembled), first.batch_digest);
         const docs = splitDocuments(assembled);
         assert.equal(docs.length, Number(first.row_count));
-        for (const doc of docs) { hash.update(digest(doc)); bytes += Buffer.byteLength(doc); }
+        for (const doc of docs) { const rowHash=digest(doc); hash.update(rowHash); rowHashes.push(rowHash); bytes += Buffer.byteLength(doc); }
         const name = qualified(table.schema, table.name);
         await db.query('insert into ' + name + ' select * from json_populate_recordset(null::' + name + ',$1::json)', ['[' + docs.join(',') + ']']);
         // Match each original row by its typed primary key; local collation may differ.
@@ -113,7 +114,7 @@ export async function verifyRecovery(directory, modulePath) {
       assert.equal(hash.digest('hex'), expected.content_digest, table.table + ' source checksum');
       const actual = (await db.query("select count(*)::text as count,coalesce(md5(string_agg(md5(row_to_json(t)::text),'' order by t." + ident(table.pk) + ")),md5('')) as digest from " + qualified(table.schema, table.name) + ' t')).rows[0];
       assert.equal(actual.count, String(count), table.table + ' restored row count');
-      report.tables.push({table: table.table, rows: count, sourceDigest: expected.content_digest, exactRowChecksumsVerified: true});
+      report.tables.push({table: table.table, rows: count, sourceDigest: expected.content_digest, unorderedDigest: digest(rowHashes.sort().join('')), exactRowChecksumsVerified: true});
       console.log('Restored and verified ' + table.table + ': ' + count + ' rows');
     }
     await db.exec('set check_function_bodies=off');
