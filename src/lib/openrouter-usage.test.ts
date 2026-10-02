@@ -35,3 +35,12 @@ test('window choices disclose available history and carry source attribution',()
  expect(result?.sourceUrl).toBe('https://openrouter.ai/rankings');
  expect(()=>view.buildUsageSeries?.(snapshot,14,[],'share')).toThrow();
 });
+
+test('day inspection supports native button activation and bounded keyboard navigation',()=>{
+ for(const key of ['Enter',' '])expect(view.usageKeyboardIndex?.(key,2,7)).toBe(2);
+ expect(view.usageKeyboardIndex?.('ArrowRight',6,7)).toBe(6);
+ expect(view.usageKeyboardIndex?.('ArrowLeft',0,7)).toBe(0);
+ expect(view.usageKeyboardIndex?.('Home',4,7)).toBe(0);
+ expect(view.usageKeyboardIndex?.('End',2,7)).toBe(6);
+ expect(view.usageKeyboardIndex?.('Tab',2,7)).toBeNull();
+});

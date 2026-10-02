@@ -14,3 +14,8 @@ test('catalog tables do not offer unsupported weekly tokens or request counts',(
  expect(source).not.toContain('{ key: "requests", label: "Usage requests"');
  expect(source).toContain('id="openrouter-col-value">Catalog models');
 });
+
+test('model cards omit the retired usage placeholder in static and refreshed markup',()=>{
+ for(const path of ['src/components/ModelCard.astro','src/components/Dashboard.astro'])
+  expect(readFileSync(path,'utf8').includes('>OR usage<')).toBe(false);
+});
