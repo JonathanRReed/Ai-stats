@@ -1,3 +1,4 @@
+import {catalogReceiptUpdate,PUBLIC_CATALOG_NAMES} from './catalog-cache';
 import { getActiveRefreshPolicy } from '../../scripts/source-refresh-policy.mjs';
 import { getPublicPoliBenchSnapshot } from './polibench-snapshot';
 import { supabase } from './supabase';
@@ -19,11 +20,18 @@ export type SourceFreshnessInput = {
   lastObservedAt?: string | Date | null;
   /** Retrieval date is separate from a historical evaluation date. */
   fetchedAt?: string | Date | null;
+  publishedAt?: string | Date | null;
+  snapshotId?: string | null;
+  contentHash?: string | null;
   lastSuccessfulRunAt?: string | Date | null;
   isEnabled?: boolean | null;
 };
 
 export type SourceFreshness = {
+  fetchedAt?: Date | null;
+  publishedAt?: Date | null;
+  snapshotId?: string | null;
+  contentHash?: string | null;
   sourceKey: string;
   displayName: string;
   status: SourceFreshnessStatus;
@@ -166,6 +174,10 @@ export const resolveSourceFreshness = (
   }
 
   return {
+    fetchedAt: explicitFetch,
+    publishedAt: toDateOrNull(input.publishedAt),
+    snapshotId: input.snapshotId ?? null,
+    contentHash: input.contentHash ?? null,
     sourceKey: input.sourceKey,
     displayName: input.displayName,
     status,
@@ -242,11 +254,22 @@ const readLiveSourceFreshness = async (): Promise<SourceFreshness[] | null> => {
       .order('display_name', { ascending: true });
     if (error || !data?.length) return null;
     const rows = data as SourceFreshnessViewRow[];
+    const catalogResult=await supabase.from('source_snapshot_cache')
+      .select('source_key,snapshot_id,content_hash,observed_at,fetched_at,published_at,record_count,refresh_status,refresh_message');
+    const catalogRows=catalogResult.error?[]:(catalogResult.data??[]) as Record<string,unknown>[];
     return rows
       .map((row) => {
         const sourceKey = asNonEmptyStringOrNull(row.source_key);
         const displayName = asNonEmptyStringOrNull(row.display_name);
         if (!sourceKey || !displayName) return null;
+        const catalogRow=Object.hasOwn(PUBLIC_CATALOG_NAMES,sourceKey)?catalogRows.find(item=>item.source_key===sourceKey):null;
+        const receipt=catalogRow?catalogReceiptUpdate(String(catalogRow.content_hash??''),catalogRow):null;
+        if(receipt)return resolveSourceFreshness({
+          sourceKey,displayName,status:receipt.status,statusMessage:receipt.message,
+          lastObservedAt:receipt.observedAt,fetchedAt:receipt.fetchedAt,publishedAt:receipt.publishedAt,
+          lastSuccessfulRunAt:receipt.fetchedAt,snapshotId:receipt.snapshotId,contentHash:receipt.contentHash,
+          coverageLabel:String(catalogRow!.record_count)+' cached catalog models',isEnabled:typeof row.is_enabled==='boolean'?row.is_enabled:null,
+        });
         return resolveSourceFreshness({
           sourceKey,
           displayName,

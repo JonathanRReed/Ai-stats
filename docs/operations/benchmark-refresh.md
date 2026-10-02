@@ -61,3 +61,36 @@ If AA membership is unavailable, page readers retain existing rows with current_
 The isolated migration harness runs PostgreSQL 18 through PGlite; production is PostgreSQL 17. It verifies supported SQL behavior, permissions and rollback preservation, but does not replace production readback/advisor checks. No engine upgrade is part of this release.
 
 AA public health currently uses a 24-hour overdue threshold against its active twelve-hour ingestion schedule. The four-hour target/eight-hour threshold is retained as a future policy only. Epoch archive publication requires a parsed archive receipt (source URL, SHA-256 and file inventory). A missing previously published benchmark or a >20% drop in models/runs holds refresh for source review; legitimate large source revisions must be reviewed before updating the checked baseline. A content-based source-manifest artifact covers AA membership and measurements so AA-only changes trigger a static deployment, followed by a verified post-promotion build.
+
+
+## Durable public catalogs
+
+OpenRouter's model catalog is admitted at most every six hours. Hugging Face's top-download catalog and the LiteLLM pricing catalog are admitted at most every 24 hours. The catalog worker reserves no more than eight requests per source per UTC day. That is a local safety budget, not a claim about a provider-wide allowance. AA's existing twelve-hour schedule is unchanged until its separate shared-quota guard is verified.
+
+The refresh workflow prepares sanitized candidates, runs the release checks, then atomically publishes them. A 30-minute service-only lease prevents a replaced or expired worker from publishing. An empty or malformed response, duplicate identity, or more than 20% reduction in catalog coverage retains the previous snapshot. HTTP 304 reuses an existing validated payload; it cannot bootstrap an empty cache. HTTP 429 respects Retry-After. A delay beyond the clock's representable range records an indefinite hold for operator review instead of retrying immediately.
+
+Catalog payloads contain public model metadata only. Request validators, leases, counters and error details stay in private.catalog_refresh_state. Anonymous users can read the sanitized source_snapshot_cache but cannot claim, fail or publish refreshes. Server credentials are accepted only for the existing bgbqdzmgxkwstjihgeef project and are sent in headers.
+
+### Commands
+
+- Prepare: bun scripts/refresh-public-catalogs.mjs --prepare --output .tmp/public-catalog-candidates.json
+- Compose release input: bun run build:intelligence-input
+- After tests and the candidate build: bun scripts/refresh-public-catalogs.mjs --publish --input .tmp/public-catalog-candidates.json
+
+These commands use the existing SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY workflow secrets. Do not paste keys into logs, committed files, browser code, or command history. Preparation changes lease/backoff receipts but does not replace public model data. Candidate files are private temporary workflow artifacts.
+
+A manual run on a feature branch can validate and populate the approved source caches after the additive migration is installed. Only main may push the checked public snapshot files back to main. Source changes still require a PR and merge.
+
+### Data and receipt behavior
+
+The site reads cached catalogs rather than fetching those three upstream catalogs on every build. Existing OpenRouter database rows remain a last-known fallback when the durable catalog is unavailable. Hugging Face and LiteLLM stay unavailable until their first validated snapshot. OpenRouter's embedding/provider/endpoints surfaces remain separate from these three catalog refreshes.
+
+Content hashes include catalog model changes but omit retrieval-only timestamps. An unchanged source therefore does not cause a deployment. The source-health panel can read a small public receipt on page load; it updates freshness only if the returned content hash matches the data baked into that page. A newer cache hash is disclosed as a newer snapshot rather than silently relabeling the displayed data.
+
+Observed, retrieved and published timestamps are distinct. Missing source observation dates remain unknown. Failed catalog refreshes keep a sanitized failure status beside the last-good payload, so a canonical-data synchronization cannot accidentally make a failed catalog look healthy.
+
+### Recovery and verification
+
+Run scripts/validate-catalog-refresh-db.mjs in an isolated Postgres-compatible environment before applying the migration. It verifies leases, daily allowance, backoff, unchanged publication time, stale-worker rejection, retained data and anonymous access boundaries.
+
+Do not clear provider backoff or a quota counter simply to make a test pass. Investigate a large catalog shrink before accepting it. For a rollback, choose a verified immutable private.source_snapshots entry and restore only that source's public pointer under service access, preserving the original observed/fetched dates and marking the rollback explicitly. Never delete source history or manufacture a new retrieval date for old evidence.

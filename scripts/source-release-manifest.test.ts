@@ -15,3 +15,11 @@ test('retrieval-only changes do not cause deployments or relabel evidence dates'
   expect(release.buildSourceReleaseManifest?.(source)).toBeDefined();
   expect(release.buildSourceReleaseManifest?.(next)).toEqual(release.buildSourceReleaseManifest?.(source));
 });
+
+test('catalog-only changes deploy but receipt-only changes do not',()=>{
+ const first={...source,catalogs:{huggingface:{contentHash:'a'.repeat(64),fetchedAt:'2026-10-01T00:00:00Z'}}};
+ const same={...source,catalogs:{huggingface:{contentHash:'a'.repeat(64),fetchedAt:'2026-10-02T00:00:00Z'}}};
+ const changed={...source,catalogs:{huggingface:{contentHash:'b'.repeat(64),fetchedAt:'2026-10-02T00:00:00Z'}}};
+ expect(release.buildSourceReleaseManifest(first)).toEqual(release.buildSourceReleaseManifest(same));
+ expect(release.buildSourceReleaseManifest(first)).not.toEqual(release.buildSourceReleaseManifest(changed));
+});

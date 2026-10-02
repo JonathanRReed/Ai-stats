@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
-          ref: main
+          ref: ${{ github.ref_name }}
           persist-credentials: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
@@ -57,6 +57,11 @@ jobs:
       - name: Disclose retained PoliBench evidence
         if: env.HAS_POLIBENCH_KEY != 'true'
         run: echo '::warning::PoliBench read-only access is not configured. Keeping the existing snapshot and its original source date.'
+      - name: Prepare public catalog cache candidates
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: bun scripts/refresh-public-catalogs.mjs --prepare --output .tmp/public-catalog-candidates.json
       - name: Refresh Epoch and normalized source evidence
         env:
           PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -84,6 +89,7 @@ jobs:
         run: |
           bun scripts/publish-epoch-cache.mjs --input .tmp/epoch-cache-candidate.json
           bun scripts/publish-aa-membership.mjs --input .tmp/intelligence-input.json
+          bun scripts/refresh-public-catalogs.mjs --publish --input .tmp/public-catalog-candidates.json
       - name: Verify promoted source selection and release manifest
         env:
           PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -92,6 +98,7 @@ jobs:
           bun scripts/source-release-manifest.mjs .tmp/intelligence-input.json public/data/source-manifest.json
           bun run build
       - name: Publish only the verified public snapshots
+        if: github.ref_name == 'main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

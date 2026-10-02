@@ -42,3 +42,7 @@ test('unchanged responses and payloads do not require deployment', () => {
 test('active AA health follows its current twelve-hour schedule until quota guards are enabled',()=>{
   expect(policy.getActiveRefreshPolicy?.('artificial-analysis')).toMatchObject({intervalHours:12,staleAfterHours:24});
 });
+
+test('an unrepresentably long Retry-After holds refreshes instead of retrying immediately',()=>{
+ expect(policy.retryDelayMs('9'.repeat(400))).toBe(Infinity);
+});

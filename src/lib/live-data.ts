@@ -22,6 +22,10 @@ export type LiveSnapshot = {
 };
 
 export type IntelligenceRefreshSource = {
+  fetchedAt?: string | null;
+  publishedAt?: string | null;
+  snapshotId?: string | null;
+  contentHash?: string | null;
   sourceKey: string;
   displayName: string;
   status: 'healthy' | 'stale' | 'partial' | 'failed' | 'unavailable';
