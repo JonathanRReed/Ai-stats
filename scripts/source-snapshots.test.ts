@@ -35,3 +35,34 @@ test('invalid source and dates are rejected before network activity', () => {
   expect(() => snapshots.prepareSourceSnapshot?.({ ...input, sourceKey: 'unknown' })).toThrow('source');
   expect(() => snapshots.prepareSourceSnapshot?.({ ...input, fetchedAt: 'yesterday' })).toThrow('timestamp');
 });
+
+test('publication stages validated data before promoting its returned identity', async () => {
+  const calls: Array<{url: string; body: Record<string, unknown>}> = [];
+  const fetchImpl = async (url: string | URL, init?: RequestInit) => {
+    calls.push({url: String(url), body: JSON.parse(String(init?.body))});
+    return new Response('41', { status: 200 });
+  };
+  const result = await snapshots.publishSourceSnapshot?.({ input, baseUrl: 'https://bgbqdzmgxkwstjihgeef.supabase.co',
+    serviceKey: 'test-only', fetchImpl });
+  expect(calls).toHaveLength(2);
+  expect(calls[0].url).toEndWith('/rest/v1/rpc/stage_source_snapshot');
+  expect(calls[1].body).toEqual({ p_snapshot_id: 41 });
+  expect(result?.snapshotId).toBe(41);
+});
+test('unsafe origins and invalid payloads fail before any credential transmission', async () => {
+  let calls = 0;
+  const fetchImpl = async () => { calls++; return new Response('41'); };
+  await expect(async () => snapshots.publishSourceSnapshot?.({ input,
+    baseUrl: 'https://example.test', serviceKey: 'test-only', fetchImpl })).toThrow('origin');
+  expect(calls).toBe(0);
+});
+test('failed staging never triggers promotion or leaks server response bodies', async () => {
+  const calls: string[] = [];
+  const fetchImpl = async (url: string | URL) => {
+    calls.push(String(url)); return new Response('private upstream details', {status: 503});
+  };
+  await expect(async () => snapshots.publishSourceSnapshot?.({ input,
+    baseUrl: 'https://bgbqdzmgxkwstjihgeef.supabase.co', serviceKey: 'test-only', fetchImpl }))
+    .toThrow('Source snapshot stage failed (503)');
+  expect(calls).toHaveLength(1);
+});
