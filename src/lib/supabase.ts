@@ -1,5 +1,5 @@
 import {normalizeEmbeddingCatalog,catalogPricePerMillion} from '../../scripts/public-catalogs.mjs';
-import {parseCatalogCache} from './catalog-cache';
+import {parseCatalogCache,catalogReadReceipt} from './catalog-cache';
 import { readAaCohort } from './aa-membership';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { AA_MODEL_SELECT_COLUMNS } from './aa-model-columns';
@@ -384,8 +384,7 @@ export async function getCompareCatalogSources() {
   const keys=['openrouter','huggingface','litellm'] as const;
   const caches=await Promise.all(keys.map(key=>readPublicCatalog(key)));
   return {openrouter:caches[0]?.records??[],huggingface:caches[1]?.records??[],litellm:caches[2]?.records??[],
-    availability:keys.map((key,index)=>({sourceKey:key,available:Boolean(caches[index]),
-      status:caches[index]?.receipt.status??'unavailable',fetchedAt:caches[index]?.receipt.fetchedAt??null}))};
+    availability:keys.map((key,index)=>catalogReadReceipt(key,caches[index]))};
 }
 async function fetchHuggingFaceCachedModels(limit: number): Promise<HuggingFaceHubModel[]> {
   const cached=await readPublicCatalog('huggingface');

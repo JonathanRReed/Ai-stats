@@ -7,8 +7,9 @@ const coverage=catalogCoverage(records,unavailableSources);
 <details class="catalog-coverage">
  <summary>{coverage.records.toLocaleString('en-US')} available source records</summary>
  {!coverage.complete?<p role="status">Partial catalog. Could not load: {coverage.unavailableSources.join(', ')}.</p>:null}
+ {coverage.membershipUnverified?<p role="status">Current AA membership could not be verified for {coverage.membershipUnverified} records.</p>:null}
  <p>Source records include exact variants and provider routes, not unique model families. {coverage.historical} historical AA records are opt-in in Compare.</p>
- <ul>{coverage.sources.map(source=><li>{source.name}: {source.count.toLocaleString('en-US')}</li>)}</ul>
+ <ul>{coverage.sources.map(source=><li>{source.name}: {source.count===null?'Unavailable':source.count.toLocaleString('en-US')}</li>)}</ul>
  <a href="/compare">Browse and compare</a> · <a href="/api/model-catalog.json">Catalog JSON</a>
 </details>
 <style>
