@@ -17,4 +17,4 @@ async function load(){
 }
 let cached:ReturnType<typeof load>|undefined;
 /** One immutable source inventory per server/build process; no per-visitor upstream calls. */
-export const getModelCatalogData=()=>cached??=load();
+export const getModelCatalogData=()=>cached??=load().catch(error=>{cached=undefined;throw error;});
