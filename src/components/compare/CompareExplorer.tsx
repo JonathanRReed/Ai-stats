@@ -55,7 +55,8 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
     let cancelled=false;const ids=pendingKey.split('\n');
     loader.loadPartial(ids).then(({records,failedIds})=>{if(cancelled)return;
       setLoaded(previous=>new Map([...previous,...records.map(model=>[model.id,model] as const)]));
-      setFailedMeasurementIds(previous=>[...new Set([...previous,...failedIds])]);
+      const recovered=new Set(records.map(model=>model.id));
+      setFailedMeasurementIds(previous=>[...new Set([...previous.filter(id=>!recovered.has(id)),...failedIds])]);
     }).catch(()=>{if(!cancelled)setFailedMeasurementIds(previous=>[...new Set([...previous,...ids])]);});
     return()=>{cancelled=true;};
   },[loader,pendingKey]);

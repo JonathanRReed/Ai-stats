@@ -5,16 +5,17 @@ const explorer=readFileSync('src/components/compare/CompareExplorer.tsx','utf8')
 const initialApi=readFileSync('src/pages/api/compare-initial.json.ts','utf8');
 const route='src/pages/api/compare-benchmarks/[slug].json.ts';
 test('Compare is a small chart-first Astro shell over focused explorer components',()=>{
-  expect(source).toContain('<CompareExplorer');
+  expect(source).toContain('<CompareLive');
   expect(source).toContain('client:load');
   expect(source.length).toBeLessThan(6000);
   expect(readFileSync('src/lib/compare-delivery-server.ts','utf8')).toContain('defaultExplorerSelection');
 });
 test('public comparison data stays server-backed and clients fetch only a selected benchmark',()=>{
-  expect(source).toContain('getCompareDelivery');
+  expect(source).toContain('getCompareReleaseManifest');
   expect(readFileSync('src/lib/compare-delivery-server.ts','utf8')).toContain('getModelCatalogData');
   expect(readFileSync('src/lib/model-catalog-data.ts','utf8')).toContain('getModels(true,true)');
-  expect(explorer).toContain("fetch('/api/compare-benchmarks/'");
+  expect(explorer).toContain("delivery?.benchmarkBase");
+  expect(explorer).toContain("'/api/compare-benchmarks'");
   expect(explorer).not.toContain('fetchLiveSnapshot');
   expect(explorer).not.toContain('supabase.co');
   expect(explorer).not.toContain('fetch("https://artificialanalysis');

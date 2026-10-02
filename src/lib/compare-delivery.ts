@@ -71,9 +71,9 @@ export function createMeasurementLoader(revision:string,catalog:ExplorerModel[],
  const buckets=[...new Set([...selected].map(measurementBucket))];
  const results=await Promise.allSettled(buckets.map(chunk));
  const records:ExplorerModel[]=[],failedBuckets=new Set<string>();
- results.forEach((result,index)=>{if(result.status==='fulfilled')records.push(...result.value.filter(model=>selected.has(model.id)));else failedBuckets.add(buckets[index]);});
+ results.forEach((result,index)=>{if(result.status==='fulfilled')records.push(...result.value);else failedBuckets.add(buckets[index]);});
  return {records,failedIds:[...selected].filter(id=>failedBuckets.has(measurementBucket(id)))};
  };
- return {loadPartial,load:async(ids:string[])=>{const result=await loadPartial(ids);if(result.failedIds.length)throw new Error('Measurements unavailable');return result.records;}};
+ return {loadPartial,load:async(ids:string[])=>{const result=await loadPartial(ids);if(result.failedIds.length)throw new Error('Measurements unavailable');return result.records.filter(model=>ids.includes(model.id));}};
 
 }
