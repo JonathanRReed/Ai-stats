@@ -73,3 +73,11 @@ test('price axes stay finite for zero and missing prices', () => {
   expect(compare.priceChartMaximum?.([0, 0])).toBe(1);
   expect(compare.priceChartMaximum?.([null, 2])).toBe(2.4);
 });
+
+test('native accuracy units are not silently labeled percent and mixed units cannot share a chart', () => {
+  expect(compare.buildEpochScoreIndex([{ ...row, metricKey: 'Accuracy', unit: 'native', value: 0.8 }], {}).units?.aider).toBe('native');
+  const mixed = compare.buildEpochScoreIndex([row, { ...row, id: 'other', modelVersion: 'other',
+    metricKey: 'Accuracy', unit: 'native', value: 0.8 }], {});
+  expect(mixed.units?.aider).toBe('mixed');
+  expect(mixed.scores['model high']?.aider).toBeUndefined();
+});
