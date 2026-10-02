@@ -1,5 +1,5 @@
 import {expect,test} from 'bun:test';
-import {prepareAppRelease} from '../../scripts/app-release.mjs';
+import {prepareAppRelease,releaseDatasetRevision} from '../../scripts/app-release.mjs';
 import {fixture} from './compare-release.fixture';
 import {measurementBucket} from './compare-delivery';
 const assetsFor=(manifest:ReturnType<typeof fixture>)=>{
@@ -13,4 +13,22 @@ test('public release hashes are stable and every measurement bucket is validated
  expect(release.revision).toMatch(/^[a-f0-9]{64}$/);expect(prepareAppRelease(manifest,assets).revision).toBe(release.revision);
  expect(()=>prepareAppRelease(manifest,{})).toThrow();
  expect(()=>prepareAppRelease({...manifest,password:'private'},assets)).toThrow();
+});
+
+test('seed values must equal their verified measurement records',()=>{
+ const manifest=structuredClone(fixture()),assets=structuredClone(assetsFor(manifest));
+ manifest.models[0].intelligence=99;
+ expect(()=>prepareAppRelease(manifest,assets)).toThrow();
+});
+test('changed measurements cannot reuse the prior dataset fingerprint',()=>{
+ const manifest=structuredClone(fixture()),assets=structuredClone(assetsFor(manifest));
+ (assets['m_'+measurementBucket('a')] as {records:Array<{intelligence:number}>}).records[0].intelligence=98;
+ expect(()=>prepareAppRelease(manifest,assets)).toThrow();
+});
+test('incomplete benchmark observations cannot enter a published release',()=>{
+ const manifest={...fixture(),benchmarks:[{slug:'test',name:'Test'}]};
+ const observation={id:'row',modelVersion:'model',benchmarkSlug:'test',value:1,unit:'native'};
+ manifest.datasetRevision=releaseDatasetRevision(manifest,[observation]);
+ const assets={...assetsFor(manifest),b_74657374:{schemaVersion:1,slug:'test',observations:[observation]}};
+ expect(()=>prepareAppRelease(manifest,assets)).toThrow();
 });
