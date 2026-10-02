@@ -33,7 +33,7 @@ test('shared catalog retries a failed load and coalesces successful concurrent r
  getCompareCatalogSources:async()=>({openrouter:[],huggingface:[],litellm:[],availability:[]}),
  getCanonicalModels:async()=>[],getModelAliases:async()=>[],getIntelligenceSources:async()=>[],
  normalizeAaModelsForDisplay:(rows:unknown[])=>rows,getEpochEvidence:async()=>({epochModels:[]}),
- buildExplorerCatalog:()=>[],EXPLORER_SOURCE_LABELS:{}
+ buildExplorerCatalog:()=>[],buildVerifiedBindings:()=>({}),EXPLORER_SOURCE_LABELS:{}
  });
  await expect(get()).rejects.toThrow('temporary');
  const [a,b]=await Promise.all([get(),get()]);expect(a).toBe(b);expect(calls).toBe(2);

@@ -130,6 +130,7 @@ mock.module("../src/lib/supabase", () => ({
   normalizeAaModelsForDisplay: (models: unknown[]) => models,
   enrichModelsWithPublicCatalogData: (models: unknown[]) => models,
   getModels: async () => queryResult,
+  getVerifiedCatalogBindings:async()=>({}),
   getPublicCatalogModels: async () => publicCatalogs,
 }));
 

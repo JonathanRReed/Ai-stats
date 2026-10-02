@@ -1,3 +1,4 @@
+import {buildVerifiedBindings,enrichVerifiedCatalog,type VerifiedBindings} from './catalog-bindings';
 import {normalizeEmbeddingCatalog,catalogPricePerMillion} from '../../scripts/public-catalogs.mjs';
 import {parseCatalogCache,catalogReadReceipt} from './catalog-cache';
 import { readAaCohort } from './aa-membership';
@@ -1003,11 +1004,10 @@ export async function getOpenRouterEndpointSummaries(
 }
 
 export async function getPublicCatalogModels(): Promise<PublicCatalogModels> {
-  const [openRouterModels, huggingFaceModels, liteLlmModels] = await Promise.all([
-    getOpenRouterModels(),
-    getHuggingFaceModels(),
-    getLiteLlmModels(),
-  ]);
+  const cached=await getCompareCatalogSources();
+  const openRouterModels=cached.openrouter as unknown as OpenRouterModel[];
+  const huggingFaceModels=cached.huggingface as unknown as HuggingFaceHubModel[];
+  const liteLlmModels=cached.litellm as unknown as LiteLLMCatalogModel[];
   const [
     openRouterUsageRankings,
     openRouterProviders,
@@ -1034,271 +1034,14 @@ export async function getPublicCatalogModels(): Promise<PublicCatalogModels> {
   };
 }
 
-const buildOpenRouterLookupKeys = (model: OpenRouterModel): string[] => {
-  const candidates = [
-    model.openrouter_id,
-    model.openrouter_id.split('/').slice(1).join('/'),
-    model.canonical_slug,
-    model.model_slug,
-    model.name,
-    model.name.includes(':') ? model.name.split(':').slice(1).join(':') : model.name,
-  ];
-
-  return Array.from(
-    new Set(
-      candidates
-        .flatMap((candidate) => {
-          const normalized = normalizeModelLookupKey(candidate);
-          return normalized ? [normalized, normalized.replace(/\s+/g, '')] : [];
-        })
-        .filter(Boolean),
-    ),
-  );
-};
-
-const buildHuggingFaceLookupKeys = (model: HuggingFaceHubModel): string[] => {
-  const idParts = model.model_id.split('/');
-  const slug = idParts.slice(1).join('/');
-  const candidates = [
-    model.model_id,
-    slug,
-    slug.replace(/-/g, ' '),
-    model.author && slug ? `${model.author} ${slug}` : null,
-  ];
-
-  return Array.from(
-    new Set(
-      candidates
-        .flatMap((candidate) => {
-          const normalized = normalizeModelLookupKey(candidate);
-          return normalized ? [normalized, normalized.replace(/\s+/g, '')] : [];
-        })
-        .filter(Boolean),
-    ),
-  );
-};
-
-const buildLiteLlmLookupKeys = (model: LiteLLMCatalogModel): string[] => {
-  const withoutProvider = model.model_id.includes('/')
-    ? model.model_id.split('/').slice(1).join('/')
-    : model.model_id;
-  const candidates = [
-    model.model_id,
-    withoutProvider,
-    withoutProvider.replace(/-/g, ' '),
-    model.provider && withoutProvider ? `${model.provider} ${withoutProvider}` : null,
-  ];
-
-  return Array.from(
-    new Set(
-      candidates
-        .flatMap((candidate) => {
-          const normalized = normalizeModelLookupKey(candidate);
-          return normalized ? [normalized, normalized.replace(/\s+/g, '')] : [];
-        })
-        .filter(Boolean),
-    ),
-  );
-};
-
-const buildOpenRouterUsageLookupKeys = (ranking: OpenRouterUsageRanking): string[] => {
-  const withoutProvider = ranking.model_permaslug.includes('/')
-    ? ranking.model_permaslug.split('/').slice(1).join('/')
-    : ranking.model_permaslug;
-  const withoutDateSuffix = withoutProvider.replace(/-\d{8}$/g, '');
-  const candidates = [
-    ranking.model_permaslug,
-    ranking.variant_permaslug,
-    withoutProvider,
-    withoutProvider.replace(/-/g, ' '),
-    withoutDateSuffix,
-    withoutDateSuffix.replace(/-/g, ' '),
-    ranking.provider && withoutProvider ? `${ranking.provider} ${withoutProvider}` : null,
-  ];
-
-  return Array.from(
-    new Set(
-      candidates
-        .flatMap((candidate) => {
-          const normalized = normalizeModelLookupKey(candidate);
-          return normalized ? [normalized, normalized.replace(/\s+/g, '')] : [];
-        })
-        .filter(Boolean),
-    ),
-  );
-};
-
-const buildAaLookupKeys = (model: AaModel): string[] => {
-  const candidates = [
-    model.slug,
-    model.name,
-    model.name?.replace(/\([^)]*\)/g, ''),
-    model.company_name && model.name ? `${model.company_name} ${model.name}` : null,
-    model.creator_slug && model.slug ? `${model.creator_slug} ${model.slug}` : null,
-  ];
-
-  return Array.from(
-    new Set(
-      candidates
-        .flatMap((candidate) => {
-          const normalized = normalizeModelLookupKey(candidate);
-          return normalized ? [normalized, normalized.replace(/\s+/g, '')] : [];
-        })
-        .filter(Boolean),
-    ),
-  );
-};
-
-export function enrichModelsWithOpenRouterData(
-  models: AaModel[],
-  openRouterModels: OpenRouterModel[],
-): AaModel[] {
-  if (!openRouterModels.length) return models;
-
-  const lookup = new Map<string, OpenRouterModel>();
-  openRouterModels.forEach((openRouterModel) => {
-    buildOpenRouterLookupKeys(openRouterModel).forEach((key) => {
-      if (!lookup.has(key)) lookup.set(key, openRouterModel);
-    });
-  });
-
-  return models.map((model) => {
-    const match = buildAaLookupKeys(model)
-      .map((key) => lookup.get(key))
-      .find((candidate): candidate is OpenRouterModel => Boolean(candidate));
-
-    if (!match) return model;
-
-    return {
-      ...model,
-      openrouter_id: match.openrouter_id,
-      openrouter_name: match.name,
-      openrouter_context_length: match.context_length,
-      openrouter_prompt_price_1m: match.prompt_price_1m,
-      openrouter_completion_price_1m: match.completion_price_1m,
-      openrouter_supported_parameters: match.supported_parameters,
-      openrouter_input_modalities: match.input_modalities,
-      openrouter_output_modalities: match.output_modalities,
-      openrouter_is_free: match.is_free,
-    };
-  });
+export async function getVerifiedCatalogBindings(models:AaModel[]):Promise<VerifiedBindings>{
+ const [aliases,sources]=await Promise.all([getModelAliases(),getIntelligenceSources()]);
+ return buildVerifiedBindings(models,aliases,sources);
 }
 
-export function enrichModelsWithPublicCatalogData(
-  models: AaModel[],
-  catalogs: PublicCatalogModels,
-): AaModel[] {
-  const openRouterEnriched = enrichModelsWithOpenRouterData(
-    models,
-    catalogs.openRouterModels,
-  );
-
-  const huggingFaceLookup = new Map<string, HuggingFaceHubModel>();
-  catalogs.huggingFaceModels.forEach((huggingFaceModel) => {
-    buildHuggingFaceLookupKeys(huggingFaceModel).forEach((key) => {
-      if (!huggingFaceLookup.has(key)) huggingFaceLookup.set(key, huggingFaceModel);
-    });
-  });
-
-  const liteLlmLookup = new Map<string, LiteLLMCatalogModel>();
-  catalogs.liteLlmModels.forEach((liteLlmModel) => {
-    buildLiteLlmLookupKeys(liteLlmModel).forEach((key) => {
-      if (!liteLlmLookup.has(key)) liteLlmLookup.set(key, liteLlmModel);
-    });
-  });
-  const openRouterUsageLookup = new Map<string, OpenRouterUsageRanking>();
-  catalogs.openRouterUsageRankings.forEach((usageRanking) => {
-    buildOpenRouterUsageLookupKeys(usageRanking).forEach((key) => {
-      if (!openRouterUsageLookup.has(key)) openRouterUsageLookup.set(key, usageRanking);
-    });
-  });
-  const openRouterEndpointLookup = new Map<string, OpenRouterEndpointSummary>();
-  catalogs.openRouterEndpointSummaries.forEach((summary) => {
-    const normalized = normalizeModelLookupKey(summary.openrouter_id);
-    if (normalized) {
-      openRouterEndpointLookup.set(normalized, summary);
-      openRouterEndpointLookup.set(normalized.replace(/\s+/g, ''), summary);
-    }
-  });
-
-  return openRouterEnriched.map((model) => {
-    const keys = buildAaLookupKeys(model);
-    const huggingFaceMatch = keys
-      .map((key) => huggingFaceLookup.get(key))
-      .find((candidate): candidate is HuggingFaceHubModel => Boolean(candidate));
-    const liteLlmMatch = keys
-      .map((key) => liteLlmLookup.get(key))
-      .find((candidate): candidate is LiteLLMCatalogModel => Boolean(candidate));
-    const openRouterUsageMatch = keys
-      .map((key) => openRouterUsageLookup.get(key))
-      .find((candidate): candidate is OpenRouterUsageRanking => Boolean(candidate));
-    const endpointKeys = [
-      model.openrouter_id,
-      model.openrouter_id?.split('/').slice(1).join('/'),
-      ...keys,
-    ]
-      .flatMap((candidate) => {
-        const normalized = normalizeModelLookupKey(candidate);
-        return normalized ? [normalized, normalized.replace(/\s+/g, '')] : [];
-      });
-    const openRouterEndpointMatch = endpointKeys
-      .map((key) => openRouterEndpointLookup.get(key))
-      .find((candidate): candidate is OpenRouterEndpointSummary => Boolean(candidate));
-
-    return {
-      ...model,
-      ...(openRouterEndpointMatch
-        ? {
-            openrouter_endpoint_provider_count: openRouterEndpointMatch.provider_count,
-            openrouter_endpoint_providers: openRouterEndpointMatch.providers,
-            openrouter_endpoint_quantizations: openRouterEndpointMatch.quantizations,
-            openrouter_endpoint_min_prompt_price_1m:
-              openRouterEndpointMatch.min_prompt_price_1m,
-            openrouter_endpoint_min_completion_price_1m:
-              openRouterEndpointMatch.min_completion_price_1m,
-          }
-        : {}),
-      ...(openRouterUsageMatch
-        ? {
-            openrouter_usage_rank: openRouterUsageMatch.rank,
-            openrouter_usage_tokens: openRouterUsageMatch.total_tokens,
-            openrouter_usage_requests: openRouterUsageMatch.request_count,
-            openrouter_usage_share: openRouterUsageMatch.usage_share,
-            openrouter_usage_variant: openRouterUsageMatch.variant,
-            openrouter_usage_change: openRouterUsageMatch.change,
-          }
-        : {}),
-      ...(huggingFaceMatch
-        ? {
-            hf_model_id: huggingFaceMatch.model_id,
-            hf_author: huggingFaceMatch.author,
-            hf_downloads: huggingFaceMatch.downloads,
-            hf_likes: huggingFaceMatch.likes,
-            hf_pipeline_tag: huggingFaceMatch.pipeline_tag,
-            hf_library_name: huggingFaceMatch.library_name,
-            hf_last_modified: huggingFaceMatch.last_modified,
-            hf_tags: huggingFaceMatch.tags,
-          }
-        : {}),
-      ...(liteLlmMatch
-        ? {
-            litellm_model_id: liteLlmMatch.model_id,
-            litellm_provider: liteLlmMatch.provider,
-            litellm_mode: liteLlmMatch.mode,
-            litellm_max_input_tokens: liteLlmMatch.max_input_tokens,
-            litellm_max_output_tokens: liteLlmMatch.max_output_tokens,
-            litellm_input_price_1m: liteLlmMatch.input_price_1m,
-            litellm_output_price_1m: liteLlmMatch.output_price_1m,
-            litellm_supports_vision: liteLlmMatch.supports_vision,
-            litellm_supports_function_calling: liteLlmMatch.supports_function_calling,
-            litellm_supports_reasoning: liteLlmMatch.supports_reasoning,
-            litellm_supports_prompt_caching: liteLlmMatch.supports_prompt_caching,
-            litellm_supports_system_messages: liteLlmMatch.supports_system_messages,
-            litellm_supports_web_search: liteLlmMatch.supports_web_search,
-          }
-        : {}),
-    };
-  });
+/** No name-based cross-source enrichment. Missing reviewed bindings leave details unknown. */
+export function enrichModelsWithPublicCatalogData(models:AaModel[],catalogs:PublicCatalogModels,bindings:VerifiedBindings={}):AaModel[]{
+ return enrichVerifiedCatalog(models,catalogs,bindings);
 }
 
 /**

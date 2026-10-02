@@ -1,3 +1,4 @@
+import type {VerifiedBindings} from './catalog-bindings';
 /**
  * Build-time model pages: one static URL per Artificial Analysis row.
  *
@@ -114,6 +115,7 @@ export type ModelPageContext = {
   epochBenchmarks?: EpochBenchmark[];
   epochRuns?: EpochBenchmarkRun[];
   poliBench?: PublicPoliBenchSnapshot | null;
+  verifiedBindings?:VerifiedBindings;
 };
 
 const finite = (value: unknown): number | null => {
@@ -122,6 +124,9 @@ const finite = (value: unknown): number | null => {
   return Number.isFinite(num) ? num : null;
 };
 
+const nonnegative = (value: unknown): number | null => {
+ const num=finite(value);return num!==null&&num>=0?num:null;
+};
 const positive = (value: unknown): number | null => {
   const num = finite(value);
   return num !== null && num > 0 ? num : null;
@@ -139,35 +144,20 @@ const isoDate = (value: string | null): string | null => {
   return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
 };
 
-const normalizeName = (value: unknown): string =>
-  String(value ?? '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-
 const VPCT_EPOCH_PAGE = 'https://epoch.ai/benchmarks/vpct';
 const retiredVpctLinks = new Set(['https://cbrower.dev/vpct', 'https://cbrower.dev/vpct/']);
 
-/** Same alias rule the dashboard uses so a page never shows runs the chart would not. */
+/** AA receipts may show Epoch results only through reviewed exact native IDs. */
 export const matchEpochRuns = (
-  model: Pick<AaModel, 'name' | 'slug'>,
+  _model: Pick<AaModel, 'name' | 'slug'>,
   runs: EpochBenchmarkRun[],
   benchmarks: EpochBenchmark[],
+  verifiedVersions:string[]=[],
 ): ModelPageEpochRun[] => {
-  const aliases = new Set<string>();
-  [model.name, model.slug].forEach((value) => {
-    const normalized = normalizeName(value);
-    if (!normalized) return;
-    aliases.add(normalized);
-    aliases.add(normalized.replace(/\s+/g, ''));
-  });
-  if (!aliases.size) return [];
+  const versions=new Set(verifiedVersions);
+  if(!versions.size)return [];
   const benchmarkById = new Map(benchmarks.map((benchmark) => [benchmark.id, benchmark]));
-  return runs
-    .filter((run) => {
-      const normalized = normalizeName(run.model_version);
-      return normalized !== '' && (aliases.has(normalized) || aliases.has(normalized.replace(/\s+/g, '')));
-    })
+  return runs.filter(run=>versions.has(run.model_version))
     .map((run) => {
       const benchmark = benchmarkById.get(run.benchmark_id);
       const sourceLink = text(run.source_link);
@@ -310,13 +300,13 @@ export const buildModelPageRecord = (
     lastSeenDate: isoDate(text(model.last_seen)),
     current: isCurrentMeasuredModel(model),
     pricing: [
-      metric('price_1m_input_tokens', 'Input price per 1M tokens', positive(model.price_1m_input_tokens), 'USD', 'Artificial Analysis'),
-      metric('price_1m_output_tokens', 'Output price per 1M tokens', positive(model.price_1m_output_tokens), 'USD', 'Artificial Analysis'),
-      metric('price_1m_blended_3_to_1', 'Blended price per 1M tokens, 3:1 input to output', positive(model.price_1m_blended_3_to_1), 'USD', 'Artificial Analysis'),
-      metric('openrouter_prompt_price_1m', 'OpenRouter prompt price per 1M tokens', positive(model.openrouter_prompt_price_1m), 'USD', 'OpenRouter'),
-      metric('openrouter_completion_price_1m', 'OpenRouter completion price per 1M tokens', positive(model.openrouter_completion_price_1m), 'USD', 'OpenRouter'),
-      metric('openrouter_endpoint_min_prompt_price_1m', 'Cheapest OpenRouter route, prompt', positive(model.openrouter_endpoint_min_prompt_price_1m), 'USD', 'OpenRouter'),
-      metric('openrouter_endpoint_min_completion_price_1m', 'Cheapest OpenRouter route, completion', positive(model.openrouter_endpoint_min_completion_price_1m), 'USD', 'OpenRouter'),
+      metric('price_1m_input_tokens', 'Input price per 1M tokens', nonnegative(model.price_1m_input_tokens), 'USD', 'Artificial Analysis'),
+      metric('price_1m_output_tokens', 'Output price per 1M tokens', nonnegative(model.price_1m_output_tokens), 'USD', 'Artificial Analysis'),
+      metric('price_1m_blended_3_to_1', 'Blended price per 1M tokens, 3:1 input to output', nonnegative(model.price_1m_blended_3_to_1), 'USD', 'Artificial Analysis'),
+      metric('openrouter_prompt_price_1m', 'OpenRouter prompt price per 1M tokens', nonnegative(model.openrouter_prompt_price_1m), 'USD', 'OpenRouter'),
+      metric('openrouter_completion_price_1m', 'OpenRouter completion price per 1M tokens', nonnegative(model.openrouter_completion_price_1m), 'USD', 'OpenRouter'),
+      metric('openrouter_endpoint_min_prompt_price_1m', 'Cheapest OpenRouter route, prompt', nonnegative(model.openrouter_endpoint_min_prompt_price_1m), 'USD', 'OpenRouter'),
+      metric('openrouter_endpoint_min_completion_price_1m', 'Cheapest OpenRouter route, completion', nonnegative(model.openrouter_endpoint_min_completion_price_1m), 'USD', 'OpenRouter'),
     ],
     speed: [
       metric('median_output_tokens_per_second', 'Median output speed', positive(model.median_output_tokens_per_second), 'tokens per second', 'Artificial Analysis'),
@@ -343,7 +333,8 @@ export const buildModelPageRecord = (
       metric('aa_agentic_index', 'Artificial Analysis Agentic Index', finite(model.aa_agentic_index), 'points', 'Artificial Analysis'),
       metric('aa_math_index', 'Artificial Analysis Math Index', finite(model.aa_math_index), 'points', 'Artificial Analysis'),
     ],
-    epochRuns: matchEpochRuns(model, context.epochRuns ?? [], context.epochBenchmarks ?? []),
+    epochRuns: matchEpochRuns(model, context.epochRuns ?? [], context.epochBenchmarks ?? [],
+      context.verifiedBindings?.[model.id]?.['epoch-ai']?[context.verifiedBindings[model.id]['epoch-ai']!]:[]),
     catalog: {
       openRouterId,
       openRouterName: text(model.openrouter_name),

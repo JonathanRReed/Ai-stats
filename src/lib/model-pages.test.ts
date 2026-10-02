@@ -113,7 +113,7 @@ test("the record carries the receipt, the sibling routes, and only real values",
   ]);
 });
 
-test("Epoch runs join on the same normalized aliases the dashboard uses", () => {
+test("Epoch runs require explicitly verified native versions", () => {
   const runs = matchEpochRuns(
     { name: "Test Model 1", slug: "test-model-1" },
     [
@@ -121,6 +121,7 @@ test("Epoch runs join on the same normalized aliases the dashboard uses", () => 
       { id: "r2", model_version: "Other", benchmark_id: "b1", score: 0.9, release_date: null, organization: null, country: null, stderr: null },
     ],
     [{ id: "b1", slug: "gpqa_diamond", name: "GPQA Diamond", description: null, source: null }],
+    ["test-model-1"],
   );
   expect(runs).toHaveLength(1);
   expect(runs[0]).toMatchObject({ benchmark: "GPQA Diamond", score: 0.55, stderr: 0.02, sourceLink: "https://epoch.ai/x" });
@@ -142,6 +143,7 @@ test("VPCT runs link to Epoch's published benchmark when the creator site is una
       source_link: "https://cbrower.dev/vpct",
     }],
     [{ id: "vpct", slug: "vpct_external", name: "VPCT", description: null, source: null }],
+    ["Test Model 1"],
   );
   expect(runs[0]).toMatchObject({
     benchmark: "VPCT",

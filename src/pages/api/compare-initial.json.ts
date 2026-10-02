@@ -4,6 +4,7 @@ import {
   getModels,
   getPublicCatalogModels,
   enrichModelsWithPublicCatalogData,
+  getVerifiedCatalogBindings,
 } from '../../lib/supabase';
 import {
   VALUABLE_FREE_BENCHMARK_SLUGS,
@@ -125,7 +126,7 @@ export const GET: APIRoute = async () => {
       getPublicCatalogModels(),
       getEpochEvidence(),
     ]);
-  const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs);
+  const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs, await getVerifiedCatalogBindings(baseModels));
   const { epochBenchmarks, epochRuns, epochModels } = epochEvidence;
 
   const epochAliasesByModelVersion: Record<string, string[]> = {};

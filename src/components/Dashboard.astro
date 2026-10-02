@@ -54,7 +54,7 @@ const {
   openRouterEndpointSummaries,
 } = publicCatalogs;
 const { epochBenchmarks, epochRuns, epochModels } = epochEvidence;
-const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs);
+const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs, catalog.bindings);
 const publicPoliBenchSnapshot = await getPublicPoliBenchSnapshot();
 const dailyUsage = await getOpenRouterUsageSnapshot();
 
