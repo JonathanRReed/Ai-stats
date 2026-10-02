@@ -15,3 +15,14 @@ test('explorer server renders a real chart and exact-data fallback without brows
   expect(html).toContain('Measured model');
   expect(html).toContain('70');
 });
+
+test('price plots label input and output series in the chart and inspection',async()=>{
+ const {default:Chart}=await import('../src/components/compare/ComparisonChart');
+ const {buildCompareSeries}=await import('../src/lib/compare-series');
+ const {parseCompareState}=await import('../src/lib/compare-state');
+ const models=[{id:'a',name:'A',family:'A',source:'aa' as const,sourceModelId:'a',current:true,priceInput:1,priceOutput:2}];
+ const series=buildCompareSeries({models,observations:[]},parseCompareState(new URLSearchParams('chart=price&m=a'),models));
+ const html=renderToStaticMarkup(createElement(Chart,{series,labels:false,activeId:null,onPreview:()=>{},onPin:()=>{},svgRef:{current:null}}));
+ expect(html).toContain('Input tokens');expect(html).toContain('Output tokens');
+ expect(html).toContain('A · Input tokens:');expect(html).toContain('A · Output tokens:');
+});

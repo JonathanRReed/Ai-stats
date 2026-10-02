@@ -47,3 +47,9 @@ test('benchmark cache ignores inherited properties and accepts only own arrays',
   for(const slug of ['constructor','__proto__','toString'])expect(state.readBenchmarkCache?.({},slug)).toBeUndefined();
   expect(state.readBenchmarkCache?.({a:[1]},'a')).toEqual([1]);
 });
+
+test('legacy explicit AA metric links open their requested benchmark',()=>{
+ for(const metric of ['aa_coding_index','mmlu_pro','gpqa']){
+  expect(state.parseCompareState(new URLSearchParams('metric='+metric),catalog)).toMatchObject({chart:'benchmark',metricId:metric});
+ }
+});
