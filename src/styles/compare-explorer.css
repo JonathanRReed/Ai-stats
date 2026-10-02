@@ -189,3 +189,5 @@
   .observation-heading button{min-width:44px}
   .comparison-context{font-size:12px}
 }
+
+.model-advanced{margin-top:8px;flex-shrink:0}.model-advanced>summary{cursor:pointer;color:var(--ink-2);padding:8px 0}.model-advanced .reasoning-filters{margin-top:4px}

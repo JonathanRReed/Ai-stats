@@ -26,11 +26,11 @@ export default function ModelSelector({models,selected,includeHistory,onToggle,o
       onClick={()=>onFamily(family,false)} aria-label={'Remove family '+family}><span style={{background:familyColor(family)}}/>
       <span className="selected-family-name">{family}<small>{group.length} {group.length===1?'variant':'variants'}</small></span>
       <span aria-hidden="true">×</span></button>):<p>No models selected</p>}</div>
-    {models.some(model=>model.source==='aa')?<fieldset className="reasoning-filters"><legend>Reasoning label</legend>
+    <details className="model-advanced"><summary>Reasoning and history</summary>{models.some(model=>model.source==='aa')?<fieldset className="reasoning-filters"><legend>Reasoning label</legend>
       <button type="button" aria-pressed={!reasoningEfforts.length} onClick={()=>onReasoning('all')}>All</button>
       {['none','low','medium','high','xhigh','max','unknown'].map(value=><button type="button" key={value}
         aria-pressed={reasoningEfforts.includes(value)} onClick={()=>onReasoning(value)}>{value}</button>)}</fieldset>:null}
-    <label className="history-toggle"><input type="checkbox" checked={includeHistory} onChange={event=>onHistory(event.target.checked)}/> Include historical AA records</label>
+    <label className="history-toggle"><input type="checkbox" checked={includeHistory} onChange={event=>onHistory(event.target.checked)}/> Include historical AA records</label></details>
     <div className="selector-heading"><h2>Browse records</h2><button type="button" onClick={onReset}>Reset</button></div>
     <div className="model-options">{[...groups].map(([family,group])=><section key={family} className="model-family">
       <button type="button" className="family-toggle" aria-pressed={familyChosen(family)}
