@@ -12,3 +12,14 @@ test('unavailable or malformed membership is explicit instead of an empty curren
   expect(membership.filterAaCurrentModels?.(rows,{...cache,record_count:2})).toBeNull();
   expect(membership.filterAaCurrentModels?.(rows,{...cache,payload:{...cache.payload,records:[{id:'missing',kind:'model-membership'}]}})).toBeNull();
 });
+
+test('current source reader filters normal views and can include history explicitly',async()=>{
+  const sources={models:async()=>rows,cache:async()=>cache};
+  expect((await membership.readAaCohort?.(sources))?.map((row:{id:string})=>row.id)).toEqual(['current']);
+  expect((await membership.readAaCohort?.(sources,true))?.map((row:{id:string})=>row.id)).toEqual(['current','retired']);
+});
+test('cache failure retains rows with unknown membership rather than claiming current',async()=>{
+  const result=await membership.readAaCohort?.({models:async()=>rows,cache:async()=>{throw new Error('offline');}});
+  expect(result?.[0].current_source_member).toBeNull();
+  expect(result).toHaveLength(2);
+});
