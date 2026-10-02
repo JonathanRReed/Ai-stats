@@ -44,6 +44,10 @@ const OVERVIEW: IntelligenceRefreshPayload['overview'] = {
 };
 
 const serializeSource = (source: SourceFreshness): IntelligenceRefreshSource => ({
+  fetchedAt: source.fetchedAt?.toISOString() ?? null,
+  publishedAt: source.publishedAt?.toISOString() ?? null,
+  snapshotId: source.snapshotId ?? null,
+  contentHash: source.contentHash ?? null,
   sourceKey: source.sourceKey,
   displayName: source.displayName,
   status: source.status,
