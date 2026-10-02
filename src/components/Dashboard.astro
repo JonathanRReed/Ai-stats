@@ -376,20 +376,10 @@ function getScoreClass(score: number | null | undefined): string {
       <OpenRouterUsage snapshot={dailyUsage?.snapshot ?? null} receipt={dailyUsage?.receipt ?? null} client:visible />
       <PoliBenchLab snapshot={publicPoliBenchSnapshot} />
     </div>
-    <p class="dashboard-definition">
-      AI Stats keeps model pricing, context limits, provider routes, latency,
-      and named benchmark scores side by side without combining them into a universal score.
-      {
-        definitionFacts.length ? (
-          <span class="dashboard-definition-facts">
-            {" "}
-            This build covers {definitionFacts.join("; ")}. Everything here is a
-            build-time snapshot of those feeds, so it updates when the site
-            rebuilds.
-          </span>
-        ) : null
-      }
-    </p>
+    <details class="dashboard-definition">
+      <summary>Data in this build</summary>
+      <p>{definitionFacts.join("; ")}. Charts update when a new source snapshot is published and the site rebuilds.</p>
+    </details>
     {
       openRouterModels.length ||
       huggingFaceModels.length ||
