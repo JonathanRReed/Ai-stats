@@ -108,6 +108,7 @@ export function parseUsageCache(row,{now=new Date().toISOString()}={}) {
  }catch{return null;}
 }
 
+/** @param {{argv?:string[],env?:Record<string,string|undefined>,store?:Record<string,Function>,readJson?:(file:string)=>Promise<any>,writeJson?:(file:string,value:unknown)=>Promise<void>}} options */
 export async function runUsageCli({argv=process.argv.slice(2),env=process.env,store:providedStore,
  readJson=async file=>JSON.parse(await readFile(file,'utf8')),
  writeJson=async(file,value)=>{await mkdir(path.dirname(file),{recursive:true});await writeFile(file,JSON.stringify(value)+'\n',{mode:0o600});},
