@@ -24,3 +24,17 @@ test('absent database client cannot produce a healthy empty source receipt',asyn
  const result=await runInNewContext(code,{supabase:null,parseCatalogCache,catalogReadReceipt});
  expect(result.availability.every((item:{available:boolean;status:string})=>!item.available&&item.status==='unavailable')).toBe(true);
 });
+
+test('shared catalog retries a failed load and coalesces successful concurrent readers',async()=>{
+ const loader=readFileSync('src/lib/model-catalog-data.ts','utf8').replace(/^import .*$/gm,'').replace('export const getModelCatalogData','const getModelCatalogData');
+ let calls=0;
+ const get=runInNewContext(transpiler.transformSync(loader)+';getModelCatalogData;',{
+ getModels:async()=>{if(++calls===1)throw new Error('temporary');return [];},
+ getCompareCatalogSources:async()=>({openrouter:[],huggingface:[],litellm:[],availability:[]}),
+ getCanonicalModels:async()=>[],getModelAliases:async()=>[],getIntelligenceSources:async()=>[],
+ normalizeAaModelsForDisplay:(rows:unknown[])=>rows,getEpochEvidence:async()=>({epochModels:[]}),
+ buildExplorerCatalog:()=>[],EXPLORER_SOURCE_LABELS:{}
+ });
+ await expect(get()).rejects.toThrow('temporary');
+ const [a,b]=await Promise.all([get(),get()]);expect(a).toBe(b);expect(calls).toBe(2);
+});
