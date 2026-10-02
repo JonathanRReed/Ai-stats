@@ -6,6 +6,10 @@ values
  ('litellm','LiteLLM','Public model pricing and capability catalog','https://github.com/BerriAI/litellm')
 on conflict(source_key) do nothing;
 
+alter table public.source_snapshot_cache
+ add column refresh_status text not null default 'healthy' check(refresh_status in ('healthy','failed')),
+ add column refresh_message text;
+
 create table private.catalog_refresh_state (
  source_key text primary key references public.intelligence_sources(source_key),
  lease_id uuid, lease_until timestamptz, claimed_at timestamptz,
@@ -61,8 +65,10 @@ begin
  where source_key=p_source_key and lease_id=p_lease_id;
  get diagnostics v_changed=row_count;
  if v_changed=1 then
+  update public.source_snapshot_cache set refresh_status='failed',refresh_message='The latest catalog refresh failed. The last successful snapshot is retained.' where source_key=p_source_key;
   update public.intelligence_sources set status='failed',
-   status_message='The latest catalog refresh failed. The last successful snapshot is retained.',
+   status_message=case when exists(select 1 from public.source_snapshot_cache where source_key=p_source_key)
+    then 'The latest catalog refresh failed. The last successful snapshot is retained.' else 'No usable catalog snapshot is available yet.' end,
    updated_at=clock_timestamp() where source_key=p_source_key;
  end if;
  return v_changed=1;
@@ -90,6 +96,7 @@ begin
  end if;
  v_snapshot:=public.stage_source_snapshot(p_source_key,p_content_hash,p_observed_at,p_fetched_at,p_payload,p_record_count);
  perform public.promote_source_snapshot(v_snapshot);
+ update public.source_snapshot_cache set refresh_status='healthy',refresh_message=null where source_key=p_source_key;
  update private.catalog_refresh_state set lease_id=null,lease_until=null,next_allowed_at=null,
   failures=0,etag=p_etag,last_modified=p_last_modified,last_error=null,updated_at=v_now where source_key=p_source_key;
  update public.intelligence_sources set status='healthy',status_message=null,

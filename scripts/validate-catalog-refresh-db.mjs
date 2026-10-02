@@ -39,12 +39,13 @@ try{
  await makeDue();
  const unchanged=await claim();assert.equal(unchanged.claimed,true);
  assert.equal(await publish(unchanged.leaseId),id);
- assert.equal((await current()).published_at,initial.published_at,'unchanged content retains its publication date');
+ assert.equal(new Date((await current()).published_at).getTime(),new Date(initial.published_at).getTime(),'unchanged content retains its publication date');
  await makeDue();
  const failure=await claim();
  await db.query("select public.fail_catalog_refresh('openrouter',$1,now()+interval '2 hours','rate limited')",[failure.leaseId]);
  assert.equal((await claim()).reason,'backoff');
  assert.equal((await current()).snapshot_id,id,'failure preserves last-good snapshot');
+ assert.equal((await db.query("select refresh_status from public.source_snapshot_cache where source_key='openrouter'")).rows[0].refresh_status,'failed');
  await db.exec("update private.catalog_refresh_state set next_allowed_at=null,lease_until=null where source_key='openrouter'");
  const expired=await claim();
  await db.exec("update private.catalog_refresh_state set lease_until=now()-interval '1 second' where source_key='openrouter'");
