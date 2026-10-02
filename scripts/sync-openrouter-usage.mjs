@@ -15,7 +15,7 @@ const date=value=>{
  return value;
 };
 const timestamp=value=>{
- if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.test(value))throw new Error('Invalid usage timestamp');
+ if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,9})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.test(value))throw new Error('Invalid usage timestamp');
  date(value.slice(0,10));
  if(!Number.isFinite(Date.parse(value)))throw new Error('Invalid usage timestamp');
  return new Date(value).toISOString();
