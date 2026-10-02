@@ -36,6 +36,7 @@ export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogE
   const chart=params.get('chart')??(params.has('metric')?'benchmark':'cost-intelligence');
   let requested=params.has('m')?params.getAll('m'):params.has('models')?(params.get('models')??'').split(','):defaults;
   const source=params.get('source'),native=params.get('record');
+  let unresolvedSource=false;
   if(!params.has('m')&&!params.has('models')&&source&&native){
     const type=Object.hasOwn(SOURCE_RECORD_TYPES,source)?SOURCE_RECORD_TYPES[source]:null;
     const matches=type?catalog.filter(model=>model.source===type&&
@@ -43,6 +44,7 @@ export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogE
       (params.get('history')==='1'||model.current!==false)):[];
     const fallback=params.get('inventory');
     const inventory=type&&matches.length===0&&fallback?catalog.find(model=>model.source==='catalog'&&model.id===fallback):null;
+    unresolvedSource=matches.length!==1&&!inventory;
     requested=matches.length===1?[matches[0].id]:inventory?[inventory.id]:[source+':'+native];
   }
   const legacy=params.get('model');
@@ -55,7 +57,7 @@ export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogE
   const normalizedChart=COMPARE_CHARTS.includes(chart as CompareChart)?chart as CompareChart:'cost-intelligence';
   return {
     chart:normalizedChart,
-    modelIds:selected.filter(id=>ids.has(id)), missingModelIds:selected.filter(id=>!ids.has(id)),
+    modelIds:unresolvedSource?[]:selected.filter(id=>ids.has(id)), missingModelIds:unresolvedSource?selected:selected.filter(id=>!ids.has(id)),
     reasoningEfforts:unique(params.getAll('reason').filter(value=>REASONING.has(value))).sort(),
     metricId,scoreMetricKey:scoreMetric(params.get('score_metric')),conditionKey:condition(params.get('condition')),
     scale:params.has('scale')?(params.get('scale')==='log'?'log':'linear'):(normalizedChart==='cost-intelligence'?'log':'linear'),labels:params.get('labels')==='1',

@@ -4,7 +4,7 @@ import {runInNewContext} from 'node:vm';
 import {buildPassportRoutes} from './model-passport';
 import {parseCompareState} from './compare-state';
 test('passport routes fall back to their exact inventory record only when native cache is absent',()=>{
- const alias={sourceKey:'huggingface',sourceName:'Hugging Face',sourceModelKey:'lab/a',sourceModelName:'A',matchMethod:'source_native',confidence:1,provenance:'native',updatedAt:'2026-10-02'};
+ const alias={sourceKey:'huggingface',sourceName:'Hugging Face',sourceModelKey:'lab/a',sourceModelName:'A',matchMethod:'source_native' as const,confidence:1,provenance:'native',updatedAt:'2026-10-02'};
  const link=buildPassportRoutes('A',[alias],undefined,'catalog:hf-a').aiStatsCompare;
  const params=new URL(link,'https://example.test').searchParams;
  const inventory={id:'catalog:hf-a',source:'catalog',sourceModelId:'hf-a'};
