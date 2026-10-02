@@ -143,3 +143,13 @@ export function selectEpochArtifact(previous, candidate) {
   const changed = priorHash !== next.contentHash;
   return { changed, artifact: changed ? candidate : previous, fetchedAt: candidate.fetched_at };
 }
+
+/** The producer already verified complete imported membership; expose identities only. */
+export function buildAaMembershipCacheInput(aa) {
+  if (!aa || typeof aa.snapshotId !== 'string' || !aa.snapshotId ||
+    !aa.fetchedAt || !aa.observedAt || !Array.isArray(aa.models)) throw new Error('AA membership requires a verified source receipt');
+  const input = {sourceKey:'artificial-analysis', observedAt:aa.observedAt, fetchedAt:aa.fetchedAt,
+    records:aa.models.map(model=>({id:model.id,kind:'model-membership'}))};
+  prepareSourceSnapshot(input);
+  return input;
+}
