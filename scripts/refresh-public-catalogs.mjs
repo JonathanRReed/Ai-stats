@@ -10,8 +10,13 @@ const verifiedCachedInput = (sourceKey, cached, fetchedAt) => {
   prepareSourceSnapshot(input);
   return input;
 };
-/** One admitted upstream request. Successful candidates are promoted after build verification. */
-export async function prepareCatalogRefresh({ sourceKey, store, fetchImpl = fetch, now = new Date().toISOString() }) {
+/**
+ * One admitted upstream request. Successful candidates are promoted after build verification.
+ * @param {{sourceKey:string, store:Record<string,Function>, fetchImpl?:(input:string|URL|Request,init?:RequestInit)=>Promise<Response>, now?:string}} options
+ */
+export async function prepareCatalogRefresh({ sourceKey, store, fetchImpl = (url,init) => globalThis.fetch(url,init), now: fixedNow }) {
+  const clock = () => fixedNow ?? new Date().toISOString();
+  const now = clock();
   if (!Object.hasOwn(CATALOG_URLS, sourceKey)) throw new Error('Unknown public catalog');
   if (!Number.isFinite(Date.parse(now))) throw new Error('Invalid refresh clock');
   const lease = await store.claim(sourceKey);
@@ -28,21 +33,22 @@ export async function prepareCatalogRefresh({ sourceKey, store, fetchImpl = fetc
     retryAfter = response.headers.get('Retry-After');
     let input;
     if (response.status === 304) {
-      input = verifiedCachedInput(sourceKey, cached, now);
+      input = verifiedCachedInput(sourceKey, cached, clock());
     } else {
       if (!response.ok) throw new Error('Catalog request failed (' + response.status + ')');
       const records = normalizeCatalog(sourceKey, await response.json());
       const priorCount = cached?.payload?.records?.length ?? 0;
       if (priorCount && records.length < priorCount * .8) throw new Error('Catalog coverage fell by more than 20%; retaining last good snapshot');
-      input = { sourceKey, observedAt: null, fetchedAt: now, records };
+      input = { sourceKey, observedAt: null, fetchedAt: clock(), records };
       prepareSourceSnapshot(input);
     }
     return { sourceKey, status: response.status === 304 ? 'unchanged' : 'prepared',
-      leaseId: lease.leaseId, input, etag: response.headers.get('ETag') ?? lease.etag ?? null,
-      lastModified: response.headers.get('Last-Modified') ?? lease.lastModified ?? null };
+      leaseId: lease.leaseId, input, etag: response.headers.get('ETag') ?? (response.status === 304 ? lease.etag ?? null : null),
+      lastModified: response.headers.get('Last-Modified') ?? (response.status === 304 ? lease.lastModified ?? null : null) };
   } catch (error) {
-    const delay = retryDelayMs(retryAfter, lease.attempts ?? 0, Date.parse(now));
-    const notBefore = new Date(Math.min(8640000000000000, Date.parse(now) + delay)).toISOString();
+    const failedAt = Date.parse(clock());
+    const delay = retryDelayMs(retryAfter, lease.attempts ?? 0, failedAt);
+    const notBefore = new Date(Math.min(8640000000000000, failedAt + delay)).toISOString();
     await store.fail({ sourceKey, leaseId: lease.leaseId, notBefore,
       message: error instanceof Error ? error.message : 'Catalog refresh failed' });
     return { sourceKey, status: 'failed' };

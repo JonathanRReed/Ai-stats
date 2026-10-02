@@ -36,7 +36,7 @@ test('a conditional 304 reuses only an existing validated snapshot and keeps obs
  const result=await refresh.prepareCatalogRefresh?.({sourceKey:'openrouter',store,now,fetchImpl:async(_url:unknown,init?:RequestInit)=>{
   validator=new Headers(init?.headers).get('if-none-match');return new Response(null,{status:304});
  }});
- expect(validator).toBe('"v1"');expect(result?.status).toBe('unchanged');
+ expect(validator as string|null).toBe('"v1"');expect(result?.status).toBe('unchanged');
  expect(result?.input).toMatchObject({observedAt:null,fetchedAt:now,records:snapshot.payload.records});
 });
 test('429 respects Retry-After, does not publish, and keeps last-good data',async()=>{
