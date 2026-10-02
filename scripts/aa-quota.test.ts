@@ -16,3 +16,8 @@ test('quota exhaustion and failed state persistence never make another upstream 
  await expect(gate('https://artificialanalysis.ai/api/v2/language/models',{})).rejects.toThrow();
  expect(calls).toBe(0);
 });
+
+test('an unrepresentably long upstream delay never becomes a short local retry',()=>{
+ const result=readAaRateHeaders(new Headers({'Retry-After':'9'.repeat(400)}),429,Date.parse('2026-10-02T20:00:00Z'));
+ expect(result.notBefore).toBe('9999-12-31T23:59:59.999Z');
+});

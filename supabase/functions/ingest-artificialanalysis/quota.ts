@@ -5,7 +5,8 @@ export function readAaRateHeaders(headers:Headers,status:number,now=Date.now()){
  const limit=integer(headers.get('x-ratelimit-limit')),remaining=integer(headers.get('x-ratelimit-remaining'));
  const resetSeconds=integer(headers.get('x-ratelimit-reset')),reset=resetSeconds===null?null:iso(resetSeconds*1000);
  const retry=headers.get('retry-after'),seconds=integer(retry);
- const retryTime=seconds!==null?now+seconds*1000:retry?Date.parse(retry):NaN;
+ const oversized=retry!==null&&/^\d+$/.test(retry)&&seconds===null;
+ const retryTime=oversized?Date.parse('9999-12-31T23:59:59.999Z'):seconds!==null?now+seconds*1000:retry?Date.parse(retry):NaN;
  const fallback=status===429||status>=500?now+300000:NaN;
  const backoff=[retryTime,fallback,status===429&&reset?Date.parse(reset):NaN].filter(Number.isFinite);
  return {limit:limit&&limit>0?limit:null,remaining,reset,notBefore:backoff.length?iso(Math.max(...backoff)):null};
