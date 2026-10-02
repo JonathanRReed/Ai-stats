@@ -1,5 +1,5 @@
 import {expect,test} from 'bun:test';
-const geometry=await import('./compare-geometry').catch(()=>({}));
+import * as geometry from './compare-geometry';
 test('linear scatter coordinates stay finite and within the plotting area',()=>{
   const result=geometry.plotGeometry?.([{id:'a',x:0,y:0},{id:'b',x:10,y:100}],'scatter','linear');
   expect(result?.points).toHaveLength(2);
