@@ -23,5 +23,5 @@ export async function getCompareReleaseManifest(){
  const manifest={schemaVersion:RELEASE_SCHEMA,generatedAt:latest(sources.map(source=>source.fetchedAt))??new Date(0).toISOString(),
  models:initialModels,defaultModelIds,delivery,sources,benchmarks:getEpochBenchmarksWithRuns(data.epoch.epochBenchmarks,data.epoch.epochRuns)
  .filter(benchmark=>/^[a-z0-9_-]{1,120}$/.test(benchmark.slug)).map(benchmark=>({slug:benchmark.slug,name:getEpochBenchmarkLabel(benchmark)}))};
- return {...manifest,datasetRevision:releaseDatasetRevision(manifest,fromEpochRuns(data.epoch.epochRuns,data.epoch.fetchedAt))};
+ return {...manifest,datasetRevision:releaseDatasetRevision(manifest,fromEpochRuns(data.epoch.epochRuns.filter(run=>manifest.benchmarks.some(benchmark=>benchmark.slug===run.benchmark_slug)),data.epoch.fetchedAt))};
 }

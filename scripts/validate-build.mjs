@@ -1,3 +1,4 @@
+import {readAppReleaseArtifacts} from './publish-app-release.mjs';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -35,4 +36,6 @@ export function validateComparisonBuild(data) {
 if (import.meta.main) {
   const data = JSON.parse(await readFile(resolve('dist/api/compare-initial.json'), 'utf8'));
   console.log('Validated populated comparison build:', validateComparisonBuild(data));
+  const release=await readAppReleaseArtifacts('dist');
+  console.log('Validated app-data release:',{revision:release.revision,models:release.manifest.delivery.catalog.rows.length,assets:Object.keys(release.assets).length});
 }
