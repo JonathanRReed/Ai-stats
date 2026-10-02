@@ -8,7 +8,7 @@ The Edge Function source is in `supabase/functions/ingest-artificialanalysis`. K
 
 Epoch may omit its former `epoch_capabilities_index.csv`. In that case, model identities come from the benchmark runs and ECI remains missing. An archive without usable benchmark evidence must fail before database writes or snapshot replacement.
 
-`Refresh benchmark evidence` runs twice daily at 01:37 and 13:37 UTC, after the existing Artificial Analysis database refresh. It can also be dispatched manually. There are no paid inference calls.
+`Refresh benchmark evidence` runs every six hours at 01:37, 07:37, 13:37 and 19:37 UTC. Artificial Analysis ingestion remains separately scheduled every twelve hours. It can also be dispatched manually. There are no paid inference calls.
 
 The workflow reads the official Epoch archive, updates the shared Supabase tables, imports the current OpenRouter catalog and checked PoliBench snapshot into normalized observations, and verifies a populated public build. Only the two public snapshot files are committed. Cloudflare's Git integration publishes that commit.
 
@@ -59,3 +59,5 @@ Remaining implementation: durable OpenRouter/HuggingFace/LiteLLM catalog adapter
 If AA membership is unavailable, page readers retain existing rows with current_source_member=null. They must not present that uncertainty as verified current membership. Full history remains available via getModels(true). Current-cohort filtering is effective only after a valid cache promotion.
 
 The isolated migration harness runs PostgreSQL 18 through PGlite; production is PostgreSQL 17. It verifies supported SQL behavior, permissions and rollback preservation, but does not replace production readback/advisor checks. No engine upgrade is part of this release.
+
+AA public health currently uses a 24-hour overdue threshold against its active twelve-hour ingestion schedule. The four-hour target/eight-hour threshold is retained as a future policy only. Epoch archive publication requires a parsed archive receipt (source URL, SHA-256 and file inventory). A missing previously published benchmark or a >20% drop in models/runs holds refresh for source review; legitimate large source revisions must be reviewed before updating the checked baseline. A content-based source-manifest artifact covers AA membership and measurements so AA-only changes trigger a static deployment, followed by a verified post-promotion build.

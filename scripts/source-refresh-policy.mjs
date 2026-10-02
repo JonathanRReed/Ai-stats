@@ -9,6 +9,9 @@ const POLICIES = Object.freeze({
   polibench: { intervalHours: 24, staleAfterHours: 336 },
 });
 export const getRefreshPolicy = sourceKey => ({ ...(POLICIES[sourceKey] ?? { intervalHours: 24, staleAfterHours: 336 }) });
+/** Health reflects the deployed schedule; target cadence is not a claim that ingestion changed. */
+export const getActiveRefreshPolicy = sourceKey => sourceKey === 'artificial-analysis'
+  ? { intervalHours: 12, staleAfterHours: 24 } : getRefreshPolicy(sourceKey);
 const millis = value => value === null || value === undefined ? NaN : value instanceof Date ? value.getTime() : Date.parse(value);
 const iso = value => Number.isFinite(millis(value)) ? new Date(millis(value)).toISOString() : null;
 
@@ -20,7 +23,7 @@ export function resolveReceipt(receipt, now = new Date()) {
   return { sourceKey: receipt.sourceKey, sourceObservedAt: iso(receipt.sourceObservedAt),
     fetchedAt, publishedAt: iso(receipt.publishedAt),
     lastSuccessfulSnapshotId: receipt.lastSuccessfulSnapshotId ?? null, ageHours,
-    status: ageHours === null ? 'unavailable' : ageHours > getRefreshPolicy(receipt.sourceKey).staleAfterHours ? 'stale' : 'healthy' };
+    status: ageHours === null ? 'unavailable' : ageHours > getActiveRefreshPolicy(receipt.sourceKey).staleAfterHours ? 'stale' : 'healthy' };
 }
 
 /** Never shorten upstream Retry-After. Long delays are persisted, not slept inside a short job. */

@@ -1,4 +1,4 @@
-import { getRefreshPolicy } from '../../scripts/source-refresh-policy.mjs';
+import { getActiveRefreshPolicy } from '../../scripts/source-refresh-policy.mjs';
 import { getPublicPoliBenchSnapshot } from './polibench-snapshot';
 import { supabase } from './supabase';
 import { getEpochEvidence } from './epoch-evidence';
@@ -146,7 +146,7 @@ export const resolveSourceFreshness = (
     : lastSuccessfulRunAt ?? lastObservedAt);
   const ageDays = sourceAgeDays(referenceDate, now);
   const ageHours = referenceDate ? Math.max(0, (now.getTime() - referenceDate.getTime()) / 3600000) : null;
-  const { staleAfterHours } = getRefreshPolicy(input.sourceKey);
+  const { staleAfterHours } = getActiveRefreshPolicy(input.sourceKey);
   const sourceStatus = asNonEmptyStringOrNull(input.status)?.toLowerCase();
   const statusMessage = asNonEmptyStringOrNull(input.statusMessage);
 
