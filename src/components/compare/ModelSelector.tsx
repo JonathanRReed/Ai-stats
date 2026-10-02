@@ -6,6 +6,7 @@ type Props={models:ExplorerModel[];selected:string[];includeHistory:boolean;onTo
 export default function ModelSelector({models,selected,includeHistory,onToggle,onFamily,onGroup,onHistory,reasoningEfforts,onReasoning,onClear,onReset}:Props){
   const [limit,setLimit]=useState(80);const [source,setSource]=useState('all');
   const [search,setSearch]=useState('');const query=useDeferredValue(search).toLowerCase().trim();
+  const browsable=models.filter(model=>includeHistory||model.current!==false);
   const selectedSet=useMemo(()=>new Set(selected),[selected]);
   const matches=useMemo(()=>models.filter(model=>(includeHistory||model.current!==false)&&(source==='all'||model.source===source)&&
     (!query||(model.name+' '+model.provider+' '+model.sourceModelId).toLowerCase().includes(query))),[models,query,includeHistory,source]);
@@ -18,7 +19,7 @@ export default function ModelSelector({models,selected,includeHistory,onToggle,o
   return <div className="model-selector">
     <label className="model-search-label">Find models<input type="search" placeholder="Search models or providers" value={search} onChange={event=>{setSearch(event.target.value);setLimit(80);}}/></label>
     <label className="catalog-source-label">Catalog source<select value={source} onChange={event=>{setSource(event.target.value);setLimit(80);}}>
-      <option value="all">All sources ({models.length})</option>{Object.entries(EXPLORER_SOURCE_LABELS).filter(([key])=>models.some(model=>model.source===key)).map(([key,label])=><option key={key} value={key}>{label} ({models.filter(model=>model.source===key).length})</option>)}
+      <option value="all">All sources ({browsable.length})</option>{Object.entries(EXPLORER_SOURCE_LABELS).filter(([key])=>models.some(model=>model.source===key)).map(([key,label])=><option key={key} value={key}>{label} ({browsable.filter(model=>model.source===key).length})</option>)}
     </select></label>
     <div className="selector-heading"><h2>Selected models <span>{chosen.length}</span></h2><button type="button" onClick={onClear}>Clear</button></div>
     <div className="selected-models">{chosen.length?[...chosenGroups].map(([family,group])=><button type="button" key={family}

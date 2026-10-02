@@ -15,7 +15,8 @@ test('source-qualified links cannot select another source with the same name',()
 test('AA source slug resolves current UUID without reviving historical records',()=>{
  const rows=[{id:'old',source:'aa',slug:'a',sourceModelId:'old',current:false},{id:'new',source:'aa',slug:'a',sourceModelId:'new',current:true}];
  expect(parseCompareState(new URLSearchParams('source=artificial-analysis&record=a'),rows).modelIds).toEqual(['new']);
- expect(parseCompareState(new URLSearchParams('source=artificial-analysis&record=a&history=1'),rows).modelIds).toEqual(['old','new']);
+ expect(parseCompareState(new URLSearchParams('source=artificial-analysis&record=a&history=1'),rows).modelIds).toEqual([]);
+ expect(parseCompareState(new URLSearchParams('source=artificial-analysis&record=a&history=1'),rows).missingModelIds).toEqual(['artificial-analysis:a']);
 });
 test('unknown source reference never falls back to a similar name',()=>{
  const state=parseCompareState(new URLSearchParams('source=unknown&record=a'),[{id:'a',name:'a'}]);

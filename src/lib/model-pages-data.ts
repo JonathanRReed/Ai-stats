@@ -15,11 +15,12 @@ const load = async (): Promise<ModelPageRecord[]> => {
     getPublicPoliBenchSnapshot(),
   ]);
   const {currentAaModels:baseModels,epoch:epochEvidence}=catalog;
-  const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs);
+  const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs, catalog.bindings);
   return buildModelPageRecords(models, {
     epochBenchmarks: epochEvidence.epochBenchmarks,
     epochRuns: epochEvidence.epochRuns,
     poliBench,
+    verifiedBindings:catalog.bindings,
   });
 };
 

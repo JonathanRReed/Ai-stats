@@ -41,7 +41,7 @@ export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogE
     const matches=type?catalog.filter(model=>model.source===type&&
       (model.sourceModelId===native||(type==='aa'&&model.slug===native))&&
       (params.get('history')==='1'||model.current!==false)):[];
-    requested=matches.length?matches.map(model=>model.id):[source+':'+native];
+    requested=matches.length===1?[matches[0].id]:[source+':'+native];
   }
   const legacy=params.get('model');
   if(!params.has('m')&&!params.has('models')&&!source&&legacy){

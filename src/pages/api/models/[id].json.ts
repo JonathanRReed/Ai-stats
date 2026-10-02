@@ -2,6 +2,7 @@ import type { APIRoute, GetStaticPaths } from 'astro';
 import { toModelDrawerPayload } from '../../../lib/model-api';
 import {
   enrichModelsWithPublicCatalogData,
+  getVerifiedCatalogBindings,
   getModels,
   getPublicCatalogModels,
 } from '../../../lib/supabase';
@@ -17,7 +18,7 @@ export const getStaticPaths = (async () => {
     getPublicCatalogModels(),
   ]);
 
-  return enrichModelsWithPublicCatalogData(models, publicCatalogs).map(
+  return enrichModelsWithPublicCatalogData(models, publicCatalogs, await getVerifiedCatalogBindings(models)).map(
     (model) => ({
       params: { id: model.id },
       props: { model: toModelDrawerPayload(model) },

@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import {
   AA_MODEL_SELECT_COLUMNS,
   enrichModelsWithPublicCatalogData,
+  getVerifiedCatalogBindings,
   getPublicCatalogModels,
   normalizeAaModelsForDisplay,
   supabase,
@@ -59,10 +60,8 @@ export const GET: APIRoute = async ({ url }) => {
     }
 
     const publicCatalogs = await getPublicCatalogModels();
-    const models = enrichModelsWithPublicCatalogData(
-      normalizeAaModelsForDisplay((data ?? []) as unknown as AaModel[]),
-      publicCatalogs,
-    );
+    const base=normalizeAaModelsForDisplay((data??[]) as unknown as AaModel[]);
+    const models=enrichModelsWithPublicCatalogData(base,publicCatalogs,await getVerifiedCatalogBindings(base));
     const filteredModels = models.map(toModelDrawerPayload);
 
     return new Response(JSON.stringify(filteredModels), {

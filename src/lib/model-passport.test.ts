@@ -76,3 +76,16 @@ describe('model passport snapshot', () => {
     expect(routes.aiStatsCompare).toBe('/compare?source=openrouter&record=openai%2Fgpt-5&chart=price');
   });
 });
+
+test('alias-free canonical passports use an exact inventory ID despite name collisions',()=>{
+ const snapshot=buildModelPassportSnapshot({canonicalModels:[{id:1,canonical_key:'other:a',display_name:'Same',provider_name:null,model_family:null,release_date:null,metadata:{},updated_at:'2026-10-02T00:00:00Z'}],aliases:[],sources:[]});
+ expect(snapshot.models[0].routes.aiStatsCompare).toBe('/compare?m=catalog%3Aother%3Aa');
+});
+
+test('native HF and LiteLLM passports cannot point at suppressed inventory records',()=>{
+ for(const source of ['huggingface','litellm']){
+ const aliases=[{sourceKey:source,sourceName:source,sourceModelKey:'lab/a',sourceModelName:'A',matchMethod:'source_native' as const,confidence:1,provenance:'Native ID',updatedAt:'2026-10-02'}];
+ const href=buildPassportRoutes('A',aliases,undefined,'catalog:'+source+':lab/a').aiStatsCompare;
+ expect(href).toBe('/compare?source='+source+'&record=lab%2Fa'+(source==='litellm'?'&chart=price':''));
+ }
+});
