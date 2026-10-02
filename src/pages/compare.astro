@@ -3,16 +3,15 @@ import Layout from "../components/Layout.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import CompareExplorer from "../components/compare/CompareExplorer";
-import {getModelCatalogData} from "../lib/model-catalog-data";
+import {getCompareDelivery} from "../lib/compare-delivery-server";
 import {getEpochBenchmarksWithRuns,getEpochBenchmarkLabel} from "../lib/benchmark-catalog";
-import {defaultExplorerSelection} from "../lib/compare-catalog";
+
 import "../styles/compare-explorer.css";
 
 export const prerender = true;
-const {aaModels,epoch,records:models,unavailableSources}=await getModelCatalogData();
+const {data:{aaModels,epoch,unavailableSources},delivery,defaultModelIds,initialModels}=await getCompareDelivery();
 const benchmarks = getEpochBenchmarksWithRuns(epoch.epochBenchmarks,epoch.epochRuns)
   .map(benchmark=>({slug:benchmark.slug,name:getEpochBenchmarkLabel(benchmark)}));
-const defaultModelIds = defaultExplorerSelection(models);
 const dates = [epoch.fetchedAt,...aaModels.map(model=>model.last_seen)]
   .filter((value):value is string=>typeof value==="string"&&Number.isFinite(Date.parse(value)));
 const dateModified = dates.length?new Date(Math.max(...dates.map(value=>Date.parse(value)))).toISOString():undefined;
@@ -23,7 +22,7 @@ const dateModified = dates.length?new Date(Math.max(...dates.map(value=>Date.par
   <Header currentPage="compare" />
   <main id="main-content" class="compare-page">
     {unavailableSources.length?<p role="status">Partial catalog. Could not load: {unavailableSources.join(', ')}.</p>:null}
-    <CompareExplorer client:load models={models} benchmarks={benchmarks} defaultModelIds={defaultModelIds} />
+    <CompareExplorer client:load models={initialModels} delivery={delivery} benchmarks={benchmarks} defaultModelIds={defaultModelIds} />
   </main>
   <Footer />
 </Layout>

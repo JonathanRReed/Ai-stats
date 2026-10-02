@@ -42,7 +42,8 @@ test('default comparison stays compact without hiding other variants',()=>{
 });
 test('Compare uses uncapped database caches rather than the capped homepage getter',()=>{
  const page=readFileSync('src/pages/compare.astro','utf8');
- expect(page).toContain('getModelCatalogData');
+ expect(page).toContain('getCompareDelivery');
+ expect(readFileSync('src/lib/compare-delivery-server.ts','utf8')).toContain('getModelCatalogData');
  const loader=readFileSync('src/lib/model-catalog-data.ts','utf8');
  expect(loader).toContain('getCompareCatalogSources');
  expect(loader).toContain('getCanonicalModels');

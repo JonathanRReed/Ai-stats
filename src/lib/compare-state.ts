@@ -55,10 +55,24 @@ export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogE
   const ids=new Set(catalog.map(model=>model.id));
   const selected=unique(requested.filter(safeIdentity));
   const explicitMissing=unique(params.getAll('missing').filter(safeIdentity));
+  const recovered:string[]=[],stillMissing:string[]=[];
+  for(const id of explicitMissing){
+    const direct=catalog.filter(model=>model.id===id);
+    let matches:CompareCatalogEntry[]=[];
+    if(direct.length===1){
+      const model=direct[0];
+      matches=model.source&&model.sourceModelId?catalog.filter(row=>row.source===model.source&&row.sourceModelId===model.sourceModelId):direct;
+    }else{
+      const split=id.indexOf(':'),prefix=id.slice(0,split),native=id.slice(split+1);
+      const type=split>0&&Object.hasOwn(SOURCE_RECORD_TYPES,prefix)?SOURCE_RECORD_TYPES[prefix]:null;
+      if(type)matches=catalog.filter(model=>model.source===type&&(model.sourceModelId===native||(type==='aa'&&model.slug===native))&&(params.get('history')==='1'||model.current!==false));
+    }
+    if(matches.length===1)recovered.push(matches[0].id);else stillMissing.push(id);
+  }
   const normalizedChart=COMPARE_CHARTS.includes(chart as CompareChart)?chart as CompareChart:'cost-intelligence';
   return {
     chart:normalizedChart,
-    modelIds:unresolvedSource?[]:selected.filter(id=>ids.has(id)&&!explicitMissing.includes(id)), missingModelIds:unique([...explicitMissing,...(unresolvedSource?selected:selected.filter(id=>!ids.has(id)))]),
+    modelIds:unique([...(unresolvedSource?[]:selected.filter(id=>ids.has(id)&&!stillMissing.includes(id))),...recovered]), missingModelIds:unique([...stillMissing,...(unresolvedSource?selected:selected.filter(id=>!ids.has(id)))]),
     reasoningEfforts:unique(params.getAll('reason').filter(value=>REASONING.has(value))).sort(),
     metricId,scoreMetricKey:scoreMetric(params.get('score_metric')),conditionKey:condition(params.get('condition')),
     scale:params.has('scale')?(params.get('scale')==='log'?'log':'linear'):(normalizedChart==='cost-intelligence'?'log':'linear'),labels:params.get('labels')==='1',
