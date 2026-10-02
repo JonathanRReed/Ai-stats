@@ -9,7 +9,7 @@ import {defaultExplorerSelection} from "../lib/compare-catalog";
 import "../styles/compare-explorer.css";
 
 export const prerender = true;
-const {aaModels,epoch,records:models}=await getModelCatalogData();
+const {aaModels,epoch,records:models,unavailableSources}=await getModelCatalogData();
 const benchmarks = getEpochBenchmarksWithRuns(epoch.epochBenchmarks,epoch.epochRuns)
   .map(benchmark=>({slug:benchmark.slug,name:getEpochBenchmarkLabel(benchmark)}));
 const defaultModelIds = defaultExplorerSelection(models);
@@ -22,6 +22,7 @@ const dateModified = dates.length?new Date(Math.max(...dates.map(value=>Date.par
   dateModified={dateModified}>
   <Header currentPage="compare" />
   <main id="main-content" class="compare-page">
+    {unavailableSources.length?<p role="status">Partial catalog. Could not load: {unavailableSources.join(', ')}.</p>:null}
     <CompareExplorer client:load models={models} benchmarks={benchmarks} defaultModelIds={defaultModelIds} />
   </main>
   <Footer />

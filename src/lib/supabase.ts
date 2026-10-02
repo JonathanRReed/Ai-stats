@@ -383,7 +383,9 @@ async function readPublicCatalog(sourceKey: string) {
 export async function getCompareCatalogSources() {
   const keys=['openrouter','huggingface','litellm'] as const;
   const caches=await Promise.all(keys.map(key=>readPublicCatalog(key)));
-  return {openrouter:caches[0]?.records??[],huggingface:caches[1]?.records??[],litellm:caches[2]?.records??[]};
+  return {openrouter:caches[0]?.records??[],huggingface:caches[1]?.records??[],litellm:caches[2]?.records??[],
+    availability:keys.map((key,index)=>({sourceKey:key,available:Boolean(caches[index]),
+      status:caches[index]?.receipt.status??'unavailable',fetchedAt:caches[index]?.receipt.fetchedAt??null}))};
 }
 async function fetchHuggingFaceCachedModels(limit: number): Promise<HuggingFaceHubModel[]> {
   const cached=await readPublicCatalog('huggingface');
