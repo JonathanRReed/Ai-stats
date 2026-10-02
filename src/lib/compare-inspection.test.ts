@@ -13,3 +13,14 @@ test('scatter inspection and keyboard labels expose both exact cost and intellig
  const chart=renderToStaticMarkup(createElement(ComparisonChart,{series,labels:false,activeId:null,onPreview:()=>{},onPin:()=>{},svgRef:{current:null}}));
  expect(chart).toMatch(/aria-label="[^"]*0\.25[^"]*USD \/ evaluation task[^"]*42/);
 });
+
+test('small measured values never round to zero in chart labels',async()=>{
+ const {formatChartNumber}=await import('./compare-geometry');
+ for(const value of [.001,.002,.004])expect(formatChartNumber(value)).toBe(String(value));
+});
+test('unresolved native identity stays unresolved after sharing',async()=>{
+ const {serializeCompareState}=await import('./compare-state');
+ const rows=[{id:'huggingface:lab/a',source:'huggingface',sourceModelId:'lab/a'},{id:'duplicate',source:'huggingface',sourceModelId:'lab/a'}];
+ const state=parseCompareState(new URLSearchParams('source=huggingface&record=lab/a'),rows);
+ expect(parseCompareState(serializeCompareState(state),rows).modelIds).toEqual([]);
+});
