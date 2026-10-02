@@ -23,7 +23,7 @@ test('cost scatter retains free models, excludes missing price, and falls back f
 test('speed comparison admits unpriced models and never infers task token counts',()=>{
   expect(series.buildCompareSeries?.({models,observations:[]},selection('chart=speed-intelligence'))?.points).toHaveLength(2);
   const tokens=series.buildCompareSeries?.({models,observations:[]},selection('chart=tokens-task'));
-  expect(tokens?.available).toBe(false);expect(tokens?.points).toEqual([]);
+  expect(tokens?.available).toBe(true);expect(tokens?.points.map(point=>point.modelId)).toEqual(['a']);
 });
 test('frontiers never mix index versions or unknown provenance',()=>{
   const points=[
@@ -62,11 +62,11 @@ test('unknown timing conditions do not establish a compatible speed frontier',()
   expect(series.buildCompareSeries({models:unknown,observations:[]},selection('chart=speed-intelligence')).frontierGroups).toEqual({});
 });
 
-test('selections from another source are retained in state but not counted as missing measurements',()=>{
+test('selections from another source explain why they are not plotted',()=>{
   const epochModel:ExplorerModel={id:'epoch:v',name:'V',family:'V',source:'epoch',sourceModelId:'v',current:true};
   const state=selection('chart=benchmark&metric=epoch_b');
   const result=series.buildCompareSeries({models:[...models,epochModel],observations:[]},state);
-  expect(result.excluded).toEqual([]);
+  expect(result.excluded).toEqual([{modelId:'a',reason:'Choose an Epoch record for this benchmark'},{modelId:'b',reason:'Choose an Epoch record for this benchmark'}]);
 });
 
 test('AA reasoning filters do not suppress Epoch measurements',()=>{

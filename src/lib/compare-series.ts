@@ -3,12 +3,13 @@ import {epochConditionKey,type EpochObservation} from './epoch-observations';
 
 export type ExplorerModel = {
   id:string; name:string; slug?:string; family:string; provider?:string; reasoning?:string;
-  source:'aa'|'epoch'; sourceModelId:string; current:boolean|null;
+  source:'aa'|'epoch'|'openrouter'|'huggingface'|'litellm'|'catalog'; sourceModelId:string; current:boolean|null;
   intelligence?:number|null; coding?:number|null; priceInput?:number|null; priceOutput?:number|null;
   priceBlended?:number|null; outputSpeed?:number|null; latency?:number|null;
-  indexVersion?:string|null; performancePrompt?:string|null; observedAt?:string|null; sourceUrl?:string|null;
+  indexVersion?:string|null; performancePrompt?:string|null; observedAt?:string|null; fetchedAt?:string|null; sourceUrl?:string|null;
   metrics?:Record<string,number|null>;
 };
+export const EXPLORER_SOURCE_LABELS:Record<ExplorerModel['source'],string>={aa:'Artificial Analysis',epoch:'Epoch AI',openrouter:'OpenRouter',huggingface:'Hugging Face',litellm:'LiteLLM',catalog:'Database inventory'};
 export type ExplorerEvidence = {models:ExplorerModel[]; observations:EpochObservation[]};
 export type EvidenceReceipt = {
   source:string; sourceUrl:string|null; observedAt:string|null; fetchedAt:string|null;
@@ -54,15 +55,15 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
   const models=evidence.models.filter(model=>{
     if(!selected.has(model.id))return false;
     const source=state.chart==='benchmark'&&state.metricId.startsWith('epoch_')?'epoch':'aa';
-    if(model.source!==source)return false;
+    if(state.chart!=='price'&&model.source!==source){result.excluded.push({modelId:model.id,reason:source==='epoch'?'Choose an Epoch record for this benchmark':'No AA measurements for this source record'});return false;}
     let reason:string|null=null;
     if(model.current===false&&!state.includeHistory)reason='Historical observation';
     else if(model.source==='aa'&&state.reasoningEfforts.length&&!state.reasoningEfforts.includes(model.reasoning??'unknown'))reason='Reasoning filter';
     if(reason){result.excluded.push({modelId:model.id,reason});return false;}
     return true;
   });
-  const receiptFor=(model:ExplorerModel):EvidenceReceipt=>({source:model.source==='aa'?'Artificial Analysis':'Epoch AI',
-    sourceUrl:sourceUrl(model.sourceUrl),observedAt:model.observedAt??null,fetchedAt:null,indexVersion:model.indexVersion??null,
+  const receiptFor=(model:ExplorerModel):EvidenceReceipt=>({source:EXPLORER_SOURCE_LABELS[model.source],
+    sourceUrl:sourceUrl(model.sourceUrl),observedAt:model.observedAt??null,fetchedAt:model.fetchedAt??null,indexVersion:model.indexVersion??null,
     conditions:model.performancePrompt?{performancePrompt:model.performancePrompt}:null,snapshotId:null});
   const add=(model:ExplorerModel,x:number,y:number,series:string,unit:string,receipt=receiptFor(model),id=model.id,cohortKey:string|null=null)=>{
     result.points.push({id,modelId:model.id,label:model.name,family:model.family,reasoning:model.reasoning??'unknown',

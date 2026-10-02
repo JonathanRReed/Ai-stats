@@ -9,11 +9,9 @@ import ModelSelector from './ModelSelector';
 import ObservationDetails from './ObservationDetails';
 export type ExplorerBenchmark={slug:string;name:string};
 type Props={models:ExplorerModel[];benchmarks:ExplorerBenchmark[];defaultModelIds:string[]};
-const CHARTS:Array<{id:CompareChart;label:string;unavailable?:boolean}>=[
+const CHARTS:Array<{id:CompareChart;label:string}>=[
   {id:'cost-intelligence',label:'Price vs intelligence'},{id:'speed-intelligence',label:'Speed vs intelligence'},
   {id:'price',label:'Token prices'},{id:'benchmark',label:'Benchmarks'},
-  {id:'task-cost',label:'Task cost',unavailable:true},{id:'total-cost',label:'Total cost',unavailable:true},
-  {id:'tokens-task',label:'Tokens / task',unavailable:true},{id:'tokens-total',label:'Total tokens',unavailable:true},
 ];
 const EMPTY_OBSERVATIONS:EpochObservation[]=[];
 export default function CompareExplorer({models,benchmarks,defaultModelIds}:Props){
@@ -43,7 +41,7 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
     if(!filtersOpen&&dialog.current?.open){dialog.current.close();filterButton.current?.focus();}},[filtersOpen]);
   const series=useMemo(()=>buildCompareSeries({models,observations},state),[models,observations,state]);
   const active=series.points.find(point=>point.id===(pinned??hovered))??null;
-  const visibleModels=useMemo(()=>models.filter(model=>epochSlug?model.source==='epoch':model.source==='aa'),[models,epochSlug]);
+  const visibleModels=models;
   const conditions=useMemo(()=>[...new Set(observations.map(row=>epochConditionKey(row.conditions)))].sort(),[observations]);
   const scoreMetrics=useMemo(()=>[...new Set(observations.map(epochScoreKey))].sort(),[observations]);
   const scoreOptions=scoreMetricOptions(scoreMetrics,state.scoreMetricKey);
@@ -58,7 +56,7 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
     onReasoning:(value:string)=>update({reasoningEfforts:value==='all'?[]:state.reasoningEfforts.includes(value)
       ?state.reasoningEfforts.filter(reason=>reason!==value):[...state.reasoningEfforts,value]}),onClear:()=>update({modelIds:[]}),onReset:reset};
   const chooseMeasured=()=>{const versions=new Set(observations.map(row=>row.modelVersion));
-    update({modelIds:visibleModels.filter(model=>versions.has(model.sourceModelId)).slice(0,8).map(model=>model.id)});};
+    update({modelIds:visibleModels.filter(model=>model.source==='epoch'&&versions.has(model.sourceModelId)).slice(0,8).map(model=>model.id)});};
   const share=async()=>{try{const url=new URL(window.location.href);url.search=serializeCompareState(state).toString();
     await navigator.clipboard.writeText(url.href);setNotice('Comparison link copied.');}catch{setNotice('Copy the address bar to share this comparison.');}};
   const metricName=state.chart==='benchmark'?(epochSlug?benchmarks.find(item=>item.slug===epochSlug)?.name??state.metricId:
@@ -66,10 +64,11 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
   const exportPng=async()=>{if(!svg.current)return;try{await downloadChartPng(svg.current,chartExportCaption(series.points,metricName));}
     catch{setNotice('Image export is unavailable in this browser. CSV export is still available.');}};
   return <section className="compare-explorer" aria-label="Model comparison explorer">
-    <div className="explorer-title"><h1>Compare models</h1><button type="button" className="mobile-filter-button" ref={filterButton} onClick={()=>setFiltersOpen(true)}>Models and filters</button></div>
-    <nav className="chart-tabs" aria-label="Chart type">{CHARTS.map(chart=><button type="button" key={chart.id} disabled={chart.unavailable}
-      title={chart.unavailable?'Awaiting permission to publish additional benchmark data':undefined}
-      aria-pressed={state.chart===chart.id} onClick={()=>update({chart:chart.id})}>{chart.label}{chart.unavailable?<span aria-hidden="true"> ·</span>:null}</button>)}</nav>
+    <div className="explorer-title"><h1>Compare models</h1><button type="button" className="mobile-filter-button" ref={filterButton} onClick={()=>setFiltersOpen(true)}>Choose models ({state.modelIds.length})</button></div>
+    <label className="mobile-chart-choice">Compare by<select value={state.chart} onChange={event=>update({chart:event.target.value as CompareChart})}>{CHARTS.map(chart=><option key={chart.id} value={chart.id}>{chart.label}</option>)}</select></label>
+    <nav className="chart-tabs" aria-label="Chart type">{CHARTS.map(chart=><button type="button" key={chart.id}
+      aria-pressed={state.chart===chart.id} onClick={()=>update({chart:chart.id})}>{chart.label}</button>)}</nav>
+    <p className="comparison-context">{state.chart==='price'?'Compare recorded input and output prices from AA, OpenRouter and LiteLLM.':epochSlug?'Choose Epoch records with results for this benchmark.':'This chart uses AA measurements. Other source records are available in Choose models and Token prices.'}</p>
     <div className="explorer-workspace"><div className="chart-panel">
       <div className="chart-toolbar">
         {state.chart==='benchmark'?<label>Benchmark<select value={state.metricId} onChange={event=>update({metricId:event.target.value,conditionKey:null,scoreMetricKey:null})}>
@@ -79,10 +78,11 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
           <option value="">Choose a score metric</option>{scoreOptions.missing?<option value={state.scoreMetricKey!}>Unavailable saved metric</option>:null}{scoreMetrics.map(key=><option key={key} value={key}>{JSON.parse(key).join(' · ')}</option>)}</select></label>:null}
         {epochSlug&&conditions.length?<label>Conditions<select value={state.conditionKey??''} onChange={event=>update({conditionKey:event.target.value||null})}>
           <option value="">All recorded runs</option>{conditions.map(key=><option value={key} key={key}>{key==='unknown'?'Not recorded':JSON.parse(key).map(([name,value]:[string,unknown])=>name+': '+value).join(' · ')}</option>)}</select></label>:null}
-        <div className="scale-buttons" aria-label="Axis scale"><button type="button" aria-pressed={state.scale==='linear'} onClick={()=>update({scale:'linear'})}>Linear</button>
+        <details className="chart-options"><summary>Chart options</summary><div className="chart-options-content"><div className="scale-buttons" aria-label="Axis scale"><button type="button" aria-pressed={state.scale==='linear'} onClick={()=>update({scale:'linear'})}>Linear</button>
           <button type="button" aria-pressed={state.scale==='log'} onClick={()=>update({scale:'log'})}>Log</button></div>
         <label className="toolbar-check"><input type="checkbox" checked={state.labels} onChange={event=>update({labels:event.target.checked})}/>Labels</label>
         {series.kind==='scatter'?<label className="toolbar-check"><input type="checkbox" checked={state.frontier} onChange={event=>update({frontier:event.target.checked})}/>Frontier</label>:null}
+        </div></details>
         <button type="button" onClick={share}>Share</button>
         <details className="export-menu"><summary>Export</summary><div><button type="button" disabled={!series.points.length} onClick={()=>downloadText(seriesCsv(series.points,{includeX:series.kind==='scatter',xLabel:series.xLabel,yLabel:series.yLabel,metricId:state.chart==='benchmark'?state.metricId:state.chart,metricName}),'ai-stats-comparison.csv')}>CSV with sources</button>
           <button type="button" disabled={!series.points.length} onClick={exportPng}>PNG chart</button></div></details>
@@ -100,7 +100,7 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
       <ObservationDetails point={active} pinned={Boolean(pinned)} onPin={()=>setPinned(pinned?null:active?.id??null)} onClose={()=>{setPinned(null);setHovered(null);}}/>
     </div><aside className="desktop-model-selector" aria-label="Model selection"><ModelSelector {...selectorProps}/></aside></div>
     <div className="source-strip"><span>{visibleModels.filter(model=>state.modelIds.includes(model.id)).length} selected · {series.points.length} plotted observations</span>
-      <span>{epochSlug?'Epoch AI':'Artificial Analysis'} · source-native measurements</span>
+      <span>{[...new Set(series.points.map(point=>point.receipt.source))].join(' · ')||'No measurements selected'}</span>
       {series.excluded.length?<details><summary>{series.excluded.length} excluded</summary><ul>{series.excluded.map((item,index)=><li key={item.modelId+index}>
         {models.find(model=>model.id===item.modelId)?.name??item.modelId}: {item.reason}</li>)}</ul></details>:null}</div>
     <p className="share-notice" role="status">{notice}</p>
@@ -108,9 +108,9 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
       <p>Each point is a source record, not a recommendation. Price uses USD per million tokens with a 3:1 input/output blend; it is not benchmark task cost. Speed is output tokens per second.</p>
       <p>Frontiers stay within the same AA index version and timing conditions. Lines connect recorded reasoning variants within a family. Reasoning labels come from the source model name; they do not establish matching Epoch test conditions.</p>
       <p>Epoch observations keep their exact model IDs, units and conditions. Repeated runs are shown separately. Missing values are not zero. Historical AA records are opt-in.</p>
-      <p>Task-cost and token-total views await additional publication permission. We do not infer token counts or benchmark duration from prices or speed.</p>
+      <p>Catalog records without compatible measurements remain searchable but are not plotted. Prices from different sources are not joined to benchmark scores. OpenRouter routes and LiteLLM provider entries remain separate, including free routes.</p>
     </details>
-    <section className="explorer-data" aria-label="Exact chart data"><h2>Exact data</h2><div className="exact-table-scroll"><table>
+    <details className="explorer-data"><summary>Exact chart data ({series.points.length} observations)</summary><div className="exact-table-scroll"><table>
       <caption>{series.yLabel} · {series.xLabel}</caption><thead><tr><th>Model</th><th>Reasoning</th><th>{series.kind==='scatter'?series.xLabel:'Series'}</th><th>{series.yLabel}</th>{epochSlug?<th>Conditions</th>:null}<th>Source</th><th>Observed</th></tr></thead>
       <tbody>{series.points.map(point=><tr key={point.id} data-active={active?.id===point.id}><th scope="row"><button type="button" onClick={()=>setPinned(point.id)}>{point.label}</button></th>
         <td>{point.reasoning}</td><td>{series.kind==='scatter'?formatChartNumber(point.x):point.series}</td><td>{formatChartNumber(point.y)} {point.unit}</td>
@@ -119,7 +119,7 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
         <td>{point.receipt.observedAt?.slice(0,10)??'Not recorded'}</td></tr>)}</tbody></table></div>
       {!series.points.length?<p>No measured rows for this selection.</p>:null}
       <noscript><p>This is the default measured selection. Interactive filters need JavaScript; the exact data and source links remain available.</p></noscript>
-    </section>
+    </details>
     <dialog className="model-filter-dialog" ref={dialog} onCancel={()=>setFiltersOpen(false)} onClose={()=>setFiltersOpen(false)} aria-label="Models and filters">
       <button type="button" className="close-filter-dialog" onClick={()=>setFiltersOpen(false)}>Done</button><ModelSelector {...selectorProps}/></dialog>
   </section>;

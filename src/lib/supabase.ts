@@ -379,6 +379,12 @@ async function readPublicCatalog(sourceKey: string) {
     return error?null:parseCatalogCache(data,sourceKey);
   } catch { return null; }
 }
+/** Full validated cached catalogs for Compare; no paid-only filter, row cap or upstream request. */
+export async function getCompareCatalogSources() {
+  const keys=['openrouter','huggingface','litellm'] as const;
+  const caches=await Promise.all(keys.map(key=>readPublicCatalog(key)));
+  return Object.fromEntries(keys.map((key,index)=>[key,caches[index]?.records??[]])) as Record<typeof keys[number],Record<string,unknown>[]>;
+}
 async function fetchHuggingFaceCachedModels(limit: number): Promise<HuggingFaceHubModel[]> {
   const cached=await readPublicCatalog('huggingface');
   return cached?(cached.records as unknown as HuggingFaceHubModel[])
@@ -545,7 +551,7 @@ async function fetchOpenRouterEndpointSummaries(
  * Fetches models from public.aa_models and returns an array with UI-friendly fields.
  * Adds company_name derived from creator_name for the existing UI.
  */
-export async function getModels(includeHistory = false): Promise<AaModel[]> {
+export async function getModels(includeHistory = false, preserveSourceRecords = false): Promise<AaModel[]> {
   if (!supabase) {
     console.warn('[supabase] Client unavailable, returning empty model list.');
     return [];
@@ -573,10 +579,11 @@ export async function getModels(includeHistory = false): Promise<AaModel[]> {
       return result.data;
     },
   }, includeHistory);
-  return normalizeAaModelsForDisplay(cohort.map((model) => ({
+  const prepared = cohort.map((model) => ({
     ...model,
     company_name: model.creator_name ?? null,
-  })) as AaModel[]);
+  })) as AaModel[];
+  return preserveSourceRecords?sortAaModelsByIntelligence(prepared.map(normalizeAaOperationalMetrics)):normalizeAaModelsForDisplay(prepared);
 }
 
 export async function getCanonicalModels(): Promise<CanonicalModelRow[]> {

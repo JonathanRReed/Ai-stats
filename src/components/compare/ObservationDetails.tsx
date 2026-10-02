@@ -2,7 +2,7 @@ import type {SeriesPoint} from '../../lib/compare-series';
 import {formatChartNumber} from '../../lib/compare-geometry';
 type Props={point:SeriesPoint|null;pinned:boolean;onPin:()=>void;onClose:()=>void};
 export default function ObservationDetails({point,pinned,onPin,onClose}:Props){
-  if(!point)return <p className="inspect-hint">Hover or focus a mark to inspect it. Select it to pin the source.</p>;
+  if(!point)return <p className="inspect-hint">Tap a point or bar for its values and source. You can also use the exact data below.</p>;
   const receipt=point.receipt;
   return <section className="observation-details" aria-label="Observation details">
     <div className="observation-heading"><strong>{point.label}</strong><div>

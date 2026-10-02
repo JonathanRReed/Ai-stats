@@ -154,3 +154,38 @@
   --compare-family-3:#7653a7;--compare-family-4:#7d5e17;--compare-family-5:#246a7b;
   --compare-family-6:#9b466f;--compare-family-7:#59662a;--compare-family-8:#4e5b61;
 }
+
+/* Keep the primary mobile flow to chart choice, model choice, then the visualization. */
+.mobile-chart-choice{display:none}
+.comparison-context{font-size:12px;line-height:1.5;color:var(--ink-2);margin:0 0 12px}
+.catalog-source-label{display:flex;flex-direction:column;gap:5px;font-size:11px;margin-top:10px;color:var(--ink-2)}
+.catalog-source-label select{width:100%;padding:8px;min-width:0}
+.show-more-models{margin-top:8px;flex-shrink:0}
+.chart-options{position:relative}
+.chart-options>summary,.explorer-data>summary{cursor:pointer;padding:9px 11px;color:var(--ink-1)}
+.chart-options-content{position:absolute;right:0;z-index:5;top:100%;display:flex;flex-wrap:wrap;gap:12px;width:260px;padding:14px;background:var(--surface-1);border:1px solid var(--line-1);box-shadow:var(--shadow-1)}
+.explorer-data>summary{border:1px solid var(--line-1);margin-bottom:10px}
+@media (max-width: 900px){
+  .chart-tabs{display:none}
+  .mobile-chart-choice{display:flex;flex-direction:column;gap:6px;font-size:13px;margin-bottom:12px}
+  .mobile-chart-choice select{width:100%;padding:10px;font-size:16px;min-height:44px}
+  .explorer-title{align-items:flex-start;flex-wrap:wrap;gap:10px}
+  .mobile-filter-button{min-height:44px}
+  .compare-explorer button,.compare-explorer summary,.model-option,.history-toggle,.toolbar-check{min-height:44px}
+  .compare-explorer input[type="search"],.compare-explorer select{font-size:16px}
+  .model-option{font-size:13px;align-items:center}
+  .model-option small{font-size:11px}
+  .chart-toolbar>label:not(.toolbar-check){width:100%;display:grid;grid-template-columns:80px minmax(0,1fr);font-size:12px}
+  .chart-toolbar select{max-width:100%;width:100%}
+  .chart-options-content{left:0;right:auto}
+  .model-filter-dialog{box-sizing:border-box;width:calc(100% - 16px);max-width:480px;padding:12px}
+  .model-filter-dialog>.model-selector{height:calc(100% - 56px)}
+  .model-selector .selected-models{max-height:96px}
+  .model-selector .reasoning-filters{gap:2px;margin-top:8px}
+  .reasoning-filters button{padding:6px;font-size:11px}
+  .model-selector .selector-heading{margin-top:8px}
+  .history-toggle{margin-top:4px}
+  .observation-details{position:relative;right:auto;bottom:auto;width:auto;margin:10px 12px;box-shadow:none}
+  .observation-heading button{min-width:44px}
+  .comparison-context{font-size:12px}
+}
