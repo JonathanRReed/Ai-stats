@@ -1,6 +1,6 @@
 export type PlotPoint={id:string;x:number;y:number};
 export const formatChartNumber=(value:number)=>Math.abs(value)>=1e6||(value!==0&&Math.abs(value)<.001)
-  ?value.toExponential(1):new Intl.NumberFormat('en-US',{maximumFractionDigits:2}).format(value);
+  ?value.toExponential(1):new Intl.NumberFormat('en-US',Math.abs(value)<1?{maximumSignificantDigits:4}:{maximumFractionDigits:2}).format(value);
 export function plotGeometry<T extends PlotPoint>(points:T[],kind:'scatter'|'bars',scale:'linear'|'log',width=1000,height=520,topPadding=20){
   const left=70,right=Math.max(left+100,width-24),top=topPadding,bottom=Math.max(top+100,height-66);
   const finite=points.filter(point=>Number.isFinite(point.x)&&Number.isFinite(point.y));

@@ -31,7 +31,7 @@ export default function ComparisonChart({series,labels,activeId,onPreview,onPin,
   const linked=new Map<string,typeof plot.points>();
   for(const point of plot.points){if(!point.cohortKey||point.reasoning==='unknown')continue;
     const key=point.family+':'+point.cohortKey;const group=linked.get(key)??[];group.push(point);linked.set(key,group);}
-  const inspect=(point:SeriesPoint)=>point.label+(point.series==='input'?' · Input tokens':point.series==='output'?' · Output tokens':'')+': '+formatChartNumber(point.y)+' '+point.unit;
+  const inspect=(point:SeriesPoint)=>point.label+(point.series==='input'?' · Input tokens':point.series==='output'?' · Output tokens':'')+': '+(series.kind==='scatter'?formatChartNumber(point.x)+' '+series.xLabel+' · ':'')+formatChartNumber(point.y)+' '+point.unit;
   return <div className="comparison-plot" ref={frame}>
     {!series.available?<div className="plot-empty"><h2>Awaiting data access</h2><p>{series.unavailableReason}</p></div>:
     !series.points.length?<div className="plot-empty"><h2>No comparable measurements selected</h2><p>Choose models with measurements for this view.</p></div>:

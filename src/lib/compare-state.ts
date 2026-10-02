@@ -54,10 +54,11 @@ export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogE
   }
   const ids=new Set(catalog.map(model=>model.id));
   const selected=unique(requested.filter(safeIdentity));
+  const explicitMissing=unique(params.getAll('missing').filter(safeIdentity));
   const normalizedChart=COMPARE_CHARTS.includes(chart as CompareChart)?chart as CompareChart:'cost-intelligence';
   return {
     chart:normalizedChart,
-    modelIds:unresolvedSource?[]:selected.filter(id=>ids.has(id)), missingModelIds:unresolvedSource?selected:selected.filter(id=>!ids.has(id)),
+    modelIds:unresolvedSource?[]:selected.filter(id=>ids.has(id)&&!explicitMissing.includes(id)), missingModelIds:unique([...explicitMissing,...(unresolvedSource?selected:selected.filter(id=>!ids.has(id)))]),
     reasoningEfforts:unique(params.getAll('reason').filter(value=>REASONING.has(value))).sort(),
     metricId,scoreMetricKey:scoreMetric(params.get('score_metric')),conditionKey:condition(params.get('condition')),
     scale:params.has('scale')?(params.get('scale')==='log'?'log':'linear'):(normalizedChart==='cost-intelligence'?'log':'linear'),labels:params.get('labels')==='1',
@@ -67,7 +68,8 @@ export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogE
 export function serializeCompareState(state:CompareState):URLSearchParams {
   const params=new URLSearchParams();
   params.set('chart',state.chart);
-  const ids=unique([...state.modelIds,...state.missingModelIds]);
+  const ids=unique(state.modelIds);
+  for(const id of unique(state.missingModelIds))params.append('missing',id);
   for(const id of ids.length?ids:['']) params.append('m',id);
   params.set('metric',state.metricId);
   if(state.scoreMetricKey) params.set('score_metric',state.scoreMetricKey);
