@@ -89,3 +89,42 @@ export async function publishSourceSnapshot({
   if (String(promoted) !== String(snapshotId)) throw new Error('Source snapshot promotion identity mismatch');
   return { snapshotId, contentHash: snapshot.contentHash, recordCount: snapshot.recordCount };
 }
+
+const pick = (row, keys) => Object.fromEntries(keys.filter(key => row[key] !== undefined).map(key => [key, row[key]]));
+
+/** Build a durable cache from the sanitized public Epoch artifact, never raw archive rows. */
+export function buildEpochCacheInput(snapshot) {
+  if (!snapshot || !['models', 'benchmarks', 'runs'].every(key => Array.isArray(snapshot[key]) && snapshot[key].length)) {
+    throw new Error('Epoch snapshot is incomplete');
+  }
+  const modelKeys = new Set(snapshot.models.map(row => row.model_version));
+  const benchmarkKeys = new Set(snapshot.benchmarks.map(row => row.slug));
+  if (snapshot.runs.some(run => !modelKeys.has(run.model_version) || !benchmarkKeys.has(run.benchmark_slug))) {
+    throw new Error('Epoch observation identity does not resolve');
+  }
+  if (!snapshot.runs.some(run => typeof run.score === 'number' && Number.isFinite(run.score))) {
+    throw new Error('Epoch snapshot has incomplete measured evidence');
+  }
+  const records = [
+    ...snapshot.models.map(row => ({
+      id: 'model:' + row.model_version, kind: 'model',
+      data: pick(row, ['model_version', 'model_name', 'display_name', 'organization', 'country',
+        'model_accessibility', 'release_date', 'eci_score', 'training_compute_flop',
+        'training_compute_confidence', 'description']),
+    })),
+    ...snapshot.benchmarks.map(row => ({
+      id: 'benchmark:' + row.slug, kind: 'benchmark',
+      data: pick(row, ['slug', 'name', 'description', 'source']),
+    })),
+    ...snapshot.runs.map(row => ({
+      id: 'run:' + row.id, kind: 'run',
+      data: pick(row, ['id', 'model_version', 'benchmark_slug', 'score', 'score_metric',
+        'score_unit', 'conditions', 'evaluation_date', 'release_date', 'organization',
+        'country', 'stderr', 'source_name', 'source_link']),
+    })),
+  ];
+  const input = { sourceKey: 'epoch-ai', observedAt: snapshot.source_observed_at ?? null,
+    fetchedAt: snapshot.fetched_at, records };
+  prepareSourceSnapshot(input);
+  return input;
+}
