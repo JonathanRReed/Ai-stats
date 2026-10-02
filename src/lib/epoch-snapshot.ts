@@ -78,7 +78,7 @@ const normalizeRun = (
   };
 };
 
-export async function getPublicEpochSnapshot(): Promise<{
+export async function getPublicEpochSnapshot(providedSnapshot?: PublicEpochSnapshot): Promise<{
   fetchedAt: string | null;
   epochBenchmarks: EpochBenchmark[];
   epochModels: EpochModel[];
@@ -89,7 +89,7 @@ export async function getPublicEpochSnapshot(): Promise<{
       process.cwd(),
       'public/data/epoch-benchmark-snapshot.json',
     );
-    const snapshot = JSON.parse(await readFile(filePath, 'utf8')) as PublicEpochSnapshot;
+    const snapshot = providedSnapshot ?? JSON.parse(await readFile(filePath, 'utf8')) as PublicEpochSnapshot;
     const epochBenchmarks = (snapshot.benchmarks ?? []).map(normalizeBenchmark);
     const benchmarkMap = new Map(
       epochBenchmarks.map((benchmark) => [benchmark.slug, benchmark]),
