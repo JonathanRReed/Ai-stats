@@ -13,3 +13,9 @@ test('search preserves measured page URLs and gives other records exact comparis
  expect(result[0].u).toBe('/models/same');expect(result[1].u).toBe('/compare?m=openrouter%3Alab%2Ffree&chart=price');
  expect(result[1].p).toContain('OpenRouter');expect(result[1].i).toBeNull();
 });
+
+test('partial source reads cannot be labelled a complete catalog',()=>{
+ const result=catalogCoverage([aa],['OpenRouter']);
+ expect(result.complete).toBe(false);expect(result.unavailableSources).toEqual(['OpenRouter']);
+ expect(catalogCoverage([aa,route],[]).complete).toBe(true);
+});
