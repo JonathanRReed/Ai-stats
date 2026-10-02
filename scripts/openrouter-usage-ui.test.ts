@@ -25,3 +25,11 @@ test('Stats hero is concise while methodology remains available',()=>{
  expect(source).toContain('<summary>Selection and measurement details</summary>');
  expect(source).not.toContain('There is no combined score and no winner.');
 });
+
+test('usage chart keeps mobile label sizing tied to its measured viewport',()=>{
+ const source=readFileSync('src/components/OpenRouterUsage.tsx','utf8');
+ expect(source).toContain('ResizeObserver');
+ expect(source.includes('viewBox="0 0 1000 362"')).toBe(false);
+ const css=readFileSync('src/styles/openrouter-usage.css','utf8');
+ expect(css).toContain('color:var(--signal-ink');
+});
