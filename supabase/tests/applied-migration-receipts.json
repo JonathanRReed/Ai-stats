@@ -1,0 +1,37 @@
+[
+  {
+    "version": "20261002032322",
+    "name": "validated_source_snapshots",
+    "sqlDigest": "adb50b89facd77bf69bcb8dedae2a768"
+  },
+  {
+    "version": "20261002065320",
+    "name": "durable_catalog_refresh",
+    "sqlDigest": "c670faa77cbe30a4d01a43570b33380e"
+  },
+  {
+    "version": "20261002082538",
+    "name": "openrouter_usage_refresh",
+    "sqlDigest": "159b92a994ed8691beb038e3d5dbbe37"
+  },
+  {
+    "version": "20261002200437",
+    "name": "independent_app_release_cache",
+    "sqlDigest": "b819873cdddcacf3e9031ad6ddb3a3e9"
+  },
+  {
+    "version": "20261002204118",
+    "name": "aa_fixed_window_refresh",
+    "sqlDigest": "3ae943b9f91a77fde1ca4672a9ae3ee1"
+  },
+  {
+    "version": "20261002204437",
+    "name": "aa_four_hour_cadence",
+    "sqlDigest": "6d9e3289876c450dfae956c80392e3d8"
+  },
+  {
+    "version": "20261002204705",
+    "name": "aa_refresh_phase_alignment",
+    "sqlDigest": "0c8bb4527b5d01140136628d2e276bbf"
+  }
+]
