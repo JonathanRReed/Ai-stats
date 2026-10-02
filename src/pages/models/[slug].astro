@@ -109,7 +109,7 @@ const links = [
   record.routes.promptInfo ? { href: record.routes.promptInfo, label: "Cost a workload on Prompt Info", primary: false, external: true } : null,
   { href: record.routes.aiNewsSearch, label: "Announcements on AI News", primary: false, external: true },
   record.routes.poliBench ? { href: record.routes.poliBench, label: "Political-response profile on PoliBench", primary: false, external: true } : null,
-  { href: `/api/model-pages/${record.slug}.json`, label: "This receipt as JSON", primary: false, external: false },
+  { href: `/api/model-pages/${record.slug}.json`, label: "Download JSON", primary: false, external: false },
 ].filter((link): link is NonNullable<typeof link> => link !== null);
 
 const sourceLinks = [
@@ -138,7 +138,7 @@ const sourceLinks = [
     </nav>
 
     <header class="model-hero">
-      <p class="eco-label">Model receipt</p>
+      <p class="eco-label">Model details</p>
       <h1>{record.name}</h1>
       <p class="model-provider">{record.provider}</p>
       <p class="model-summary">{record.aaEvidenceNote}</p>

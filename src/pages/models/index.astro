@@ -44,7 +44,7 @@ const providers = [...byProvider.entries()]
   .sort((a, b) => b.models.length - a.models.length || a.provider.localeCompare(b.provider));
 const hasRecords = records.length > 0;
 
-const title = "AI model prices, speed, and benchmark receipts | AI Stats";
+const title = "AI model prices, speed and benchmarks | AI Stats";
 const description = `${records.length} AA model pages from ${providers.length} providers, each with a page listing price per million tokens, output speed, context length, benchmark scores, and catalog identifiers with source and observation dates.`;
 
 const get = (group: { key: string; value: number | null }[], key: string) => group.find((m) => m.key === key)?.value ?? null;

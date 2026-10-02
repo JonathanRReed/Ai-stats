@@ -441,9 +441,7 @@ export default function ModelDrawer() {
           <div className="p-6">
             <section className="rounded-lg border border-border-color bg-surface p-4" role="alert">
               <p className="text-sm leading-6 text-subtle">
-                The measurements for {loadError.label || 'this model'} did not load. The
-                request to the model detail endpoint failed, so nothing is shown here
-                rather than showing stale numbers.
+                Couldn’t load measurements for {loadError.label || 'this model'}. Try again.
               </p>
               <button
                 type="button"
@@ -552,7 +550,7 @@ export default function ModelDrawer() {
                   href={`/models/${encodeURIComponent(model.slug)}`}
                   className="mt-2 inline-flex min-h-8 items-center gap-1 font-mono text-xs font-bold text-love underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-love"
                 >
-                  Open the full receipt page
+                  View model details
                 </a>
               ) : null}
             </div>
@@ -717,8 +715,7 @@ export default function ModelDrawer() {
           <section className="rounded-lg border border-border-color bg-surface p-4">
             <h3 className="font-mono text-xs font-bold text-muted">Compare it from your browser</h3>
             <p className="mt-2 text-sm leading-6 text-subtle">
-              AI Stats shows published measurements. AI Drag Racing lets you test this model from your own
-              browser, provider route, and location without mixing that private result into the public benchmark data.
+              Test this model’s speed from your browser with AI Drag Racing.
             </p>
             <a
               href={raceUrl}
