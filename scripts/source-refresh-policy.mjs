@@ -31,6 +31,7 @@ export function retryDelayMs(retryAfter, attempt = 0, now = Date.now()) {
   const exponential = Math.min(300000, 1000 * 2 ** Math.min(20, Math.max(0, Number.isFinite(attempt) ? attempt : 0)));
   if (typeof retryAfter !== 'string' || !retryAfter.trim()) return exponential;
   const value = retryAfter.trim();
+  if (/^\d+$/.test(value) && !Number.isFinite(Number(value) * 1000)) return Infinity;
   const delay = /^\d+$/.test(value) ? Number(value) * 1000 : Date.parse(value) - now;
   return Number.isFinite(delay) && delay >= 0 ? Math.max(exponential, delay) : exponential;
 }

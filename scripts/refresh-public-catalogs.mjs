@@ -51,7 +51,8 @@ export async function prepareCatalogRefresh({ sourceKey, store, fetchImpl = (url
   } catch (error) {
     const failedAt = Date.parse(clock());
     const delay = retryDelayMs(retryAfter, lease.attempts ?? 0, failedAt);
-    const notBefore = new Date(Math.min(8640000000000000, failedAt + delay)).toISOString();
+    const retryAt = failedAt + delay;
+    const notBefore = Number.isFinite(retryAt) && retryAt <= 8640000000000000 ? new Date(retryAt).toISOString() : 'infinity';
     await store.fail({ sourceKey, leaseId: lease.leaseId, notBefore,
       message: error instanceof Error ? error.message : 'Catalog refresh failed' });
     return { sourceKey, status: 'failed' };

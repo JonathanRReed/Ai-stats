@@ -1,6 +1,6 @@
+#!/usr/bin/env bun
 import {parseCatalogCache} from '../src/lib/catalog-cache.ts';
 import {prepareSourceSnapshot} from './source-snapshots.mjs';
-#!/usr/bin/env bun
 import { selectAaCurrentMembership } from './aa-membership.mjs';
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
