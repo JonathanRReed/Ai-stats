@@ -90,3 +90,23 @@ export function normalizeCatalog(sourceKey, payload) {
 }
 
 export const catalogPricePerMillion=price;
+
+/** Validate already-normalized records without reinterpreting their price units. */
+export function validCatalogRecords(sourceKey, records) {
+  if (!Object.hasOwn(CATALOG_URLS,sourceKey) || !Array.isArray(records) || !records.length || records.length>20000) return false;
+  const ids=new Set();
+  const numeric=value=>value===null||(typeof value==='number'&&Number.isFinite(value)&&value>=0);
+  for(const record of records) {
+    if(!record||typeof record!=='object'||Array.isArray(record)||typeof record.id!=='string'||!record.id.trim()||ids.has(record.id))return false;
+    const identityKey=sourceKey==='openrouter'?'openrouter_id':'model_id';
+    if(record[identityKey]!==record.id)return false;
+    const numbers=sourceKey==='openrouter'?['context_length','prompt_price_1m','completion_price_1m']:
+      sourceKey==='huggingface'?['downloads','likes']:['max_input_tokens','max_output_tokens','input_price_1m','output_price_1m'];
+    if(numbers.some(key=>!numeric(record[key])))return false;
+    const arrays=sourceKey==='openrouter'?['input_modalities','output_modalities','supported_parameters']:sourceKey==='huggingface'?['tags']:[];
+    if(arrays.some(key=>!Array.isArray(record[key])||record[key].some(item=>typeof item!=='string')))return false;
+    if(sourceKey==='openrouter'&&typeof record.is_free!=='boolean')return false;
+    ids.add(record.id);
+  }
+  return true;
+}

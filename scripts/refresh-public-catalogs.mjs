@@ -2,15 +2,17 @@ import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-import { CATALOG_URLS, normalizeCatalog } from './public-catalogs.mjs';
+import { CATALOG_URLS, normalizeCatalog, validCatalogRecords } from './public-catalogs.mjs';
 import { prepareSourceSnapshot } from './source-snapshots.mjs';
 import { retryDelayMs } from './source-refresh-policy.mjs';
 
 const verifiedCachedInput = (sourceKey, cached, fetchedAt) => {
   if (!cached || cached.payload?.schemaVersion !== 1 || cached.payload?.sourceKey !== sourceKey ||
-    !Array.isArray(cached.payload.records) || !cached.payload.records.length) throw new Error('No validated cached catalog');
+    !validCatalogRecords(sourceKey,cached.payload.records) || cached.source_key!==sourceKey ||
+    cached.record_count!==cached.payload.records.length) throw new Error('No validated cached catalog');
   const input = { sourceKey, observedAt: cached.payload.observedAt ?? null, fetchedAt, records: cached.payload.records };
-  prepareSourceSnapshot(input);
+  const checked=prepareSourceSnapshot(input);
+  if(checked.contentHash!==cached.content_hash)throw new Error('Cached catalog hash mismatch');
   return input;
 };
 /**
