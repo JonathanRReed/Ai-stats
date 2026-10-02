@@ -1,3 +1,6 @@
+import {mkdir,readFile,writeFile} from 'node:fs/promises';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 
 import { CATALOG_URLS, normalizeCatalog } from './public-catalogs.mjs';
 import { prepareSourceSnapshot } from './source-snapshots.mjs';
@@ -53,4 +56,92 @@ export async function prepareCatalogRefresh({ sourceKey, store, fetchImpl = (url
       message: error instanceof Error ? error.message : 'Catalog refresh failed' });
     return { sourceKey, status: 'failed' };
   }
+}
+
+/** @param {{baseUrl:string,serviceKey:string,fetchImpl?:(input:string|URL|Request,init?:RequestInit)=>Promise<Response>}} options */
+export function createCatalogStore({baseUrl,serviceKey,fetchImpl=(url,init)=>globalThis.fetch(url,init)}) {
+  let origin;
+  try {
+    const url=new URL(baseUrl);
+    if(url.protocol!=='https:'||url.hostname!=='bgbqdzmgxkwstjihgeef.supabase.co'||url.port||
+      url.username||url.password||url.search||url.hash||(url.pathname!=='/'&&url.pathname!=='')) throw new Error('origin');
+    origin=url.origin;
+  } catch {throw new Error('Catalog storage requires the authorized production project origin');}
+  if(typeof serviceKey!=='string'||!serviceKey.trim())throw new Error('Missing server-side catalog credentials');
+  const checkSource=sourceKey=>{if(!Object.hasOwn(CATALOG_URLS,sourceKey))throw new Error('Unknown public catalog');};
+  const request=async(endpoint,body)=>{
+    let response;
+    try {response=await fetchImpl(origin+'/rest/v1/'+endpoint,{
+      method:body===undefined?'GET':'POST',cache:'no-store',redirect:'error',signal:AbortSignal.timeout(30000),
+      headers:{apikey:serviceKey,Authorization:'Bearer '+serviceKey,Accept:'application/json','Content-Type':'application/json'},
+      ...(body===undefined?{}:{body:JSON.stringify(body)}),
+    });}catch{throw new Error('Catalog storage request failed');}
+    if(!response.ok)throw new Error('Catalog storage request failed ('+response.status+')');
+    try{return await response.json();}catch{throw new Error('Catalog storage returned invalid JSON');}
+  };
+  return {
+    claim:async sourceKey=>{
+      checkSource(sourceKey);
+      const result=await request('rpc/claim_catalog_refresh',{p_source_key:sourceKey});
+      if(!result||typeof result.claimed!=='boolean'||(result.claimed&&typeof result.leaseId!=='string'))
+        throw new Error('Invalid catalog lease response');
+      return result;
+    },
+    current:async sourceKey=>{
+      checkSource(sourceKey);
+      const query=new URLSearchParams({source_key:'eq.'+sourceKey,select:'source_key,snapshot_id,content_hash,payload,fetched_at,published_at,record_count,refresh_status,refresh_message'});
+      const rows=await request('source_snapshot_cache?'+query,undefined);
+      if(!Array.isArray(rows)||rows.length>1)throw new Error('Invalid current catalog response');
+      return rows[0]??null;
+    },
+    fail:async({sourceKey,leaseId,notBefore,message})=>{
+      checkSource(sourceKey);
+      return request('rpc/fail_catalog_refresh',{p_source_key:sourceKey,p_lease_id:leaseId,p_not_before:notBefore,p_error:message});
+    },
+    publish:async candidate=>{
+      checkSource(candidate.sourceKey);
+      if(!['prepared','unchanged'].includes(candidate.status)||candidate.input?.sourceKey!==candidate.sourceKey||
+        typeof candidate.leaseId!=='string')throw new Error('Invalid catalog publication candidate');
+      const snapshot=prepareSourceSnapshot(candidate.input);
+      const id=await request('rpc/publish_catalog_refresh',{
+        p_source_key:snapshot.sourceKey,p_lease_id:candidate.leaseId,p_content_hash:snapshot.contentHash,
+        p_observed_at:snapshot.observedAt,p_fetched_at:snapshot.fetchedAt,
+        p_payload:{schemaVersion:1,sourceKey:snapshot.sourceKey,observedAt:snapshot.observedAt,records:snapshot.records},
+        p_record_count:snapshot.recordCount,p_etag:candidate.etag??null,p_last_modified:candidate.lastModified??null,
+      });
+      if(!Number.isSafeInteger(id)||id<=0)throw new Error('Invalid published catalog snapshot identity');
+      return id;
+    },
+  };
+}
+const argument=(argv,name)=>{const index=argv.indexOf(name);return index>=0?argv[index+1]:undefined;};
+export async function runCatalogCli({argv=process.argv.slice(2),env=process.env,fetchImpl=(url,init)=>globalThis.fetch(url,init)}={}) {
+  const store=createCatalogStore({baseUrl:env.SUPABASE_URL??'',serviceKey:env.SUPABASE_SERVICE_ROLE_KEY??'',fetchImpl});
+  if(argv.includes('--prepare')===argv.includes('--publish'))throw new Error('Choose exactly one of --prepare or --publish');
+  const file=path.resolve(argument(argv,argv.includes('--prepare')?'--output':'--input')??'.tmp/public-catalog-candidates.json');
+  if(argv.includes('--prepare')){
+    const candidates=[];
+    for(const sourceKey of Object.keys(CATALOG_URLS))candidates.push(await prepareCatalogRefresh({sourceKey,store,fetchImpl}));
+    await mkdir(path.dirname(file),{recursive:true});
+    await writeFile(file,JSON.stringify({schemaVersion:1,candidates})+'\n',{mode:0o600});
+    return candidates.map(({sourceKey,status})=>({sourceKey,status}));
+  }
+  const batch=JSON.parse(await readFile(file,'utf8'));
+  if(batch.schemaVersion!==1||!Array.isArray(batch.candidates)||batch.candidates.length>3||
+    new Set(batch.candidates.map(item=>item.sourceKey)).size!==batch.candidates.length)throw new Error('Invalid catalog candidate batch');
+  const result=[];
+  for(const candidate of batch.candidates){
+    if(!Object.hasOwn(CATALOG_URLS,candidate.sourceKey)||!['prepared','unchanged','failed','skipped'].includes(candidate.status))
+      throw new Error('Unknown catalog candidate');
+    if(['prepared','unchanged'].includes(candidate.status)){
+      const snapshotId=await store.publish(candidate);
+      result.push({sourceKey:candidate.sourceKey,status:'published',snapshotId});
+    }else result.push({sourceKey:candidate.sourceKey,status:candidate.status});
+  }
+  return result;
+}
+if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
+  runCatalogCli().then(result=>console.log(JSON.stringify(result))).catch(error=>{
+    console.error(error instanceof Error?error.message:'Catalog refresh failed');process.exitCode=1;
+  });
 }
