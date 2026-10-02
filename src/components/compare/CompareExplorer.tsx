@@ -112,7 +112,7 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
         {models.find(model=>model.id===item.modelId)?.name??item.modelId}: {item.reason}</li>)}</ul></details>:null}</div>
     <p className="share-notice" role="status">{notice}</p>
     <details className="explorer-methodology"><summary>Sources and calculations</summary>
-      <p>Blended prices use three input tokens for each output token. Evaluation costs come directly from Artificial Analysis.</p>
+      <p>Blended prices use three input tokens for each output token. Evaluation costs are Artificial Analysis’s reported spending on each evaluation.</p>
       <p>Frontiers compare models using the same AA index version and timing settings. Epoch results retain their benchmark and test settings.</p>
       <p>Historical AA results are off by default. Select a point to see its source and date.</p>
     </details>
