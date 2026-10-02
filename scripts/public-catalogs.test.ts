@@ -52,3 +52,19 @@ test('304 without a usable cache cannot become a successful refresh',async()=>{
  const result=await refresh.prepareCatalogRefresh?.({sourceKey:'openrouter',store,now,fetchImpl:async()=>new Response(null,{status:304})});
  expect(result?.status).toBe('failed');expect(failed).toBe(true);
 });
+
+test('catalog store rejects other projects before sending server credentials',()=>{
+ expect(()=>refresh.createCatalogStore?.({baseUrl:'https://other.supabase.co',serviceKey:'test-key'})).toThrow();
+});
+test('catalog store sends credentials only in headers to the fixed project',async()=>{
+ const calls:Array<{url:string;headers:Headers}>=[]; 
+ const store=refresh.createCatalogStore?.({baseUrl:'https://bgbqdzmgxkwstjihgeef.supabase.co',serviceKey:'test-key',
+ fetchImpl:async(input:string|URL|Request,init?:RequestInit)=>{calls.push({url:String(input),headers:new Headers(init?.headers)});return Response.json({claimed:false,reason:'interval'});}});
+ expect(store).toBeDefined();await store?.claim('openrouter');
+ expect(calls[0].url).not.toContain('test-key');expect(calls[0].headers.get('authorization')).toBe('Bearer test-key');
+});
+test('an unchanged 200 response clears obsolete HTTP validators',async()=>{
+ const store={claim:async()=>({claimed:true,leaseId:'lease',etag:'old-etag',lastModified:'old-date',attempts:0}),current:async()=>snapshot,fail:async()=>{}};
+ const result=await refresh.prepareCatalogRefresh({sourceKey:'openrouter',store,now,fetchImpl:async()=>Response.json({data:[{id:'lab/model'}]})});
+ expect(result.etag).toBeNull();expect(result.lastModified).toBeNull();
+});
