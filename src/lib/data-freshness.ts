@@ -1,3 +1,4 @@
+import { getRefreshPolicy } from '../../scripts/source-refresh-policy.mjs';
 import { getPublicPoliBenchSnapshot } from './polibench-snapshot';
 import { supabase } from './supabase';
 import { getEpochEvidence } from './epoch-evidence';
@@ -16,6 +17,8 @@ export type SourceFreshnessInput = {
   statusMessage?: string | null;
   coverageLabel?: string | null;
   lastObservedAt?: string | Date | null;
+  /** Retrieval date is separate from a historical evaluation date. */
+  fetchedAt?: string | Date | null;
   lastSuccessfulRunAt?: string | Date | null;
   isEnabled?: boolean | null;
 };
@@ -107,13 +110,14 @@ const sourceAgeDays = (value: Date | null, now: Date): number | null => {
 const sourceMessage = (
   status: SourceFreshnessStatus,
   inputMessage: string | null,
+  staleAfterHours: number,
 ): string => {
   if (inputMessage) return inputMessage;
   switch (status) {
     case 'healthy':
       return 'Current source snapshot is available.';
     case 'stale':
-      return 'Last successful source snapshot is older than 14 days.';
+      return `Last successful source snapshot is older than ${staleAfterHours} hours.`;
     case 'partial':
       return 'The latest source ingestion completed with partial coverage.';
     case 'failed':
@@ -136,10 +140,13 @@ export const resolveSourceFreshness = (
   // A failed or partial observation can be newer than the last usable snapshot.
   // Age intentionally answers "how old is the evidence a visitor can rely on?"
   // Re-importing an old snapshot succeeds today but does not make its evidence newer.
-  const referenceDate = lastSuccessfulRunAt && lastObservedAt
+  const explicitFetch = toDateOrNull(input.fetchedAt);
+  const referenceDate = explicitFetch ?? (lastSuccessfulRunAt && lastObservedAt
     ? new Date(Math.min(lastSuccessfulRunAt.getTime(), lastObservedAt.getTime()))
-    : lastSuccessfulRunAt ?? lastObservedAt;
+    : lastSuccessfulRunAt ?? lastObservedAt);
   const ageDays = sourceAgeDays(referenceDate, now);
+  const ageHours = referenceDate ? Math.max(0, (now.getTime() - referenceDate.getTime()) / 3600000) : null;
+  const { staleAfterHours } = getRefreshPolicy(input.sourceKey);
   const sourceStatus = asNonEmptyStringOrNull(input.status)?.toLowerCase();
   const statusMessage = asNonEmptyStringOrNull(input.statusMessage);
 
@@ -152,7 +159,7 @@ export const resolveSourceFreshness = (
     status = 'partial';
   } else if (!referenceDate) {
     status = 'unavailable';
-  } else if ((ageDays ?? 0) > 14) {
+  } else if ((ageHours ?? 0) > staleAfterHours) {
     status = 'stale';
   } else {
     status = 'healthy';
@@ -168,7 +175,7 @@ export const resolveSourceFreshness = (
     ageDays,
     message: input.isEnabled === false
       ? 'This source is not enabled.'
-      : sourceMessage(status, statusMessage),
+      : sourceMessage(status, statusMessage, staleAfterHours),
   };
 };
 

@@ -29,8 +29,8 @@ test("newer published observations do not inherit old database coverage", () => 
 const source = (overrides: Partial<SourceFreshnessInput> = {}): SourceFreshnessInput => ({
   sourceKey: "artificial-analysis",
   displayName: "Artificial Analysis",
-  lastObservedAt: "2026-08-31T12:00:00.000Z",
-  lastSuccessfulRunAt: "2026-08-31T12:00:00.000Z",
+  lastObservedAt: "2026-09-01T11:00:00.000Z",
+  lastSuccessfulRunAt: "2026-09-01T11:00:00.000Z",
   coverageLabel: "320 models",
   ...overrides,
 });
@@ -38,7 +38,7 @@ const source = (overrides: Partial<SourceFreshnessInput> = {}): SourceFreshnessI
 test("resolveSourceFreshness marks a recent successful source healthy", () => {
   expect(resolveSourceFreshness(source(), now)).toMatchObject({
     status: "healthy",
-    ageDays: 1,
+    ageDays: 0,
     message: "Current source snapshot is available.",
   });
 });
@@ -55,7 +55,7 @@ test("resolveSourceFreshness marks an old successful source stale", () => {
   ).toMatchObject({
     status: "stale",
     ageDays: 31,
-    message: "Last successful source snapshot is older than 14 days.",
+    message: "Last successful source snapshot is older than 8 hours.",
   });
 });
 
@@ -164,8 +164,8 @@ test("getFreshnessUpdatedAt preserves the newest source observation instead of a
       sourceKey: "epoch-ai",
       displayName: "Epoch AI",
       status: "healthy",
-      lastObservedAt: new Date("2026-08-31T12:00:00.000Z"),
-      lastSuccessfulRunAt: new Date("2026-08-31T12:00:00.000Z"),
+      lastObservedAt: new Date("2026-09-01T11:00:00.000Z"),
+      lastSuccessfulRunAt: new Date("2026-09-01T11:00:00.000Z"),
       coverageLabel: "1,000 observations",
       ageDays: 1,
       message: "Current source snapshot is available.",
@@ -173,7 +173,7 @@ test("getFreshnessUpdatedAt preserves the newest source observation instead of a
   ];
 
   expect(getFreshnessUpdatedAt(sources)?.toISOString()).toBe(
-    "2026-08-31T12:00:00.000Z",
+    "2026-09-01T11:00:00.000Z",
   );
 });
 
