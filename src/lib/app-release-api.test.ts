@@ -21,8 +21,8 @@ test('current release check returns small metadata without downloading the asset
 test('asset reads project a single fixed JSON key and never use privileged credentials',async()=>{
  const response=await serveAppRelease(new Request('https://site.test/api/releases/'+revision+'/measurements/0a.json'),env,async(url,init)=>{
  expect(new URL(String(url)).searchParams.get('select')).toBe('payload:assets->m_0a');
- expect(new Headers(init.headers).get('apikey')).toBe(env.PUBLIC_SUPABASE_ANON_KEY);
- expect(new Headers(init.headers).get('authorization')).toBeNull();
+ expect(new Headers(init!.headers).get('apikey')).toBe(env.PUBLIC_SUPABASE_ANON_KEY);
+ expect(new Headers(init!.headers).get('authorization')).toBeNull();
  return Response.json([{payload:{schemaVersion:1,records:[]}}]);
  });
  expect(response.status).toBe(200);
