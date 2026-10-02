@@ -18,3 +18,11 @@ test('metadata updates only describe the displayed snapshot when hashes match',(
  expect(cache.catalogReceiptUpdate?.('a'.repeat(64),{...row,content_hash:'b'.repeat(64)})).toMatchObject({sameSnapshot:false});
  expect(cache.catalogReceiptUpdate?.('a'.repeat(64),row)).toMatchObject({sameSnapshot:true,status:'failed'});
 });
+
+test('a superseded displayed snapshot cannot keep its healthy badge after live refresh failure',()=>{
+ const receipt=cache.catalogReceiptUpdate('b'.repeat(64),row)!;
+ expect(cache.catalogReceiptPresentation(receipt)).toMatchObject({status:'failed',label:'Refresh failed',state:'bad'});
+ expect(cache.catalogReceiptPresentation(receipt).message).toContain('older published snapshot');
+ const healthy=cache.catalogReceiptUpdate('b'.repeat(64),{...row,refresh_status:'healthy',fetched_at:new Date().toISOString()})!;
+ expect(cache.catalogReceiptPresentation(healthy)).toMatchObject({status:'partial',label:'New snapshot available',state:'warn'});
+});

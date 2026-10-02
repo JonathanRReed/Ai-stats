@@ -37,3 +37,18 @@ export function parseCatalogCache(value:unknown,sourceKey:string){
   }
   return {records,receipt};
 }
+
+export function catalogReceiptPresentation(receipt:NonNullable<ReturnType<typeof catalogReceiptUpdate>>){
+  if(!receipt.sameSnapshot){
+    return {status:receipt.status==='failed'?'failed':'partial',state:receipt.status==='failed'?'bad':'warn',
+      label:receipt.status==='failed'?'Refresh failed':receipt.status==='stale'?'Refresh overdue':'New snapshot available',
+      message:(receipt.status==='failed'?(receipt.message??'The latest catalog refresh failed.')+' ':
+        receipt.status==='stale'?'The catalog refresh is overdue. ':'A newer source snapshot is available. ')+
+        'This page still shows an older published snapshot.'};
+  }
+  return {status:receipt.status,state:receipt.status==='healthy'?'ok':receipt.status==='stale'?'warn':'bad',
+    label:(receipt.status==='healthy'?'Checked recently':receipt.status==='stale'?'Refresh overdue':'Failed')+
+      ', '+Math.floor(receipt.ageHours)+'h since last successful check',
+    message:receipt.message??(receipt.status==='stale'?'The catalog refresh is overdue; the last good snapshot is retained.':
+      receipt.status==='failed'?'The latest refresh failed; the last good snapshot is retained.':'The displayed snapshot matches the latest cached source.')};
+}
