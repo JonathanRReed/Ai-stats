@@ -35,6 +35,9 @@ beforeAll(async () => {
     runs: [
       {
         id: "run-1",
+        conditions: { "Edit format": "diff", "Token budget": 0 },
+        evaluation_date: "2026-09-15",
+        score_unit: "percent",
         model_version: "openrouter/gpt-4o",
         benchmark_slug: "simplebench_external",
         score: 0.81,
@@ -83,5 +86,14 @@ test("getPublicEpochSnapshot normalizes benchmark and run identifiers from the p
   expect(snapshot?.epochModels[0]).toMatchObject({
     model_version: "openrouter/gpt-4o",
     display_name: "GPT-4o",
+  });
+});
+
+test("public Epoch normalization preserves conditions without inferring them", async () => {
+  const snapshot = await getPublicEpochSnapshot();
+  expect(snapshot?.epochRuns[0]).toMatchObject({
+    conditions: { "Edit format": "diff", "Token budget": 0 },
+    evaluation_date: "2026-09-15",
+    score_unit: "percent",
   });
 });
