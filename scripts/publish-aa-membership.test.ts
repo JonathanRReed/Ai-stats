@@ -8,7 +8,7 @@ test('AA membership publisher sends identities only after verified input validat
       observedAt:'2026-10-02T00:00:01Z',models:[{id:'one',raw:{private:'discard'}}]}}),
     publishImpl:async(args:{input: unknown})=>{sent=args.input;return{snapshotId:3,contentHash:'hash',recordCount:1};},
   });
-  expect(receipt?.snapshotId).toBe(3);
+  expect(receipt).toMatchObject({snapshotId:3,dryRun:false});
   expect(sent).toMatchObject({records:[{id:'one',kind:'model-membership'}]});
 });
 test('AA membership dry-run never writes',async()=>{
