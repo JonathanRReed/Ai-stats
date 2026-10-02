@@ -56,3 +56,8 @@ test('incompatible native units cannot be presented on one benchmark scale',()=>
   const state=parseCompareState(new URLSearchParams('chart=benchmark&m=epoch%3Av&metric=epoch_b'),[model]);
   expect(series.buildCompareSeries?.({models:[model],observations:rows},state)?.points).toEqual([]);
 });
+
+test('unknown timing conditions do not establish a compatible speed frontier',()=>{
+  const unknown=models.map(model=>({...model,performancePrompt:null}));
+  expect(series.buildCompareSeries({models:unknown,observations:[]},selection('chart=speed-intelligence')).frontierGroups).toEqual({});
+});
