@@ -1,3 +1,4 @@
+import {prepareSourceSnapshot} from './source-snapshots.mjs';
 import {retryDelayMs} from './source-refresh-policy.mjs';
 export const USAGE_SOURCE_URL='https://openrouter.ai/rankings';
 export const USAGE_LICENSE_URL='https://creativecommons.org/licenses/by/4.0/';
@@ -82,4 +83,23 @@ export async function prepareUsageRefresh({apiKey,store,now:fixedNow,fetchImpl})
   await store.fail({sourceKey,leaseId:lease.leaseId,notBefore,message:'Official daily usage refresh failed; last good snapshot retained.'});
   return {sourceKey,status:'failed'};
  }
+}
+
+/** Accept one immutable, sanitized usage snapshot with a matching content receipt. */
+export function parseUsageCache(row,{now=new Date().toISOString()}={}) {
+ try {
+  if(row?.source_key!=='openrouter-usage'||!row.payload||row.payload.schemaVersion!==1||
+   row.payload.sourceKey!=='openrouter-usage'||row.record_count!==1||row.payload.records?.length!==1||
+   row.payload.records[0].id!=='daily-usage'||!/^[1-9][0-9]*$/.test(String(row.snapshot_id)))return null;
+  const fetchedAt=timestamp(row.fetched_at),publishedAt=timestamp(row.published_at),saved=row.payload.records[0].snapshot;
+  const checked=prepareSourceSnapshot({sourceKey:'openrouter-usage',observedAt:row.payload.observedAt,fetchedAt,records:row.payload.records});
+  if(checked.contentHash!==row.content_hash||!saved||saved.period!=='day'||saved.estimated!==false||!object(saved.filters))return null;
+  const snapshot=normalizeUsageSnapshot({meta:{version:'v1',as_of:saved.asOf,start_date:saved.startDate,end_date:saved.endDate,
+   period:saved.period,estimated:saved.estimated,filters:saved.filters},
+   data:saved.rows.map(item=>({date:item.date,model_permaslug:item.modelPermaslug,total_tokens:item.totalTokens}))},{now});
+  if(snapshot.asOf!==row.payload.observedAt)return null;
+  const ageHours=Math.max(0,(Date.parse(now)-Date.parse(fetchedAt))/3600000);
+  return {snapshot,receipt:{snapshotId:String(row.snapshot_id),contentHash:row.content_hash,fetchedAt,publishedAt,
+   status:row.refresh_status==='failed'?'failed':ageHours>12?'stale':'healthy'}};
+ }catch{return null;}
 }
