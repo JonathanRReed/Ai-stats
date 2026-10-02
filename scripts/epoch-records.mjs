@@ -77,3 +77,19 @@ export function normalizeEpochRecord(row, benchmarkSlug, context = {}) {
     snapshotId: text(context.snapshotId),
   };
 }
+
+/** The public artifact contains selected evidence, never the raw source payload. */
+export function buildPublicEpochRun(run, benchmarkSlug) {
+  const observation = normalizeEpochRecord(run.raw, benchmarkSlug);
+  return {
+    id: run.epoch_run_id, model_version: run.model_version,
+    benchmark_id: benchmarkSlug, benchmark_slug: benchmarkSlug,
+    score: run.score, score_metric: run.score_metric,
+    release_date: run.release_date ?? null, organization: run.organization ?? null,
+    country: run.country ?? null, stderr: run.stderr ?? null,
+    source_name: run.source_name ?? null, source_link: run.source_link ?? null,
+    conditions: observation?.conditions ?? null,
+    evaluation_date: observation?.evaluationDate ?? null,
+    score_unit: observation?.unit ?? 'native',
+  };
+}
