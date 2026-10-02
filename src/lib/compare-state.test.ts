@@ -9,7 +9,7 @@ const catalog=[
 test('safe state round-trips selections, controls and missing shared identities',()=>{
   const parsed=state.parseCompareState?.(new URLSearchParams('chart=benchmark&m=a-high&m=missing&metric=epoch_gpqa&condition=%7B%22Shots%22%3A%220%22%7D&scale=log&labels=1&frontier=0&reason=high'),catalog,['b']);
   expect(parsed).toMatchObject({chart:'benchmark',modelIds:['a-high'],missingModelIds:['missing'],
-    metricId:'epoch_gpqa',conditionKey:'{"Shots":"0"}',scale:'log',labels:true,frontier:false,reasoningEfforts:['high']});
+    metricId:'epoch_gpqa',conditionKey:'[["Shots","0"]]',scale:'log',labels:true,frontier:false,reasoningEfforts:['high']});
   expect(state.parseCompareState?.(state.serializeCompareState?.(parsed),catalog,['b'])).toEqual(parsed);
 });
 test('invalid URL controls are bounded and default safely',()=>{
@@ -33,4 +33,9 @@ test('legacy model-name links resolve only when the match is unambiguous',()=>{
   const ambiguous=[...catalog,{...catalog[0],id:'other'}];
   expect(state.parseCompareState?.(new URLSearchParams('model=Model%20A%20%28High%29'),ambiguous,['b'])?.missingModelIds)
     .toEqual(['Model A (High)']);
+});
+
+test('Epoch condition keys survive a shared URL',()=>{
+  const params=new URLSearchParams();params.set('condition','[["Shots","0"],["format","diff"]]');
+  expect(state.parseCompareState(params,catalog).conditionKey).toBe('[["format","diff"],["Shots","0"]]');
 });
