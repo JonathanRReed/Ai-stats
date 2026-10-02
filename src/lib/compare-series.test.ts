@@ -61,3 +61,10 @@ test('unknown timing conditions do not establish a compatible speed frontier',()
   const unknown=models.map(model=>({...model,performancePrompt:null}));
   expect(series.buildCompareSeries({models:unknown,observations:[]},selection('chart=speed-intelligence')).frontierGroups).toEqual({});
 });
+
+test('selections from another source are retained in state but not counted as missing measurements',()=>{
+  const epochModel:ExplorerModel={id:'epoch:v',name:'V',family:'V',source:'epoch',sourceModelId:'v',current:true};
+  const state=selection('chart=benchmark&metric=epoch_b');
+  const result=series.buildCompareSeries({models:[...models,epochModel],observations:[]},state);
+  expect(result.excluded).toEqual([]);
+});

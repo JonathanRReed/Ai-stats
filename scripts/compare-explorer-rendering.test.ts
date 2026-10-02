@@ -10,6 +10,7 @@ test('explorer server renders a real chart and exact-data fallback without brows
     benchmarks:[],defaultModelIds:['a']}));
   expect(html).toContain('Compare models');
   expect(html).toContain('<svg');
+  expect(html).toContain('aria-label="Model family legend"');
   expect(html).toContain('Exact data');
   expect(html).toContain('Measured model');
   expect(html).toContain('70');
