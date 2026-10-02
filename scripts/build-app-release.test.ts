@@ -33,12 +33,12 @@ test('data-only artifacts round-trip through the existing publisher contract',as
 
 test('two benchmark assets retain only their own runs and original retrieval date',async()=>{
  const fetchedAt='2026-10-02T19:43:00.000Z';
- const runs=[
- {id:'alpha-run',model_version:'model-a',benchmark_slug:'alpha',score:37,score_unit:'percent',score_metric:'accuracy',conditions:{shots:0}},
- {id:'beta-run',model_version:'model-b',benchmark_slug:'beta',score:0,score_unit:'native',score_metric:'tasks',conditions:{attempts:1}}
+ const runs:Parameters<typeof fromEpochRuns>[0]=[
+ {benchmark_id:'alpha',release_date:null,organization:null,country:null,stderr:null,id:'alpha-run',model_version:'model-a',benchmark_slug:'alpha',score:37,score_unit:'percent',score_metric:'accuracy',conditions:{shots:0}},
+ {benchmark_id:'beta',release_date:null,organization:null,country:null,stderr:null,id:'beta-run',model_version:'model-b',benchmark_slug:'beta',score:0,score_unit:'native',score_metric:'tasks',conditions:{attempts:1}}
  ];
  const manifest={...fixture(),benchmarks:[{slug:'alpha',name:'Alpha'},{slug:'beta',name:'Beta'}]};
- manifest.datasetRevision=releaseDatasetRevision(manifest,fromEpochRuns(runs as Parameters<typeof fromEpochRuns>[0],fetchedAt));
+ manifest.datasetRevision=releaseDatasetRevision(manifest,fromEpochRuns(runs,fetchedAt));
  const chunks=new Map<string,typeof manifest.models>();
  for(const model of manifest.models){const bucket=measurementBucket(model.id);chunks.set(bucket,[...(chunks.get(bucket)??[]),model]);}
  const release=assembleAppRelease(manifest,{delivery:manifest.delivery,chunks,data:{epoch:{epochRuns:runs,fetchedAt}}});
