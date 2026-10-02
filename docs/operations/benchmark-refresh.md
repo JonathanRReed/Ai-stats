@@ -8,13 +8,13 @@ The Edge Function source is in `supabase/functions/ingest-artificialanalysis`. K
 
 Epoch may omit its former `epoch_capabilities_index.csv`. In that case, model identities come from the benchmark runs and ECI remains missing. An archive without usable benchmark evidence must fail before database writes or snapshot replacement.
 
-`Refresh benchmark evidence` runs every six hours at 01:37, 07:37, 13:37 and 19:37 UTC. Artificial Analysis ingestion remains separately scheduled every twelve hours. It can also be dispatched manually. There are no paid inference calls.
+`Refresh benchmark evidence` runs every six hours at 01:37, 07:37, 13:37 and 19:37 UTC. Artificial Analysis ingestion runs every four hours at 01:00, 05:00, 09:00, 13:00, 17:00 and 21:00 UTC. The six-hour evidence workflow can also be dispatched manually. There are no paid inference calls.
 
-The workflow reads the official Epoch archive, updates the shared Supabase tables, imports the current OpenRouter catalog and checked PoliBench snapshot into normalized observations, and verifies a populated public build. Only the two public snapshot files are committed. Cloudflare's Git integration publishes that commit.
+The workflow reads the official Epoch archive, updates the shared Supabase tables, imports the current OpenRouter catalog and checked PoliBench snapshot into normalized observations, and validates a complete app-data release. The checked Epoch and PoliBench snapshots plus their source manifest are committed. Cloudflare's Git integration publishes that commit.
 
 Use `bun run test` locally and in CI. It enables Bun's per-file isolation, because API adapter tests replace the database module and must not leak that replacement into freshness tests.
 
-Required repository secrets are `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `PUBLIC_SUPABASE_ANON_KEY`. The service key is scoped to the ingestion step and is never supplied to the frontend build. The build uses the existing public anonymous key.
+Required repository secrets are `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `PUBLIC_SUPABASE_ANON_KEY`. The service key is scoped to ingestion and publication steps. Data compilation and frontend builds use the existing public anonymous key.
 
 `POLIBENCH_READ_KEY` is an optional read-only SSH deploy key authorized only for the private Poli-bench repository. When available, checkout reads its current main revision and the importer records that exact Git SHA. Without it, the workflow explicitly warns and retains the previously checked snapshot with its original generated date. A successful refresh of other sources does not imply that PoliBench was updated.
 
@@ -48,19 +48,19 @@ AA's public-display permission request is pending. Do not enable richer AA redis
 
 ## Evidence/cache rollout checkpoint (October 2, 2026)
 
-This first corrective release preserves conditions, prevents ambiguous score overwrites, validates sanitized Epoch snapshots, and publishes an identity-only AA current-membership cache. It also replaces the generic fourteen-day freshness threshold with source-specific targets.
+The cache rollout preserves conditions, prevents ambiguous score overwrites, validates sanitized Epoch snapshots, and publishes an identity-only AA current-membership cache. It also replaces the generic fourteen-day freshness threshold with source-specific targets.
 
-The refresh workflow runs Epoch and normalized evidence every six hours. Cache promotion follows tests and a successful build. The checked Epoch artifact changes only when sanitized content changes; successful unchanged retrievals still update the durable cache receipt. AA source membership is validated against the latest complete private fetch and imported rows; the private fetch payload is never published.
+The refresh workflow runs Epoch and normalized evidence every six hours. Cache promotion follows tests and successful data-only compilation. The checked Epoch artifact changes only when sanitized content changes; successful unchanged retrievals still update the durable cache receipt. AA source membership is validated against the latest complete private fetch and imported rows; the private fetch payload is never published.
 
-AA's upstream cron remains twelve-hourly in this release. Seven days of successful receipts showed four pages per fetch. The four-hour target requires a shared daily request counter and failure-aware quota enforcement before changing that separate cron. The source-policy helper alone is not an active scheduler.
+AA's four-hour cron is protected by service-only leases and per-request quota reservations. The first guarded run on October 2 at 21:00 UTC updated 689 models with five requests. The upstream fixed 24-hour reset is authoritative; the policy helper does not schedule jobs.
 
-Remaining implementation: durable OpenRouter/HuggingFace/LiteLLM catalog adapters and selective manifest refresh, persisted upstream backoff/conditional requests, richer freshness receipts across every surface, chart-first Compare and official OpenRouter daily usage. Do not label those finished based on this corrective release.
+Durable OpenRouter, Hugging Face and LiteLLM catalogs, chart-first Compare and independent Compare data publication are deployed. The official OpenRouter daily-usage adapter is present, but no usage snapshot has been published. Stats still uses its static snapshot build.
 
 If AA membership is unavailable, page readers retain existing rows with current_source_member=null. They must not present that uncertainty as verified current membership. Full history remains available via getModels(true). Current-cohort filtering is effective only after a valid cache promotion.
 
 The isolated migration harness runs PostgreSQL 18 through PGlite; production is PostgreSQL 17. It verifies supported SQL behavior, permissions and rollback preservation, but does not replace production readback/advisor checks. No engine upgrade is part of this release.
 
-AA public health currently uses a 24-hour overdue threshold against its active twelve-hour ingestion schedule. The four-hour target/eight-hour threshold is retained as a future policy only. Epoch archive publication requires a parsed archive receipt (source URL, SHA-256 and file inventory). A missing previously published benchmark or a >20% drop in models/runs holds refresh for source review; legitimate large source revisions must be reviewed before updating the checked baseline. A content-based source-manifest artifact covers AA membership and measurements so AA-only changes trigger a static deployment, followed by a verified post-promotion build.
+AA public health uses an eight-hour overdue threshold against its active four-hour ingestion schedule. Epoch archive publication requires a parsed archive receipt (source URL, SHA-256 and file inventory). A missing previously published benchmark or a >20% drop in models/runs holds refresh for source review; legitimate large source revisions must be reviewed before updating the checked baseline. A content-based source-manifest artifact covers AA membership and measurements so AA-only changes trigger a static deployment, with a separately verified post-promotion data release.
 
 
 ## Durable public catalogs
@@ -75,7 +75,7 @@ Catalog payloads contain public model metadata only. Request validators, leases,
 
 - Prepare: bun scripts/refresh-public-catalogs.mjs --prepare --output .tmp/public-catalog-candidates.json
 - Compose release input: bun run build:intelligence-input
-- After tests and the candidate build: bun scripts/refresh-public-catalogs.mjs --publish --input .tmp/public-catalog-candidates.json
+- After tests and candidate compilation: bun scripts/refresh-public-catalogs.mjs --publish --input .tmp/public-catalog-candidates.json
 
 These commands use the existing SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY workflow secrets. Do not paste keys into logs, committed files, browser code, or command history. Preparation changes lease/backoff receipts but does not replace public model data. Candidate files are private temporary workflow artifacts.
 
