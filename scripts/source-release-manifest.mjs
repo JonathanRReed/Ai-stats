@@ -17,7 +17,7 @@ export function buildSourceReleaseManifest(input) {
   const models=input.aa.models.map(model=>{
     const {source_metadata: metadata,...rest}=model;
     if (!metadata) return rest;
-    const {observed_at: _retrieved,...conditions}=metadata;
+    const conditions=Object.fromEntries(Object.entries(metadata).filter(([key])=>key!=='observed_at'));
     return {...rest,source_metadata:conditions};
   }).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
   return {schemaVersion:1,sources:{
