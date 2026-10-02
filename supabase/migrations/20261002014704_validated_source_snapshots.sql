@@ -80,14 +80,16 @@ $$;
 
 create function public.promote_source_snapshot(p_snapshot_id bigint)
 returns bigint language plpgsql security invoker set search_path = '' as $$
-declare staged private.source_snapshots%rowtype; current_fetched timestamptz;
+declare staged private.source_snapshots%rowtype; current_fetched timestamptz; current_observed timestamptz;
 begin
   select * into staged from private.source_snapshots where id = p_snapshot_id;
   if not found then raise exception 'Unknown source snapshot'; end if;
   perform pg_advisory_xact_lock(hashtextextended(staged.source_key, 0));
-  select fetched_at into current_fetched from public.source_snapshot_cache
+  select fetched_at, observed_at into current_fetched, current_observed from public.source_snapshot_cache
     where source_key = staged.source_key for update;
   if current_fetched > staged.fetched_at then raise exception 'Cannot promote an older source snapshot'; end if;
+  if current_observed is not null and (staged.observed_at is null or current_observed > staged.observed_at) then
+    raise exception 'Cannot promote older or undated source evidence'; end if;
   insert into public.source_snapshot_cache(source_key,snapshot_id,content_hash,observed_at,fetched_at,published_at,payload,record_count)
   values (staged.source_key,staged.id,staged.content_hash,staged.observed_at,staged.fetched_at,now(),staged.payload,staged.record_count)
   on conflict(source_key) do update set
