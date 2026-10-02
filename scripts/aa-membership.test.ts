@@ -1,5 +1,5 @@
 import {expect, test} from 'bun:test';
-const membership = await import('./aa-membership.mjs').catch(() => ({}));
+import * as membership from './aa-membership.mjs';
 const receipt = {id: 'fetch', fetched_at: '2026-10-02T00:00:00Z', endpoint: 'language/models/free', status: 200,
   data: [{id: 'current'}]};
 const rows = [{id: 'current', slug: 'current', last_seen: '2026-10-02T00:00:01Z'},
