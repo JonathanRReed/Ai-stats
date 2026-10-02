@@ -3,6 +3,7 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import * as modelIntelligence from "./model-intelligence";
+import {buildExplorerCatalog} from "./compare-catalog";
 import {
   buildParetoFrontier,
   findComparableCoverageLeader,
@@ -86,8 +87,15 @@ test("the compare fallback never invents model pricing", () => {
   for (const source of [comparePage, compareApi]) {
     expect(source).not.toContain("getEpochDemoPrice");
     expect(source).not.toContain("synthetic-estimate");
-    expect(source).toContain('priceEvidence: "unavailable"');
+
   }
+});
+
+test('the explorer never attaches estimated prices to Epoch identities',()=>{
+  const rows=buildExplorerCatalog([],[{model_version:'source-record',display_name:'Source model'}]);
+  expect(rows[0].priceInput).toBeUndefined();
+  expect(rows[0].priceOutput).toBeUndefined();
+  expect(rows[0].intelligence).toBeUndefined();
 });
 
 test("rankComparableModels excludes a one-metric perfect row below required coverage", () => {
