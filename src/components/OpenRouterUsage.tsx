@@ -1,4 +1,4 @@
-import {useMemo,useRef,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import {buildUsageSeries,usageModels,type UsageSnapshot} from '../lib/openrouter-usage';
 type Props={snapshot:UsageSnapshot|null;receipt?:{fetchedAt:string;publishedAt:string;status:string}|null};
 const label=(key:string)=>key==='other'?'Other (outside daily top 50)':key==='unselected'?'Unselected ranked models':key;
@@ -11,6 +11,12 @@ export default function OpenRouterUsage({snapshot,receipt}:Props){
  const [windowDays,setWindowDays]=useState(30),[mode,setMode]=useState('share');
  const [selected,setSelected]=useState(()=>models.slice(0,4)),[search,setSearch]=useState('');
  const [activeDate,setActiveDate]=useState(snapshot?.endDate??'');
+ const chartFrame=useRef<HTMLDivElement|null>(null),[chartWidth,setChartWidth]=useState(1000);
+ useEffect(()=>{
+  if(!chartFrame.current)return;
+  const observer=new ResizeObserver(([entry])=>setChartWidth(Math.max(500,entry.contentRect.width)));
+  observer.observe(chartFrame.current);return()=>observer.disconnect();
+ },[snapshot]);
  const dayRefs=useRef<Array<SVGGElement|null>>([]);
  const series=useMemo(()=>snapshot?buildUsageSeries(snapshot,windowDays,selected,mode):null,[snapshot,windowDays,selected,mode]);
  if(!snapshot||!series)return <section className="usage-module usage-unavailable" aria-label="OpenRouter traffic">
@@ -18,7 +24,7 @@ export default function OpenRouterUsage({snapshot,receipt}:Props){
  const keys=[...series.selectedModels,'unselected','other'];
  const active=series.days.find(day=>day.date===activeDate)??series.days.at(-1);
  const ceiling=mode==='share'?100:Math.max(1,...series.days.map(day=>Number(day.totalTokens??0)));
- const left=72,right=974,top=24,bottom=314,width=(right-left)/Math.max(1,series.days.length);
+ const left=72,right=chartWidth-26,top=24,bottom=314,width=(right-left)/Math.max(1,series.days.length);
  const filtered=models.filter(key=>key.toLowerCase().includes(search.toLowerCase())).slice(0,30);
  const inspect=(index:number)=>{setActiveDate(series.days[index].date);dayRefs.current[index]?.focus();};
  const toggle=(key:string)=>setSelected(current=>current.includes(key)?current.filter(value=>value!==key):current.length<8?[...current,key]:current);
@@ -40,8 +46,8 @@ export default function OpenRouterUsage({snapshot,receipt}:Props){
    <p>{series.availableDays} days available in the requested {windowDays}-day window · UTC</p>
   </div>
   {receipt&&receipt.status!=='healthy'?<p className="usage-warning" role="status">{receipt.status==='failed'?'The latest refresh failed.':'The refresh is overdue.'} Showing the last successful snapshot.</p>:null}
-  <div className="usage-chart-scroll">
-   <svg viewBox="0 0 1000 362" role="group" aria-label={mode==='share'?'Share of all reported OpenRouter traffic by day':'OpenRouter token volume by day'}>
+  <div className="usage-chart-scroll" ref={chartFrame}>
+   <svg viewBox={`0 0 ${chartWidth} 362`} role="group" aria-label={mode==='share'?'Share of all reported OpenRouter traffic by day':'OpenRouter token volume by day'}>
     <title>OpenRouter daily token usage</title>
     {[0,.25,.5,.75,1].map(ratio=><g key={ratio}><line x1={left} x2={right} y1={bottom-ratio*(bottom-top)} y2={bottom-ratio*(bottom-top)} className="usage-grid"/>
      <text x={left-10} y={bottom-ratio*(bottom-top)+4} textAnchor="end">{mode==='share'?ratio*100+'%':compact(ceiling*ratio)}</text></g>)}
