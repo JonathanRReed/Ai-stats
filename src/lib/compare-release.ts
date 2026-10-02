@@ -24,7 +24,7 @@ export function readCompareRelease(value:unknown):CompareReleaseManifest{
  }
  if(!Array.isArray(value.models)||value.models.length<2||value.models.length>100||!Array.isArray(value.defaultModelIds)||
  value.defaultModelIds.length!==value.models.length||new Set(value.defaultModelIds).size!==value.defaultModelIds.length||
- !value.defaultModelIds.every(id=>text(id)&&ids.has(id))||!value.models.every(row=>object(row)&&text(row.id)&&value.defaultModelIds.includes(row.id))||
+ !value.defaultModelIds.every(id=>text(id)&&ids.has(id))||!value.models.every(row=>object(row)&&text(row.id)&&(value.defaultModelIds as unknown[]).includes(row.id))||
  new Set(value.models.map(row=>row.id)).size!==value.models.length)throw new Error('Invalid release seed');
  const typed=value as unknown as CompareReleaseManifest,expanded=expandCatalog(typed.delivery.catalog);
  for(const bucket of new Set(typed.models.map(model=>measurementBucket(model.id)))){

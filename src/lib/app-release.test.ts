@@ -1,6 +1,6 @@
 import {expect,test} from 'bun:test';
 import {prepareAppRelease} from '../../scripts/app-release.mjs';
-import {fixture} from './compare-release.test';
+import {fixture} from './compare-release.fixture';
 import {measurementBucket} from './compare-delivery';
 const assetsFor=(manifest:ReturnType<typeof fixture>)=>{
  const assets:Record<string,unknown>={};
