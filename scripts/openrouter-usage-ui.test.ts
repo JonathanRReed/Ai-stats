@@ -33,3 +33,8 @@ test('usage chart keeps mobile label sizing tied to its measured viewport',()=>{
  const css=readFileSync('src/styles/openrouter-usage.css','utf8');
  expect(css).toContain('color:var(--signal-ink');
 });
+
+test('methodology paragraphs retain their small subdued styling inside the disclosure',()=>{
+ const source=readFileSync('src/components/LatestModelsStrip.astro','utf8');
+ expect(source.includes('.latest-models-header details > p')).toBe(true);
+});
