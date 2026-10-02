@@ -29,11 +29,11 @@ test('recorded date labels stay in family names and unknown reasoning is not cal
     .toEqual({family:'Model',reasoning:'xhigh'});
 });
 
-test('the default chart shows reasoning variants for selected families',()=>{
+test('the default chart starts with one record per provider',()=>{
   const rows:ExplorerModel[]=[
     {id:'high',name:'A (High)',family:'A',provider:'Lab',source:'aa',sourceModelId:'high',reasoning:'high',current:true,intelligence:70,priceBlended:2},
     {id:'low',name:'A (Low)',family:'A',provider:'Lab',source:'aa',sourceModelId:'low',reasoning:'low',current:true,intelligence:60,priceBlended:1}];
-  expect(catalog.defaultExplorerSelection(rows)).toEqual(['high','low']);
+  expect(catalog.defaultExplorerSelection(rows)).toEqual(['high']);
 });
 
 test('legacy AA slugs survive the catalog and unknown membership is not a default cohort',async()=>{

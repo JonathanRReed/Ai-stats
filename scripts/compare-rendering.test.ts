@@ -11,7 +11,7 @@ test('Compare is a small chart-first Astro shell over focused explorer component
   expect(source).toContain('defaultExplorerSelection');
 });
 test('public comparison data stays server-backed and clients fetch only a selected benchmark',()=>{
-  expect(source).toContain('getModels(true)');
+  expect(source).toContain('getModels(true,true)');
   expect(explorer).toContain("fetch('/api/compare-benchmarks/'");
   expect(explorer).not.toContain('fetchLiveSnapshot');
   expect(explorer).not.toContain('supabase.co');
@@ -30,7 +30,7 @@ test('explorer exposes measurement limits, history and compatible frontier contr
   expect(explorer).toContain('Each point is a source record, not a recommendation');
   expect(explorer).toContain('Missing values are not zero');
   expect(explorer).toContain('same AA index version and timing conditions');
-  expect(explorer).toContain('Task-cost and token-total views await');
+  expect(explorer).toContain('Catalog records without compatible measurements');
   expect(explorer).toContain("window.addEventListener('popstate'");
   expect(explorer).not.toContain('dangerouslySetInnerHTML');
 });

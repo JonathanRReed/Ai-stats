@@ -2,8 +2,7 @@ export const AA_METRIC_LABELS:Record<string,string> = {
  aa_intelligence_index:'Intelligence Index',aa_coding_index:'Coding Index',aa_agentic_index:'Agentic Index',aa_math_index:'Math Index',
  mmlu_pro:'MMLU-Pro',gpqa:'GPQA Diamond',hle:"Humanity's Last Exam",livecodebench:'LiveCodeBench',scicode:'SciCode',math_500:'MATH-500',aime:'AIME',
 };
-export const COMPARE_CHARTS = ['cost-intelligence','speed-intelligence','price','benchmark',
-  'task-cost','total-cost','tokens-task','tokens-total'] as const;
+export const COMPARE_CHARTS = ['cost-intelligence','speed-intelligence','price','benchmark'] as const;
 export type CompareChart = typeof COMPARE_CHARTS[number];
 export type CompareCatalogEntry = {id:string; name?:string; slug?:string; family?:string; reasoning?:string; current?:boolean|null};
 export type CompareState = {
@@ -80,3 +79,8 @@ export function scoreMetricOptions(recorded:string[],selected:string|null) {
   return {visible:recorded.length>1||Boolean(selected),missing:Boolean(selected&&!recorded.includes(selected))};
 }
 export const changeScoreMetric=(value:string):Pick<CompareState,'scoreMetricKey'|'conditionKey'>=>({scoreMetricKey:value||null,conditionKey:null});
+
+/** Group selection is scoped to the exact visible records, not a display-name join. */
+export function selectVisibleRecords(selected:string[],visibleIds:string[],checked:boolean):string[]{
+ const ids=new Set(visibleIds);return checked?unique([...selected,...visibleIds]):selected.filter(id=>!ids.has(id));
+}

@@ -18,7 +18,7 @@ export function modelDisplayFacets(name:string):{family:string;reasoning:string}
   return {family:qualifier?name.replace(/\s*\([^)]*\)\s*$/,'').trim():name,
     reasoning:/non-reasoning/i.test(suffix)?'none':effort??'unknown'};
 }
-export function buildExplorerCatalog(aaRows:unknown[],epochRows:unknown[]):ExplorerModel[] {
+export function buildExplorerCatalog(aaRows:unknown[],epochRows:unknown[],catalogs:Partial<Record<'openrouter'|'huggingface'|'litellm',unknown[]>>={},inventory:{models?:unknown[];aliases?:unknown[];sources?:unknown[]}={}):ExplorerModel[] {
   const models:ExplorerModel[]=[];
   for(const input of aaRows){
     const raw=record(input);const id=text(raw.id);if(!id)continue;
@@ -44,7 +44,35 @@ export function buildExplorerCatalog(aaRows:unknown[],epochRows:unknown[]):Explo
       reasoning:'unknown',source:'epoch',sourceModelId:version,current:true,
       sourceUrl:'https://epoch.ai/benchmarks',observedAt:null});
   }
-  return models;
+  for(const source of ['openrouter','huggingface','litellm'] as const){
+    for(const input of catalogs[source]??[]){
+      const row=record(input);const key=text(row.openrouter_id)??text(row.model_id)??text(row.id);if(!key)continue;
+      const name=text(row.name)??key;
+      const url=source==='openrouter'?'https://openrouter.ai/'+key.split('/').map(encodeURIComponent).join('/'):
+        source==='huggingface'?'https://huggingface.co/'+key.split('/').map(encodeURIComponent).join('/'):'https://models.litellm.ai/';
+      models.push({id:source+':'+key,name,family:name,provider:text(row.provider)??text(row.author_slug)??text(row.author)??key.split('/')[0],
+        reasoning:'unknown',source,sourceModelId:key,current:true,sourceUrl:url,
+        fetchedAt:text(row.fetched_at),observedAt:null,
+        ...(source==='huggingface'?{}:{priceInput:number(source==='openrouter'?row.prompt_price_1m:row.input_price_1m),
+          priceOutput:number(source==='openrouter'?row.completion_price_1m:row.output_price_1m)})});
+    }
+  }
+  // Exact source-native aliases suppress duplicate inventory entries. Never join by name.
+  const sourceKeys=new Map((inventory.sources??[]).map(input=>{const row=record(input);return [row.id,row.source_key];}));
+  const nativeKeys=new Set(models.map(model=>JSON.stringify([model.source==='aa'?'artificial-analysis':model.source==='epoch'?'epoch-ai':model.source,model.sourceModelId])));
+  // AA's registry keys are source slugs; chart selection still preserves each UUID.
+  for(const model of models)if(model.source==='aa'&&model.slug)nativeKeys.add(JSON.stringify(['artificial-analysis',model.slug]));
+  const represented=new Set((inventory.aliases??[]).filter(input=>{
+    const row=record(input);return nativeKeys.has(JSON.stringify([sourceKeys.get(row.intelligence_source_id),row.source_model_key]));
+  }).map(input=>record(input).canonical_model_id));
+  for(const input of inventory.models??[]){
+    const row=record(input);if(represented.has(row.id))continue;
+    const key=text(row.canonical_key);if(!key)continue;
+    const name=text(row.display_name)??key;
+    models.push({id:'catalog:'+key,name,family:text(row.model_family)??name,provider:text(row.provider_name)??'Unknown',
+      source:'catalog',sourceModelId:key,reasoning:'unknown',current:null});
+  }
+  return [...new Map(models.map(model=>[model.id,model])).values()];
 }
 export function defaultExplorerSelection(models:ExplorerModel[]):string[] {
   const selected:string[]=[];const providers=new Set<string>();
@@ -56,6 +84,5 @@ export function defaultExplorerSelection(models:ExplorerModel[]):string[] {
     if(providers.has(provider))continue;
     providers.add(provider);selected.push(model.id);if(selected.length===6)break;
   }
-  const families=new Set(eligible.filter(model=>selected.includes(model.id)).map(model=>model.family));
-  return eligible.filter(model=>families.has(model.family)).map(model=>model.id).slice(0,40);
+  return selected;
 }

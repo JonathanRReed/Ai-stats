@@ -3,15 +3,17 @@ import Layout from "../components/Layout.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import CompareExplorer from "../components/compare/CompareExplorer";
-import {getModels} from "../lib/supabase";
+import {getModels,getCompareCatalogSources,getCanonicalModels,getModelAliases,getIntelligenceSources} from "../lib/supabase";
 import {getEpochEvidence} from "../lib/epoch-evidence";
 import {getEpochBenchmarksWithRuns,getEpochBenchmarkLabel} from "../lib/benchmark-catalog";
 import {buildExplorerCatalog,defaultExplorerSelection} from "../lib/compare-catalog";
 import "../styles/compare-explorer.css";
 
 export const prerender = true;
-const [aaModels,epoch] = await Promise.all([getModels(true),getEpochEvidence()]);
-const models = buildExplorerCatalog(aaModels,epoch.epochModels);
+const [aaModels,epoch,catalogs,canonical,aliases,sources] = await Promise.all([
+  getModels(true,true),getEpochEvidence(),getCompareCatalogSources(),getCanonicalModels(),getModelAliases(),getIntelligenceSources()
+]);
+const models = buildExplorerCatalog(aaModels,epoch.epochModels,catalogs,{models:canonical,aliases,sources});
 const benchmarks = getEpochBenchmarksWithRuns(epoch.epochBenchmarks,epoch.epochRuns)
   .map(benchmark=>({slug:benchmark.slug,name:getEpochBenchmarkLabel(benchmark)}));
 const defaultModelIds = defaultExplorerSelection(models);
