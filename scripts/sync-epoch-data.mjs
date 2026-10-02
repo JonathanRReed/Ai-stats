@@ -1,5 +1,5 @@
-import { selectEpochArtifact } from './source-snapshots.mjs';
 #!/usr/bin/env node
+import { selectEpochArtifact } from './source-snapshots.mjs';
 
 import { createHash } from 'node:crypto';
 import { getEpochScoreMetric as getPrimaryScoreColumn, normalizeEpochRecord, buildPublicEpochRun } from './epoch-records.mjs';
