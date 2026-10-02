@@ -2,10 +2,11 @@
 import {getActiveRefreshPolicy} from '../../scripts/source-refresh-policy.mjs';
 import {validCatalogRecords} from '../../scripts/public-catalogs.mjs';
 export const PUBLIC_CATALOG_NAMES:Record<string,string>={openrouter:'OpenRouter',huggingface:'Hugging Face',litellm:'LiteLLM'};
+export const PUBLIC_SNAPSHOT_NAMES:Record<string,string>={...PUBLIC_CATALOG_NAMES,'openrouter-usage':'OpenRouter daily usage'};
 const object=(value:unknown):Record<string,unknown>|null=>value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:null;
 const date=(value:unknown):string|null=>typeof value==='string'&&Number.isFinite(Date.parse(value))?new Date(value).toISOString():null;
 export function catalogReceiptUpdate(displayedHash:string,row:unknown,now=new Date()){
-  const data=object(row);if(!data||typeof data.source_key!=='string'||!Object.hasOwn(PUBLIC_CATALOG_NAMES,data.source_key))return null;
+  const data=object(row);if(!data||typeof data.source_key!=='string'||!Object.hasOwn(PUBLIC_SNAPSHOT_NAMES,data.source_key))return null;
   if(!/^[1-9][0-9]*$/.test(String(data.snapshot_id??'')))return null;
   const fetchedAt=date(data.fetched_at),publishedAt=date(data.published_at);
   if(!fetchedAt||!publishedAt||typeof data.content_hash!=='string'||!/^[a-f0-9]{64}$/.test(data.content_hash))return null;

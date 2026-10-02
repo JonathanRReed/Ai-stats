@@ -1,5 +1,5 @@
 ---
-import {PUBLIC_CATALOG_NAMES} from "../lib/catalog-cache";
+import {PUBLIC_SNAPSHOT_NAMES} from "../lib/catalog-cache";
 import type {
   DataFreshness,
   SourceFreshness,
@@ -16,7 +16,7 @@ const requiredSources = [
   { sourceKey: "epoch-ai", displayName: "Epoch AI" },
   { sourceKey: "simplebench", displayName: "SimpleBench" },
   { sourceKey: "polibench", displayName: "PoliBench" },
-  ...Object.entries(PUBLIC_CATALOG_NAMES).map(([sourceKey,displayName])=>({sourceKey,displayName})),
+  ...Object.entries(PUBLIC_SNAPSHOT_NAMES).map(([sourceKey,displayName])=>({sourceKey,displayName})),
 ];
 
 const sourceByKey = new Map(
@@ -72,7 +72,7 @@ const formatObserved = (value: Date | null): string =>
   </header>
   <div class="source-health-grid">
     {sources.map((source) => (
-      <article data-source-status={source.status} data-catalog-receipt={Object.hasOwn(PUBLIC_CATALOG_NAMES,source.sourceKey)?source.sourceKey:undefined} data-content-hash={source.contentHash??""}>
+      <article data-source-status={source.status} data-catalog-receipt={Object.hasOwn(PUBLIC_SNAPSHOT_NAMES,source.sourceKey)?source.sourceKey:undefined} data-content-hash={source.contentHash??""}>
         <h3>{source.displayName}</h3>
         <p class="status-label eco-status" data-state={statusState[source.status]}>
           <span aria-hidden="true" />
@@ -217,7 +217,7 @@ const formatObserved = (value: Date | null): string =>
       const url=new URL(rawUrl);
       if(url.protocol!=="https:"||url.hostname!=="bgbqdzmgxkwstjihgeef.supabase.co"||url.username||url.password)return;
       url.pathname="/rest/v1/source_snapshot_cache";
-      url.search=new URLSearchParams({source_key:"in.(openrouter,huggingface,litellm)",select:"source_key,snapshot_id,content_hash,observed_at,fetched_at,published_at,refresh_status,refresh_message"}).toString();
+      url.search=new URLSearchParams({source_key:"in.(openrouter,huggingface,litellm,openrouter-usage)",select:"source_key,snapshot_id,content_hash,observed_at,fetched_at,published_at,refresh_status,refresh_message"}).toString();
       const response=await fetch(url,{headers:{apikey:key,Authorization:"Bearer "+key},cache:"no-store",signal:AbortSignal.timeout(10000)});
       if(!response.ok)return;
       const rows:unknown=await response.json();if(!Array.isArray(rows))return;
