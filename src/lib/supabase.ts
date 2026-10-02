@@ -1,3 +1,4 @@
+import {parseCatalogCache} from './catalog-cache';
 import { readAaCohort } from './aa-membership';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { AA_MODEL_SELECT_COLUMNS } from './aa-model-columns';
@@ -236,24 +237,6 @@ export type OpenRouterModel = {
   fetched_at: string;
 };
 
-type OpenRouterApiModel = {
-  id?: string;
-  canonical_slug?: string;
-  name?: string;
-  description?: string;
-  created?: number;
-  context_length?: number;
-  architecture?: {
-    input_modalities?: string[];
-    output_modalities?: string[];
-    tokenizer?: string;
-    instruct_type?: string;
-  };
-  pricing?: Record<string, string | number | null | undefined>;
-  top_provider?: Record<string, unknown> | null;
-  supported_parameters?: string[];
-};
-
 export type HuggingFaceHubModel = {
   id: string;
   model_id: string;
@@ -265,18 +248,6 @@ export type HuggingFaceHubModel = {
   last_modified: string | null;
   tags: string[];
   fetched_at: string;
-};
-
-type HuggingFaceApiModel = {
-  id?: string;
-  modelId?: string;
-  author?: string;
-  downloads?: number;
-  likes?: number;
-  pipeline_tag?: string;
-  library_name?: string;
-  lastModified?: string;
-  tags?: string[];
 };
 
 export type LiteLLMCatalogModel = {
@@ -437,161 +408,25 @@ const normalizeModelLookupKey = (value: string | null | undefined): string => {
     .trim();
 };
 
-const normalizeOpenRouterModel = (model: OpenRouterApiModel): OpenRouterModel | null => {
-  const openrouterId = String(model.id ?? '').trim();
-  if (!openrouterId) return null;
-  const { author, slug } = splitOpenRouterId(openrouterId);
-  const pricing = model.pricing ?? {};
-  const promptPrice = toPricePerMillion(pricing.prompt);
-  const completionPrice = toPricePerMillion(pricing.completion);
-  const now = new Date().toISOString();
-
-  return {
-    id: openrouterId,
-    openrouter_id: openrouterId,
-    canonical_slug: model.canonical_slug ?? null,
-    author_slug: author,
-    model_slug: slug,
-    name: String(model.name || openrouterId),
-    description: model.description ?? null,
-    created_unix: Number.isFinite(Number(model.created)) ? Number(model.created) : null,
-    context_length: Number.isFinite(Number(model.context_length))
-      ? Number(model.context_length)
-      : null,
-    prompt_price_1m: promptPrice,
-    completion_price_1m: completionPrice,
-    request_price: toPriceValue(pricing.request),
-    image_price: toPriceValue(pricing.image),
-    web_search_price: toPriceValue(pricing.web_search),
-    internal_reasoning_price_1m: toPricePerMillion(pricing.internal_reasoning),
-    input_cache_read_price_1m: toPricePerMillion(pricing.input_cache_read),
-    input_cache_write_price_1m: toPricePerMillion(pricing.input_cache_write),
-    is_free:
-      openrouterId.endsWith(':free') ||
-      ((promptPrice ?? 0) === 0 && (completionPrice ?? 0) === 0),
-    input_modalities: model.architecture?.input_modalities ?? [],
-    output_modalities: model.architecture?.output_modalities ?? [],
-    tokenizer: model.architecture?.tokenizer ?? null,
-    instruct_type: model.architecture?.instruct_type ?? null,
-    supported_parameters: model.supported_parameters ?? [],
-    architecture: (model.architecture as Record<string, unknown>) ?? {},
-    pricing: pricing as Record<string, unknown>,
-    top_provider: model.top_provider ?? null,
-    fetched_at: now,
-  };
-};
-
-async function fetchOpenRouterPublicModels(limit: number): Promise<OpenRouterModel[]> {
-  const response = await fetch(
-    'https://openrouter.ai/api/v1/models?output_modalities=all',
-    {
-      headers: {
-        Accept: 'application/json',
-      },
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(`OpenRouter model fetch failed with HTTP ${response.status}`);
-  }
-
-  const body = (await response.json()) as { data?: OpenRouterApiModel[] };
-  return (body.data ?? [])
-    .map(normalizeOpenRouterModel)
-    .filter((model): model is OpenRouterModel => model !== null)
-    .filter((model) => !model.is_free)
-    .sort((a, b) => Number(b.context_length ?? 0) - Number(a.context_length ?? 0))
-    .slice(0, limit);
+async function readPublicCatalog(sourceKey: string) {
+  if (!supabase) return null;
+  try {
+    const {data,error}=await supabase.from('source_snapshot_cache')
+      .select('source_key,snapshot_id,content_hash,payload,record_count,fetched_at,published_at,refresh_status,refresh_message')
+      .eq('source_key',sourceKey).maybeSingle();
+    return error?null:parseCatalogCache(data,sourceKey);
+  } catch { return null; }
+}
+async function fetchHuggingFaceCachedModels(limit: number): Promise<HuggingFaceHubModel[]> {
+  const cached=await readPublicCatalog('huggingface');
+  return cached?(cached.records as unknown as HuggingFaceHubModel[])
+    .sort((a,b)=>Number(b.downloads??0)-Number(a.downloads??0)).slice(0,limit):[];
 }
 
-const normalizeHuggingFaceModel = (model: HuggingFaceApiModel): HuggingFaceHubModel | null => {
-  const modelId = String(model.modelId || model.id || '').trim();
-  if (!modelId) return null;
-  const [author] = modelId.split('/');
-
-  return {
-    id: modelId,
-    model_id: modelId,
-    author: model.author || author || null,
-    downloads: toPositiveNumber(model.downloads),
-    likes: toPositiveNumber(model.likes),
-    pipeline_tag: model.pipeline_tag ?? null,
-    library_name: model.library_name ?? null,
-    last_modified: model.lastModified ?? null,
-    tags: Array.isArray(model.tags) ? model.tags : [],
-    fetched_at: new Date().toISOString(),
-  };
-};
-
-async function fetchHuggingFacePublicModels(limit: number): Promise<HuggingFaceHubModel[]> {
-  const response = await fetch(
-    `https://huggingface.co/api/models?sort=downloads&direction=-1&limit=${limit}`,
-    {
-      headers: {
-        Accept: 'application/json',
-      },
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(`Hugging Face model fetch failed with HTTP ${response.status}`);
-  }
-
-  const body = (await response.json()) as HuggingFaceApiModel[];
-  return (Array.isArray(body) ? body : [])
-    .map(normalizeHuggingFaceModel)
-    .filter((model): model is HuggingFaceHubModel => model !== null);
-}
-
-const normalizeLiteLlmModel = (
-  modelId: string,
-  entry: LiteLLMPriceEntry,
-): LiteLLMCatalogModel | null => {
-  if (!modelId || modelId === 'sample_spec') return null;
-  const mode = entry.mode ?? null;
-  if (mode && !['chat', 'completion', 'responses'].includes(mode)) return null;
-  const inputPrice = toPricePerMillion(entry.input_cost_per_token);
-  const outputPrice = toPricePerMillion(entry.output_cost_per_token);
-
-  return {
-    id: modelId,
-    model_id: modelId,
-    provider: entry.litellm_provider ?? null,
-    mode,
-    max_input_tokens: toPositiveNumber(entry.max_input_tokens) ?? toPositiveNumber(entry.max_tokens),
-    max_output_tokens: toPositiveNumber(entry.max_output_tokens),
-    input_price_1m: inputPrice,
-    output_price_1m: outputPrice,
-    supports_vision: entry.supports_vision === true,
-    supports_function_calling: entry.supports_function_calling === true,
-    supports_reasoning: entry.supports_reasoning === true,
-    supports_prompt_caching: entry.supports_prompt_caching === true,
-    supports_system_messages: entry.supports_system_messages !== false,
-    supports_web_search: entry.supports_web_search === true,
-    fetched_at: new Date().toISOString(),
-  };
-};
-
-async function fetchLiteLlmPublicModels(limit: number): Promise<LiteLLMCatalogModel[]> {
-  const response = await fetch(
-    'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json',
-    {
-      headers: {
-        Accept: 'application/json',
-      },
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(`LiteLLM catalog fetch failed with HTTP ${response.status}`);
-  }
-
-  const body = (await response.json()) as Record<string, LiteLLMPriceEntry>;
-  return Object.entries(body)
-    .map(([modelId, entry]) => normalizeLiteLlmModel(modelId, entry))
-    .filter((model): model is LiteLLMCatalogModel => model !== null)
-    .sort((a, b) => Number(b.max_input_tokens ?? 0) - Number(a.max_input_tokens ?? 0))
-    .slice(0, limit);
+async function fetchLiteLlmCachedModels(limit: number): Promise<LiteLLMCatalogModel[]> {
+  const cached=await readPublicCatalog('litellm');
+  return cached?(cached.records as unknown as LiteLLMCatalogModel[])
+    .sort((a,b)=>Number(b.max_input_tokens??0)-Number(a.max_input_tokens??0)).slice(0,limit):[];
 }
 
 const extractNextFlightText = (html: string): string => {
@@ -1008,6 +843,9 @@ let openRouterEndpointSummariesCache:
 let openRouterEndpointSummariesPromise: Promise<OpenRouterEndpointSummary[]> | null = null;
 
 async function readOpenRouterModels(limit: number): Promise<OpenRouterModel[]> {
+  const cached=await readPublicCatalog('openrouter');
+  if(cached)return (cached.records as unknown as OpenRouterModel[]).filter(model=>!model.is_free)
+    .sort((a,b)=>Number(b.context_length??0)-Number(a.context_length??0)).slice(0,limit);
   if (supabase) {
     const { data, error } = await supabase
       .from('openrouter_models')
@@ -1051,16 +889,11 @@ async function readOpenRouterModels(limit: number): Promise<OpenRouterModel[]> {
     }
 
     if (error && !isMissingOpenRouterTableError(error)) {
-      console.warn('[supabase] OpenRouter table unavailable; using public API fallback.', error.message);
+      console.warn('[supabase] OpenRouter catalog is unavailable.', error.message);
     }
   }
 
-  try {
-    return await fetchOpenRouterPublicModels(limit);
-  } catch (error) {
-    console.warn('[openrouter] Public model fallback failed:', error);
-    return [];
-  }
+  return [];
 }
 
 export async function getOpenRouterModels(limit = OPENROUTER_DEFAULT_LIMIT): Promise<OpenRouterModel[]> {
@@ -1102,7 +935,7 @@ export async function getHuggingFaceModels(
     return huggingFaceModelsCache.models.slice(0, limit);
   }
 
-  huggingFaceModelsPromise ??= fetchHuggingFacePublicModels(sourceLimit)
+  huggingFaceModelsPromise ??= fetchHuggingFaceCachedModels(sourceLimit)
     .then((models) => {
       huggingFaceModelsCache = {
         fetchedAt: Date.now(),
@@ -1112,7 +945,7 @@ export async function getHuggingFaceModels(
       return models;
     })
     .catch((error) => {
-      console.warn('[huggingface] Public model fallback failed:', error);
+      console.warn('[huggingface] Cached catalog read failed:', error);
       return [];
     })
     .finally(() => {
@@ -1136,7 +969,7 @@ export async function getLiteLlmModels(
     return liteLlmModelsCache.models.slice(0, limit);
   }
 
-  liteLlmModelsPromise ??= fetchLiteLlmPublicModels(sourceLimit)
+  liteLlmModelsPromise ??= fetchLiteLlmCachedModels(sourceLimit)
     .then((models) => {
       liteLlmModelsCache = {
         fetchedAt: Date.now(),
@@ -1146,7 +979,7 @@ export async function getLiteLlmModels(
       return models;
     })
     .catch((error) => {
-      console.warn('[litellm] Public model catalog failed:', error);
+      console.warn('[litellm] Cached catalog read failed:', error);
       return [];
     })
     .finally(() => {
