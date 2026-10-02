@@ -39,3 +39,11 @@ test('Epoch condition keys survive a shared URL',()=>{
   const params=new URLSearchParams();params.set('condition','[["Shots","0"],["format","diff"]]');
   expect(state.parseCompareState(params,catalog).conditionKey).toBe('[["format","diff"],["Shots","0"]]');
 });
+
+test('family removal also removes hidden historical selections',()=>{
+  expect(state.selectFamily(['retired'],catalog,'Old',false,false)).toEqual([]);
+});
+test('benchmark cache ignores inherited properties and accepts only own arrays',()=>{
+  for(const slug of ['constructor','__proto__','toString'])expect(state.readBenchmarkCache?.({},slug)).toBeUndefined();
+  expect(state.readBenchmarkCache?.({a:[1]},'a')).toEqual([1]);
+});

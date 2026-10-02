@@ -68,3 +68,11 @@ test('selections from another source are retained in state but not counted as mi
   const result=series.buildCompareSeries({models:[...models,epochModel],observations:[]},state);
   expect(result.excluded).toEqual([]);
 });
+
+test('AA reasoning filters do not suppress Epoch measurements',()=>{
+  const model:ExplorerModel={id:'epoch:v',name:'V',family:'V',reasoning:'unknown',source:'epoch',sourceModelId:'v',current:true};
+  const row:EpochObservation={id:'run',modelVersion:'v',benchmarkSlug:'aider',metricKey:'Percent correct',value:8,unit:'percent',
+    conditions:{format:'diff'},evaluationDate:null,sourceUrl:null,fetchedAt:null,snapshotId:null};
+  const state=parseCompareState(new URLSearchParams('chart=benchmark&metric=epoch_aider&m=epoch:v&reason=high'),[model]);
+  expect(series.buildCompareSeries({models:[model],observations:[row]},state).points).toHaveLength(1);
+});
