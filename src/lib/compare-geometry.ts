@@ -13,7 +13,7 @@ export function plotGeometry<T extends PlotPoint>(points:T[],kind:'scatter'|'bar
     const usable=values.filter(value=>Number.isFinite(value)&&(!log||value>0));
     if(!usable.length)return log?[1,10]:[0,1];
     let min=log?Math.min(...usable):Math.min(0,...usable);
-    let max=Math.max(...usable);
+    let max=log?Math.max(...usable):Math.max(0,...usable);
     if(log){
       min=Math.max(Number.MIN_VALUE,10**Math.floor(Math.log10(min)));
       max=Math.min(Number.MAX_VALUE,10**Math.ceil(Math.log10(max)));
