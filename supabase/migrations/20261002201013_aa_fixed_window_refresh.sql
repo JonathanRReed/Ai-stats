@@ -11,9 +11,10 @@ revoke all on private.aa_refresh_state from public,anon,authenticated,service_ro
 grant select,insert,update on private.aa_refresh_state to service_role;
 insert into private.aa_refresh_state(id) values(true);
 create function public.claim_aa_refresh() returns jsonb language plpgsql security invoker set search_path='' as $$
-declare s private.aa_refresh_state%rowtype;t timestamptz:=clock_timestamp();token uuid;
+declare s private.aa_refresh_state%rowtype;t timestamptz;token uuid;
 begin
  select * into s from private.aa_refresh_state where id for update;
+ t:=clock_timestamp();
  if s.lease_until>t then return jsonb_build_object('claimed',false,'reason','active');end if;
  if s.next_allowed_at>t then return jsonb_build_object('claimed',false,'reason','backoff');end if;
  -- Five minutes of scheduler jitter must not turn a four-hour cron into eight hours.
@@ -24,9 +25,10 @@ begin
  return jsonb_build_object('claimed',true,'leaseId',token);
 end;$$;
 create function public.reserve_aa_request(p_lease uuid) returns boolean language plpgsql security invoker set search_path='' as $$
-declare s private.aa_refresh_state%rowtype;t timestamptz:=clock_timestamp();
+declare s private.aa_refresh_state%rowtype;t timestamptz;
 begin
  select * into s from private.aa_refresh_state where id for update;
+ t:=clock_timestamp();
  if s.lease_id is distinct from p_lease or s.lease_until is null or s.lease_until<=t then return false;end if;
  if s.next_allowed_at>t then return false;end if;
  if s.window_reset_at is null or s.window_reset_at<=t then
@@ -39,9 +41,10 @@ begin
 end;$$;
 create function public.record_aa_response(p_lease uuid,p_limit integer,p_remaining integer,p_reset timestamptz,p_not_before timestamptz)
 returns boolean language plpgsql security invoker set search_path='' as $$
-declare s private.aa_refresh_state%rowtype;t timestamptz:=clock_timestamp();v_reset timestamptz;v_remaining integer;v_new_window boolean;
+declare s private.aa_refresh_state%rowtype;t timestamptz;v_reset timestamptz;v_remaining integer;v_new_window boolean;
 begin
  select * into s from private.aa_refresh_state where id for update;
+ t:=clock_timestamp();
  if s.lease_id is distinct from p_lease or s.lease_until is null or s.lease_until<=t then return false;end if;
  if p_limit is not null and p_limit<1 or p_remaining is not null and p_remaining<0 then raise exception 'Invalid quota headers';end if;
  v_reset:=case when p_reset>t then p_reset else s.window_reset_at end;
