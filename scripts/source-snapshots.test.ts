@@ -124,3 +124,16 @@ test('AA membership publication refuses an unproven batch', () => {
 test('a malformed score cannot hide beside one valid score in a promoted Epoch snapshot',()=>{
   expect(()=>snapshots.buildEpochCacheInput({...epoch,runs:[...epoch.runs,{...epoch.runs[0],id:'bad',score:'oops'}]})).toThrow('score');
 });
+
+test('a reduced archive cannot silently drop previously published benchmarks',()=>{
+  const previous={...epoch,benchmarks:[...epoch.benchmarks,{slug:'other'}]};
+  expect(()=>snapshots.assertEpochArchiveCoverage?.(previous,epoch)).toThrow('benchmark');
+});
+test('a severe drop in measured rows retains the prior snapshot pending review',()=>{
+  const previous={...epoch,runs:Array.from({length:100},(_,i)=>({...epoch.runs[0],id:String(i)}))};
+  expect(()=>snapshots.assertEpochArchiveCoverage?.(previous,epoch)).toThrow('coverage');
+});
+test('Epoch publication requires a complete parsed archive receipt',()=>{
+  expect(()=>snapshots.buildEpochCacheInput({...epoch,archive_manifest:undefined})).toThrow('archive receipt');
+  expect(()=>snapshots.buildEpochCacheInput({...epoch,archive_manifest:{source:'https://epoch.ai/data/benchmark_data.zip',sha256:'a'.repeat(64),files:[]}})).toThrow('archive receipt');
+});
