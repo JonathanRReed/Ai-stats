@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {parseCompareState,serializeCompareState,selectFamily,readBenchmarkCache,AA_METRIC_LABELS,type CompareState,type CompareChart} from '../../lib/compare-state';
-import {buildCompareSeries,type ExplorerModel} from '../../lib/compare-series';
+import {buildCompareSeries,epochScoreKey,type ExplorerModel} from '../../lib/compare-series';
 import {epochConditionKey,type EpochObservation} from '../../lib/epoch-observations';
 import {formatChartNumber} from '../../lib/compare-geometry';
 import {seriesCsv,downloadText,downloadChartPng,chartExportCaption} from '../../lib/compare-export';
@@ -19,7 +19,7 @@ const EMPTY_OBSERVATIONS:EpochObservation[]=[];
 export default function CompareExplorer({models,benchmarks,defaultModelIds}:Props){
   const [state,setState]=useState(()=>parseCompareState(new URLSearchParams(),models,defaultModelIds));
   const [benchmarkCache,setBenchmarkCache]=useState<Record<string,EpochObservation[]>>({});
-  const [loadState,setLoadState]=useState('');const [notice,setNotice]=useState('');
+  const [loadState,setLoadState]=useState('');const [loadFailed,setLoadFailed]=useState(false);const [retryAttempt,setRetryAttempt]=useState(0);const [notice,setNotice]=useState('');
   const [hovered,setHovered]=useState<string|null>(null);const [pinned,setPinned]=useState<string|null>(null);
   const [filtersOpen,setFiltersOpen]=useState(false);const dialog=useRef<HTMLDialogElement>(null);
   const filterButton=useRef<HTMLButtonElement>(null);const svg=useRef<SVGSVGElement>(null);
@@ -28,6 +28,7 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
   const epochSlug=state.chart==='benchmark'&&state.metricId.startsWith('epoch_')?state.metricId.slice(6):null;
   const observations=epochSlug?readBenchmarkCache(benchmarkCache,epochSlug)??EMPTY_OBSERVATIONS:EMPTY_OBSERVATIONS;
   useEffect(()=>{
+    setLoadFailed(false);
     if(!epochSlug||readBenchmarkCache(benchmarkCache,epochSlug)){setLoadState('');return;}
     if(!benchmarks.some(benchmark=>benchmark.slug===epochSlug)){setLoadState('Unknown benchmark in this link.');return;}
     const controller=new AbortController();setLoadState('Loading benchmark observations…');
@@ -35,15 +36,17 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
       .then(response=>{if(!response.ok)throw new Error('unavailable');return response.json();})
       .then(payload=>{if(payload.schemaVersion!==1||payload.slug!==epochSlug||!Array.isArray(payload.observations))throw new Error('invalid');
         setBenchmarkCache(previous=>({...previous,[epochSlug]:payload.observations}));setLoadState('');})
-      .catch(error=>{if(error.name!=='AbortError')setLoadState('Benchmark data could not load. The other views still work.');});
+      .catch(error=>{if(error.name!=='AbortError'){setLoadFailed(true);setLoadState('Benchmark data could not load. The other views still work.');}});
     return()=>controller.abort();
-  },[epochSlug,benchmarkCache,benchmarks]);
+  },[epochSlug,benchmarkCache,benchmarks,retryAttempt]);
   useEffect(()=>{if(filtersOpen&&!dialog.current?.open)dialog.current?.showModal();
     if(!filtersOpen&&dialog.current?.open){dialog.current.close();filterButton.current?.focus();}},[filtersOpen]);
   const series=useMemo(()=>buildCompareSeries({models,observations},state),[models,observations,state]);
   const active=series.points.find(point=>point.id===(pinned??hovered))??null;
   const visibleModels=useMemo(()=>models.filter(model=>epochSlug?model.source==='epoch':model.source==='aa'),[models,epochSlug]);
   const conditions=useMemo(()=>[...new Set(observations.map(row=>epochConditionKey(row.conditions)))].sort(),[observations]);
+  const scoreMetrics=useMemo(()=>[...new Set(observations.map(epochScoreKey))].sort(),[observations]);
+  const unverifiedMembership=visibleModels.some(model=>model.source==='aa'&&model.current===null);
   const update=(patch:Partial<CompareState>)=>{const next={...state,...patch};setState(next);setPinned(null);setHovered(null);
     const url=new URL(window.location.href);url.search=serializeCompareState(next).toString();window.history.pushState(null,'',url);};
   const toggle=(id:string)=>update({modelIds:state.modelIds.includes(id)?state.modelIds.filter(value=>value!==id):[...state.modelIds,id].slice(0,100)});
@@ -58,7 +61,7 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
   const share=async()=>{try{const url=new URL(window.location.href);url.search=serializeCompareState(state).toString();
     await navigator.clipboard.writeText(url.href);setNotice('Comparison link copied.');}catch{setNotice('Copy the address bar to share this comparison.');}};
   const metricName=state.chart==='benchmark'?(epochSlug?benchmarks.find(item=>item.slug===epochSlug)?.name??state.metricId:
-    AA_METRIC_LABELS[state.metricId]??state.metricId):CHARTS.find(item=>item.id===state.chart)?.label??state.chart;
+    AA_METRIC_LABELS[state.metricId]??state.metricId)+(state.scoreMetricKey?' · '+JSON.parse(state.scoreMetricKey).join(' · '):''):CHARTS.find(item=>item.id===state.chart)?.label??state.chart;
   const exportPng=async()=>{if(!svg.current)return;try{await downloadChartPng(svg.current,chartExportCaption(series.points,metricName));}
     catch{setNotice('Image export is unavailable in this browser. CSV export is still available.');}};
   return <section className="compare-explorer" aria-label="Model comparison explorer">
@@ -68,9 +71,11 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
       aria-pressed={state.chart===chart.id} onClick={()=>update({chart:chart.id})}>{chart.label}{chart.unavailable?<span aria-hidden="true"> ·</span>:null}</button>)}</nav>
     <div className="explorer-workspace"><div className="chart-panel">
       <div className="chart-toolbar">
-        {state.chart==='benchmark'?<label>Benchmark<select value={state.metricId} onChange={event=>update({metricId:event.target.value,conditionKey:null})}>
+        {state.chart==='benchmark'?<label>Benchmark<select value={state.metricId} onChange={event=>update({metricId:event.target.value,conditionKey:null,scoreMetricKey:null})}>
           <optgroup label="Artificial Analysis">{Object.entries(AA_METRIC_LABELS).map(([key,label])=><option key={key} value={key}>{label}</option>)}</optgroup>
           <optgroup label="Epoch AI">{benchmarks.map(benchmark=><option key={benchmark.slug} value={'epoch_'+benchmark.slug}>{benchmark.name}</option>)}</optgroup></select></label>:null}
+        {epochSlug&&scoreMetrics.length>1?<label>Score metric<select value={state.scoreMetricKey??''} onChange={event=>update({scoreMetricKey:event.target.value||null})}>
+          <option value="">Choose a score metric</option>{scoreMetrics.map(key=><option key={key} value={key}>{JSON.parse(key).join(' · ')}</option>)}</select></label>:null}
         {epochSlug&&conditions.length?<label>Conditions<select value={state.conditionKey??''} onChange={event=>update({conditionKey:event.target.value||null})}>
           <option value="">All recorded runs</option>{conditions.map(key=><option value={key} key={key}>{key==='unknown'?'Not recorded':JSON.parse(key).map(([name,value]:[string,unknown])=>name+': '+value).join(' · ')}</option>)}</select></label>:null}
         <div className="scale-buttons" aria-label="Axis scale"><button type="button" aria-pressed={state.scale==='linear'} onClick={()=>update({scale:'linear'})}>Linear</button>
@@ -83,6 +88,8 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
       </div>
       {state.missingModelIds.length?<p className="explorer-warning">Unavailable models in this link: {state.missingModelIds.join(', ')}</p>:null}
       {loadState?<p className="explorer-warning" role="status">{loadState}</p>:null}
+      {loadFailed?<button type="button" onClick={()=>setRetryAttempt(value=>value+1)}>Retry benchmark</button>:null}
+      {unverifiedMembership?<p className="explorer-warning">Current AA membership could not be verified. Records labelled Membership unverified may include retired models.</p>:null}
       {series.scaleNotice?<p className="explorer-warning">{series.scaleNotice}</p>:null}
       {series.mixedConditions?<p className="explorer-warning">These runs used different test settings. Choose conditions for a like-for-like view.</p>:null}
       {epochSlug&&!series.points.length&&observations.length?<button className="choose-measured" type="button" onClick={chooseMeasured}>Select measured models</button>:null}

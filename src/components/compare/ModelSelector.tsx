@@ -33,7 +33,7 @@ export default function ModelSelector({models,selected,includeHistory,onToggle,o
         onClick={()=>onFamily(family,!familyChosen(family))}><span>{family}</span><span style={{background:familyColor(family)}}/></button>
       {group.map(model=><label key={model.id} className="model-option" data-selected={selectedSet.has(model.id)}>
         <input type="checkbox" checked={selectedSet.has(model.id)} onChange={()=>onToggle(model.id)}/>
-        <span>{model.name}<small>{model.provider}{model.source==='epoch'?' · '+model.sourceModelId:''}{model.current===false?' · Historical':''}</small></span></label>)}
+        <span>{model.name}<small>{model.provider}{model.source==='epoch'?' · '+model.sourceModelId:''}{model.current===false?' · Historical':model.source==='aa'&&model.current===null?' · Membership unverified':''}</small></span></label>)}
     </section>)}</div>
     {matches.length>80?<p className="selector-note">Showing 80 of {matches.length}. Narrow the search to find more.</p>:null}
     {!matches.length?<p className="selector-note">No matching models.</p>:null}

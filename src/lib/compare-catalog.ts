@@ -26,7 +26,7 @@ export function buildExplorerCatalog(aaRows:unknown[],epochRows:unknown[]):Explo
     const name=text(row.name)??text(row.slug)??id;
     const metadata=record(row.source_metadata);
     const version=metadata.intelligence_index_version;
-    models.push({id,name,...modelDisplayFacets(name),provider:text(row.creator_name)??'Unknown',
+    models.push({id,name,slug:text(row.slug)??undefined,...modelDisplayFacets(name),provider:text(row.creator_name)??'Unknown',
       source:'aa',sourceModelId:id,current:typeof row.current_source_member==='boolean'?row.current_source_member:null,
       intelligence:number(row.aa_intelligence_index),coding:number(row.aa_coding_index),
       priceInput:number(row.price_1m_input_tokens),priceOutput:number(row.price_1m_output_tokens),
@@ -48,7 +48,7 @@ export function buildExplorerCatalog(aaRows:unknown[],epochRows:unknown[]):Explo
 }
 export function defaultExplorerSelection(models:ExplorerModel[]):string[] {
   const selected:string[]=[];const providers=new Set<string>();
-  const eligible=models.filter(model=>model.source==='aa'&&model.current!==false&&
+  const eligible=models.filter(model=>model.source==='aa'&&model.current===true&&
     typeof model.intelligence==='number'&&Number.isFinite(model.intelligence)&&
     typeof model.priceBlended==='number'&&Number.isFinite(model.priceBlended)&&model.priceBlended>=0);
   for(const model of eligible){

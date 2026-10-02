@@ -2,7 +2,7 @@ import type {CompareState} from './compare-state';
 import {epochConditionKey,type EpochObservation} from './epoch-observations';
 
 export type ExplorerModel = {
-  id:string; name:string; family:string; provider?:string; reasoning?:string;
+  id:string; name:string; slug?:string; family:string; provider?:string; reasoning?:string;
   source:'aa'|'epoch'; sourceModelId:string; current:boolean|null;
   intelligence?:number|null; coding?:number|null; priceInput?:number|null; priceOutput?:number|null;
   priceBlended?:number|null; outputSpeed?:number|null; latency?:number|null;
@@ -42,6 +42,7 @@ export function paretoFrontiers<T extends {id:string;x:number;y:number;cohortKey
     !group.some(other=>other.id!==point.id&&(direction==='min'?other.x<=point.x:other.x>=point.x)&&other.y>=point.y&&
       (other.x!==point.x||other.y!==point.y))).sort((a,b)=>a.x-b.x||a.id.localeCompare(b.id)).map(point=>point.id)]));
 }
+export const epochScoreKey=(row:Pick<EpochObservation,'metricKey'|'unit'>)=>JSON.stringify([row.metricKey??'Unknown metric',row.unit==='fraction'?'percent':row.unit]);
 export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState):CompareSeries {
   const result:CompareSeries={available:true,unavailableReason:null,kind:state.chart==='cost-intelligence'||state.chart==='speed-intelligence'?'scatter':'bars',
     points:[],excluded:[],xLabel:'Model',yLabel:'Value',scale:state.scale,scaleNotice:null,mixedConditions:false,
@@ -71,8 +72,9 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
     const slug=state.metricId.slice(6);
     const versions=new Map(models.filter(model=>model.source==='epoch').map(model=>[model.sourceModelId,model]));
     const rows=evidence.observations.filter(row=>versions.has(row.modelVersion)&&row.benchmarkSlug===slug&&finite(row.value)&&
-      (!state.conditionKey||epochConditionKey(row.conditions)===state.conditionKey));
-    const units=new Set(rows.map(row=>(row.unit==='fraction'?'percent':row.unit)+':'+(row.metricKey??'unknown')));
+      (!state.conditionKey||epochConditionKey(row.conditions)===state.conditionKey)&&
+      (!state.scoreMetricKey||epochScoreKey(row)===state.scoreMetricKey));
+    const units=new Set(rows.map(epochScoreKey));
     if(units.size>1){
       for(const model of versions.values())result.excluded.push({modelId:model.id,reason:'Incompatible benchmark metrics or units'});
       result.yLabel='Choose a compatible benchmark metric';return result;
