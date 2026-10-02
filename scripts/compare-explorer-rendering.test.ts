@@ -1,7 +1,7 @@
 import {expect,test} from 'bun:test';
 import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
-const component=await import('../src/components/compare/CompareExplorer').catch(()=>({}));
+import * as component from '../src/components/compare/CompareExplorer';
 test('explorer server renders a real chart and exact-data fallback without browser globals',()=>{
   expect(component.default).toBeDefined();
   if(!component.default)return;

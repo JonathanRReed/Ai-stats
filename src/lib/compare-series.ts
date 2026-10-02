@@ -93,7 +93,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
     result.xLabel=state.chart==='cost-intelligence'?'USD / 1M tokens (3:1 input/output)':state.chart==='speed-intelligence'?'Output tokens / second':'Model';
     result.yLabel=result.kind==='scatter'?'AA Intelligence Index':state.chart==='price'?'USD / 1M tokens':'AA benchmark value';
     models.forEach((model,index)=>{
-      const cohort=model.source==='aa'&&model.indexVersion?model.indexVersion+':'+(model.performancePrompt??'unknown'):null;
+      const cohort=model.source==='aa'&&model.indexVersion&&(state.chart!=='speed-intelligence'||model.performancePrompt)?model.indexVersion+':'+(model.performancePrompt??'unknown'):null;
       if(state.chart==='price'){
         let count=0;
         if(nonnegative(model.priceInput)){add(model,index,model.priceInput,'input','USD / 1M tokens',receiptFor(model),model.id+':input',cohort);count++;}

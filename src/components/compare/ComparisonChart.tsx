@@ -18,7 +18,7 @@ export default function ComparisonChart({series,labels,activeId,onPreview,onPin,
     {!series.available?<div className="plot-empty"><h2>Awaiting data access</h2><p>{series.unavailableReason}</p></div>:
     !series.points.length?<div className="plot-empty"><h2>No comparable measurements selected</h2><p>Choose models with measurements for this view.</p></div>:
     <svg ref={svgRef} viewBox={`0 0 ${width} ${height}`} role="group" aria-label={series.yLabel+' versus '+series.xLabel}>
-      <title>{series.yLabel} versus {series.xLabel}</title>
+      <title>{series.yLabel+' versus '+series.xLabel}</title>
       {plot.yTicks.map(tick=><g key={tick.value}><line className="plot-grid" x1={plot.left} x2={plot.right} y1={tick.position} y2={tick.position}/>
         <text className="plot-tick" x={plot.left-12} y={tick.position+4} textAnchor="end">{tick.label}</text></g>)}
       {series.kind==='scatter'?plot.xTicks.map(tick=><g key={tick.value}><line className="plot-grid" x1={tick.position} x2={tick.position} y1={plot.top} y2={plot.bottom}/>
