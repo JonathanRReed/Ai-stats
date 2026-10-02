@@ -168,7 +168,7 @@ export const GET: APIRoute = async () => {
   });
 
   const observations = fromEpochRuns(epochRuns, epochEvidence.fetchedAt);
-  const { scores: epochScoresByModel, ambiguities: epochAmbiguities } =
+  const { scores: epochScoresByModel, ambiguities: epochAmbiguities, receipts: allEpochScoreReceipts, units: epochScoreUnits } =
     buildEpochScoreIndex(observations, epochAliasesByModelVersion);
   const validModels = buildCompareEvidence(models as CompareModelRecord[], observations).models;
 
@@ -250,10 +250,15 @@ export const GET: APIRoute = async () => {
       previous && previous !== run.score_metric ? 'mixed' : previous ?? run.score_metric;
   });
 
+  const epochScoreReceipts = Object.fromEntries(
+    Object.keys(initialClientEpochScores).map(alias => [alias, allEpochScoreReceipts[alias]]),
+  );
   return new Response(
     JSON.stringify({
       schemaVersion: 2,
       epochAmbiguities,
+      epochScoreReceipts,
+      epochScoreUnits,
       validModels: validModels.map(compactCompareModelForClient),
       defaultModelIds,
       epochDemoModels: epochDemoModels.map(compactCompareModelForClient),

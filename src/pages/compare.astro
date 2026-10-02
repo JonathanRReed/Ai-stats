@@ -2245,7 +2245,7 @@ const initialPerformanceAttribution =
 
 <script>
   // @ts-nocheck
-  import { availableForMetric, buildEpochScoreIndex, fromEpochRuns } from "../lib/compare-evidence";
+  import { availableForMetric, buildEpochScoreIndex, fromEpochRuns, comparisonEvidenceDate, priceChartMaximum } from "../lib/compare-evidence";
   import Chart from "chart.js/auto";
   import ChartDataLabels from "chartjs-plugin-datalabels";
   import { DEFAULT_TASK_PRESETS } from "../lib/model-intelligence";
@@ -2268,6 +2268,8 @@ const initialPerformanceAttribution =
   let validModels = [];
   let epochDemoModels = [];
   let epochScoresByModel = {};
+  let initialEpochScoreReceipts = {};
+  let initialEpochScoreUnits = {};
   let availableBenchmarks = {};
   let preferredBenchmarkSlugs = [];
   let initialClientEpochScoreMetrics = {};
@@ -2293,6 +2295,8 @@ const initialPerformanceAttribution =
           ? data.epochDemoModels
           : [];
         epochScoresByModel = data.epochScoresByModel || {};
+        initialEpochScoreReceipts = data.epochScoreReceipts || {};
+        initialEpochScoreUnits = data.epochScoreUnits || {};
         availableBenchmarks = data.availableBenchmarks || {};
         preferredBenchmarkSlugs = Array.isArray(data.preferredBenchmarkSlugs)
           ? data.preferredBenchmarkSlugs
@@ -2675,6 +2679,8 @@ const initialPerformanceAttribution =
     // Benchmark display names and epoch scores (mutable for live refresh)
     let benchmarkNames = { ...availableBenchmarks };
     let epochScores = { ...epochScoresByModel };
+    let epochScoreReceipts = { ...initialEpochScoreReceipts };
+    let epochDisplayUnits = { ...initialEpochScoreUnits };
     let epochAliasesByVersion = {};
     let epochRunsState = [];
     let epochBenchmarksState = [];
@@ -3127,8 +3133,21 @@ const initialPerformanceAttribution =
       renderBenchmarkAttribution(metricSelector.value);
     };
 
-    const rebuildEpochScores = (runs, aliasesByVersion = {}) =>
-      buildEpochScoreIndex(fromEpochRuns(runs), aliasesByVersion).scores;
+    const rebuildEpochScores = (runs, aliasesByVersion = {}) => {
+      const index = buildEpochScoreIndex(fromEpochRuns(runs), aliasesByVersion);
+      epochScoreReceipts = index.receipts;
+      epochDisplayUnits = index.units;
+      return index.scores;
+    };
+    const epochReceiptFor = (model, metricKey) => {
+      if (!metricKey.startsWith("epoch_")) return undefined;
+      const slug = metricKey.slice(6);
+      for (const key of collectLookupKeys(model).keys) {
+        const receipt = epochScoreReceipts?.[key]?.[slug];
+        if (receipt) return receipt;
+      }
+      return undefined;
+    };
 
     const resolveMetricScore = (model, metricKey) => {
       if (!metricKey.startsWith("epoch_")) {
@@ -3158,9 +3177,7 @@ const initialPerformanceAttribution =
       if (!metricKey.startsWith("epoch_")) return `${num.toFixed(3)}%`;
 
       const epochSlug = metricKey.replace("epoch_", "");
-      const metricName = String(epochScoreMetrics?.[epochSlug] || "").toLowerCase();
-      const isPercentMetric = isExplicitPercentageMetric(metricName);
-      if (isPercentMetric) return `${num.toFixed(3)}%`;
+      if (epochDisplayUnits[epochSlug] === "percent") return `${num.toFixed(3)}%`;
       return num >= 100
         ? num.toLocaleString(undefined, { maximumFractionDigits: 3 })
         : num.toFixed(3);
@@ -3479,11 +3496,9 @@ const initialPerformanceAttribution =
       const epochMetricName = metric.startsWith("epoch_")
         ? String(epochScoreMetrics?.[metric.replace("epoch_", "")] || "")
         : metric.startsWith("aa_") ? "Index points" : "percentage";
-      const performanceUnit = isExplicitPercentageMetric(epochMetricName)
-        ? "Percent"
-        : epochMetricName && epochMetricName !== "mixed"
-          ? epochMetricName
-          : "Source-native numeric value";
+      const performanceUnit = metric.startsWith("epoch_")
+        ? (epochDisplayUnits[metric.slice(6)] === "percent" ? "Percent" : "Source-native numeric value")
+        : (isExplicitPercentageMetric(epochMetricName) ? "Percent" : epochMetricName || "Source-native numeric value");
       if (performanceUnitNote) {
         performanceUnitNote.textContent = `Unit: ${performanceUnit}. Unknown or mixed source units are not converted to percentages.`;
       }
@@ -3573,6 +3588,10 @@ const initialPerformanceAttribution =
       });
 
       // Calculate dynamic gap based on number of models
+      const priceCaption = priceChart.parentElement?.querySelector(".chart-header p");
+      if (priceCaption) priceCaption.textContent = chosenByPrice.length
+        ? "USD per 1M input and output tokens."
+        : "No recorded prices for the selected models.";
       const numModels = chosenByPrice.length;
       const showPriceLabels = numModels <= 8;
       const dynamicGap = numModels > 6 ? "0.5rem" : "1rem";
@@ -3713,7 +3732,7 @@ const initialPerformanceAttribution =
               },
               y: {
                 beginAtZero: true,
-                suggestedMax: Math.max(...inputData, ...outputData) * 1.2,
+                suggestedMax: priceChartMaximum([...inputData, ...outputData]),
                 ticks: {
                   color: theme.tick,
                   font: { size: 10 },
@@ -3763,11 +3782,16 @@ const initialPerformanceAttribution =
             <td>${formatCatalogPrice(model.price_1m_output_tokens)}</td>
             <td>${sanitizeHTML(dateLabel(model.last_seen))}</td>
           </tr>`).join("");
+        const evidenceDate = (model) => {
+          const receipt = comparisonEvidenceDate(model, metric, epochReceiptFor(model, metric));
+          if (receipt.kind === "unknown") return "Unavailable";
+          return `${receipt.kind === "evaluated" ? "Evaluated" : receipt.kind === "retrieved" ? "Retrieved" : "Observed"} ${dateLabel(receipt.value)}`;
+        };
         const performanceRows = chosenByMetric.map((model) => `
           <tr>
             <th scope="row">${sanitizeHTML(model.name || "Unknown model")}</th>
             <td>${sanitizeHTML(formatMetricValue(resolveMetricScore(model, metric), metric))}</td>
-            <td>${sanitizeHTML(dateLabel(model.last_seen))}</td>
+            <td>${sanitizeHTML(evidenceDate(model))}</td>
           </tr>`).join("");
         chartDataTables.innerHTML = `
           <table>
@@ -3777,7 +3801,7 @@ const initialPerformanceAttribution =
           </table>
           <table>
             <caption>${sanitizeHTML(benchmarkNames[metric] || metric)} exact data, ${sanitizeHTML(performanceUnit)}</caption>
-            <thead><tr><th>Model</th><th>Value</th><th>Last observed</th></tr></thead>
+            <thead><tr><th>Model</th><th>Value</th><th>Evidence date</th></tr></thead>
             <tbody>${performanceRows}</tbody>
           </table>`;
       }
