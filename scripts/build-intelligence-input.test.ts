@@ -1,3 +1,12 @@
+import {prepareSourceSnapshot} from './source-snapshots.mjs';
+import {normalizeCatalog} from './public-catalogs.mjs';
+const catalogResponse=()=>{
+ const input={sourceKey:'openrouter',observedAt:null,fetchedAt:'2026-10-02T00:00:00.000Z',records:normalizeCatalog('openrouter',{data:[{id:'openai/current-model',name:'Current model'}]})};
+ const snapshot=prepareSourceSnapshot(input);
+ return Response.json([{source_key:'openrouter',snapshot_id:1,content_hash:snapshot.contentHash,record_count:snapshot.recordCount,
+ fetched_at:input.fetchedAt,published_at:input.fetchedAt,refresh_status:'healthy',
+ payload:{schemaVersion:1,sourceKey:'openrouter',observedAt:null,records:input.records}}]);
+};
 /// <reference types="bun" />
 
 import { expect, test } from "bun:test";
@@ -59,7 +68,7 @@ test("buildIntelligenceInput joins the live and checked source bundles", async (
     if (url.includes("/rest/v1/aa_models")) {
       return new Response(JSON.stringify([{ id: "one", slug: "aa-model", name: "AA model", last_seen: "2026-09-01T00:00:00Z" }]), { status: 200 });
     }
-    return new Response(JSON.stringify({ data: [{ id: "openai/current-model", name: "Current model" }] }), { status: 200 });
+    return catalogResponse();
   };
   const readJson = async (filePath: string) => filePath.includes("epoch-") ? epoch : polibench;
   const input = await buildIntelligenceInput({
@@ -102,7 +111,7 @@ test("buildIntelligenceInput keeps the freshest Artificial Analysis row for each
         },
       ]), { status: 200 });
     }
-    return new Response(JSON.stringify({ data: [{ id: "openai/current-model", name: "Current model" }] }), { status: 200 });
+    return catalogResponse();
   };
   const readJson = async (filePath: string) => filePath.includes("epoch-")
     ? { fetched_at: "2026-04-25T00:00:00Z", models: [], benchmarks: [], runs: [] }
@@ -136,10 +145,24 @@ test('input builder excludes historical models using the complete AA source rece
     if (url.includes('/rest/v1/aa_models')) return Response.json([
       {id:'current',slug:'current',last_seen:'2026-10-02T00:00:01Z'},
       {id:'retired',slug:'retired',last_seen:'2026-09-01T00:00:00Z'}]);
-    return Response.json({data:[{id:'provider/model'}]});
+    return catalogResponse();
   };
   const result = await buildIntelligenceInput({env:{SUPABASE_URL:'https://bgbqdzmgxkwstjihgeef.supabase.co',
     SUPABASE_SERVICE_ROLE_KEY:'test-only'},fetchImpl,readJson:async()=>({})});
   expect(result.aa.models.map((row: {id: string})=>row.id)).toEqual(['current']);
   expect(result.aa.snapshotId).toBe('receipt');
+});
+
+test('the input builder reads cached catalogs without another upstream catalog request',async()=>{
+ const calls:string[]=[];
+ const fetchImpl=async(input:string|URL|Request)=>{
+  const url=String(input);calls.push(url);
+  if(url.includes('aa_fetches'))return Response.json([{id:'receipt',status:200,endpoint:'language/models/free',fetched_at:'2026-10-02T00:00:00Z',data:[{id:'a'}]}]);
+  if(url.includes('aa_models'))return Response.json([{id:'a',slug:'a',last_seen:'2026-10-02T00:00:00Z'}]);
+  return catalogResponse();
+ };
+ const input=await buildIntelligenceInput({env:{SUPABASE_URL:'https://bgbqdzmgxkwstjihgeef.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'test-only'},fetchImpl,readJson:async()=>({})});
+ expect(calls.some(url=>url.includes('openrouter.ai'))).toBe(false);
+ expect(input.openrouter.fetchedAt).toBe('2026-10-02T00:00:00.000Z');
+ expect(input.catalogs.openrouter.contentHash).toMatch(/^[a-f0-9]{64}$/);
 });
