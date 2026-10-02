@@ -211,7 +211,7 @@ export const GET: APIRoute = async () => {
   const initialClientEpochScores: Record<string, Record<string, number>> = {};
 
   compareModels.forEach((model) => {
-    const version=bindings[model.id]?.['epoch-ai'];
+    const version=typeof model.id==='string'?bindings[model.id]?.['epoch-ai']:undefined;
     if(!version)return;
     const key=normalizeModelKey(version);const keys=new Set([key,key.replace(/\s+/g,'')]);
     scoreEntries.forEach(([alias, aliasScores]) => {

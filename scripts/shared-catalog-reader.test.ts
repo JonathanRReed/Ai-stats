@@ -38,3 +38,14 @@ test('shared catalog retries a failed load and coalesces successful concurrent r
  await expect(get()).rejects.toThrow('temporary');
  const [a,b]=await Promise.all([get(),get()]);expect(a).toBe(b);expect(calls).toBe(2);
 });
+
+test('successful empty database reads remain empty rather than unavailable',async()=>{
+ const loader=readFileSync('src/lib/model-catalog-data.ts','utf8').replace(/^import .*$/gm,'').replace('export const getModelCatalogData','const getModelCatalogData');
+ const get=runInNewContext(transpiler.transformSync(loader)+';getModelCatalogData;',{
+ supabase:{},getModels:async()=>[],getCompareCatalogSources:async()=>({openrouter:[],huggingface:[],litellm:[],availability:[]}),
+ getCanonicalModels:async()=>[],getModelAliases:async()=>[],getIntelligenceSources:async()=>[],
+ normalizeAaModelsForDisplay:(rows:unknown[])=>rows,getEpochEvidence:async()=>({epochModels:[],fetchedAt:'2026-10-02T00:00:00Z'}),
+ buildExplorerCatalog:()=>[],buildVerifiedBindings:()=>({}),EXPLORER_SOURCE_LABELS:{}
+ });
+ expect((await get()).unavailableSources).toEqual([]);
+});
