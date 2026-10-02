@@ -3311,7 +3311,6 @@ function getScoreClass(score: number | null | undefined): string {
                   : ""
               }
               <div class="col-span-2 flex items-center justify-between gap-3"><dt class="text-subtle">HF signal</dt><dd class="min-w-0 truncate font-bold">${model.hf_model_id ? `${formatCompactNumber(model.hf_downloads)} downloads, ${formatCompactNumber(model.hf_likes)} likes` : "-"}</dd></div>
-              <div class="col-span-2 flex items-center justify-between gap-3"><dt class="text-subtle">OR usage</dt><dd class="min-w-0 truncate font-bold">${Number(model.openrouter_usage_tokens) > 0 ? `${formatCompactNumber(model.openrouter_usage_tokens)} tokens, ${formatCompactNumber(model.openrouter_usage_requests)} req` : "-"}</dd></div>
               <div class="col-span-2 flex items-center justify-between gap-3"><dt class="text-subtle">OR routes</dt><dd class="min-w-0 truncate font-bold">${Number(model.openrouter_endpoint_provider_count) > 0 ? `${Number(model.openrouter_endpoint_provider_count)} providers` : "-"}</dd></div>
               <div class="col-span-2 flex items-center justify-between gap-3"><dt class="text-subtle">Context</dt><dd class="min-w-0 truncate font-bold">${formatContextLength(effectiveContextLength)}</dd></div>
               <div class="col-span-2 flex items-center justify-between gap-3"><dt class="text-subtle">Capabilities</dt><dd class="min-w-0 truncate font-bold">${escapeHtml(openRouterCaps)}</dd></div>

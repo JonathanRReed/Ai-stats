@@ -39,3 +39,13 @@ export function buildUsageSeries(snapshot:UsageSnapshot,windowDays:number,select
   mode,denominator:'All reported OpenRouter traffic',asOf:snapshot.asOf,sourceUrl:snapshot.sourceUrl,licenseUrl:snapshot.licenseUrl,
   startDate:days[0]?.date??snapshot.startDate,endDate:snapshot.endDate};
 }
+
+export function usageKeyboardIndex(key:string,index:number,count:number):number|null{
+ if(count<=0)return null;
+ if(key==='Enter'||key===' ')return index;
+ if(key==='Home')return 0;
+ if(key==='End')return count-1;
+ if(key==='ArrowLeft')return Math.max(0,index-1);
+ if(key==='ArrowRight')return Math.min(count-1,index+1);
+ return null;
+}

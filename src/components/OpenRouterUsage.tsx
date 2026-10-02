@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {buildUsageSeries,usageModels,type UsageSnapshot} from '../lib/openrouter-usage';
+import {buildUsageSeries,usageModels,usageKeyboardIndex,type UsageSnapshot} from '../lib/openrouter-usage';
 type Props={snapshot:UsageSnapshot|null;receipt?:{fetchedAt:string;publishedAt:string;status:string}|null};
 const label=(key:string)=>key==='other'?'Other (outside daily top 50)':key==='unselected'?'Unselected ranked models':key;
 const colors=['#d88662','#79a9c6','#b4aa78','#a895ba','#75b6a9','#c18e9c','#9daa75','#a4b2c4'];
@@ -56,8 +56,8 @@ export default function OpenRouterUsage({snapshot,receipt}:Props){
      return <g key={day.date} ref={node=>{dayRefs.current[index]=node;}} role="button" tabIndex={0}
       aria-label={day.date+': '+(day.available?day.totalTokens+' total tokens':'No data')}
       onFocus={()=>setActiveDate(day.date)} onPointerEnter={()=>setActiveDate(day.date)} onClick={()=>setActiveDate(day.date)}
-      onKeyDown={event=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();
-       inspect(event.key==='Home'?0:event.key==='End'?series.days.length-1:Math.max(0,Math.min(series.days.length-1,index+(event.key==='ArrowLeft'?-1:1))));}}}>
+      onKeyDown={event=>{const target=usageKeyboardIndex(event.key,index,series.days.length);
+       if(target!==null){event.preventDefault();inspect(target);}}}>
       <title>{day.date+': '+(day.available?day.totalTokens+' tokens':'No data')}</title>
       <rect x={x} y={top} width={Math.max(1,width-2)} height={bottom-top} className={active?.date===day.date?'usage-day-hit active':'usage-day-hit'} />
       {day.available?day.parts.map(part=>{const h=part.value===null?0:Math.max(0,part.value/ceiling*(bottom-top));stack-=h;
