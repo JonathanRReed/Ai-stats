@@ -3,18 +3,18 @@
  * Shared by the model pages, the per-model JSON endpoints, the sitemap, and
  * llms-full.txt so every surface describes the same rows.
  */
-import { enrichModelsWithPublicCatalogData, getModels, getPublicCatalogModels } from './supabase';
-import { getEpochEvidence } from './epoch-evidence';
+import { enrichModelsWithPublicCatalogData, getPublicCatalogModels } from './supabase';
+import { getModelCatalogData } from './model-catalog-data';
 import { getPublicPoliBenchSnapshot } from './polibench-snapshot';
 import { buildModelPageRecords, type ModelPageRecord } from './model-pages';
 
 const load = async (): Promise<ModelPageRecord[]> => {
-  const [baseModels, publicCatalogs, epochEvidence, poliBench] = await Promise.all([
-    getModels(),
+  const [catalog, publicCatalogs, poliBench] = await Promise.all([
+    getModelCatalogData(),
     getPublicCatalogModels(),
-    getEpochEvidence(),
     getPublicPoliBenchSnapshot(),
   ]);
+  const {currentAaModels:baseModels,epoch:epochEvidence}=catalog;
   const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs);
   return buildModelPageRecords(models, {
     epochBenchmarks: epochEvidence.epochBenchmarks,

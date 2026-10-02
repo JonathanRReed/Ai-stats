@@ -471,7 +471,7 @@ const money = (value: number | null | undefined): string =>
       if (inspectorValues) inspectorValues.textContent = `${modelProvider} · AA Index ${quality} · ${priceLabel} per 1M tokens${frontierLabel}${dates}`;
       if (inspectorLink) {
         inspectorLink.hidden = false;
-        inspectorLink.href = `/compare?model=${encodeURIComponent(name)}`;
+        inspectorLink.href = `/compare?m=${encodeURIComponent(point.dataset.modelId ?? '')}`;
         inspectorLink.setAttribute("aria-label", `Compare ${name}`);
       }
     };

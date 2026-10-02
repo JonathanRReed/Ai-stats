@@ -382,7 +382,7 @@ export const buildModelPageRecord = (
         }
       : null,
     aliases,
-    routes: buildPassportRoutes(name, aliases),
+    routes: buildPassportRoutes(name, aliases, model.id),
   };
 };
 

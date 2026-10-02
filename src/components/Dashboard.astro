@@ -3,7 +3,6 @@ import OpenRouterUsage from './OpenRouterUsage';
 import {getOpenRouterUsageSnapshot} from '../lib/openrouter-usage-server';
 import '../styles/openrouter-usage.css';
 import {
-  getModels,
   getPublicCatalogModels,
   enrichModelsWithPublicCatalogData,
 } from "../lib/supabase";
@@ -18,7 +17,8 @@ import {
   getEpochBenchmarksWithRuns,
   getEpochBenchmarkLabel,
 } from "../lib/benchmark-catalog";
-import { getEpochEvidence } from "../lib/epoch-evidence";
+import {getModelCatalogData} from "../lib/model-catalog-data";
+import CatalogCoverage from "./CatalogCoverage.astro";
 import { getDataFreshness } from "../lib/data-freshness";
 import ModelCard from "./ModelCard.astro";
 import TaskWorkbench from "./TaskWorkbench.astro";
@@ -37,12 +37,12 @@ import {
   selectBenchmarkSnapshotModels,
 } from "../lib/model-spotlight";
 
-const [baseModels, epochEvidence, publicCatalogs] =
+const [catalog, publicCatalogs] =
   await Promise.all([
-    getModels(),
-    getEpochEvidence(),
+    getModelCatalogData(),
     getPublicCatalogModels(),
   ]);
+const {currentAaModels:baseModels,epoch:epochEvidence}=catalog;
 const {
   openRouterModels,
   huggingFaceModels,
@@ -336,6 +336,7 @@ function getScoreClass(score: number | null | undefined): string {
 
 <div class="site-shell min-h-screen bg-base text-text">
   <Header currentPage="dashboard" />
+  <div class="eco-container"><CatalogCoverage /></div>
 
   <main
     id="main-content"

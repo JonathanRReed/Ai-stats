@@ -1,3 +1,4 @@
+import {compareRecordHref,sourceRecordHref} from './model-identity';
 import type {
   CanonicalModelRow,
   IntelligenceSourceRow,
@@ -69,6 +70,7 @@ const route = (base: string, key: string): string =>
 export function buildPassportRoutes(
   displayName: string,
   aliases: ModelPassportAlias[],
+  compareId?:string,
 ): ModelPassport['routes'] {
   const openRouterKey = aliases.find((alias) => alias.sourceKey === 'openrouter')?.sourceModelKey ?? null;
   const poliBenchKey = aliases.find((alias) => alias.sourceKey === 'polibench')?.sourceModelKey ?? null;
@@ -76,7 +78,11 @@ export function buildPassportRoutes(
   const dragRaceParams = new URLSearchParams({ model: dragRaceKey });
   if (openRouterKey) dragRaceParams.set('provider', 'openrouter');
   return {
-    aiStatsCompare: route('/compare?model=', displayName),
+    aiStatsCompare: compareId?compareRecordHref(compareId):
+      aliases.some(alias=>alias.sourceKey==='artificial-analysis')?sourceRecordHref('artificial-analysis',aliases.find(alias=>alias.sourceKey==='artificial-analysis')!.sourceModelKey):
+      openRouterKey?sourceRecordHref('openrouter',openRouterKey):
+      aliases.some(alias=>alias.sourceKey==='epoch-ai')?sourceRecordHref('epoch-ai',aliases.find(alias=>alias.sourceKey==='epoch-ai')!.sourceModelKey):
+      route('/compare?model=',displayName),
     aiDragRace: `https://ai-dragrace.jonathanrreed.com/?${dragRaceParams.toString()}`,
     aiNewsSearch: route('https://ai-news.helloworldfirm.com/?q=', displayName),
     promptInfo: openRouterKey ? route('https://prompt-info.helloworldfirm.com/?model=', openRouterKey) : null,

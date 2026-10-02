@@ -1,4 +1,5 @@
 ---
+import CatalogCoverage from "../../components/CatalogCoverage.astro";
 import Layout from "../../components/Layout.astro";
 import Header from "../../components/Header.astro";
 import Footer from "../../components/Footer.astro";
@@ -45,7 +46,7 @@ const currentCount = records.filter((record) => record.current).length;
 const hasRecords = records.length > 0;
 
 const title = "AI model prices, speed, and benchmark receipts | AI Stats";
-const description = `${records.length} models from ${providers.length} providers, each with a page listing price per million tokens, output speed, context length, benchmark scores, and catalog identifiers with source and observation dates.`;
+const description = `${records.length} AA model pages from ${providers.length} providers, each with a page listing price per million tokens, output speed, context length, benchmark scores, and catalog identifiers with source and observation dates.`;
 
 const get = (group: { key: string; value: number | null }[], key: string) => group.find((m) => m.key === key)?.value ?? null;
 const money = (value: number | null): string => (value === null ? "n/a" : `$${value.toFixed(value < 0.01 ? 4 : 2)}`);
@@ -106,7 +107,8 @@ const jsonLd = JSON.stringify({
   <main id="main-content" class="eco-container models-index">
     <header class="models-hero">
       <p class="eco-label">Model pages</p>
-      <h1>Every model tracked, one receipt each.</h1>
+      <h1>Measured model receipts.</h1>
+      <CatalogCoverage />
       <p class="models-lead">
         {hasRecords
           ? `${records.length} models from ${providers.length} providers. Each page lists price, speed, context, benchmark scores, and catalog identifiers with the source and the date it was last observed. ${currentCount} pass the current-cohort filter used on the front page. Nothing here is a ranking.`

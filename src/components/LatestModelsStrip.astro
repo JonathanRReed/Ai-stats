@@ -1,4 +1,5 @@
 ---
+import {compareRecordHref} from "../lib/model-identity";
 import type { AaModel } from "../lib/supabase";
 import { formatIndex, formatPrice, formatTPS } from "../lib/format-utils";
 import { aaEvidenceNote } from "../lib/aa-evidence";
@@ -67,7 +68,7 @@ const providerFor = (model: AaModel): string =>
       <ul class="latest-model-grid eco-joined">
         {models.map((model) => (
           <li>
-            <a href={`/compare?model=${encodeURIComponent(model.name ?? model.id)}`}>
+            <a href={compareRecordHref(model.id)}>
               <span class="latest-model-provider">{providerFor(model)}</span>
               <strong title={model.name ?? model.id}>{model.name}</strong>
               <dl>
