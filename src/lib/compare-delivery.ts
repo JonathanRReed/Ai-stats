@@ -36,8 +36,14 @@ export function validateMeasurementChunk(payload:unknown,revision:string,bucket:
  if(!value||typeof value!=='object')throw new Error('Invalid measurement record');
  const row=value as ExplorerModel,known=expected.get(row.id);
  if(!known||seen.has(row.id)||row.source!==known.source||row.sourceModelId!==known.sourceModelId||row.current!==known.current||row.name!==known.name)throw new Error('Measurement identity mismatch');
+ if(row.family!==known.family||(row.provider??'Unknown')!==known.provider||(row.reasoning??'unknown')!==known.reasoning||row.slug!==known.slug)throw new Error('Measurement display mismatch');
+ if(['indexVersion','performancePrompt','observedAt','fetchedAt','sourceUrl'].some(key=>{
+ const value=(row as unknown as Record<string,unknown>)[key];return value!==null&&value!==undefined&&typeof value!=='string';
+ }))throw new Error('Invalid measurement metadata');
+ if(['inputModalities','outputModalities'].some(key=>{const value=(row as unknown as Record<string,unknown>)[key];
+ return value!==undefined&&(!Array.isArray(value)||value.some(item=>typeof item!=='string'));}))throw new Error('Invalid modality metadata');
  if(metricKeys.some(key=>row[key]!==null&&row[key]!==undefined&&!finite(row[key])))throw new Error('Invalid measurement value');
- if(row.metrics&&(typeof row.metrics!=='object'||Array.isArray(row.metrics)||Object.values(row.metrics).some(value=>value!==null&&!finite(value))))throw new Error('Invalid benchmark value');
+ if(row.metrics!==null&&row.metrics!==undefined&&(typeof row.metrics!=='object'||Array.isArray(row.metrics)||Object.values(row.metrics).some(value=>value!==null&&!finite(value))))throw new Error('Invalid benchmark value');
  seen.add(row.id);
  }
  if(seen.size!==expected.size)throw new Error('Incomplete measurement chunk');

@@ -23,5 +23,5 @@ test('measurement chunks reject mismatched revisions, foreign identities and mal
  expect(()=>validateMeasurementChunk({...payload,records:[{...rows[0],source:'aa'}]},'abc',bucket,known)).toThrow();
  expect(()=>validateMeasurementChunk({...payload,records:[{...rows[0],priceInput:'0'}]},'abc',bucket,known)).toThrow();
  expect(()=>validateMeasurementChunk({...payload,records:[]},'abc',bucket,known)).toThrow();
- for(const malformed of [{family:{}},{observedAt:42},{reasoning:[]},{indexVersion:4.3}])expect(()=>validateMeasurementChunk({...payload,records:[{...rows[0],...malformed},...rows.slice(1)]},'abc',bucket,known)).toThrow();
+ for(const malformed of [{family:{}},{observedAt:42},{reasoning:[]},{indexVersion:4.3},{metrics:false},{metrics:0},{metrics:''}])expect(()=>validateMeasurementChunk({...payload,records:[{...rows[0],...malformed},...rows.slice(1)]},'abc',bucket,known)).toThrow();
 });
