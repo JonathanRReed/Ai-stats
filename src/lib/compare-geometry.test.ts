@@ -22,3 +22,9 @@ test('axes use readable rounded ticks rather than arbitrary decimal subdivisions
   expect(result.yTicks.every(tick=>Number.isInteger(tick.value))).toBe(true);
   expect(geometry.plotGeometry([{id:'a',x:1,y:1},{id:'b',x:100,y:2}],'scatter','log').xTicks.map(tick=>tick.value)).toEqual([1,10,100]);
 });
+
+test('dense mobile grouped bars retain positive visible widths within their bands',()=>{
+  const points=Array.from({length:80},(_,index)=>({id:String(index),x:Math.floor(index/2),y:index+1}));
+  const plot=geometry.plotGeometry(points,'bars','linear',300,420);
+  for(const point of plot.points){expect(point.visibleBarWidth).toBeGreaterThan(0);expect(point.visibleBarWidth).toBeLessThanOrEqual(point.barWidth);}
+});

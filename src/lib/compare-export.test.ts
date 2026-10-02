@@ -17,3 +17,14 @@ test('bar exports omit plot positions and retain numeric negative values as numb
   expect(csv).toContain('"-8"');
   expect(csv).not.toContain("'"+'-8');
 });
+
+test('exports retain exact model, observation, series, and index identity',()=>{
+  const receipt={source:'AA',sourceUrl:null,observedAt:null,fetchedAt:null,indexVersion:'v4',conditions:null,snapshotId:null};
+  const csv=exporter.seriesCsv([
+    {id:'a:input',modelId:'a',series:'input',label:'Same name',x:0,y:2,unit:'USD / 1M tokens',receipt},
+    {id:'a:output',modelId:'a',series:'output',label:'Same name',x:0,y:2,unit:'USD / 1M tokens',receipt},
+    {id:'b:input',modelId:'b',series:'input',label:'Same name',x:1,y:2,unit:'USD / 1M tokens',receipt},
+  ],{includeX:false});
+  expect(csv).toContain('"Model ID"');expect(csv).toContain('"Observation ID"');expect(csv).toContain('"Series"');
+  expect(csv).toContain('"a:input"');expect(csv).toContain('"a:output"');expect(csv).toContain('"b:input"');expect(csv).toContain('"v4"');
+});
