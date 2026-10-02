@@ -1,6 +1,7 @@
 import {expect,test} from 'bun:test';
 import * as catalogs from './public-catalogs.mjs';
 import * as refresh from './refresh-public-catalogs.mjs';
+import {prepareSourceSnapshot} from './source-snapshots.mjs';
 test('catalogs preserve zero and unknown prices while stripping unapproved fields',()=>{
  const rows=catalogs.normalizeCatalog?.('openrouter',{data:[
   {id:'lab/free',pricing:{prompt:'0',completion:'0'},secret:'omit'},
@@ -22,8 +23,13 @@ test('HF and LiteLLM retain source fields without inventing retrieval dates',()=
  expect(JSON.stringify(rows)).not.toContain('fetched_at');
 });
 const now='2026-10-02T06:00:00.000Z';
-const snapshot={snapshot_id:1,content_hash:'a'.repeat(64),fetched_at:'2026-10-01T00:00:00Z',
- payload:{schemaVersion:1,sourceKey:'openrouter',observedAt:null,records:[{id:'lab/model',name:'Model'}]}};
+const makeSnapshot=(sourceKey:string,records:Record<string,unknown>[])=>{
+ const prepared=prepareSourceSnapshot({sourceKey,records,observedAt:null,fetchedAt:now});
+ return {source_key:sourceKey,snapshot_id:1,content_hash:prepared.contentHash,record_count:records.length,
+ fetched_at:'2026-10-01T00:00:00Z',published_at:'2026-10-01T00:00:00Z',
+ payload:{schemaVersion:1,sourceKey,observedAt:null,records}};
+};
+const snapshot=makeSnapshot('openrouter',catalogs.normalizeCatalog('openrouter',{data:[{id:'lab/model',name:'Model'}]}));
 test('an unclaimed lease makes no upstream requests',async()=>{
  let requests=0;
  const store={claim:async()=>({claimed:false,reason:'backoff'}),current:async()=>snapshot,fail:async()=>{}};
@@ -75,4 +81,19 @@ test('malformed LiteLLM records cannot replace last-good measurements',async()=>
  const store={claim:async()=>({claimed:true,leaseId:'lease',attempts:0}),current:async()=>({...snapshot,payload:{...snapshot.payload,sourceKey:'litellm',records:[{id:'provider/model',input_price_1m:2,max_input_tokens:10000}]}}),fail:async()=>{failed=true;}};
  const result=await refresh.prepareCatalogRefresh({sourceKey:'litellm',store,now,fetchImpl:async()=>Response.json({'provider/model':null})});
  expect(result.status).toBe('failed');expect(result.input).toBeUndefined();expect(failed).toBe(true);
+});
+
+test('304 rejects malformed normalized catalogs and corrupted receipts',async()=>{
+ const fixtures=[
+  makeSnapshot('openrouter',[{id:'lab/model',openrouter_id:'lab/model',context_length:null,prompt_price_1m:null,completion_price_1m:null}]),
+  makeSnapshot('huggingface',[{id:'lab/model',downloads:1,likes:0,tags:[]}]),
+  {...snapshot,content_hash:'b'.repeat(64)},
+  {...snapshot,record_count:2},
+ ];
+ for(const cached of fixtures){
+  let failed=false;
+  const store={claim:async()=>({claimed:true,leaseId:'lease',attempts:0}),current:async()=>cached,fail:async()=>{failed=true;}};
+  const result=await refresh.prepareCatalogRefresh({sourceKey:cached.source_key,store,now,fetchImpl:async()=>new Response(null,{status:304})});
+  expect(result.status).toBe('failed');expect(result.input).toBeUndefined();expect(failed).toBe(true);
+ }
 });
