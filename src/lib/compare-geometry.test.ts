@@ -28,3 +28,9 @@ test('dense mobile grouped bars retain positive visible widths within their band
   const plot=geometry.plotGeometry(points,'bars','linear',300,420);
   for(const point of plot.points){expect(point.visibleBarWidth).toBeGreaterThan(0);expect(point.visibleBarWidth).toBeLessThanOrEqual(point.barWidth);}
 });
+
+test('large finite logarithmic values cannot hang tick generation',async()=>{
+ const {spawnSync}=await import('node:child_process');
+ const result=spawnSync(process.execPath,['-e',"import {plotGeometry} from './src/lib/compare-geometry.ts';const result=plotGeometry([{id:'extreme',x:1e308,y:1}],'scatter','log');if(!result.xTicks.every(t=>Number.isFinite(t.position))||!Number.isFinite(result.points[0].cx))process.exit(2);"],{cwd:process.cwd(),timeout:2000});
+ expect(result.status).toBe(0);
+});
