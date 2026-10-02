@@ -50,3 +50,15 @@ test('published runs retain source conditions without exposing the raw record', 
   expect(result).not.toHaveProperty('raw');
   expect(result?.conditions).not.toHaveProperty('Notes');
 });
+
+test('measured outcomes are not mislabeled as evaluation settings', () => {
+  const result = records.normalizeEpochRecord({
+    ...row, 'Percent using correct edit format': '71.6', 'Mean output tokens': '3000',
+    'Dataset score': '0.5', '16k token score': '0.7', 'Mean agent steps': '12',
+    'Agent Org': 'Example lab', 'Harness version': 'v2', Shots: '0',
+  }, 'aider_polyglot_external');
+  expect(result?.conditions).toEqual({
+    'Agent Org': 'Example lab', 'Edit format': 'diff', 'Harness version': 'v2',
+    Shots: '0', 'Token budget': '0',
+  });
+});
