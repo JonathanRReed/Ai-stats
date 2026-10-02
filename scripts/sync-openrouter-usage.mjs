@@ -64,3 +64,22 @@ export async function fetchUsageSnapshot({apiKey,now:fixedNow,fetchImpl=(url,ini
  let payload;try{payload=await response.json();}catch{throw new Error('OpenRouter usage returned invalid JSON');}
  return normalizeUsageSnapshot(payload,{now:clock()});
 }
+
+/** @param {{apiKey:string,store:Record<string,Function>,now?:string,fetchImpl?:(input:string|URL|Request,init?:RequestInit)=>Promise<Response>}} options */
+export async function prepareUsageRefresh({apiKey,store,now:fixedNow,fetchImpl}) {
+ const sourceKey='openrouter-usage',clock=()=>fixedNow??new Date().toISOString();
+ if(typeof apiKey!=='string'||!apiKey.trim())return {sourceKey,status:'blocked',reason:'authentication'};
+ const lease=await store.claim(sourceKey);
+ if(!lease.claimed)return {sourceKey,status:'skipped',reason:lease.reason};
+ try{
+  const snapshot=await fetchUsageSnapshot({apiKey,now:fixedNow,fetchImpl});
+  return {sourceKey,status:'prepared',leaseId:lease.leaseId,input:{sourceKey,observedAt:snapshot.asOf,
+   fetchedAt:clock(),records:[{id:'daily-usage',snapshot}]}};
+ }catch(error){
+  const value=error&&typeof error==='object'?error:{};
+  const delay=retryDelayMs(null,lease.attempts??0,Date.parse(clock()));
+  const notBefore=typeof value.retryAt==='string'?value.retryAt:new Date(Date.parse(clock())+delay).toISOString();
+  await store.fail({sourceKey,leaseId:lease.leaseId,notBefore,message:'Official daily usage refresh failed; last good snapshot retained.'});
+  return {sourceKey,status:'failed'};
+ }
+}
