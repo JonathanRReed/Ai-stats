@@ -23,7 +23,7 @@ test('AA ingestion rejects an anonymous caller before contacting AA', async () =
 test('AA pagination rejects empty or mixed-version snapshots', async () => {
   const { context } = setup(async () => Response.json({ intelligence_index_version: 4.1, data: [{ id: 'two' }] }));
   await expect(runInNewContext("fetchAllPages('language/models/free', 'key', {body:{data:[]}})", context)).rejects.toThrow('empty snapshot');
-  await expect(runInNewContext("fetchAllPages('language/models/free', 'key', {body:{intelligence_index_version:4.2,data:[{id:'one'}],pagination:{page:1,has_more:true}}})", context)).rejects.toThrow('version changed');
+  await expect(runInNewContext("fetchAllPages('language/models/free', 'key', {body:{intelligence_index_version:4.2,data:[{id:'one'}],pagination:{page:1,has_more:true}}}, fetch)", context)).rejects.toThrow('version changed');
 });
 
 test('AA model mapping retains unknown evaluation fields and response provenance', () => {
@@ -38,5 +38,5 @@ test('AA model mapping retains unknown evaluation fields and response provenance
 
 test('AA pagination rejects a failed continuation instead of importing page one', async () => {
   const { context } = setup(async () => new Response('unavailable', { status: 503 }));
-  await expect(runInNewContext("fetchAllPages('language/models/free', 'key', {body:{intelligence_index_version:4.2,data:[{id:'one'}],pagination:{page:1,has_more:true}}})", context)).rejects.toThrow('page 2: 503');
+  await expect(runInNewContext("fetchAllPages('language/models/free', 'key', {body:{intelligence_index_version:4.2,data:[{id:'one'}],pagination:{page:1,has_more:true}}}, fetch)", context)).rejects.toThrow('page 2: 503');
 });
