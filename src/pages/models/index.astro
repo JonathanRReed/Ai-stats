@@ -42,7 +42,6 @@ const providers = [...byProvider.entries()]
     };
   })
   .sort((a, b) => b.models.length - a.models.length || a.provider.localeCompare(b.provider));
-const currentCount = records.filter((record) => record.current).length;
 const hasRecords = records.length > 0;
 
 const title = "AI model prices, speed, and benchmark receipts | AI Stats";
@@ -107,12 +106,12 @@ const jsonLd = JSON.stringify({
   <main id="main-content" class="eco-container models-index">
     <header class="models-hero">
       <p class="eco-label">Model pages</p>
-      <h1>Measured model receipts.</h1>
+      <h1>Model details</h1>
       <CatalogCoverage />
       <p class="models-lead">
         {hasRecords
-          ? `${records.length} models from ${providers.length} providers. Each page lists price, speed, context, benchmark scores, and catalog identifiers with the source and the date it was last observed. ${currentCount} pass the current-cohort filter used on the front page. Nothing here is a ranking.`
-          : "Model data is unavailable in this build, so there is nothing to list or search on this page."}
+          ? `Prices, speed and benchmark results for ${records.length} models.`
+          : "Model data is temporarily unavailable."}
       </p>
       {hasRecords ? (
       <dl class="models-facts eco-joined">
@@ -146,11 +145,9 @@ const jsonLd = JSON.stringify({
 
     {!hasRecords ? (
       <section class="eco-panel models-unavailable">
-        <h2>Model data is unavailable in this build</h2>
+        <h2>Model data is unavailable</h2>
         <p>
-          No model records were generated when this page was built, so no provider
-          sections and no search are shown. The machine-readable exports carry the
-          same snapshot: <a href="/api/models.json">models.json</a> and{" "}
+          Data exports: <a href="/api/models.json">models.json</a> and{" "}
           <a href="/llms-full.txt">llms-full.txt</a>.
         </p>
       </section>

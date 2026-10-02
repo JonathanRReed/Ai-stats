@@ -76,7 +76,6 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
     }}>{preset.label}</button>)}</div>
     {presetDescription?<p className="preset-criteria" role="status">{presetDescription}</p>:null}
     {!charts.some(chart=>chart.id===state.chart)?<p className="explorer-warning">This saved view has no recorded data. Choose another chart.</p>:null}
-    <p className="comparison-context">{state.chart==='price'?'Recorded token prices · source-specific routes':epochSlug?'Epoch AI · select matching test conditions':state.chart==='task-cost'||state.chart==='total-cost'?'Artificial Analysis · recorded evaluation spend, not a workload estimate':'Artificial Analysis · compare scores within the same index version'}</p>
     <div className="explorer-workspace"><div className="chart-panel">
       <div className="chart-toolbar">
         {state.chart==='benchmark'?<label>Benchmark<select value={epochSlug||aaMetrics.some(([key])=>key===state.metricId)?state.metricId:''} onChange={event=>update({metricId:event.target.value,conditionKey:null,scoreMetricKey:null})}>
@@ -112,11 +111,10 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
       {series.excluded.length?<details><summary>{series.excluded.length} excluded</summary><ul>{series.excluded.map((item,index)=><li key={item.modelId+index}>
         {models.find(model=>model.id===item.modelId)?.name??item.modelId}: {item.reason}</li>)}</ul></details>:null}</div>
     <p className="share-notice" role="status">{notice}</p>
-    <details className="explorer-methodology"><summary>Methodology and data access</summary>
-      <p>Each point is a source record, not a recommendation. Price uses USD per million tokens with a 3:1 input/output blend; it is not benchmark task cost. Speed is output tokens per second. Evaluation cost and cost per task are AA-reported spend for that evaluation and index version; they are not estimated from token prices. Token counts are not available.</p>
-      <p>Frontiers stay within the same AA index version and timing conditions. Lines connect recorded reasoning variants within a family. Reasoning labels come from the source model name; they do not establish matching Epoch test conditions.</p>
-      <p>Epoch observations keep their exact model IDs, units and conditions. Repeated runs are shown separately. Missing values are not zero. Historical AA records are opt-in.</p>
-      <p>Catalog records without compatible measurements remain searchable but are not plotted. Prices from different sources are not joined to benchmark scores. OpenRouter routes and LiteLLM provider entries remain separate, including free routes.</p>
+    <details className="explorer-methodology"><summary>Sources and calculations</summary>
+      <p>Blended prices use three input tokens for each output token. Evaluation costs come directly from Artificial Analysis.</p>
+      <p>Frontiers compare models using the same AA index version and timing settings. Epoch results retain their benchmark and test settings.</p>
+      <p>Historical AA results are off by default. Select a point to see its source and date.</p>
     </details>
     <details className="explorer-data"><summary>Exact chart data ({series.points.length} observations)</summary><div className="exact-table-scroll"><table>
       <caption>{series.yLabel} · {series.xLabel}</caption><thead><tr><th>Model</th><th>Reasoning</th><th>{series.kind==='scatter'?series.xLabel:'Series'}</th><th>{series.yLabel}</th>{epochSlug?<th>Conditions</th>:null}<th>Source</th><th>Observed</th></tr></thead>
