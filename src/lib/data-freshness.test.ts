@@ -176,3 +176,15 @@ test("getFreshnessUpdatedAt preserves the newest source observation instead of a
     "2026-08-31T12:00:00.000Z",
   );
 });
+
+test('AA is overdue after eight hours rather than fourteen days', () => {
+  expect(resolveSourceFreshness(source({
+    lastObservedAt: '2026-09-01T03:00:00Z', lastSuccessfulRunAt: '2026-09-01T03:00:00Z',
+  }), now)).toMatchObject({status: 'stale', ageDays: 0});
+});
+test('Epoch retrieval can be healthy with an old evaluation date in a separate receipt', () => {
+  expect(resolveSourceFreshness(source({
+    sourceKey: 'epoch-ai', lastObservedAt: '2020-01-01T00:00:00Z',
+    lastSuccessfulRunAt: '2026-09-01T11:00:00Z', fetchedAt: '2026-09-01T11:00:00Z',
+  }), now)).toMatchObject({status: 'healthy'});
+});
