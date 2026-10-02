@@ -52,6 +52,8 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
   const selected=new Set(state.modelIds);
   const models=evidence.models.filter(model=>{
     if(!selected.has(model.id))return false;
+    const source=state.chart==='benchmark'&&state.metricId.startsWith('epoch_')?'epoch':'aa';
+    if(model.source!==source)return false;
     let reason:string|null=null;
     if(model.current===false&&!state.includeHistory)reason='Historical observation';
     else if(state.reasoningEfforts.length&&!state.reasoningEfforts.includes(model.reasoning??'unknown'))reason='Reasoning filter';

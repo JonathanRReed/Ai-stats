@@ -77,7 +77,7 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
         <label className="toolbar-check"><input type="checkbox" checked={state.labels} onChange={event=>update({labels:event.target.checked})}/>Labels</label>
         {series.kind==='scatter'?<label className="toolbar-check"><input type="checkbox" checked={state.frontier} onChange={event=>update({frontier:event.target.checked})}/>Frontier</label>:null}
         <button type="button" onClick={share}>Share</button>
-        <details className="export-menu"><summary>Export</summary><div><button type="button" disabled={!series.points.length} onClick={()=>downloadText(seriesCsv(series.points),'ai-stats-comparison.csv')}>CSV with sources</button>
+        <details className="export-menu"><summary>Export</summary><div><button type="button" disabled={!series.points.length} onClick={()=>downloadText(seriesCsv(series.points,{includeX:series.kind==='scatter',xLabel:series.xLabel,yLabel:series.yLabel}),'ai-stats-comparison.csv')}>CSV with sources</button>
           <button type="button" disabled={!series.points.length} onClick={exportPng}>PNG chart</button></div></details>
       </div>
       {state.missingModelIds.length?<p className="explorer-warning">Unavailable models in this link: {state.missingModelIds.join(', ')}</p>:null}
@@ -89,7 +89,7 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
         onPin={id=>setPinned(pinned===id?null:id)} svgRef={svg}/>
       <ObservationDetails point={active} pinned={Boolean(pinned)} onPin={()=>setPinned(pinned?null:active?.id??null)} onClose={()=>{setPinned(null);setHovered(null);}}/>
     </div><aside className="desktop-model-selector" aria-label="Model selection"><ModelSelector {...selectorProps}/></aside></div>
-    <div className="source-strip"><span>{state.modelIds.length} selected · {series.points.length} plotted observations</span>
+    <div className="source-strip"><span>{visibleModels.filter(model=>state.modelIds.includes(model.id)).length} selected · {series.points.length} plotted observations</span>
       <span>{epochSlug?'Epoch AI':'Artificial Analysis'} · source-native measurements</span>
       {series.excluded.length?<details><summary>{series.excluded.length} excluded</summary><ul>{series.excluded.map((item,index)=><li key={item.modelId+index}>
         {models.find(model=>model.id===item.modelId)?.name??item.modelId}: {item.reason}</li>)}</ul></details>:null}</div>
@@ -101,9 +101,10 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
       <p>Task-cost and token-total views await additional publication permission. We do not infer token counts or benchmark duration from prices or speed.</p>
     </details>
     <section className="explorer-data" aria-label="Exact chart data"><h2>Exact data</h2><div className="exact-table-scroll"><table>
-      <caption>{series.yLabel} · {series.xLabel}</caption><thead><tr><th>Model</th><th>Reasoning</th><th>{series.kind==='scatter'?series.xLabel:'Series'}</th><th>{series.yLabel}</th><th>Source</th><th>Observed</th></tr></thead>
+      <caption>{series.yLabel} · {series.xLabel}</caption><thead><tr><th>Model</th><th>Reasoning</th><th>{series.kind==='scatter'?series.xLabel:'Series'}</th><th>{series.yLabel}</th>{epochSlug?<th>Conditions</th>:null}<th>Source</th><th>Observed</th></tr></thead>
       <tbody>{series.points.map(point=><tr key={point.id} data-active={active?.id===point.id}><th scope="row"><button type="button" onClick={()=>setPinned(point.id)}>{point.label}</button></th>
         <td>{point.reasoning}</td><td>{series.kind==='scatter'?formatChartNumber(point.x):point.series}</td><td>{formatChartNumber(point.y)} {point.unit}</td>
+        {epochSlug?<td>{point.receipt.conditions?Object.entries(point.receipt.conditions).map(([key,value])=>key+': '+value).join(' · '):'Not recorded'}</td>:null}
         <td>{point.receipt.sourceUrl?<a href={point.receipt.sourceUrl} target="_blank" rel="noreferrer">{point.receipt.source}</a>:point.receipt.source}</td>
         <td>{point.receipt.observedAt?.slice(0,10)??'Not recorded'}</td></tr>)}</tbody></table></div>
       {!series.points.length?<p>No measured rows for this selection.</p>:null}

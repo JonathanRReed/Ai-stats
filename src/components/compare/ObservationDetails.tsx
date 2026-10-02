@@ -8,7 +8,7 @@ export default function ObservationDetails({point,pinned,onPin,onClose}:Props){
     <div className="observation-heading"><strong>{point.label}</strong><div>
       <button type="button" onClick={onPin} aria-pressed={pinned}>{pinned?'Unpin':'Pin'}</button>
       <button type="button" onClick={onClose} aria-label="Close observation">×</button></div></div>
-    <dl><div><dt>Value</dt><dd>{formatChartNumber(point.y)} {point.unit}</dd></div>
+    <dl><div><dt>Record</dt><dd>{point.id}</dd></div><div><dt>Value</dt><dd>{formatChartNumber(point.y)} {point.unit}</dd></div>
       <div><dt>Reasoning label</dt><dd>{point.reasoning}</dd></div>
       {receipt.indexVersion?<div><dt>Index version</dt><dd>{receipt.indexVersion}</dd></div>:null}
       <div><dt>Source</dt><dd>{receipt.sourceUrl?<a href={receipt.sourceUrl} target="_blank" rel="noreferrer">{receipt.source}</a>:receipt.source}</dd></div>

@@ -8,7 +8,15 @@ export default function ComparisonChart({series,labels,activeId,onPreview,onPin,
   const frame=useRef<HTMLDivElement>(null);const [width,setWidth]=useState(1000);
   useEffect(()=>{if(!frame.current)return;const observer=new ResizeObserver(([entry])=>setWidth(Math.max(300,entry.contentRect.width)));
     observer.observe(frame.current);return()=>observer.disconnect();},[]);
-  const height=width<600?420:520;const plot=plotGeometry(series.points,series.kind,series.scale,width,height);
+  const height=width<600?420:520;
+  const families=[...new Set(series.points.map(point=>point.family))];
+  let legendX=70,legendY=13;
+  const legend=families.slice(0,width<600?6:12).map(family=>{
+    const space=Math.min(width-94,family.length*6.3+28);
+    if(legendX+space>width-24&&legendX>70){legendX=70;legendY+=17;}
+    const item={family,x:legendX,y:legendY};legendX+=space;return item;
+  });
+  const plot=plotGeometry(series.points,series.kind,series.scale,width,height,Math.min(height*.35,legendY+24));
   const byId=new Map(plot.points.map(point=>[point.id,point]));
   const linked=new Map<string,typeof plot.points>();
   for(const point of plot.points){if(!point.cohortKey||point.reasoning==='unknown')continue;
@@ -19,6 +27,9 @@ export default function ComparisonChart({series,labels,activeId,onPreview,onPin,
     !series.points.length?<div className="plot-empty"><h2>No comparable measurements selected</h2><p>Choose models with measurements for this view.</p></div>:
     <svg ref={svgRef} viewBox={`0 0 ${width} ${height}`} role="group" aria-label={series.yLabel+' versus '+series.xLabel}>
       <title>{series.yLabel+' versus '+series.xLabel}</title>
+      <g aria-label="Model family legend">{legend.map(item=><g key={item.family}>
+        <circle cx={item.x+3} cy={item.y-3} r="3" fill={familyColor(item.family)}/>
+        <text className="plot-legend" x={item.x+12} y={item.y}>{item.family}</text></g>)}</g>
       {plot.yTicks.map(tick=><g key={tick.value}><line className="plot-grid" x1={plot.left} x2={plot.right} y1={tick.position} y2={tick.position}/>
         <text className="plot-tick" x={plot.left-12} y={tick.position+4} textAnchor="end">{tick.label}</text></g>)}
       {series.kind==='scatter'?plot.xTicks.map(tick=><g key={tick.value}><line className="plot-grid" x1={tick.position} x2={tick.position} y1={plot.top} y2={plot.bottom}/>

@@ -141,3 +141,5 @@
 .reasoning-filters button{font-size:10px;padding:3px 6px;background:none}
 .reasoning-filters button[aria-pressed="true"]{background:var(--signal-soft)}
 .category-label{font-size:9px}
+
+.plot-legend{fill:var(--ink-1);font:10px var(--font-sans)}

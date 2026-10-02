@@ -5,9 +5,11 @@ const cell=(value:unknown)=>{
   if(typeof value!=='number'&&/^[\s]*[=+@-]/.test(text))text="'"+text;
   return '"'+text.replaceAll('"','""')+'"';
 };
-export function seriesCsv(points:CsvPoint[]):string{
-  const rows=[['Model','Reasoning','X','Value','Unit','Source','Observed','Retrieved','Conditions','Source URL','Snapshot']];
-  for(const point of points)rows.push([point.label,point.reasoning??'unknown',String(point.x),String(point.y),point.unit,
+export function seriesCsv(points:CsvPoint[],options:{includeX?:boolean;xLabel?:string;yLabel?:string}={}):string{
+  const includeX=options.includeX!==false;
+  const rows:Array<Array<string|number>>=[['Model','Reasoning',...(includeX?[options.xLabel??'X']:[]),
+    options.yLabel??'Value','Unit','Source','Observed','Retrieved','Conditions','Source URL','Snapshot']];
+  for(const point of points)rows.push([point.label,point.reasoning??'unknown',...(includeX?[point.x]:[]),point.y,point.unit,
     point.receipt.source,point.receipt.observedAt??'',point.receipt.fetchedAt??'',
     point.receipt.conditions?JSON.stringify(point.receipt.conditions):'unknown',point.receipt.sourceUrl??'',point.receipt.snapshotId??'']);
   return rows.map(row=>row.map(cell).join(',')).join('\r\n')+'\r\n';
