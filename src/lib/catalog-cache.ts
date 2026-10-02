@@ -6,6 +6,7 @@ const date=(value:unknown):string|null=>typeof value==='string'&&Number.isFinite
 const numeric=(value:unknown)=>value===null||(typeof value==='number'&&Number.isFinite(value)&&value>=0);
 export function catalogReceiptUpdate(displayedHash:string,row:unknown,now=new Date()){
   const data=object(row);if(!data||typeof data.source_key!=='string'||!Object.hasOwn(PUBLIC_CATALOG_NAMES,data.source_key))return null;
+  if(!/^[1-9][0-9]*$/.test(String(data.snapshot_id??'')))return null;
   const fetchedAt=date(data.fetched_at),publishedAt=date(data.published_at);
   if(!fetchedAt||!publishedAt||typeof data.content_hash!=='string'||!/^[a-f0-9]{64}$/.test(data.content_hash))return null;
   const ageHours=Math.max(0,(now.getTime()-Date.parse(fetchedAt))/3600000);

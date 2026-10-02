@@ -1,4 +1,5 @@
 ---
+import {PUBLIC_CATALOG_NAMES} from "../lib/catalog-cache";
 import type {
   DataFreshness,
   SourceFreshness,
@@ -15,6 +16,7 @@ const requiredSources = [
   { sourceKey: "epoch-ai", displayName: "Epoch AI" },
   { sourceKey: "simplebench", displayName: "SimpleBench" },
   { sourceKey: "polibench", displayName: "PoliBench" },
+  ...Object.entries(PUBLIC_CATALOG_NAMES).map(([sourceKey,displayName])=>({sourceKey,displayName})),
 ];
 
 const sourceByKey = new Map(
@@ -51,6 +53,7 @@ const observedFormatter = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
   year: "numeric",
   timeZone: "UTC",
+  hour: "2-digit",minute: "2-digit",hour12:false,
 });
 const formatObserved = (value: Date | null): string =>
   value ? observedFormatter.format(value) : "Not observed";
@@ -64,12 +67,12 @@ const formatObserved = (value: Date | null): string =>
     </div>
     <p class="fallback-mode">
       <span class="eco-label">Data mode</span>
-      <b>Published source status</b>
+      <b>Source receipts</b>
     </p>
   </header>
   <div class="source-health-grid">
     {sources.map((source) => (
-      <article data-source-status={source.status}>
+      <article data-source-status={source.status} data-catalog-receipt={Object.hasOwn(PUBLIC_CATALOG_NAMES,source.sourceKey)?source.sourceKey:undefined} data-content-hash={source.contentHash??""}>
         <h3>{source.displayName}</h3>
         <p class="status-label eco-status" data-state={statusState[source.status]}>
           <span aria-hidden="true" />
@@ -94,11 +97,11 @@ const formatObserved = (value: Date | null): string =>
             <dd>{source.coverageLabel ?? "Coverage unavailable"}</dd>
           </div>
           <div>
-            <dt>Last successful refresh</dt>
-            <dd>
-              {source.lastSuccessfulRunAt ? (
-                <time datetime={source.lastSuccessfulRunAt.toISOString()}>
-                  {formatObserved(source.lastSuccessfulRunAt)}
+            <dt>Retrieved</dt>
+            <dd class="source-retrieved">
+              {(source.fetchedAt??source.lastSuccessfulRunAt) ? (
+                <time datetime={(source.fetchedAt??source.lastSuccessfulRunAt)!.toISOString()}>
+                  {formatObserved(source.fetchedAt??source.lastSuccessfulRunAt)}
                 </time>
               ) : (
                 "Not available"
@@ -107,8 +110,9 @@ const formatObserved = (value: Date | null): string =>
           </div>
           <div>
             <dt>Status</dt>
-            <dd>{statusLabels[source.status]}</dd>
+            <dd class="source-status-detail">{statusLabels[source.status]}</dd>
           </div>
+          {source.publishedAt&&<div><dt>Published</dt><dd><time datetime={source.publishedAt.toISOString()}>{formatObserved(source.publishedAt)}</time></dd></div>}
         </dl>
         <p class="source-message">{source.message}</p>
       </article>
@@ -199,3 +203,43 @@ const formatObserved = (value: Date | null): string =>
     .source-health * { scroll-behavior: auto; }
   }
 </style>
+
+<script>
+  import {catalogReceiptUpdate} from "../lib/catalog-cache";
+  async function refreshCatalogReceipts(){
+    const articles=[...document.querySelectorAll<HTMLElement>('[data-catalog-receipt]:not([data-receipt-bound])')];
+    if(!articles.length)return;
+    articles.forEach(article=>{article.dataset.receiptBound="true";});
+    const rawUrl=import.meta.env.PUBLIC_SUPABASE_URL;
+    const key=import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+    if(!rawUrl||!key)return;
+    try{
+      const url=new URL(rawUrl);
+      if(url.protocol!=="https:"||url.hostname!=="bgbqdzmgxkwstjihgeef.supabase.co"||url.username||url.password)return;
+      url.pathname="/rest/v1/source_snapshot_cache";
+      url.search=new URLSearchParams({source_key:"in.(openrouter,huggingface,litellm)",select:"source_key,snapshot_id,content_hash,observed_at,fetched_at,published_at,refresh_status,refresh_message"}).toString();
+      const response=await fetch(url,{headers:{apikey:key,Authorization:"Bearer "+key},cache:"no-store",signal:AbortSignal.timeout(10000)});
+      if(!response.ok)return;
+      const rows:unknown=await response.json();if(!Array.isArray(rows))return;
+      for(const article of articles){
+        const row=rows.find(value=>value&&typeof value==="object"&&value.source_key===article.dataset.catalogReceipt);
+        const receipt=catalogReceiptUpdate(article.dataset.contentHash??"",row);if(!receipt)continue;
+        const message=article.querySelector(".source-message");
+        if(!receipt.sameSnapshot){
+          if(message)message.textContent="A newer source snapshot is available. This page still shows its published snapshot.";
+          continue;
+        }
+        const label=receipt.status==="healthy"?"Checked recently":receipt.status==="stale"?"Refresh overdue":"Failed";
+        article.dataset.sourceStatus=receipt.status;
+        const badge=article.querySelector<HTMLElement>(".status-label");
+        if(badge){badge.dataset.state=receipt.status==="healthy"?"ok":receipt.status==="stale"?"warn":"bad";badge.textContent=label+", "+Math.floor(receipt.ageHours)+"h since last successful check";}
+        const detail=article.querySelector(".source-status-detail");if(detail)detail.textContent=label;
+        const time=article.querySelector<HTMLTimeElement>(".source-retrieved time");
+        if(time){time.dateTime=receipt.fetchedAt;time.textContent=new Intl.DateTimeFormat("en-US",{month:"short",day:"numeric",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"UTC"}).format(new Date(receipt.fetchedAt));}
+        if(message)message.textContent=receipt.message??(receipt.status==="stale"?"The catalog refresh is overdue; the last good snapshot is retained.":"The displayed snapshot matches the latest cached source.");
+      }
+    }catch{ /* Keep the dated server-rendered receipt when the cache cannot be reached. */ }
+  }
+  refreshCatalogReceipts();
+  document.addEventListener("astro:page-load",refreshCatalogReceipts);
+</script>
