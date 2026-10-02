@@ -44,7 +44,15 @@ const number = value => {
 export function getEpochScoreMetric(row) {
   return SCORE_COLUMNS.find(key => number(row[key]) !== null) ?? null;
 }
-const conditionKey = /(?:edit format|temperature|harness|scorer|shot|token|budget|prompt|seed|dataset|sampling|reasoning|thinking|tool|agent|scaffold|setting|run number)/i;
+const CONDITION_KEYS = new Set([
+  'edit format', 'temperature', 'harness', 'harness version', 'scorer', 'scorers',
+  'shots', 'number of shots', 'few-shot', 'max tokens', 'max output tokens',
+  'token budget', 'thinking budget', 'step budget', 'time budget',
+  'prompt', 'prompting', 'prompt version', 'system prompt', 'seed', 'dataset',
+  'dataset version', 'sampling', 'top p', 'top k', 'reasoning', 'reasoning effort',
+  'reasoning level', 'thinking', 'tools', 'tool setting', 'tool use', 'agent',
+  'agent org', 'scaffold', 'settings', 'evaluation settings', 'run number',
+]);
 
 /** Normalize a single source row without selecting a winner among observations. */
 export function normalizeEpochRecord(row, benchmarkSlug, context = {}) {
@@ -54,7 +62,7 @@ export function normalizeEpochRecord(row, benchmarkSlug, context = {}) {
   if (!modelVersion || !slug) return null;
   const metricKey = getEpochScoreMetric(row);
   const settings = Object.fromEntries(Object.entries(row).filter(([key]) =>
-    key !== metricKey && !SCORE_COLUMNS.includes(key) && conditionKey.test(key) &&
+    key !== metricKey && !SCORE_COLUMNS.includes(key) && CONDITION_KEYS.has(key.trim().toLowerCase()) &&
     !key.startsWith('Training ') && !key.includes('Source')));
   const conditions = normalizeEpochConditions(settings);
   const canonicalRow = Object.fromEntries(Object.entries(row)
