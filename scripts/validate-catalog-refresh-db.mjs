@@ -22,6 +22,7 @@ try{
  `);
  await db.exec(await readFile('supabase/migrations/20261002014704_validated_source_snapshots.sql','utf8'));
  await db.exec(await readFile('supabase/migrations/20261002054319_durable_catalog_refresh.sql','utf8'));
+ await db.exec(await readFile('supabase/migrations/20261002073223_openrouter_usage_refresh.sql','utf8'));
  await db.exec('set role service_role');
  const claim=async()=> (await db.query("select public.claim_catalog_refresh('openrouter') as result")).rows[0].result;
  const first=await claim();assert.equal(first.claimed,true);
@@ -67,5 +68,27 @@ try{
  assert.equal((await current()).snapshot_id,id);
  await assert.rejects(claim(),/permission denied/);
  await assert.rejects(db.query('select * from private.catalog_refresh_state'),/permission denied/);
+ await db.exec('reset role;set role service_role');
+ const usageClaim=async()=> (await db.query("select public.claim_catalog_refresh('openrouter-usage') as result")).rows[0].result;
+ const usageLease=await usageClaim();assert.equal(usageLease.claimed,true);
+ assert.equal((await usageClaim()).reason,'active');
+ const usagePayload={schemaVersion:1,sourceKey:'openrouter-usage',observedAt:null,records:[{id:'daily-usage',snapshot:{rows:[{date:'2026-10-01',modelPermaslug:'lab/a',totalTokens:'42'}]}}]};
+ const usagePublish=async(lease,hash,payload)=> (await db.query(
+  "select public.publish_catalog_refresh('openrouter-usage',$1,$2,null,now(),$3::jsonb,1,null,null) as id",
+  [lease,hash,JSON.stringify(payload)])).rows[0].id;
+ const usageId=await usagePublish(usageLease.leaseId,'b'.repeat(64),usagePayload);
+ assert.equal((await usageClaim()).reason,'interval');
+ await db.exec("update public.source_snapshot_cache set fetched_at=now()-interval '7 hours' where source_key='openrouter-usage'");
+ const revision=await usageClaim();
+ usagePayload.records[0].snapshot.rows[0].totalTokens='43';
+ const revisedId=await usagePublish(revision.leaseId,'c'.repeat(64),usagePayload);
+ assert.notEqual(revisedId,usageId);
+ const usageCurrent=(await db.query("select payload from public.source_snapshot_cache where source_key='openrouter-usage'")).rows[0].payload;
+ assert.equal(usageCurrent.records[0].snapshot.rows.length,1,'revisions replace rows rather than appending daily traffic');
+ assert.equal(usageCurrent.records[0].snapshot.rows[0].totalTokens,'43');
+ assert.equal((await db.query("select count(*)::int as count from private.source_snapshots where source_key='openrouter-usage'")).rows[0].count,2,'prior usage snapshot history is retained');
+ await db.exec('reset role;set role anon');
+ assert.equal((await db.query("select record_count from public.source_snapshot_cache where source_key='openrouter-usage'")).rows[0].record_count,1);
+ await assert.rejects(usageClaim(),/permission denied/);
  console.log('PASS: catalog leases, quotas, backoff, atomic publication, last-good retention, unchanged receipts and access boundaries');
 }finally{await db.close();}
