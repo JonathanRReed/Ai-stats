@@ -323,15 +323,6 @@ const formatContextLength = (value: number | null | undefined): string => {
   return String(num);
 };
 
-const formatCompactNumber = (value: number | null | undefined): string => {
-  const num = Number(value);
-  if (!Number.isFinite(num) || num <= 0) return "-";
-  return new Intl.NumberFormat("en", {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(num);
-};
-
 // Helper for score coloring
 function getScoreClass(score: number | null | undefined): string {
   if (!score || score <= 0) return "score-none";

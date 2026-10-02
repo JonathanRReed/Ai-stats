@@ -34,3 +34,36 @@ begin
 end;
 $$;
 
+
+-- Daily usage is one snapshot record containing many dated model observations.
+create or replace function public.publish_catalog_refresh(
+ p_source_key text,p_lease_id uuid,p_content_hash text,p_observed_at timestamptz,p_fetched_at timestamptz,
+ p_payload jsonb,p_record_count integer,p_etag text,p_last_modified text
+) returns bigint language plpgsql security invoker set search_path='' as $$
+declare
+ v_state private.catalog_refresh_state%rowtype;
+ v_now timestamptz:=clock_timestamp();
+ v_snapshot bigint;
+begin
+ select * into v_state from private.catalog_refresh_state where source_key=p_source_key for update;
+ if not found or p_lease_id is null or v_state.lease_id is distinct from p_lease_id or
+  v_state.lease_until is null or v_state.lease_until<=v_now then raise exception 'Catalog lease is missing, expired or replaced'; end if;
+ if p_fetched_at is null or p_fetched_at>v_now+interval '5 minutes' or
+  p_fetched_at<v_state.claimed_at-interval '5 minutes' then raise exception 'Invalid catalog fetch receipt'; end if;
+ if length(coalesce(p_etag,''))>2048 or length(coalesce(p_last_modified,''))>2048 or
+  position(chr(13) in coalesce(p_etag,''))>0 or position(chr(10) in coalesce(p_etag,''))>0 or
+  position(chr(13) in coalesce(p_last_modified,''))>0 or position(chr(10) in coalesce(p_last_modified,''))>0 then
+  raise exception 'Invalid catalog validator';
+ end if;
+ v_snapshot:=public.stage_source_snapshot(p_source_key,p_content_hash,p_observed_at,p_fetched_at,p_payload,p_record_count);
+ perform public.promote_source_snapshot(v_snapshot);
+ update public.source_snapshot_cache set refresh_status='healthy',refresh_message=null where source_key=p_source_key;
+ update private.catalog_refresh_state set lease_id=null,lease_until=null,next_allowed_at=null,
+  failures=0,etag=p_etag,last_modified=p_last_modified,last_error=null,updated_at=v_now where source_key=p_source_key;
+ update public.intelligence_sources set status='healthy',status_message=null,
+  coverage_label=case when p_source_key='openrouter-usage' then jsonb_array_length(p_payload#>'{records,0,snapshot,rows}')::text||' daily model observations' else p_record_count::text||' cached catalog models' end,last_observed_at=p_observed_at,
+  last_successful_run_at=p_fetched_at,updated_at=v_now where source_key=p_source_key;
+ return v_snapshot;
+end;
+$$;
+

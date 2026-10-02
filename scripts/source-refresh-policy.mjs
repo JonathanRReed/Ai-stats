@@ -4,7 +4,6 @@ const POLICIES = Object.freeze({
   simplebench: { intervalHours: 6, staleAfterHours: 12 },
   openrouter: { intervalHours: 6, staleAfterHours: 12 },
   'openrouter-usage': { intervalHours: 6, staleAfterHours: 12 },
-  'openrouter-usage': { intervalHours: 6, staleAfterHours: 12 },
   huggingface: { intervalHours: 24, staleAfterHours: 48 },
   litellm: { intervalHours: 24, staleAfterHours: 48 },
   polibench: { intervalHours: 24, staleAfterHours: 336 },
