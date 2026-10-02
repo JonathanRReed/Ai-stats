@@ -29,7 +29,7 @@
       }
     },
     toggle: function () {
-      window.__ecoTheme.set(read() === "light" ? "dark" : "light");
+      window.__ecoTheme.set(document.documentElement.dataset.theme === "light" ? "dark" : "light");
     },
   };
   apply(read());
