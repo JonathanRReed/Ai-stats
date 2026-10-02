@@ -25,7 +25,7 @@ After a manual run, verify its log counts, the main snapshot commit, the Cloudfl
 
 ## Validated source cache rollout
 
-The additive migration `20261002014704_validated_source_snapshots.sql` introduces private staging/history and a public sanitized cache. It does not alter the existing canonical registry, benchmark tables or AI Drag Racing share RPCs.
+The additive migration `20261002032322_validated_source_snapshots.sql` introduces private staging/history and a public sanitized cache. It does not alter the existing canonical registry, benchmark tables or AI Drag Racing share RPCs.
 
 1. Validate the migration from the reviewed branch in an isolated database. The test runner is `scripts/validate-source-snapshot-db.mjs`; set `PGLITE_TEST_MODULE` to an isolated installation of the official `@electric-sql/pglite` package, then run it with Node. The current local validation uses PGlite 0.5.8 / Postgres 18.3, not the production Postgres 17 engine; use only SQL supported by production and record that version difference.
 2. Before production application, confirm project `bgbqdzmgxkwstjihgeef`, record current schema/migrations and row counts, and verify the two new table names are absent. Review all grants. Existing `service_role` usage on the private schema is required.
@@ -65,7 +65,7 @@ AA public health currently uses a 24-hour overdue threshold against its active t
 
 ## Durable public catalogs
 
-OpenRouter's model catalog is admitted at most every six hours. Hugging Face's top-download catalog and the LiteLLM pricing catalog are admitted at most every 24 hours. The catalog worker reserves no more than eight requests per source per UTC day. That is a local safety budget, not a claim about a provider-wide allowance. AA's existing twelve-hour schedule is unchanged until its separate shared-quota guard is verified.
+OpenRouter's model catalog is admitted at most every six hours. Hugging Face's top-download catalog and the LiteLLM pricing catalog are admitted at most every 24 hours. The catalog worker reserves no more than eight requests per source per UTC day. That is a local safety budget, not a claim about a provider-wide allowance. AA now uses a service-only four-hour cron with durable fixed-window quota receipts, a 90-request local cap, and a ten-request reserve. It honors the upstream shared quota reset and Retry-After rather than resetting at UTC midnight.
 
 The refresh workflow prepares sanitized candidates, runs the release checks, then atomically publishes them. A 30-minute service-only lease prevents a replaced or expired worker from publishing. An empty or malformed response, duplicate identity, or more than 20% reduction in catalog coverage retains the previous snapshot. HTTP 304 reuses an existing validated payload; it cannot bootstrap an empty cache. HTTP 429 respects Retry-After. A delay beyond the clock's representable range records an indefinite hold for operator review instead of retrying immediately.
 
@@ -107,6 +107,12 @@ Commands in the main-only refresh workflow:
 
 OPENROUTER_API_KEY is a server-only prerequisite. It was absent from the repository's Actions secrets when checked on October 2. Missing authentication produces a blocked candidate and makes no upstream request; existing published usage remains available. Credential creation/configuration requires a separate secure user action. Never put a key in chat, source, a public environment variable or logs.
 
-Apply the reviewed additive 20261002073223_openrouter_usage_refresh.sql migration before the first authenticated main refresh. Verify the isolated database harness, service-only RPC permissions, RLS, actual daily coverage and matching deployment. A passing fixture test is not a verified live upstream fetch.
+Apply the reviewed additive 20261002082538_openrouter_usage_refresh.sql migration before the first authenticated main refresh. Verify the isolated database harness, service-only RPC permissions, RLS, actual daily coverage and matching deployment. A passing fixture test is not a verified live upstream fetch.
 
 The Stats module offers share or token volume, 7/30/90-day windows, model selection, keyboard day inspection and exact static tables. Shares use the whole reported OpenRouter dataset, not the selected subset. They are not market share, user counts or spend. Source/as-of and CC BY 4.0 attribution stay visible; provider tokenizers differ.
+
+## Applied migration versions
+
+The October 2 migration filenames match production's recorded application versions. SQL bytes were compared against the applied records before renaming; these files must not be replayed as new migrations. The receipt regression test detects accidental changes to applied SQL. Future schema changes require a new migration.
+
+Compare releases are compiled with bun scripts/build-app-release.mjs and published from .tmp/app-release. Data jobs do not need an Astro page build. Static fallback snapshots are still saved separately.

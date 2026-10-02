@@ -4,7 +4,7 @@ const modulePath=process.env.PGLITE_TEST_MODULE;if(!modulePath)throw new Error('
 const {PGlite}=await import(modulePath);const db=new PGlite();
 try{
  await db.exec('create schema private; create role anon; create role authenticated; create role service_role bypassrls; grant usage on schema public,private to service_role;');
- await db.exec(await readFile('supabase/migrations/20261002201013_aa_fixed_window_refresh.sql','utf8'));
+ await db.exec(await readFile('supabase/migrations/20261002204118_aa_fixed_window_refresh.sql','utf8'));
  const call=async(sql,params=[])=> (await db.query(sql,params)).rows[0].value;
  await db.exec('set role service_role');
  const claim=await call('select public.claim_aa_refresh() as value');assert.equal(claim.claimed,true);

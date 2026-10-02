@@ -20,9 +20,9 @@ try{
   grant select,insert,update on public.intelligence_sources to service_role;
   grant usage,select on sequence public.intelligence_sources_id_seq to service_role;
  `);
- await db.exec(await readFile('supabase/migrations/20261002014704_validated_source_snapshots.sql','utf8'));
- await db.exec(await readFile('supabase/migrations/20261002054319_durable_catalog_refresh.sql','utf8'));
- await db.exec(await readFile('supabase/migrations/20261002073223_openrouter_usage_refresh.sql','utf8'));
+ await db.exec(await readFile('supabase/migrations/20261002032322_validated_source_snapshots.sql','utf8'));
+ await db.exec(await readFile('supabase/migrations/20261002065320_durable_catalog_refresh.sql','utf8'));
+ await db.exec(await readFile('supabase/migrations/20261002082538_openrouter_usage_refresh.sql','utf8'));
  await db.exec('set role service_role');
  const claim=async()=> (await db.query("select public.claim_catalog_refresh('openrouter') as result")).rows[0].result;
  const first=await claim();assert.equal(first.claimed,true);
