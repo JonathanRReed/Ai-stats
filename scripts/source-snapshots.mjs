@@ -47,3 +47,45 @@ export function prepareSourceSnapshot({ sourceKey, observedAt, fetchedAt, record
     recordCount: normalized.length,
   };
 }
+
+/** Publish only to this application's existing production project, using its server identity. */
+export async function publishSourceSnapshot({
+  input, baseUrl, serviceKey, fetchImpl = (url, init) => globalThis.fetch(url, init),
+}) {
+  const snapshot = prepareSourceSnapshot(input);
+  let origin;
+  try {
+    const url = new URL(baseUrl);
+    if (url.protocol !== 'https:' || url.hostname !== 'bgbqdzmgxkwstjihgeef.supabase.co' ||
+      url.username || url.password || (url.pathname !== '/' && url.pathname !== '') ||
+      url.search || url.hash || url.port) throw new Error('invalid');
+    origin = url.origin;
+  } catch { throw new Error('Invalid source cache origin'); }
+  if (typeof serviceKey !== 'string' || !serviceKey.trim()) throw new Error('Missing source cache credentials');
+  const rpc = async (name, body, label) => {
+    let response;
+    try {
+      response = await fetchImpl(origin + '/rest/v1/rpc/' + name, {
+        method: 'POST',
+        headers: { apikey: serviceKey, Authorization: 'Bearer ' + serviceKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    } catch { throw new Error('Source snapshot ' + label + ' request failed'); }
+    if (!response.ok) throw new Error('Source snapshot ' + label + ' failed (' + response.status + ')');
+    let value;
+    try { value = await response.json(); } catch { throw new Error('Invalid source snapshot receipt'); }
+    if (!((typeof value === 'number' && Number.isSafeInteger(value) && value > 0) ||
+      (typeof value === 'string' && /^[1-9][0-9]*$/.test(value)))) throw new Error('Invalid source snapshot identity');
+    return value;
+  };
+  const snapshotId = await rpc('stage_source_snapshot', {
+    p_source_key: snapshot.sourceKey, p_content_hash: snapshot.contentHash,
+    p_observed_at: snapshot.observedAt, p_fetched_at: snapshot.fetchedAt,
+    p_payload: { schemaVersion: snapshot.schemaVersion, sourceKey: snapshot.sourceKey,
+      observedAt: snapshot.observedAt, records: snapshot.records },
+    p_record_count: snapshot.recordCount,
+  }, 'stage');
+  const promoted = await rpc('promote_source_snapshot', { p_snapshot_id: snapshotId }, 'promotion');
+  if (String(promoted) !== String(snapshotId)) throw new Error('Source snapshot promotion identity mismatch');
+  return { snapshotId, contentHash: snapshot.contentHash, recordCount: snapshot.recordCount };
+}
