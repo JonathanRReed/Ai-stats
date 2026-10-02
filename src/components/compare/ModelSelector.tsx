@@ -2,8 +2,8 @@ import {useDeferredValue,useMemo,useState} from 'react';
 import {EXPLORER_SOURCE_LABELS,type ExplorerModel} from '../../lib/compare-series';
 import {familyColor} from './ComparisonChart';
 type Props={models:ExplorerModel[];selected:string[];includeHistory:boolean;onToggle:(id:string)=>void;
-  onFamily:(family:string,checked:boolean)=>void;onHistory:(value:boolean)=>void;reasoningEfforts:string[];onReasoning:(value:string)=>void;onClear:()=>void;onReset:()=>void};
-export default function ModelSelector({models,selected,includeHistory,onToggle,onFamily,onHistory,reasoningEfforts,onReasoning,onClear,onReset}:Props){
+  onFamily:(family:string,checked:boolean)=>void;onGroup?:(ids:string[],checked:boolean)=>void;onHistory:(value:boolean)=>void;reasoningEfforts:string[];onReasoning:(value:string)=>void;onClear:()=>void;onReset:()=>void};
+export default function ModelSelector({models,selected,includeHistory,onToggle,onFamily,onGroup,onHistory,reasoningEfforts,onReasoning,onClear,onReset}:Props){
   const [limit,setLimit]=useState(80);const [source,setSource]=useState('all');
   const [search,setSearch]=useState('');const query=useDeferredValue(search).toLowerCase().trim();
   const selectedSet=useMemo(()=>new Set(selected),[selected]);
@@ -14,8 +14,7 @@ export default function ModelSelector({models,selected,includeHistory,onToggle,o
   const chosen=models.filter(model=>selectedSet.has(model.id));
   const chosenGroups=new Map<string,ExplorerModel[]>();
   for(const model of chosen){const group=chosenGroups.get(model.family)??[];group.push(model);chosenGroups.set(model.family,group);}
-  const familyChosen=(family:string)=>models.filter(model=>model.family===family&&(includeHistory||model.current!==false))
-    .every(model=>selectedSet.has(model.id));
+  const groupChosen=(group:ExplorerModel[])=>group.every(model=>selectedSet.has(model.id));
   return <div className="model-selector">
     <label className="model-search-label">Find models<input type="search" placeholder="Search models or providers" value={search} onChange={event=>{setSearch(event.target.value);setLimit(80);}}/></label>
     <label className="catalog-source-label">Catalog source<select value={source} onChange={event=>{setSource(event.target.value);setLimit(80);}}>
@@ -33,8 +32,8 @@ export default function ModelSelector({models,selected,includeHistory,onToggle,o
     <label className="history-toggle"><input type="checkbox" checked={includeHistory} onChange={event=>onHistory(event.target.checked)}/> Include historical AA records</label></details>
     <div className="selector-heading"><h2>Browse records</h2><button type="button" onClick={onReset}>Reset</button></div>
     <div className="model-options">{[...groups].map(([family,group])=><section key={family} className="model-family">
-      <button type="button" className="family-toggle" aria-pressed={familyChosen(family)}
-        onClick={()=>onFamily(family,!familyChosen(family))}><span>{family}</span><span style={{background:familyColor(family)}}/></button>
+      <button type="button" className="family-toggle" aria-pressed={groupChosen(group)}
+        onClick={()=>onGroup?.(group.map(model=>model.id),!groupChosen(group))}><span>{family}</span><span style={{background:familyColor(family)}}/></button>
       {group.map(model=><label key={model.id} className="model-option" data-selected={selectedSet.has(model.id)}>
         <input type="checkbox" checked={selectedSet.has(model.id)} onChange={()=>onToggle(model.id)}/>
         <span>{model.name}<small>{EXPLORER_SOURCE_LABELS[model.source]} · {model.provider}{model.source==='epoch'?' · '+model.sourceModelId:''}{model.current===false?' · Historical':model.source==='aa'&&model.current===null?' · Membership unverified':''}</small><small>{model.source==='epoch'?'Benchmark records':model.source==='aa'?'AA measurements':typeof model.priceInput==='number'||typeof model.priceOutput==='number'?'Token prices available':'Catalog only · no chart measurements'}</small></span></label>)}

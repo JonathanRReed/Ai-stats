@@ -79,3 +79,8 @@ export function scoreMetricOptions(recorded:string[],selected:string|null) {
   return {visible:recorded.length>1||Boolean(selected),missing:Boolean(selected&&!recorded.includes(selected))};
 }
 export const changeScoreMetric=(value:string):Pick<CompareState,'scoreMetricKey'|'conditionKey'>=>({scoreMetricKey:value||null,conditionKey:null});
+
+/** Group selection is scoped to the exact visible records, not a display-name join. */
+export function selectVisibleRecords(selected:string[],visibleIds:string[],checked:boolean):string[]{
+ const ids=new Set(visibleIds);return checked?unique([...selected,...visibleIds]):selected.filter(id=>!ids.has(id));
+}

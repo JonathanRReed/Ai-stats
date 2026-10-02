@@ -63,3 +63,11 @@ test('Epoch inventory uses the registered epoch-ai source key',()=>{
  models:[{id:2,canonical_key:'epoch-ai:v',display_name:'V'}]});
  expect(result.map(model=>model.id)).toEqual(['epoch:v']);
 });
+
+test('bulk selection only changes rendered records, never hidden same-name source records',async()=>{
+ const {selectVisibleRecords}=await import('./compare-state');
+ expect(selectVisibleRecords(['aa:a'],['openrouter:a'],true)).toEqual(['aa:a','openrouter:a']);
+ expect(selectVisibleRecords(['aa:a','openrouter:a'],['openrouter:a'],false)).toEqual(['aa:a']);
+ const selector=readFileSync('src/components/compare/ModelSelector.tsx','utf8');
+ expect(selector).toContain('onGroup?.(group.map(model=>model.id),!groupChosen(group))');
+});
