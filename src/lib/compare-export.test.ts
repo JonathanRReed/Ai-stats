@@ -28,3 +28,12 @@ test('exports retain exact model, observation, series, and index identity',()=>{
   expect(csv).toContain('"Model ID"');expect(csv).toContain('"Observation ID"');expect(csv).toContain('"Series"');
   expect(csv).toContain('"a:input"');expect(csv).toContain('"a:output"');expect(csv).toContain('"b:input"');expect(csv).toContain('"v4"');
 });
+
+test('exports identify the benchmark and distinguish retrieved dates from observation dates',()=>{
+ const point={id:'run',modelId:'epoch:a',series:'observation',label:'A',x:0,y:8,unit:'percent',receipt:{source:'Epoch AI',sourceUrl:null,observedAt:null,fetchedAt:'2026-10-02T01:00:00Z',indexVersion:null,conditions:null,snapshotId:'1'}};
+ const options={includeX:false,metricId:'epoch_aider',metricName:'Aider Polyglot'};
+ const csv=exporter.seriesCsv([point],options);
+ expect(csv).toContain('epoch_aider');expect(csv).toContain('Aider Polyglot');
+ const caption=exporter.chartExportCaption?.([point],options.metricName);
+ expect(caption).toContain('Aider Polyglot');expect(caption).toContain('retrieved 2026-10-02');expect(caption).not.toContain('observed 2026-10-02');
+});
