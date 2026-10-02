@@ -1,0 +1,26 @@
+import {expect,test} from 'bun:test';
+import {buildComparePresets,availableCompareCharts,availableAaMetrics,nextCatalogSource} from './compare-presets';
+import type {ExplorerModel} from './compare-series';
+const aa=(id:string,extra:Partial<ExplorerModel>={}):ExplorerModel=>({id,name:id,family:id,provider:id,source:'aa',sourceModelId:id,current:true,indexVersion:'4.3',intelligence:50,coding:60,priceBlended:0.5,...extra});
+test('presets use current same-version measured rows with explicit criteria',()=>{
+ const models=[aa('a'),aa('b',{coding:70}),aa('old',{current:false,coding:99}),aa('unknown',{current:null,coding:99}),aa('version-old',{indexVersion:'3',coding:100})];
+ const presets=buildComparePresets(models);
+ expect(presets.find(p=>p.id==='coding')?.modelIds).toEqual(['b','a']);
+ expect(presets.find(p=>p.id==='budget')?.modelIds).toEqual(['a','b']);
+ expect(presets.every(p=>p.description.length>0)).toBe(true);
+});
+test('free text preset excludes zero-token-priced video and unlabelled routes',()=>{
+ const route=(id:string,outputs:string[]):ExplorerModel=>({id:'openrouter:'+id,source:'openrouter',sourceModelId:id,name:id,family:id,provider:id,current:true,priceInput:0,priceOutput:0,inputModalities:['text'],outputModalities:outputs});
+ const rows=[route('lab/a:free',['text']),route('lab/video',['video']),route('lab/unlabelled',['text'])];
+ expect(buildComparePresets(rows).find(p=>p.id==='free')?.modelIds).toEqual(['openrouter:lab/a:free']);
+});
+test('unavailable cost views and benchmark fields stay out of controls',()=>{
+ expect(availableCompareCharts([aa('a')]).map(c=>c.id)).not.toContain('task-cost');
+ expect(availableCompareCharts([aa('a',{aaTaskCost:0})]).map(c=>c.id)).toContain('task-cost');
+ expect(availableAaMetrics([aa('a')]).map(([key])=>key)).toEqual(['aa_intelligence_index','aa_coding_index']);
+});
+test('turning off history resets a source that has no current records',()=>{
+ const rows=[aa('old',{current:false}),{...aa('or'),source:'openrouter' as const}];
+ expect(nextCatalogSource(rows,'aa',false)).toBe('all');
+ expect(nextCatalogSource(rows,'aa',true)).toBe('aa');
+});
