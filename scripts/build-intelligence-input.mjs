@@ -1,3 +1,5 @@
+import {parseCatalogCache} from '../src/lib/catalog-cache.ts';
+import {prepareSourceSnapshot} from './source-snapshots.mjs';
 #!/usr/bin/env bun
 import { selectAaCurrentMembership } from './aa-membership.mjs';
 
@@ -118,6 +120,33 @@ export async function fetchSupabaseRows({ fetchImpl, baseUrl, serviceKey, table 
   }
 }
 
+
+/** Read validated durable catalogs; prepared candidates take precedence for this release only. */
+export async function readCatalogInputs({fetchImpl,baseUrl,serviceKey,candidates=[]}) {
+  const query=new URLSearchParams({source_key:'in.(openrouter,huggingface,litellm)',
+    select:'source_key,snapshot_id,content_hash,payload,fetched_at,published_at,record_count,refresh_status,refresh_message'});
+  const response=await fetchImpl(baseUrl+'/rest/v1/source_snapshot_cache?'+query,{
+    headers:{apikey:serviceKey,Authorization:'Bearer '+serviceKey,Accept:'application/json'},
+  });
+  const rows=response.ok?await response.json():[];
+  if(!Array.isArray(rows))throw new Error('Catalog cache returned invalid data');
+  const selected={};
+  for(const row of rows){
+    if(!['openrouter','huggingface','litellm'].includes(row.source_key)||!parseCatalogCache(row,row.source_key))continue;
+    const input={sourceKey:row.source_key,observedAt:row.payload.observedAt??null,fetchedAt:row.fetched_at,records:row.payload.records};
+    const prepared=prepareSourceSnapshot(input);
+    if(prepared.contentHash!==row.content_hash)continue;
+    selected[row.source_key]={...prepared,snapshotId:String(row.snapshot_id)};
+  }
+  for(const candidate of candidates){
+    if(!['prepared','unchanged'].includes(candidate.status))continue;
+    if(!['openrouter','huggingface','litellm'].includes(candidate.sourceKey)||candidate.input?.sourceKey!==candidate.sourceKey)
+      throw new Error('Invalid release catalog candidate');
+    selected[candidate.sourceKey]={...prepareSourceSnapshot(candidate.input),snapshotId:null};
+  }
+  return selected;
+}
+
 /**
  * @param {{
  *   env?: Record<string, string | undefined>,
@@ -132,13 +161,15 @@ export async function buildIntelligenceInput({
 } = {}) {
   const baseUrl = normalizeProjectUrl(env.SUPABASE_URL);
   const serviceKey = requiredText(env.SUPABASE_SERVICE_ROLE_KEY, "SUPABASE_SERVICE_ROLE_KEY");
-  const [rawAaModels, epoch, polibench, openrouterResponse, aaReceiptResponse] = await Promise.all([
+  let candidates=[];
+  try {const batch=await readJson(path.join(process.cwd(),'.tmp/public-catalog-candidates.json'));
+    if(batch?.schemaVersion===1&&Array.isArray(batch.candidates))candidates=batch.candidates;
+  } catch { /* An ordinary build can use the published durable catalogs. */ }
+  const [rawAaModels, epoch, polibench, catalogInputs, aaReceiptResponse] = await Promise.all([
     fetchSupabaseRows({ fetchImpl, baseUrl, serviceKey, table: "aa_models" }),
     readJson(path.join(process.cwd(), "public/data/epoch-benchmark-snapshot.json")),
     readJson(path.join(process.cwd(), "public/data/polibench-snapshot.json")),
-    fetchImpl("https://openrouter.ai/api/v1/models?output_modalities=all", {
-      headers: { Accept: "application/json", "User-Agent": "AI-Stats/1.0" },
-    }),
+    readCatalogInputs({fetchImpl,baseUrl,serviceKey,candidates}),
     fetchImpl(`${baseUrl}/rest/v1/aa_fetches?select=id,fetched_at,endpoint,status,data&status=eq.200&endpoint=like.language%2F*&order=fetched_at.desc&limit=1`, {
       headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, Accept: "application/json" },
     }),
@@ -149,14 +180,8 @@ export async function buildIntelligenceInput({
   const membership = selectAaCurrentMembership(rawAaModels, receipts[0]);
   const aaModels = freshestAaModels(membership.models);
   if (!aaModels.length) throw new Error("Artificial Analysis source returned no models");
-  if (!openrouterResponse.ok) {
-    throw new Error(`OpenRouter source request failed (${openrouterResponse.status})`);
-  }
-  const openrouterPayload = await openrouterResponse.json();
-  const openrouterModels = Array.isArray(openrouterPayload?.data)
-    ? openrouterPayload.data.map(normalizeOpenRouterModel)
-    : [];
-  if (!openrouterModels.length) throw new Error("OpenRouter source returned no models");
+  const openrouterModels=catalogInputs.openrouter?.records??[];
+  if(!openrouterModels.length)throw new Error('OpenRouter catalog is unavailable; retaining the deployed evidence');
   const observedAt = aaModels.reduce((latest, model) => {
     const candidate = Date.parse(model.last_seen ?? model.updated_at ?? "");
     return Number.isFinite(candidate) && candidate > Date.parse(latest)
@@ -167,7 +192,8 @@ export async function buildIntelligenceInput({
   return {
     aa: { observedAt, fetchedAt: membership.fetchedAt, snapshotId: membership.snapshotId, models: aaModels },
     epoch,
-    openrouter: { fetchedAt: new Date().toISOString(), models: openrouterModels },
+    openrouter: { fetchedAt: catalogInputs.openrouter.fetchedAt, models: openrouterModels },
+    catalogs:Object.fromEntries(Object.entries(catalogInputs).map(([key,value])=>[key,{contentHash:value.contentHash,fetchedAt:value.fetchedAt,recordCount:value.recordCount,snapshotId:value.snapshotId}])),
     polibench,
     explicitAliases: [],
   };

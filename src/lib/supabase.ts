@@ -328,22 +328,6 @@ export type OpenRouterEndpointSummary = {
   fetched_at: string;
 };
 
-type LiteLLMPriceEntry = {
-  litellm_provider?: string;
-  mode?: string;
-  max_input_tokens?: number | string;
-  max_output_tokens?: number | string;
-  max_tokens?: number | string;
-  input_cost_per_token?: number | string;
-  output_cost_per_token?: number | string;
-  supports_vision?: boolean;
-  supports_function_calling?: boolean;
-  supports_reasoning?: boolean;
-  supports_prompt_caching?: boolean;
-  supports_system_messages?: boolean;
-  supports_web_search?: boolean;
-};
-
 type OpenRouterApiProvider = {
   name?: string;
   slug?: string;
@@ -377,24 +361,6 @@ const toPricePerMillion = (value: unknown): number | null => {
   const num = Number(value);
   if (!Number.isFinite(num) || num < 0) return null;
   return num * 1_000_000;
-};
-
-const toPositiveNumber = (value: unknown): number | null => {
-  const num = Number(value);
-  return Number.isFinite(num) && num > 0 ? num : null;
-};
-
-const toPriceValue = (value: unknown): number | null => {
-  const num = Number(value);
-  return Number.isFinite(num) && num >= 0 ? num : null;
-};
-
-const splitOpenRouterId = (id: string): { author: string | null; slug: string | null } => {
-  const [author, ...rest] = id.split('/');
-  return {
-    author: author || null,
-    slug: rest.join('/') || null,
-  };
 };
 
 const normalizeModelLookupKey = (value: string | null | undefined): string => {
