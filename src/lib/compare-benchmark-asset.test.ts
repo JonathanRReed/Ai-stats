@@ -2,7 +2,7 @@ import {expect,test} from 'bun:test';
 import {validateBenchmarkAsset} from './compare-benchmark-asset';
 import {fromEpochRuns} from './compare-evidence';
 import snapshot from '../../public/data/epoch-benchmark-snapshot.json';
-const row={id:'row',modelVersion:'version',benchmarkSlug:'test',metricKey:'score',unit:'native',value:1,conditions:{shots:5},evaluationDate:null,sourceUrl:'https://example.com/run',fetchedAt:'2026-10-02T12:00:00Z',snapshotId:null};
+const row={id:'row',modelVersion:'version',benchmarkSlug:'test',metricKey:'score',unit:'native' as const,value:1,conditions:{shots:5},evaluationDate:null,sourceUrl:'https://example.com/run',fetchedAt:'2026-10-02T12:00:00Z',snapshotId:null};
 const asset=()=>({schemaVersion:1,slug:'test',name:'Test',fetchedAt:row.fetchedAt,observations:[structuredClone(row)]});
 test('complete benchmark evidence retains conditions and original source metadata',()=>{
  expect(validateBenchmarkAsset(asset(),'test')).toEqual([row]);
