@@ -2,7 +2,7 @@ import {expect,test} from 'bun:test';
 import {prepareAppRelease,releaseDatasetRevision} from '../../scripts/app-release.mjs';
 import {fixture} from './compare-release.fixture';
 import {measurementBucket} from './compare-delivery';
-const assetsFor=(manifest:ReturnType<typeof fixture>)=>{
+const assetsFor=(manifest:Pick<ReturnType<typeof fixture>,'models'|'delivery'>)=>{
  const assets:Record<string,unknown>={};
  for(const row of manifest.models){const bucket=measurementBucket(row.id),key='m_'+bucket;const item=assets[key] as {records:unknown[]}|undefined;
  if(item)item.records.push(row);else assets[key]={schemaVersion:1,revision:manifest.delivery.revision,bucket,records:[row]};}
