@@ -1,8 +1,9 @@
 import {expect,test} from 'bun:test';
 import {parseCompareState} from './compare-state';
 import type {EpochObservation} from './epoch-observations';
-const series=await import('./compare-series').catch(()=>({}));
-const models=[
+import * as series from './compare-series';
+import type {ExplorerModel} from './compare-series';
+const models:ExplorerModel[]=[
   {id:'a',name:'A high',family:'A',reasoning:'high',source:'aa',sourceModelId:'a',current:true,
     intelligence:80,priceInput:0,priceOutput:0,priceBlended:0,outputSpeed:40,indexVersion:'4.2',performancePrompt:'long',observedAt:'2026-10-02T00:00:00Z'},
   {id:'b',name:'B',family:'B',reasoning:'unknown',source:'aa',sourceModelId:'b',current:true,
@@ -37,7 +38,7 @@ test('historical selection needs an explicit history toggle',()=>{
   expect(series.buildCompareSeries?.({models,observations:[]},{...state,includeHistory:true})?.points).toHaveLength(1);
 });
 test('Epoch benchmarks retain distinct conditions and runs rather than taking maximum',()=>{
-  const model={id:'epoch:variant',name:'Variant',family:'Variant',reasoning:'unknown',source:'epoch',sourceModelId:'variant',current:true};
+  const model:ExplorerModel={id:'epoch:variant',name:'Variant',family:'Variant',reasoning:'unknown',source:'epoch',sourceModelId:'variant',current:true};
   const row:EpochObservation={id:'diff',modelVersion:'variant',benchmarkSlug:'aider',metricKey:'Percent correct',
     value:8,unit:'percent',conditions:{format:'diff'},evaluationDate:'2025-01-01',sourceUrl:'https://epoch.ai/benchmarks',
     fetchedAt:'2026-10-02T00:00:00Z',snapshotId:'1'};
@@ -49,9 +50,9 @@ test('Epoch benchmarks retain distinct conditions and runs rather than taking ma
   expect(series.buildCompareSeries?.({models:[model],observations},{...state,conditionKey:'[["format","diff"]]'})?.points).toHaveLength(1);
 });
 test('incompatible native units cannot be presented on one benchmark scale',()=>{
-  const model={id:'epoch:v',name:'V',family:'V',source:'epoch',sourceModelId:'v',current:true};
-  const rows=[{id:'one',modelVersion:'v',benchmarkSlug:'b',metricKey:'Score',unit:'native',value:4,conditions:null},
-    {id:'two',modelVersion:'v',benchmarkSlug:'b',metricKey:'Percent correct',unit:'percent',value:80,conditions:null}];
+  const model:ExplorerModel={id:'epoch:v',name:'V',family:'V',source:'epoch',sourceModelId:'v',current:true};
+  const rows:EpochObservation[]=[{id:'one',modelVersion:'v',benchmarkSlug:'b',metricKey:'Score',unit:'native',value:4,conditions:null,evaluationDate:null,sourceUrl:null,fetchedAt:null,snapshotId:null},
+    {id:'two',modelVersion:'v',benchmarkSlug:'b',metricKey:'Percent correct',unit:'percent',value:80,conditions:null,evaluationDate:null,sourceUrl:null,fetchedAt:null,snapshotId:null}];
   const state=parseCompareState(new URLSearchParams('chart=benchmark&m=epoch%3Av&metric=epoch_b'),[model]);
   expect(series.buildCompareSeries?.({models:[model],observations:rows},state)?.points).toEqual([]);
 });

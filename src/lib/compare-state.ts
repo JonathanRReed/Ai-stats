@@ -14,10 +14,12 @@ const condition = (value:string|null):string|null => {
   if(!value || value.length>2048) return null;
   if(value==='unknown') return value;
   try {
-    const parsed=JSON.parse(value);
+    const raw=JSON.parse(value);
+    if(Array.isArray(raw)&&raw.some(pair=>!Array.isArray(pair)||pair.length!==2||typeof pair[0]!=='string'))return null;
+    const parsed=Array.isArray(raw)?Object.fromEntries(raw):raw;
     if(!parsed || typeof parsed!=='object' || Array.isArray(parsed) ||
       Object.values(parsed).some(item=>!['string','number','boolean'].includes(typeof item))) return null;
-    return JSON.stringify(Object.fromEntries(Object.entries(parsed).sort(([a],[b])=>a.localeCompare(b))));
+    return JSON.stringify(Object.entries(parsed).sort(([a],[b])=>a.localeCompare(b)));
   } catch {return null;}
 };
 export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogEntry[],defaults:string[]=[]):CompareState {
