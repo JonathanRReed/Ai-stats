@@ -97,3 +97,17 @@ test("public Epoch normalization preserves conditions without inferring them", a
     score_unit: "percent",
   });
 });
+
+test("validated cached input is normalized without reading an older local artifact", async () => {
+  const snapshot = await getPublicEpochSnapshot({
+    fetched_at: "2026-10-02T00:00:00Z",
+    models: [{ model_version: "cached-model" }],
+    benchmarks: [{ slug: "aider", name: "Aider" }],
+    runs: [{ id: "cached-run", model_version: "cached-model", benchmark_slug: "aider",
+      score: 8, score_metric: "Percent correct", score_unit: "percent",
+      conditions: { "Edit format": "diff" }, evaluation_date: null }],
+  });
+  expect(snapshot?.fetchedAt).toBe("2026-10-02T00:00:00Z");
+  expect(snapshot?.epochRuns[0]).toMatchObject({ id: "cached-run", score: 8,
+    conditions: { "Edit format": "diff" }, benchmark_slug: "aider" });
+});

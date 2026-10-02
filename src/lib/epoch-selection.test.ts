@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { preferPublishedEpoch } from './epoch-selection';
+import * as selection from './epoch-selection';
 
 test('newer Epoch evidence wins even when it contains fewer rows', () => {
   const published = { fetchedAt: '2026-09-02T00:00:00Z', epochRuns: [{}] };
@@ -14,4 +15,12 @@ test('ties prefer the explicit published snapshot, not accumulated database hist
   expect(preferPublishedEpoch(null, null, 0)).toBe(false);
   expect(preferPublishedEpoch({ ...published, epochRuns: [] }, null, 0)).toBe(false);
   expect(preferPublishedEpoch({ ...published, fetchedAt: 'invalid' }, null, 0)).toBe(false);
+});
+
+test('validated cache selection chooses recency rather than row count', () => {
+  const published = { fetchedAt: '2026-10-01T00:00:00Z', epochRuns: [{}, {}] };
+  const cached = { fetchedAt: '2026-10-02T00:00:00Z', epochRuns: [{}] };
+  expect(selection.chooseValidatedEpoch?.(published, cached)).toBe(cached);
+  expect(selection.chooseValidatedEpoch?.(cached, published)).toBe(cached);
+  expect(selection.chooseValidatedEpoch?.(published, null)).toBe(published);
 });
