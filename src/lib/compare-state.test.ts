@@ -53,3 +53,10 @@ test('legacy explicit AA metric links open their requested benchmark',()=>{
   expect(state.parseCompareState(new URLSearchParams('metric='+metric),catalog)).toMatchObject({chart:'benchmark',metricId:metric});
  }
 });
+
+test('explicit Epoch score metric round trips with shared URLs',()=>{
+ const params=new URLSearchParams('chart=benchmark&metric=epoch_mixed');params.set('score_metric','["Accuracy","percent"]');
+ const parsed=state.parseCompareState(params,catalog);
+ expect(parsed.scoreMetricKey).toBe('["Accuracy","percent"]');
+ expect(state.parseCompareState(state.serializeCompareState(parsed),catalog).scoreMetricKey).toBe(parsed.scoreMetricKey);
+});

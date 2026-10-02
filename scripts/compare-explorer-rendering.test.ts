@@ -26,3 +26,13 @@ test('price plots label input and output series in the chart and inspection',asy
  expect(html).toContain('Input tokens');expect(html).toContain('Output tokens');
  expect(html).toContain('A · Input tokens:');expect(html).toContain('A · Output tokens:');
 });
+
+test('unknown AA membership is visibly disclosed and failed loads have a retry path',async()=>{
+ const html=renderToStaticMarkup(createElement(component.default,{models:[{id:'unknown',name:'A',family:'A',source:'aa',sourceModelId:'unknown',current:null,intelligence:20,priceBlended:1}],benchmarks:[],defaultModelIds:['unknown']}));
+ expect(html).toContain('Membership unverified');
+ expect(html).toContain('Current AA membership could not be verified');
+ const source=await Bun.file(new URL('../src/components/compare/CompareExplorer.tsx',import.meta.url)).text();
+ expect(source).toContain('Retry benchmark');
+ expect(source).toContain('retryAttempt');
+ expect(source).toContain('Score metric');
+});

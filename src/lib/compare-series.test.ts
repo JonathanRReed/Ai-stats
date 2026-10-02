@@ -76,3 +76,13 @@ test('AA reasoning filters do not suppress Epoch measurements',()=>{
   const state=parseCompareState(new URLSearchParams('chart=benchmark&metric=epoch_aider&m=epoch:v&reason=high'),[model]);
   expect(series.buildCompareSeries({models:[model],observations:[row]},state).points).toHaveLength(1);
 });
+
+test('mixed Epoch metrics become accessible through an explicit score selection',()=>{
+ const model:ExplorerModel={id:'epoch:v',name:'V',family:'V',source:'epoch',sourceModelId:'v',current:true};
+ const row:EpochObservation={id:'accuracy',modelVersion:'v',benchmarkSlug:'mixed',metricKey:'Accuracy',value:8,unit:'percent',conditions:null,evaluationDate:null,sourceUrl:null,fetchedAt:null,snapshotId:null};
+ const key=JSON.stringify(['Accuracy','percent']);
+ const params=new URLSearchParams('chart=benchmark&metric=epoch_mixed&m=epoch:v');params.set('score_metric',key);
+ const state=parseCompareState(params,[model]);
+ const result=series.buildCompareSeries({models:[model],observations:[row,{...row,id:'rating',metricKey:'Rating',unit:'native',value:1400}]},state);
+ expect(result.points).toHaveLength(1);expect(result.points[0].y).toBe(8);
+});

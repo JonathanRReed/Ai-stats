@@ -35,3 +35,10 @@ test('the default chart shows reasoning variants for selected families',()=>{
     {id:'low',name:'A (Low)',family:'A',provider:'Lab',source:'aa',sourceModelId:'low',reasoning:'low',current:true,intelligence:60,priceBlended:1}];
   expect(catalog.defaultExplorerSelection(rows)).toEqual(['high','low']);
 });
+
+test('legacy AA slugs survive the catalog and unknown membership is not a default cohort',async()=>{
+ const {parseCompareState}=await import('./compare-state');
+ const rows=catalog.buildExplorerCatalog([{id:'id-a',name:'A high',slug:'a-high',current_source_member:null,aa_intelligence_index:20,price_1m_blended_3_to_1:1}],[]);
+ expect(parseCompareState(new URLSearchParams('model=a-high'),rows).modelIds).toEqual(['id-a']);
+ expect(catalog.defaultExplorerSelection(rows)).toEqual([]);
+});
