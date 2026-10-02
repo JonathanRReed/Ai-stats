@@ -9,7 +9,7 @@ export type CompareState = {
 const REASONING = new Set(['none','low','medium','high','xhigh','max','unknown']);
 const MAX_SELECTION = 100;
 const unique = (values:string[]) => [...new Set(values)].slice(0,MAX_SELECTION);
-const safeIdentity = (value:string) => value.length > 0 && value.length <= 512 && !/[\u0000-\u001f]/.test(value);
+const safeIdentity = (value:string) => value.length > 0 && value.length <= 512 && Array.from(value).every(character=>character.charCodeAt(0)>=32);
 const condition = (value:string|null):string|null => {
   if(!value || value.length>2048) return null;
   if(value==='unknown') return value;

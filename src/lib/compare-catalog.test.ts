@@ -1,5 +1,6 @@
 import {expect,test} from 'bun:test';
-const catalog=await import('./compare-catalog').catch(()=>({}));
+import * as catalog from './compare-catalog';
+import type {ExplorerModel} from './compare-series';
 test('catalog keeps exact variants and does not merge AA and Epoch by display name',()=>{
   const aa=[{id:'aa1',name:'Model (High)',slug:'model-high',creator_name:'Lab',current_source_member:true,
     aa_intelligence_index:0,price_1m_blended_3_to_1:0,last_seen:'2026-10-02T00:00:00Z',
@@ -17,7 +18,7 @@ test('unknown prices and source membership remain unknown',()=>{
   expect(result?.[0]).toMatchObject({priceInput:null,priceOutput:null,current:null,indexVersion:null});
 });
 test('default selection excludes history and missing measurements without inventing a winner',()=>{
-  const models=[{id:'old',name:'Old',family:'Old',source:'aa',sourceModelId:'old',current:false,intelligence:100,priceBlended:1},
+  const models:ExplorerModel[]=[{id:'old',name:'Old',family:'Old',source:'aa',sourceModelId:'old',current:false,intelligence:100,priceBlended:1},
     {id:'a',name:'A',family:'A',source:'aa',sourceModelId:'a',current:true,intelligence:70,priceBlended:0},
     {id:'b',name:'B',family:'B',source:'aa',sourceModelId:'b',current:true,intelligence:60,priceBlended:1}];
   expect(catalog.defaultExplorerSelection?.(models)).toEqual(['a','b']);
