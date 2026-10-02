@@ -120,3 +120,7 @@ test('AA cache contains only current model identities and explicit source receip
 test('AA membership publication refuses an unproven batch', () => {
   expect(()=>snapshots.buildAaMembershipCacheInput?.({models:[{id:'current'}]})).toThrow('receipt');
 });
+
+test('a malformed score cannot hide beside one valid score in a promoted Epoch snapshot',()=>{
+  expect(()=>snapshots.buildEpochCacheInput({...epoch,runs:[...epoch.runs,{...epoch.runs[0],id:'bad',score:'oops'}]})).toThrow('score');
+});

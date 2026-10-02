@@ -71,3 +71,9 @@ test('public observation links reject executable and credential-bearing URLs', (
     expect(result.source_link).toBeNull();
   }
 });
+
+test('valid offset evaluation dates preserve their source calendar day',()=>{
+  expect(records.normalizeEpochEvaluationDate('2026-09-15T00:30:00+05:00')).toBe('2026-09-15');
+  expect(records.normalizeEpochEvaluationDate('2026-09-15T23:30:00-05:00')).toBe('2026-09-15');
+  expect(records.normalizeEpochEvaluationDate('2026-02-30T00:30:00+05:00')).toBeNull();
+});

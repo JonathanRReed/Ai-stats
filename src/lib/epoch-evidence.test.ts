@@ -27,3 +27,18 @@ test('a valid newer cache replaces the artifact without loading legacy corpus ta
   expect(result).toEqual(cached);
   expect(legacyCalls).toBe(0);
 });
+
+test('cache query failure cannot expose a newer unvalidated legacy import',async()=>{
+  let calls=0;
+  const result=await evidence.readEpochEvidence({published:async()=>published,
+    cache:async()=>{throw new Error('timeout');},receipt:async()=>'2026-10-02T00:00:00Z',
+    legacy:async()=>{calls++;return {...published,fetchedAt:'2026-10-02T00:00:00Z'};}});
+  expect(result).toEqual(published);expect(calls).toBe(0);
+});
+test('an absent cache still prefers the validated artifact over legacy row freshness',async()=>{
+  let calls=0;
+  const result=await evidence.readEpochEvidence({published:async()=>published,
+    cache:async()=>({found:false,evidence:null}),receipt:async()=>'2026-10-02T00:00:00Z',
+    legacy:async()=>{calls++;return {...published,fetchedAt:'2026-10-02T00:00:00Z'};}});
+  expect(result).toEqual(published);expect(calls).toBe(0);
+});

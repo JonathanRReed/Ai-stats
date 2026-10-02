@@ -81,3 +81,19 @@ test('native accuracy units are not silently labeled percent and mixed units can
   expect(mixed.units?.aider).toBe('mixed');
   expect(mixed.scores['model high']?.aider).toBeUndefined();
 });
+
+test('global alias ambiguity survives missing scores and disjoint benchmark coverage',()=>{
+  const aliases={'model-high':['Model'],'model-low':['Model']};
+  for(const low of [{...row,id:'low',modelVersion:'model-low',value:null},
+    {...row,id:'low',modelVersion:'model-low',benchmarkSlug:'other'}]){
+    const result=compare.buildEpochScoreIndex([row,low],aliases);
+    expect(result.scores.model).toBeUndefined();
+    expect(result.scores['model high']?.aider).toBe(8);
+  }
+  expect(compare.buildEpochScoreIndex([row],aliases).scores.model).toBeUndefined();
+});
+test('an exact version is not poisoned by another versions friendly alias',()=>{
+  const result=compare.buildEpochScoreIndex([row,{...row,id:'low',modelVersion:'model-low',value:5}],{
+    'model-high':[], 'model-low':['model-high']});
+  expect(result.scores['model high']?.aider).toBe(8);
+});
