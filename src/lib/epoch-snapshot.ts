@@ -1,3 +1,4 @@
+import { normalizeEpochConditions, normalizeEpochEvaluationDate, normalizeEpochScoreUnit } from '../../scripts/epoch-records.mjs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { hydrateEpochModelsFromRuns } from './data-integrity';
@@ -69,6 +70,9 @@ const normalizeRun = (
     score_metric: toStringOrNull(row.score_metric),
     source_name: toStringOrNull(row.source_name),
     source_link: toStringOrNull(row.source_link),
+    conditions: normalizeEpochConditions(row.conditions),
+    evaluation_date: normalizeEpochEvaluationDate(row.evaluation_date),
+    score_unit: normalizeEpochScoreUnit(row.score_unit),
     benchmark_name: benchmark?.name ?? toStringOrNull(row.benchmark_name) ?? undefined,
     benchmark_slug: benchmark?.slug ?? benchmarkSlug,
   };

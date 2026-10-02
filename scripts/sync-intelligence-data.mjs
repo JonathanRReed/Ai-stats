@@ -663,7 +663,12 @@ export function buildIntelligencePayloads(value) {
       value: run.score,
       observed_at: input.epoch.fetchedAt,
       source_url: httpsUrlOrNull(run.source_link),
-      metadata: { scoreMetric: asOptionalText(run.score_metric) },
+      metadata: {
+        scoreMetric: asOptionalText(run.score_metric),
+        conditions: normalizeEpochConditions(run.conditions),
+        evaluationDate: normalizeEpochEvaluationDate(run.evaluation_date),
+        scoreUnit: normalizeEpochScoreUnit(run.score_unit),
+      },
       updated_at: input.epoch.fetchedAt,
     });
   }

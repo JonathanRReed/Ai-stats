@@ -74,6 +74,9 @@ export type EpochBenchmark = {
 };
 
 export type EpochBenchmarkRun = {
+  conditions?: Record<string, string | number | boolean> | null;
+  evaluation_date?: string | null;
+  score_unit?: 'native' | 'percent' | 'fraction';
   id: string;
   model_version: string;
   benchmark_id: string;
