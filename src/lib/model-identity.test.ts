@@ -21,3 +21,11 @@ test('unknown source reference never falls back to a similar name',()=>{
  const state=parseCompareState(new URLSearchParams('source=unknown&record=a'),[{id:'a',name:'a'}]);
  expect(state.modelIds).toEqual([]);expect(state.missingModelIds).toEqual(['unknown:a']);
 });
+
+test('measured page links select the exact UUID even when source display names collide',async()=>{
+ const {buildPassportRoutes}=await import('./model-passport');
+ expect(buildPassportRoutes('Same',[],'uuid')).toMatchObject({aiStatsCompare:'/compare?m=uuid'});
+});
+test('historical search records preserve the explicit history switch',()=>{
+ expect(identity.compareRecordHref('old',undefined,true)).toBe('/compare?m=old&history=1');
+});

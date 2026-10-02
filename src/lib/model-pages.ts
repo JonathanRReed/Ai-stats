@@ -221,7 +221,7 @@ export const buildModelPageRecord = (
 
   const aliases: ModelPassportAlias[] = [
     {
-      sourceKey: 'artificial-analysis',
+      sourceKey: 'artificial_analysis',
       sourceName: 'Artificial Analysis',
       sourceModelKey: text(model.slug) ?? model.id,
       sourceModelName: name,
