@@ -106,6 +106,8 @@ jobs:
           bun scripts/source-release-manifest.mjs .tmp/intelligence-input.json public/data/source-manifest.json
           bun run build
       - name: Publish validated app data independently of deployment
+        id: app_release
+        continue-on-error: true
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -122,3 +124,8 @@ jobs:
           git commit -m 'chore: refresh benchmark evidence'
           gh auth setup-git
           git push origin HEAD:main
+      - name: Report app release failure
+        if: always() && steps.app_release.outcome == 'failure'
+        run: |
+          echo '::error::App cache publication failed. Verified snapshot saving was still attempted; the previous app cache remains active.'
+          exit 1
