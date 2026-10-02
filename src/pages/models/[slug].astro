@@ -57,9 +57,9 @@ const formatDate = (value: string | null): string => {
   return Number.isNaN(date.getTime()) ? "Not recorded" : dateFormatter.format(date);
 };
 const money = (value: number | null): string =>
-  value === null ? "Not published" : `$${value.toFixed(value < 0.01 ? 4 : 2)}`;
+  value === null ? "Not available" : `$${value.toFixed(value < 0.01 ? 4 : 2)}`;
 const formatMetric = (m: ModelPageMetric): string => {
-  if (m.value === null) return "Not published";
+  if (m.value === null) return "Not available";
   switch (m.unit) {
     case "USD":
       return money(m.value);
@@ -79,9 +79,9 @@ const formatMetric = (m: ModelPageMetric): string => {
 };
 const published = (group: ModelPageMetric[]) => group.filter((m) => m.value !== null);
 const compact = (value: number | null): string =>
-  value === null ? "Not published" : new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(value);
+  value === null ? "Not available" : new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(value);
 const runScore = (value: number | null): string =>
-  value === null ? "Not published" : value <= 1 ? `${(value * 100).toFixed(1)}%` : value.toFixed(1);
+  value === null ? "Not available" : value <= 1 ? `${(value * 100).toFixed(1)}%` : value.toFixed(1);
 const runError = (value: number | null): string =>
   value === null ? "n/a" : value <= 1 ? `${(value * 100).toFixed(1)}%` : value.toFixed(2);
 const runSourceLabel = (run: ModelPageRecord["epochRuns"][number]): string =>
@@ -143,7 +143,7 @@ const sourceLinks = [
       <p class="model-provider">{record.provider}</p>
       <p class="model-summary">{record.aaEvidenceNote}</p>
       <p class="model-summary">
-        Every number below is copied from a named source with the date it was last observed. AI Stats does not combine them into a score or a recommendation.
+        Price, speed and benchmarks from named sources. Blended price uses 3:1 input/output weighting.
       </p>
       <dl class="model-facts eco-joined">
         <div>
@@ -160,7 +160,7 @@ const sourceLinks = [
         </div>
         <div>
           <dt>Status</dt>
-          <dd>{record.current ? "Current, fully measured" : "Not in the current cohort"}</dd>
+          <dd>{record.current ? "In the homepage cohort" : "Outside the homepage cohort"}</dd>
         </div>
       </dl>
       <div class="model-actions">
@@ -253,7 +253,7 @@ const sourceLinks = [
         <header class="eco-panel-head">
           <div>
             <h2 id="benchmarks-heading">Benchmark scores</h2>
-            <p>Share of items correct, as published by Artificial Analysis. Blank rows mean no published score.</p>
+            <p>Available benchmark scores from Artificial Analysis. Unavailable values are not zero.</p>
           </div>
         </header>
         <div class="receipt-wrap"><table class="receipt receipt-sourced">
@@ -272,7 +272,7 @@ const sourceLinks = [
         <header class="eco-panel-head">
           <div>
             <h2 id="indexes-heading">Artificial Analysis indexes</h2>
-            <p>Points from 0 to 100 on scales defined by Artificial Analysis, not by this site.</p>
+            <p>Points on Artificial Analysis’s versioned scales.</p>
           </div>
         </header>
         <div class="receipt-wrap"><table class="receipt receipt-sourced">
