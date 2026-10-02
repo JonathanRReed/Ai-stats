@@ -1,5 +1,5 @@
 import {expect,test} from 'bun:test';
-const membership = await import('./aa-membership').catch(()=>({}));
+import * as membership from './aa-membership';
 const rows=[{id:'current',name:'Current'},{id:'retired',name:'Retired'}];
 const cache={source_key:'artificial-analysis',record_count:1,payload:{schemaVersion:1,sourceKey:'artificial-analysis',
   records:[{id:'current',kind:'model-membership'}]}};
