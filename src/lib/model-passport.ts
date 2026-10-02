@@ -83,7 +83,10 @@ export function buildPassportRoutes(
       aliases.some(alias=>alias.sourceKey==='artificial-analysis')?sourceRecordHref('artificial-analysis',aliases.find(alias=>alias.sourceKey==='artificial-analysis')!.sourceModelKey):
       openRouterKey?sourceRecordHref('openrouter',openRouterKey):
       aliases.some(alias=>alias.sourceKey==='epoch-ai')?sourceRecordHref('epoch-ai',aliases.find(alias=>alias.sourceKey==='epoch-ai')!.sourceModelKey):
-      inventoryId?compareRecordHref(inventoryId):route('/compare?model=',displayName),
+      aliases.some(alias=>alias.sourceKey==='huggingface'||alias.sourceKey==='litellm')?(()=>{
+        const alias=aliases.find(alias=>alias.sourceKey==='huggingface'||alias.sourceKey==='litellm')!;
+        return sourceRecordHref(alias.sourceKey,alias.sourceModelKey);
+      })():inventoryId?compareRecordHref(inventoryId):route('/compare?model=',displayName),
     aiDragRace: `https://ai-dragrace.jonathanrreed.com/?${dragRaceParams.toString()}`,
     aiNewsSearch: route('https://ai-news.helloworldfirm.com/?q=', displayName),
     promptInfo: openRouterKey ? route('https://prompt-info.helloworldfirm.com/?model=', openRouterKey) : null,

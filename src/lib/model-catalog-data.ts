@@ -9,7 +9,7 @@ async function load(){
  ]);
  const records=buildExplorerCatalog(aaModels,epoch.epochModels,catalogs,{models:canonical,aliases,sources});
  const currentAaModels=normalizeAaModelsForDisplay(aaModels.filter(model=>model.current_source_member!==false));
- const bindings=buildVerifiedBindings(currentAaModels,aliases,sources);
+ const bindings=buildVerifiedBindings(aaModels,aliases,sources);
  const unavailableSources=[
   ...catalogs.availability.filter(source=>!source.available).map(source=>EXPLORER_SOURCE_LABELS[source.sourceKey as keyof typeof EXPLORER_SOURCE_LABELS]),
   ...(supabase?[]:['Artificial Analysis','Database inventory']),...(epoch.fetchedAt?[]:['Epoch AI'])

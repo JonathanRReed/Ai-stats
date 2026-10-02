@@ -14,6 +14,7 @@ export function buildVerifiedBindings(models:AaModel[],aliases:ModelAliasRow[],s
   const canonicalIds=new Set(aliases.filter(alias=>sourceKeys.get(alias.intelligence_source_id)==='artificial-analysis'&&
    (alias.source_model_key===model.id||alias.source_model_key===model.slug)&&owners.get(alias.source_model_key)?.size===1&&
    alias.match_method==='source_native'&&Number(alias.confidence)===1).map(alias=>alias.canonical_model_id));
+  if(canonicalIds.size!==1)continue;
   const candidates=new Map<BoundSource,Set<string>>();
   for(const alias of aliases){
    const source=sourceKeys.get(alias.intelligence_source_id) as BoundSource;

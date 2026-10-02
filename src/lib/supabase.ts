@@ -1024,8 +1024,9 @@ export async function getPublicCatalogModels(): Promise<PublicCatalogModels> {
 }
 
 export async function getVerifiedCatalogBindings(models:AaModel[]):Promise<VerifiedBindings>{
- const [aliases,sources]=await Promise.all([getModelAliases(),getIntelligenceSources()]);
- return buildVerifiedBindings(models,aliases,sources);
+ const [completeModels,aliases,sources]=await Promise.all([getModels(true,true),getModelAliases(),getIntelligenceSources()]);
+ const bindings=buildVerifiedBindings(completeModels,aliases,sources);
+ return Object.fromEntries(models.filter(model=>Object.hasOwn(bindings,model.id)).map(model=>[model.id,bindings[model.id]]));
 }
 
 /** No name-based cross-source enrichment. Missing reviewed bindings leave details unknown. */

@@ -1,3 +1,4 @@
+import {parseFiniteMetricValue} from './metric-values';
 import type { AaModel, EpochBenchmarkRun, EpochModel } from './supabase';
 import { normalizeAaEvidence } from './aa-evidence';
 import {
@@ -38,10 +39,14 @@ const toPositiveMetric = (
   return Number.isFinite(metric) && metric > 0 ? metric : null;
 };
 
+const toNonnegativePrice=(value:unknown):number|null=>{
+ const metric=parseFiniteMetricValue(value);return metric!==null&&metric>=0?metric:null;
+};
+
 export const normalizeAaOperationalMetrics = (model: AaModel): AaModel => {
-  const inputPrice = toPositiveMetric(model.price_1m_input_tokens);
-  const outputPrice = toPositiveMetric(model.price_1m_output_tokens);
-  const nativeBlendedPrice = toPositiveMetric(
+  const inputPrice = toNonnegativePrice(model.price_1m_input_tokens);
+  const outputPrice = toNonnegativePrice(model.price_1m_output_tokens);
+  const nativeBlendedPrice = toNonnegativePrice(
     model.price_1m_blended_3_to_1,
   );
   const derivedBlendedPrice =
