@@ -1,3 +1,5 @@
+import {releaseDatasetRevision} from '../../scripts/app-release.mjs';
+import {fromEpochRuns} from './compare-evidence';
 import {getCompareDelivery} from './compare-delivery-server';
 import {getEpochBenchmarksWithRuns,getEpochBenchmarkLabel} from './benchmark-catalog';
 import {getActiveRefreshPolicy} from '../../scripts/source-refresh-policy.mjs';
@@ -18,7 +20,8 @@ export async function getCompareReleaseManifest(){
  ...data.catalogs.availability.map(receipt=>({sourceKey:receipt.sourceKey,fetchedAt:receipt.fetchedAt,publishedAt:receipt.publishedAt,
  observedAt:null,contentHash:receipt.contentHash,snapshotId:receipt.snapshotId,status:receipt.status,available:receipt.available}))
  ];
- return {schemaVersion:RELEASE_SCHEMA,generatedAt:latest(sources.map(source=>source.fetchedAt))??new Date(0).toISOString(),
+ const manifest={schemaVersion:RELEASE_SCHEMA,generatedAt:latest(sources.map(source=>source.fetchedAt))??new Date(0).toISOString(),
  models:initialModels,defaultModelIds,delivery,sources,benchmarks:getEpochBenchmarksWithRuns(data.epoch.epochBenchmarks,data.epoch.epochRuns)
  .filter(benchmark=>/^[a-z0-9_-]{1,120}$/.test(benchmark.slug)).map(benchmark=>({slug:benchmark.slug,name:getEpochBenchmarkLabel(benchmark)}))};
+ return {...manifest,datasetRevision:releaseDatasetRevision(manifest,fromEpochRuns(data.epoch.epochRuns,data.epoch.fetchedAt))};
 }

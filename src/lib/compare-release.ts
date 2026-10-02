@@ -3,14 +3,14 @@ import {expandCatalog,measurementBucket,validateMeasurementChunk,type CompareDel
 import type {ExplorerModel} from './compare-series';
 export const RELEASE_SCHEMA='ai-stats-compare-release.v1';
 export type ReleaseSource={sourceKey:string;fetchedAt:string|null;publishedAt:string|null;observedAt:string|null;contentHash:string|null;snapshotId:string|null;status:string;available:boolean};
-export type CompareReleaseManifest={schemaVersion:typeof RELEASE_SCHEMA;generatedAt:string;models:ExplorerModel[];defaultModelIds:string[];benchmarks:Array<{slug:string;name:string}>;sources:ReleaseSource[];delivery:CompareDelivery};
+export type CompareReleaseManifest={schemaVersion:typeof RELEASE_SCHEMA;generatedAt:string;datasetRevision:string;models:ExplorerModel[];defaultModelIds:string[];benchmarks:Array<{slug:string;name:string}>;sources:ReleaseSource[];delivery:CompareDelivery};
 const object=(value:unknown):value is Record<string,unknown>=>Boolean(value)&&typeof value==='object'&&!Array.isArray(value);
 const text=(value:unknown):value is string=>typeof value==='string'&&value.length>0&&value.length<=2048;
 const date=(value:unknown)=>value===null||typeof value==='string'&&Number.isFinite(Date.parse(value));
 const nullableText=(value:unknown)=>value===null||text(value);
 const sources=new Set(['artificial-analysis','epoch-ai','openrouter','huggingface','litellm','polibench','openrouter-usage']);
 export function readCompareRelease(value:unknown):CompareReleaseManifest{
- if(!object(value)||value.schemaVersion!==RELEASE_SCHEMA||!text(value.generatedAt)||!date(value.generatedAt)||!object(value.delivery))throw new Error('Invalid release manifest');
+ if(!object(value)||value.schemaVersion!==RELEASE_SCHEMA||typeof value.datasetRevision!=='string'||!/^[a-f0-9]{64}$/.test(value.datasetRevision)||!text(value.generatedAt)||!date(value.generatedAt)||!object(value.delivery))throw new Error('Invalid release manifest');
  const delivery=value.delivery,catalog=delivery.catalog;
  if(!text(delivery.revision)||!/^[a-f0-9]{64}$/.test(delivery.revision)||!object(catalog)||!Array.isArray(catalog.providers)||!catalog.providers.every(text)||
  !Array.isArray(catalog.rows)||catalog.rows.length<2||catalog.rows.length>30000)throw new Error('Invalid release catalog');

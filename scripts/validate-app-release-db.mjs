@@ -6,7 +6,7 @@ const {PGlite}=await import(modulePath);const db=new PGlite();
 try{
  await db.exec('create role anon; create role authenticated; create role service_role bypassrls; grant usage on schema public to anon,authenticated,service_role;');
  await db.exec(await readFile('supabase/migrations/20261002184839_independent_app_release_cache.sql','utf8'));
- const manifest={schemaVersion:'ai-stats-compare-release.v1',generatedAt:'2026-10-02T12:00:00.000Z',models:[{id:'a'},{id:'b'}],defaultModelIds:['a','b'],delivery:{catalog:{rows:[['a'],['b']]}}};
+ const manifest={datasetRevision:'d'.repeat(64),schemaVersion:'ai-stats-compare-release.v1',generatedAt:'2026-10-02T12:00:00.000Z',models:[{id:'a'},{id:'b'}],defaultModelIds:['a','b'],delivery:{catalog:{rows:[['a'],['b']]}}};
  const assets={m00:{records:[{id:'a'}]},m01:{records:[{id:'b'}]}};
  const publish=async(revision,data=manifest,contents=assets)=>db.query('select public.publish_app_release($1,$2::jsonb,$3::jsonb,$4::jsonb) as revision',[revision,JSON.stringify(data),JSON.stringify(contents),JSON.stringify([])]);
  const current=async()=> (await db.query('select revision from public.app_release_cache where active')).rows[0]?.revision;
