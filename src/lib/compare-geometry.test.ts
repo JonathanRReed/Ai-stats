@@ -16,3 +16,9 @@ test('empty and equal-valued datasets have nonzero finite axes',()=>{
     expect(result?.yTicks.every((tick:{position:number})=>Number.isFinite(tick.position))).toBe(true);
   }
 });
+
+test('axes use readable rounded ticks rather than arbitrary decimal subdivisions',()=>{
+  const result=geometry.plotGeometry([{id:'a',x:20,y:57.6}],'scatter','linear');
+  expect(result.yTicks.every(tick=>Number.isInteger(tick.value))).toBe(true);
+  expect(geometry.plotGeometry([{id:'a',x:1,y:1},{id:'b',x:100,y:2}],'scatter','log').xTicks.map(tick=>tick.value)).toEqual([1,10,100]);
+});
