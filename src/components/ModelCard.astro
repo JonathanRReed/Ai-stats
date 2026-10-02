@@ -373,16 +373,6 @@ const formatCompactNumber = (value: number | null | undefined): string => {
             </dd>
           </div>
           <div class="mj3">
-            <dt class="tsub">OR usage</dt>
-            <dd class="mtr">
-              {
-                Number(model.openrouter_usage_tokens) > 0
-                  ? `${formatCompactNumber(model.openrouter_usage_tokens)} tokens, ${formatCompactNumber(model.openrouter_usage_requests)} req`
-                  : "-"
-              }
-            </dd>
-          </div>
-          <div class="mj3">
             <dt class="tsub">OR routes</dt>
             <dd class="mtr">
               {

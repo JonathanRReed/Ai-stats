@@ -1,3 +1,4 @@
+import {getOpenRouterUsageSnapshot} from './openrouter-usage-server';
 import {catalogReceiptUpdate,PUBLIC_CATALOG_NAMES} from './catalog-cache';
 import { getActiveRefreshPolicy } from '../../scripts/source-refresh-policy.mjs';
 import { getPublicPoliBenchSnapshot } from './polibench-snapshot';
@@ -234,6 +235,16 @@ const readStaticSources = async (
   ];
 };
 
+export function usageSourceFreshness(value:Awaited<ReturnType<typeof getOpenRouterUsageSnapshot>>,now=new Date()):SourceFreshness{
+ if(!value)return resolveSourceFreshness({sourceKey:'openrouter-usage',displayName:'OpenRouter daily usage',status:'unavailable',
+  statusMessage:'No validated daily usage snapshot is available yet.'},now);
+ const {snapshot,receipt}=value;
+ return resolveSourceFreshness({sourceKey:'openrouter-usage',displayName:'OpenRouter daily usage',status:receipt.status,
+  lastObservedAt:snapshot.asOf,lastSuccessfulRunAt:receipt.fetchedAt,fetchedAt:receipt.fetchedAt,publishedAt:receipt.publishedAt,
+  snapshotId:receipt.snapshotId,contentHash:receipt.contentHash,
+  coverageLabel:new Set(snapshot.rows.map(row=>row.date)).size+' days / '+snapshot.rows.length+' model-day buckets'},now);
+}
+
 type SourceFreshnessViewRow = {
   source_key?: unknown;
   display_name?: unknown;
@@ -254,6 +265,7 @@ const readLiveSourceFreshness = async (): Promise<SourceFreshness[] | null> => {
       .order('display_name', { ascending: true });
     if (error || !data?.length) return null;
     const rows = data as SourceFreshnessViewRow[];
+    const usage=await getOpenRouterUsageSnapshot();
     const catalogResult=await supabase.from('source_snapshot_cache')
       .select('source_key,snapshot_id,content_hash,observed_at,fetched_at,published_at,record_count,refresh_status,refresh_message');
     const catalogRows=catalogResult.error?[]:(catalogResult.data??[]) as Record<string,unknown>[];
@@ -262,6 +274,7 @@ const readLiveSourceFreshness = async (): Promise<SourceFreshness[] | null> => {
         const sourceKey = asNonEmptyStringOrNull(row.source_key);
         const displayName = asNonEmptyStringOrNull(row.display_name);
         if (!sourceKey || !displayName) return null;
+        if(sourceKey==='openrouter-usage')return usageSourceFreshness(usage);
         const catalogRow=Object.hasOwn(PUBLIC_CATALOG_NAMES,sourceKey)?catalogRows.find(item=>item.source_key===sourceKey):null;
         const receipt=catalogRow?catalogReceiptUpdate(String(catalogRow.content_hash??''),catalogRow):null;
         if(receipt)return resolveSourceFreshness({

@@ -63,6 +63,12 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: bun scripts/refresh-public-catalogs.mjs --prepare --output .tmp/public-catalog-candidates.json
+      - name: Prepare official daily usage candidate
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: bun scripts/sync-openrouter-usage.mjs --prepare --file .tmp/openrouter-usage-candidate.json
       - name: Refresh Epoch and normalized source evidence
         env:
           PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -91,6 +97,7 @@ jobs:
           bun scripts/publish-epoch-cache.mjs --input .tmp/epoch-cache-candidate.json
           bun scripts/publish-aa-membership.mjs --input .tmp/intelligence-input.json
           bun scripts/refresh-public-catalogs.mjs --publish --input .tmp/public-catalog-candidates.json
+          bun scripts/sync-openrouter-usage.mjs --publish --file .tmp/openrouter-usage-candidate.json
       - name: Verify promoted source selection and release manifest
         env:
           PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

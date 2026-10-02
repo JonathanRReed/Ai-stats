@@ -71,7 +71,7 @@ export function createCatalogStore({baseUrl,serviceKey,fetchImpl=(url,init)=>glo
     origin=url.origin;
   } catch {throw new Error('Catalog storage requires the authorized production project origin');}
   if(typeof serviceKey!=='string'||!serviceKey.trim())throw new Error('Missing server-side catalog credentials');
-  const checkSource=sourceKey=>{if(!Object.hasOwn(CATALOG_URLS,sourceKey))throw new Error('Unknown public catalog');};
+  const checkSource=sourceKey=>{if(sourceKey!=='openrouter-usage'&&!Object.hasOwn(CATALOG_URLS,sourceKey))throw new Error('Unknown public catalog');};
   const request=async(endpoint,body)=>{
     let response;
     try {response=await fetchImpl(origin+'/rest/v1/'+endpoint,{

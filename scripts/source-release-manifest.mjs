@@ -25,7 +25,7 @@ export function buildSourceReleaseManifest(input) {
     'epoch-ai':hash({models:input.epoch.models,benchmarks:input.epoch.benchmarks,runs:input.epoch.runs}),
     polibench:hash(input.polibench),
     ...Object.fromEntries(Object.entries(input.catalogs??{}).filter(([key,value])=>
-      ['openrouter','huggingface','litellm'].includes(key)&&/^[a-f0-9]{64}$/.test(value?.contentHash??''))
+      ['openrouter','huggingface','litellm','openrouter-usage'].includes(key)&&/^[a-f0-9]{64}$/.test(value?.contentHash??''))
       .sort(([a],[b])=>a.localeCompare(b)).map(([key,value])=>[key,value.contentHash])),
   }};
 }
