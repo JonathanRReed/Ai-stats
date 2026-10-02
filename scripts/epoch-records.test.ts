@@ -38,3 +38,15 @@ test('condition order does not change fallback identity', () => {
 test('invalid identities are rejected instead of becoming phantom models', () => {
   expect(records.normalizeEpochRecord?.({ Score: '10' }, 'test')).toBeNull();
 });
+
+test('published runs retain source conditions without exposing the raw record', () => {
+  const result = records.buildPublicEpochRun?.({
+    epoch_run_id: 'run-1', model_version: row['Model version'], score: 8,
+    score_metric: 'Percent correct', raw: { ...row, Notes: 'raw-only note' },
+    release_date: '2024-11-21', source_link: row['Source link'],
+  }, 'aider_polyglot_external');
+  expect(result).toMatchObject({ id: 'run-1', score: 8, score_unit: 'percent',
+    evaluation_date: '2026-09-15', conditions: { 'Edit format': 'diff', 'Token budget': '0' } });
+  expect(result).not.toHaveProperty('raw');
+  expect(result?.conditions).not.toHaveProperty('Notes');
+});
