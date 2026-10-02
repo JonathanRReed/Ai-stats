@@ -9,9 +9,8 @@ const POLICIES = Object.freeze({
   polibench: { intervalHours: 24, staleAfterHours: 336 },
 });
 export const getRefreshPolicy = sourceKey => ({ ...(POLICIES[sourceKey] ?? { intervalHours: 24, staleAfterHours: 336 }) });
-/** Health reflects the deployed schedule; target cadence is not a claim that ingestion changed. */
-export const getActiveRefreshPolicy = sourceKey => sourceKey === 'artificial-analysis'
-  ? { intervalHours: 12, staleAfterHours: 24 } : getRefreshPolicy(sourceKey);
+/** Health reflects deployed schedules, including the quota-guarded four-hour AA cron. */
+export const getActiveRefreshPolicy = sourceKey => getRefreshPolicy(sourceKey);
 const millis = value => value === null || value === undefined ? NaN : value instanceof Date ? value.getTime() : Date.parse(value);
 const iso = value => Number.isFinite(millis(value)) ? new Date(millis(value)).toISOString() : null;
 
