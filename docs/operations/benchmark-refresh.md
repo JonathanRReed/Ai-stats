@@ -94,3 +94,19 @@ Observed, retrieved and published timestamps are distinct. Missing source observ
 Run scripts/validate-catalog-refresh-db.mjs in an isolated Postgres-compatible environment before applying the migration. It verifies leases, daily allowance, backoff, unchanged publication time, stale-worker rejection, retained data and anonymous access boundaries.
 
 Do not clear provider backoff or a quota counter simply to make a test pass. Investigate a large catalog shrink before accepting it. For a rollback, choose a verified immutable private.source_snapshots entry and restore only that source's public pointer under service access, preserving the original observed/fetched dates and marking the rollback explicitly. Never delete source history or manufacture a new retrieval date for old evidence.
+
+## Official OpenRouter daily usage
+
+The daily usage adapter requests unfiltered, completed UTC days from the official rankings-daily endpoint. It keeps token totals as decimal strings, including the source's Other bucket. Missing days remain gaps; a model absent from a day's top 50 has unknown individual traffic. The old HTML-scraped weekly rankings reader is retired and its legacy JSON field remains an empty array. Daily totals do not manufacture weekly ranks, request counts, tool calls or model variants.
+
+Storage reuses validated source snapshots and the service-only refresh lease. The usage lease admits at most eight requests per UTC day and one successful refresh per six hours. This is an application-local budget, not a claim about usage by other keys on the account. HTTP Retry-After and increasing failure backoff are both honored. A revision atomically replaces the current daily snapshot while retaining prior history.
+
+Commands in the main-only refresh workflow:
+- Prepare: bun scripts/sync-openrouter-usage.mjs --prepare --file .tmp/openrouter-usage-candidate.json
+- After verification: bun scripts/sync-openrouter-usage.mjs --publish --file .tmp/openrouter-usage-candidate.json
+
+OPENROUTER_API_KEY is a server-only prerequisite. It was absent from the repository's Actions secrets when checked on October 2. Missing authentication produces a blocked candidate and makes no upstream request; existing published usage remains available. Credential creation/configuration requires a separate secure user action. Never put a key in chat, source, a public environment variable or logs.
+
+Apply the reviewed additive 20261002073223_openrouter_usage_refresh.sql migration before the first authenticated main refresh. Verify the isolated database harness, service-only RPC permissions, RLS, actual daily coverage and matching deployment. A passing fixture test is not a verified live upstream fetch.
+
+The Stats module offers share or token volume, 7/30/90-day windows, model selection, keyboard day inspection and exact static tables. Shares use the whole reported OpenRouter dataset, not the selected subset. They are not market share, user counts or spend. Source/as-of and CC BY 4.0 attribution stay visible; provider tokenizers differ.

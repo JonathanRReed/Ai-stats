@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import {getOpenRouterUsageRankings} from '../src/lib/supabase';
 test('legacy usage output remains compatible without fetching HTML or inventing weekly totals',async()=>{
  const original=globalThis.fetch;let calls=0;
- globalThis.fetch=(async()=>{calls++;return new Response('<html></html>');}) as typeof fetch;
+ globalThis.fetch=(async()=>{calls++;return new Response('<html></html>');}) as unknown as typeof fetch;
  try{expect(await getOpenRouterUsageRankings()).toEqual([]);expect(calls).toBe(0);}
  finally{globalThis.fetch=original;}
 });
