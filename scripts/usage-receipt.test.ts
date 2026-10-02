@@ -1,3 +1,5 @@
+import {catalogReceiptUpdate} from '../src/lib/catalog-cache';
+import {readFileSync} from 'node:fs';
 import {expect,test} from 'bun:test';
 import * as freshness from '../src/lib/data-freshness';
 test('daily usage health uses its fetch receipt and source-native coverage',()=>{
@@ -8,4 +10,12 @@ test('daily usage health uses its fetch receipt and source-native coverage',()=>
  expect(freshness.usageSourceFreshness?.(value,new Date('2026-10-02T07:00:00Z'))).toMatchObject({
  sourceKey:'openrouter-usage',status:'healthy',coverageLabel:'1 days / 1 model-day buckets',snapshotId:'42',contentHash:'a'.repeat(64)});
  expect(freshness.usageSourceFreshness?.(null,new Date('2026-10-02T07:00:00Z')).status).toBe('unavailable');
+});
+
+test('usage participates in small live receipt updates without relabeling displayed data',()=>{
+ const receipt=catalogReceiptUpdate('a'.repeat(64),{source_key:'openrouter-usage',snapshot_id:42,content_hash:'b'.repeat(64),
+ fetched_at:'2026-10-02T06:00:00Z',published_at:'2026-10-02T06:05:00Z',refresh_status:'failed'},new Date('2026-10-02T07:00:00Z'));
+ expect(receipt).toMatchObject({sameSnapshot:false,status:'failed'});
+ const source=readFileSync('src/components/SourceHealthStrip.astro','utf8');
+ expect(source.includes('in.(openrouter,huggingface,litellm,openrouter-usage)')).toBe(true);
 });
