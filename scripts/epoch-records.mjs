@@ -95,7 +95,7 @@ export function buildPublicEpochRun(run, benchmarkSlug) {
     score: run.score, score_metric: run.score_metric,
     release_date: run.release_date ?? null, organization: run.organization ?? null,
     country: run.country ?? null, stderr: run.stderr ?? null,
-    source_name: run.source_name ?? null, source_link: run.source_link ?? null,
+    source_name: run.source_name ?? null, source_link: observation?.sourceUrl ?? null,
     conditions: observation?.conditions ?? null,
     evaluation_date: observation?.evaluationDate ?? null,
     score_unit: observation?.unit ?? 'native',

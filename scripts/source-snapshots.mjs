@@ -97,6 +97,12 @@ export function buildEpochCacheInput(snapshot) {
   if (!snapshot || !['models', 'benchmarks', 'runs'].every(key => Array.isArray(snapshot[key]) && snapshot[key].length)) {
     throw new Error('Epoch snapshot is incomplete');
   }
+  const identity = value => typeof value === 'string' && value.trim().length > 0;
+  if (snapshot.models.some(row => !row || !identity(row.model_version)) ||
+    snapshot.benchmarks.some(row => !row || !identity(row.slug)) ||
+    snapshot.runs.some(row => !row || !identity(row.id) || !identity(row.model_version) || !identity(row.benchmark_slug))) {
+    throw new Error('Epoch source identity is missing');
+  }
   const modelKeys = new Set(snapshot.models.map(row => row.model_version));
   const benchmarkKeys = new Set(snapshot.benchmarks.map(row => row.slug));
   if (snapshot.runs.some(run => !modelKeys.has(run.model_version) || !benchmarkKeys.has(run.benchmark_slug))) {
