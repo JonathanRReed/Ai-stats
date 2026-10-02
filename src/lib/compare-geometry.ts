@@ -4,6 +4,11 @@ export const formatChartNumber=(value:number)=>Math.abs(value)>=1e6||(value!==0&
 export function plotGeometry<T extends PlotPoint>(points:T[],kind:'scatter'|'bars',scale:'linear'|'log',width=1000,height=520){
   const left=70,right=Math.max(left+100,width-24),top=20,bottom=Math.max(top+100,height-66);
   const finite=points.filter(point=>Number.isFinite(point.x)&&Number.isFinite(point.y));
+  const niceStep=(span:number)=>{
+    const rough=span/5;if(!Number.isFinite(rough)||rough<=0)return 1;
+    const power=10**Math.floor(Math.log10(rough));const ratio=rough/power;
+    return (ratio<=1.5?1:ratio<=3?2:ratio<=7?5:10)*power;
+  };
   const domain=(values:number[],log:boolean):[number,number]=>{
     const usable=values.filter(value=>Number.isFinite(value)&&(!log||value>0));
     if(!usable.length)return log?[1,10]:[0,1];
@@ -17,6 +22,7 @@ export function plotGeometry<T extends PlotPoint>(points:T[],kind:'scatter'|'bar
       if(min===max)max=min+1;
       else {const padded=max+(max-min)*.08;max=Number.isFinite(padded)?padded:max;}
     }
+    if(!log){const step=niceStep(max-min);min=Math.floor(min/step)*step;max=Math.ceil(max/step)*step;}
     return [min,max];
   };
   const xDomain=domain(finite.map(point=>point.x),kind==='scatter'&&scale==='log');
@@ -37,13 +43,16 @@ export function plotGeometry<T extends PlotPoint>(points:T[],kind:'scatter'|'bar
     return {...point,cx:kind==='scatter'?px(point.x):left+(groups.indexOf(point.x)+.5)*band+
       (peerIndex-(peers.length-1)/2)*barWidth,cy:py(point.y),barWidth};
   });
-  const ticks=(range:[number,number],log:boolean,position:(value:number)=>number)=>
-    Array.from({length:6},(_,index)=>{
-      const fraction=index/5;
-      const value=log?10**((1-fraction)*Math.log10(range[0])+fraction*Math.log10(range[1]))
-        :(1-fraction)*range[0]+fraction*range[1];
-      return {value,label:formatChartNumber(value),position:position(value)};
-    });
+  const ticks=(range:[number,number],log:boolean,position:(value:number)=>number)=>{
+    const values:number[]=[];
+    if(log){
+      for(let exponent=Math.ceil(Math.log10(range[0]));exponent<=Math.floor(Math.log10(range[1]));exponent++)values.push(10**exponent);
+    }else{
+      const step=niceStep(range[1]-range[0]);const count=Math.min(20,Math.round((range[1]-range[0])/step));
+      for(let index=0;index<=count;index++)values.push(Number((range[0]+index*step).toPrecision(12)));
+    }
+    return values.map(value=>({value,label:formatChartNumber(value),position:position(value)}));
+  };
   return {width,height,left,right,top,bottom,points:plotted,
     xTicks:ticks(xDomain,kind==='scatter'&&scale==='log',px),
     yTicks:ticks(yDomain,kind==='bars'&&scale==='log',py),

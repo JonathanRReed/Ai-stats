@@ -39,7 +39,7 @@ export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogE
     modelIds:selected.filter(id=>ids.has(id)), missingModelIds:selected.filter(id=>!ids.has(id)),
     reasoningEfforts:unique(params.getAll('reason').filter(value=>REASONING.has(value))).sort(),
     metricId,conditionKey:condition(params.get('condition')),
-    scale:params.get('scale')==='log'?'log':'linear',labels:params.get('labels')==='1',
+    scale:params.has('scale')?(params.get('scale')==='log'?'log':'linear'):(chart==='cost-intelligence'?'log':'linear'),labels:params.get('labels')==='1',
     frontier:params.get('frontier')!=='0',includeHistory:params.get('history')==='1',
   };
 }

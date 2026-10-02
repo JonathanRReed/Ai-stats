@@ -41,6 +41,10 @@ export default function ComparisonChart({series,labels,activeId,onPreview,onPin,
           fill={familyColor(point.family)} opacity={point.series==='input'?.55:1}/>}
         {labels?<text className="point-label" x={point.cx+8} y={point.cy-10}>{point.label}</text>:null}
       </g>)}
+      {series.kind==='bars'&&new Set(plot.points.map(point=>point.x)).size<=12?
+        [...new Map(plot.points.map(point=>[point.x,point])).values()].map(point=><text key={'category:'+point.x}
+          className="plot-tick category-label" x={point.cx} y={plot.bottom+20} textAnchor="middle">
+          <title>{point.label}</title>{point.family.length>16?point.family.slice(0,14)+'…':point.family}</text>):null}
       <text className="plot-label" x={(plot.left+plot.right)/2} y={height-12} textAnchor="middle">{series.xLabel}</text>
       <text className="plot-label" transform={`translate(17 ${(plot.top+plot.bottom)/2}) rotate(-90)`} textAnchor="middle">{series.yLabel}</text>
     </svg>}

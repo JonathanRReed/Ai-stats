@@ -133,3 +133,11 @@
 @media (prefers-reduced-motion: reduce){
   .compare-explorer *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 }
+
+.selected-family-name{display:flex;flex-direction:column;gap:2px;min-width:0}
+.selected-family-name small{color:var(--ink-2);font-size:9px}
+.reasoning-filters{border:0;padding:0;margin:12px 0 0;display:flex;flex-wrap:wrap;gap:4px}
+.reasoning-filters legend{font-size:10px;color:var(--ink-2);margin-bottom:6px}
+.reasoning-filters button{font-size:10px;padding:3px 6px;background:none}
+.reasoning-filters button[aria-pressed="true"]{background:var(--signal-soft)}
+.category-label{font-size:9px}

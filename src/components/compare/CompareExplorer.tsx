@@ -50,7 +50,9 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
   const reset=()=>update(parseCompareState(new URLSearchParams(),models,defaultModelIds));
   const selectorProps={models:visibleModels,selected:state.modelIds,includeHistory:state.includeHistory,onToggle:toggle,
     onFamily:(family:string,checked:boolean)=>update({modelIds:selectFamily(state.modelIds,visibleModels,family,checked,state.includeHistory)}),
-    onHistory:(includeHistory:boolean)=>update({includeHistory}),onClear:()=>update({modelIds:[]}),onReset:reset};
+    onHistory:(includeHistory:boolean)=>update({includeHistory}),reasoningEfforts:state.reasoningEfforts,
+    onReasoning:(value:string)=>update({reasoningEfforts:value==='all'?[]:state.reasoningEfforts.includes(value)
+      ?state.reasoningEfforts.filter(reason=>reason!==value):[...state.reasoningEfforts,value]}),onClear:()=>update({modelIds:[]}),onReset:reset};
   const chooseMeasured=()=>{const versions=new Set(observations.map(row=>row.modelVersion));
     update({modelIds:visibleModels.filter(model=>versions.has(model.sourceModelId)).slice(0,8).map(model=>model.id)});};
   const share=async()=>{try{const url=new URL(window.location.href);url.search=serializeCompareState(state).toString();

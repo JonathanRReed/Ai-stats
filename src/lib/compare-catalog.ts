@@ -56,5 +56,6 @@ export function defaultExplorerSelection(models:ExplorerModel[]):string[] {
     if(providers.has(provider))continue;
     providers.add(provider);selected.push(model.id);if(selected.length===6)break;
   }
-  return selected;
+  const families=new Set(eligible.filter(model=>selected.includes(model.id)).map(model=>model.family));
+  return eligible.filter(model=>families.has(model.family)).map(model=>model.id).slice(0,40);
 }
