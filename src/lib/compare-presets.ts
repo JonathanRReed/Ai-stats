@@ -26,12 +26,15 @@ const diverse=(models:ExplorerModel[])=>{
 /** Presets use explicit measured criteria; they do not infer licenses or benchmark missing records. */
 export function buildComparePresets(models:ExplorerModel[]):ComparePreset[]{
  const current=models.filter(model=>model.source==='aa'&&model.current===true&&model.indexVersion);
- const versions=new Map<string,number>();for(const model of current)versions.set(model.indexVersion!,1+(versions.get(model.indexVersion!)??0));
- const version=[...versions].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))[0]?.[0];
+ const versions=[...new Set(current.map(model=>model.indexVersion!))].filter(version=>/^\d+(?:\.\d+)*$/.test(version));
+ const version=versions.sort((a,b)=>{
+ const left=a.split('.').map(Number),right=b.split('.').map(Number);
+ for(let i=0;i<Math.max(left.length,right.length);i++){const difference=(right[i]??0)-(left[i]??0);if(difference)return difference;}return 0;
+ })[0];
  const cohort=current.filter(model=>model.indexVersion===version);
  const byId=(a:ExplorerModel,b:ExplorerModel)=>a.id.localeCompare(b.id);
  const presets:ComparePreset[]=[
- {id:'coding',label:'Coding',description:'Highest recorded AA Coding scores · current index '+version+' · one per provider, up to six',
+ {id:'coding',label:'Coding',description:'Highest recorded AA Coding scores · index '+version+' · one per provider, up to six',
  chart:'benchmark',metricId:'aa_coding_index',modelIds:diverse(cohort.filter(model=>finite(model.coding)).sort((a,b)=>b.coding!-a.coding!||byId(a,b)))},
  {id:'budget',label:'Under $1 / 1M',description:'AA 3:1 blended price above $0 and up to $1 per million tokens · highest Intelligence scores · index '+version+' · one per provider',
  chart:'cost-intelligence',metricId:'aa_intelligence_index',modelIds:diverse(cohort.filter(model=>finite(model.intelligence)&&finite(model.priceBlended)&&model.priceBlended>0&&model.priceBlended<=1).sort((a,b)=>b.intelligence!-a.intelligence!||byId(a,b)))},
