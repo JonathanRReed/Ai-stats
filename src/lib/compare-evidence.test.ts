@@ -38,3 +38,15 @@ test('missing observations never turn into measured zero', () => {
   expect(compare.buildEpochScoreIndex?.([{ ...row, value: null }], {})?.scores).toEqual({});
   expect(compare.buildEpochScoreIndex?.([{ ...row, value: 0 }], {})?.scores['model high']?.aider).toBe(0);
 });
+
+test('source runs adapt to observation records without inventing conditions', () => {
+  const adapted = compare.fromEpochRuns?.([{
+    id: 'raw', model_version: 'model-high', benchmark_id: 'aider', benchmark_slug: 'aider',
+    score: 0.8, score_metric: 'Percent correct', release_date: null, organization: null,
+    country: null, stderr: null, score_unit: 'percent',
+    conditions: { 'Edit format': 'diff' }, evaluation_date: '2026-09-15',
+  }], '2026-10-01T00:00:00Z');
+  expect(adapted?.[0]).toMatchObject({ id: 'raw', modelVersion: 'model-high', benchmarkSlug: 'aider',
+    value: 0.8, unit: 'percent', conditions: { 'Edit format': 'diff' },
+    evaluationDate: '2026-09-15', fetchedAt: '2026-10-01T00:00:00Z' });
+});
