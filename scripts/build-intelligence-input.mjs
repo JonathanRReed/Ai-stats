@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import {parseUsageCache} from './sync-openrouter-usage.mjs';
 import {parseCatalogCache} from '../src/lib/catalog-cache.ts';
 import {prepareSourceSnapshot} from './source-snapshots.mjs';
 import { selectAaCurrentMembership } from './aa-membership.mjs';
@@ -123,7 +124,7 @@ export async function fetchSupabaseRows({ fetchImpl, baseUrl, serviceKey, table 
 
 /** Read validated durable catalogs; prepared candidates take precedence for this release only. */
 export async function readCatalogInputs({fetchImpl,baseUrl,serviceKey,candidates=[]}) {
-  const query=new URLSearchParams({source_key:'in.(openrouter,huggingface,litellm)',
+  const query=new URLSearchParams({source_key:'in.(openrouter,huggingface,litellm,openrouter-usage)',
     select:'source_key,snapshot_id,content_hash,payload,fetched_at,published_at,record_count,refresh_status,refresh_message'});
   const response=await fetchImpl(baseUrl+'/rest/v1/source_snapshot_cache?'+query,{
     headers:{apikey:serviceKey,Authorization:'Bearer '+serviceKey,Accept:'application/json'},
@@ -132,7 +133,7 @@ export async function readCatalogInputs({fetchImpl,baseUrl,serviceKey,candidates
   if(!Array.isArray(rows))throw new Error('Catalog cache returned invalid data');
   const selected={};
   for(const row of rows){
-    if(!['openrouter','huggingface','litellm'].includes(row.source_key)||!parseCatalogCache(row,row.source_key))continue;
+    if(row.source_key==='openrouter-usage'?!parseUsageCache(row):(!['openrouter','huggingface','litellm'].includes(row.source_key)||!parseCatalogCache(row,row.source_key)))continue;
     const input={sourceKey:row.source_key,observedAt:row.payload.observedAt??null,fetchedAt:row.fetched_at,records:row.payload.records};
     const prepared=prepareSourceSnapshot(input);
     if(prepared.contentHash!==row.content_hash)continue;
@@ -140,7 +141,7 @@ export async function readCatalogInputs({fetchImpl,baseUrl,serviceKey,candidates
   }
   for(const candidate of candidates){
     if(!['prepared','unchanged'].includes(candidate.status))continue;
-    if(!['openrouter','huggingface','litellm'].includes(candidate.sourceKey)||candidate.input?.sourceKey!==candidate.sourceKey)
+    if(!['openrouter','huggingface','litellm','openrouter-usage'].includes(candidate.sourceKey)||candidate.input?.sourceKey!==candidate.sourceKey)
       throw new Error('Invalid release catalog candidate');
     selected[candidate.sourceKey]={...prepareSourceSnapshot(candidate.input),snapshotId:null};
   }
@@ -165,6 +166,9 @@ export async function buildIntelligenceInput({
   try {const batch=await readJson(path.join(process.cwd(),'.tmp/public-catalog-candidates.json'));
     if(batch?.schemaVersion===1&&Array.isArray(batch.candidates))candidates=batch.candidates;
   } catch { /* An ordinary build can use the published durable catalogs. */ }
+  try {const usage=await readJson(path.join(process.cwd(),'.tmp/openrouter-usage-candidate.json'));
+    if(usage?.sourceKey==='openrouter-usage')candidates.push(usage);
+  } catch { /* Missing usage auth leaves the existing cache alone. */ }
   const [rawAaModels, epoch, polibench, catalogInputs, aaReceiptResponse] = await Promise.all([
     fetchSupabaseRows({ fetchImpl, baseUrl, serviceKey, table: "aa_models" }),
     readJson(path.join(process.cwd(), "public/data/epoch-benchmark-snapshot.json")),

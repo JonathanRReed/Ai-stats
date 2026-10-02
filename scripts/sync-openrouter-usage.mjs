@@ -1,3 +1,7 @@
+import {mkdir,readFile,writeFile} from 'node:fs/promises';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
+import {createCatalogStore} from './refresh-public-catalogs.mjs';
 import {prepareSourceSnapshot} from './source-snapshots.mjs';
 import {retryDelayMs} from './source-refresh-policy.mjs';
 export const USAGE_SOURCE_URL='https://openrouter.ai/rankings';
@@ -102,4 +106,29 @@ export function parseUsageCache(row,{now=new Date().toISOString()}={}) {
   return {snapshot,receipt:{snapshotId:String(row.snapshot_id),contentHash:row.content_hash,fetchedAt,publishedAt,
    status:row.refresh_status==='failed'?'failed':ageHours>12?'stale':'healthy'}};
  }catch{return null;}
+}
+
+export async function runUsageCli({argv=process.argv.slice(2),env=process.env,store:providedStore,
+ readJson=async file=>JSON.parse(await readFile(file,'utf8')),
+ writeJson=async(file,value)=>{await mkdir(path.dirname(file),{recursive:true});await writeFile(file,JSON.stringify(value)+'\n',{mode:0o600});},
+}={}) {
+ const prepare=argv.includes('--prepare'),publish=argv.includes('--publish'),index=argv.indexOf('--file'),file=argv[index+1];
+ if(prepare===publish||index<0||!file)throw new Error('Choose --prepare or --publish with --file');
+ const store=providedStore??createCatalogStore({baseUrl:env.SUPABASE_URL??'',serviceKey:env.SUPABASE_SERVICE_ROLE_KEY??''});
+ if(prepare){
+  const candidate=await prepareUsageRefresh({apiKey:env.OPENROUTER_API_KEY??'',store});
+  await writeJson(file,candidate);return {sourceKey:candidate.sourceKey,status:candidate.status};
+ }
+ const candidate=await readJson(file);
+ if(candidate?.sourceKey!=='openrouter-usage'||!['prepared','skipped','blocked','failed'].includes(candidate.status))throw new Error('Invalid usage candidate');
+ if(candidate.status!=='prepared')return {sourceKey:candidate.sourceKey,status:candidate.status};
+ const input=candidate.input,checked=prepareSourceSnapshot(input);
+ const validated=parseUsageCache({source_key:checked.sourceKey,snapshot_id:1,content_hash:checked.contentHash,record_count:checked.recordCount,
+  fetched_at:input.fetchedAt,published_at:input.fetchedAt,payload:{schemaVersion:1,sourceKey:checked.sourceKey,observedAt:checked.observedAt,records:checked.records}});
+ if(!validated)throw new Error('Usage candidate failed validation');
+ const snapshotId=await store.publish(candidate);
+ return {sourceKey:candidate.sourceKey,status:'published',snapshotId};
+}
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
+ runUsageCli().then(result=>console.log(JSON.stringify(result))).catch(()=>{console.error('Usage refresh did not complete; no credentials or response bodies logged.');process.exitCode=1;});
 }

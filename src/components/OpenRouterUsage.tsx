@@ -52,7 +52,7 @@ export default function OpenRouterUsage({snapshot,receipt}:Props){
       onFocus={()=>setActiveDate(day.date)} onPointerEnter={()=>setActiveDate(day.date)} onClick={()=>setActiveDate(day.date)}
       onKeyDown={event=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();
        inspect(event.key==='Home'?0:event.key==='End'?series.days.length-1:Math.max(0,Math.min(series.days.length-1,index+(event.key==='ArrowLeft'?-1:1))));}}}>
-      <title>{day.date}: {day.available?day.totalTokens+' tokens':'No data'}</title>
+      <title>{day.date+': '+(day.available?day.totalTokens+' tokens':'No data')}</title>
       <rect x={x} y={top} width={Math.max(1,width-2)} height={bottom-top} className={active?.date===day.date?'usage-day-hit active':'usage-day-hit'} />
       {day.available?day.parts.map(part=>{const h=part.value===null?0:Math.max(0,part.value/ceiling*(bottom-top));stack-=h;
        return <rect key={part.key} x={x} y={stack} width={Math.max(1,width-2)} height={h} fill={color(part.key)} pointerEvents="none"/>;}):

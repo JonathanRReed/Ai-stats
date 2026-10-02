@@ -1,4 +1,7 @@
 ---
+import OpenRouterUsage from './OpenRouterUsage';
+import {getOpenRouterUsageSnapshot} from '../lib/openrouter-usage-server';
+import '../styles/openrouter-usage.css';
 import {
   getModels,
   getPublicCatalogModels,
@@ -53,6 +56,7 @@ const {
 const { epochBenchmarks, epochRuns, epochModels } = epochEvidence;
 const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs);
 const publicPoliBenchSnapshot = await getPublicPoliBenchSnapshot();
+const dailyUsage = await getOpenRouterUsageSnapshot();
 
 const currentMeasuredModels = models.filter((model) =>
   isCurrentMeasuredModel(model),
@@ -369,6 +373,7 @@ function getScoreClass(score: number | null | undefined): string {
         polibench={publicPoliBenchSnapshot}
         freshness={dataFreshness}
       />
+      <OpenRouterUsage snapshot={dailyUsage?.snapshot ?? null} receipt={dailyUsage?.receipt ?? null} client:visible />
       <PoliBenchLab snapshot={publicPoliBenchSnapshot} />
     </div>
     <p class="dashboard-definition">
