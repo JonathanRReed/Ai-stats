@@ -73,6 +73,6 @@ describe('model passport snapshot', () => {
     expect(routes.aiDragRace).toBe('https://ai-dragrace.jonathanrreed.com/?model=openai%2Fgpt-5&provider=openrouter');
     expect(routes.promptInfo).toBe('https://prompt-info.helloworldfirm.com/?model=openai%2Fgpt-5');
     expect(routes.poliBench).toBe('https://polibench.jonathanrreed.com/models/openai/gpt-5/');
-    expect(routes.aiStatsCompare).toBe('/compare?model=GPT-5');
+    expect(routes.aiStatsCompare).toBe('/compare?source=openrouter&record=openai%2Fgpt-5&chart=price');
   });
 });

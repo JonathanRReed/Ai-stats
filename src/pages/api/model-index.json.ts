@@ -1,20 +1,17 @@
 import type { APIRoute } from 'astro';
+import {getModelCatalogData} from '../../lib/model-catalog-data';
+import {catalogIndex} from '../../lib/model-catalog';
 import { getModelPageRecords } from '../../lib/model-pages-data';
 
 export const prerender = true;
 
 /**
- * A slim index for the command palette: just enough to search 677 models and
+ * A slim index for the command palette: exact source records and measured pages and
  * jump to a page. The full receipt lives at /api/model-pages/<slug>.json.
  */
 export const GET: APIRoute = async () => {
-  const records = await getModelPageRecords();
-  const body = records.map((record) => ({
-    n: record.name,
-    p: record.provider,
-    u: record.path,
-    i: record.indexes.find((metric) => metric.key === 'aa_intelligence_index')?.value ?? null,
-  }));
+  const [pages,{records}]=await Promise.all([getModelPageRecords(),getModelCatalogData()]);
+  const body=catalogIndex(records,pages);
   return new Response(JSON.stringify(body), {
     status: 200,
     headers: {

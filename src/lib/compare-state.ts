@@ -1,10 +1,11 @@
+import {SOURCE_RECORD_TYPES} from './model-identity';
 export const AA_METRIC_LABELS:Record<string,string> = {
  aa_intelligence_index:'Intelligence Index',aa_coding_index:'Coding Index',aa_agentic_index:'Agentic Index',aa_math_index:'Math Index',
  mmlu_pro:'MMLU-Pro',gpqa:'GPQA Diamond',hle:"Humanity's Last Exam",livecodebench:'LiveCodeBench',scicode:'SciCode',math_500:'MATH-500',aime:'AIME',
 };
 export const COMPARE_CHARTS = ['cost-intelligence','speed-intelligence','price','benchmark'] as const;
 export type CompareChart = typeof COMPARE_CHARTS[number];
-export type CompareCatalogEntry = {id:string; name?:string; slug?:string; family?:string; reasoning?:string; current?:boolean|null};
+export type CompareCatalogEntry = {id:string; name?:string; slug?:string; source?:string; sourceModelId?:string; family?:string; reasoning?:string; current?:boolean|null};
 export type CompareState = {
   chart:CompareChart; modelIds:string[]; missingModelIds:string[]; reasoningEfforts:string[];
   metricId:string; scoreMetricKey:string|null; conditionKey:string|null; scale:'linear'|'log'; labels:boolean; frontier:boolean; includeHistory:boolean;
@@ -34,8 +35,16 @@ export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogE
   const metricId=(Object.hasOwn(AA_METRIC_LABELS,metric)||/^epoch_[a-z0-9_-]+$/.test(metric))?metric:'aa_intelligence_index';
   const chart=params.get('chart')??(params.has('metric')?'benchmark':'cost-intelligence');
   let requested=params.has('m')?params.getAll('m'):params.has('models')?(params.get('models')??'').split(','):defaults;
+  const source=params.get('source'),native=params.get('record');
+  if(!params.has('m')&&!params.has('models')&&source&&native){
+    const type=Object.hasOwn(SOURCE_RECORD_TYPES,source)?SOURCE_RECORD_TYPES[source]:null;
+    const matches=type?catalog.filter(model=>model.source===type&&
+      (model.sourceModelId===native||(type==='aa'&&model.slug===native))&&
+      (params.get('history')==='1'||model.current!==false)):[];
+    requested=matches.length?matches.map(model=>model.id):[source+':'+native];
+  }
   const legacy=params.get('model');
-  if(!params.has('m')&&!params.has('models')&&legacy){
+  if(!params.has('m')&&!params.has('models')&&!source&&legacy){
     const matches=catalog.filter(model=>model.id===legacy||model.name?.toLowerCase()===legacy.toLowerCase()||model.slug===legacy);
     requested=matches.length===1?[matches[0].id]:[legacy];
   }

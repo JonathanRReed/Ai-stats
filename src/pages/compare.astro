@@ -3,17 +3,13 @@ import Layout from "../components/Layout.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import CompareExplorer from "../components/compare/CompareExplorer";
-import {getModels,getCompareCatalogSources,getCanonicalModels,getModelAliases,getIntelligenceSources} from "../lib/supabase";
-import {getEpochEvidence} from "../lib/epoch-evidence";
+import {getModelCatalogData} from "../lib/model-catalog-data";
 import {getEpochBenchmarksWithRuns,getEpochBenchmarkLabel} from "../lib/benchmark-catalog";
-import {buildExplorerCatalog,defaultExplorerSelection} from "../lib/compare-catalog";
+import {defaultExplorerSelection} from "../lib/compare-catalog";
 import "../styles/compare-explorer.css";
 
 export const prerender = true;
-const [aaModels,epoch,catalogs,canonical,aliases,sources] = await Promise.all([
-  getModels(true,true),getEpochEvidence(),getCompareCatalogSources(),getCanonicalModels(),getModelAliases(),getIntelligenceSources()
-]);
-const models = buildExplorerCatalog(aaModels,epoch.epochModels,catalogs,{models:canonical,aliases,sources});
+const {aaModels,epoch,records:models,unavailableSources}=await getModelCatalogData();
 const benchmarks = getEpochBenchmarksWithRuns(epoch.epochBenchmarks,epoch.epochRuns)
   .map(benchmark=>({slug:benchmark.slug,name:getEpochBenchmarkLabel(benchmark)}));
 const defaultModelIds = defaultExplorerSelection(models);
@@ -26,6 +22,7 @@ const dateModified = dates.length?new Date(Math.max(...dates.map(value=>Date.par
   dateModified={dateModified}>
   <Header currentPage="compare" />
   <main id="main-content" class="compare-page">
+    {unavailableSources.length?<p role="status">Partial catalog. Could not load: {unavailableSources.join(', ')}.</p>:null}
     <CompareExplorer client:load models={models} benchmarks={benchmarks} defaultModelIds={defaultModelIds} />
   </main>
   <Footer />

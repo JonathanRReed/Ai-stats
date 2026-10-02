@@ -42,8 +42,10 @@ test('default comparison stays compact without hiding other variants',()=>{
 });
 test('Compare uses uncapped database caches rather than the capped homepage getter',()=>{
  const page=readFileSync('src/pages/compare.astro','utf8');
- expect(page).toContain('getCompareCatalogSources');
- expect(page).toContain('getCanonicalModels');
+ expect(page).toContain('getModelCatalogData');
+ const loader=readFileSync('src/lib/model-catalog-data.ts','utf8');
+ expect(loader).toContain('getCompareCatalogSources');
+ expect(loader).toContain('getCanonicalModels');
  const css=readFileSync('src/styles/compare-explorer.css','utf8');
  expect(css).toContain('min-height:44px');
 });

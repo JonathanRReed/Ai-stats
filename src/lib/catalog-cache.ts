@@ -42,3 +42,11 @@ export function catalogReceiptPresentation(receipt:NonNullable<ReturnType<typeof
     message:receipt.message??(receipt.status==='stale'?'The catalog refresh is overdue; the last good snapshot is retained.':
       receipt.status==='failed'?'The latest refresh failed; the last good snapshot is retained.':'The displayed snapshot matches the latest cached source.')};
 }
+
+/** A failed read is unknown coverage, not a verified empty source. */
+export function catalogReadReceipt(sourceKey:string,cached:ReturnType<typeof parseCatalogCache>){
+ return {sourceKey,available:Boolean(cached),status:cached?.receipt.status??'unavailable',
+ reason:cached?null:'No validated cache available',fetchedAt:cached?.receipt.fetchedAt??null,
+ publishedAt:cached?.receipt.publishedAt??null,snapshotId:cached?.receipt.snapshotId??null,
+ contentHash:cached?.receipt.contentHash??null};
+}
