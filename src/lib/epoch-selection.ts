@@ -10,3 +10,11 @@ export function preferPublishedEpoch<T extends { fetchedAt: string | null; epoch
   const databaseTime = Date.parse(databaseFetchedAt ?? '');
   return !databaseRunCount || !Number.isFinite(databaseTime) || publishedTime >= databaseTime;
 }
+
+/** Once available, validated cache and artifact data outrank uncommitted legacy table updates. */
+export function chooseValidatedEpoch<T extends { fetchedAt: string | null; epochRuns: unknown[] }>(
+  published: T | null, cached: T | null,
+): T | null {
+  if (!cached?.epochRuns.length) return published;
+  return published && preferPublishedEpoch(published, cached.fetchedAt, cached.epochRuns.length) ? published : cached;
+}

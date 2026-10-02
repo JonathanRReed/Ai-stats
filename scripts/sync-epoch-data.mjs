@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+import { selectEpochArtifact, assertEpochArchiveCoverage } from './source-snapshots.mjs';
+
+import { createHash } from 'node:crypto';
+import { getEpochScoreMetric as getPrimaryScoreColumn, normalizeEpochRecord, buildPublicEpochRun } from './epoch-records.mjs';
 
 import { createClient } from '@supabase/supabase-js';
 import { execFile } from 'node:child_process';
@@ -10,57 +14,6 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 const DATA_URL = 'https://epoch.ai/data/benchmark_data.zip';
 const PAGE_SIZE = 500;
-
-const SCORE_COLUMNS = [
-  'mean_score',
-  'Best score (across scorers)',
-  'Percent correct',
-  'Accuracy',
-  'Accuracy mean',
-  'Average',
-  'Average score',
-  'Average progress',
-  'Average (%)',
-  'Global average',
-  'Score',
-  'Score (AVG@5)',
-  'Pass@1 score',
-  'Challenge score',
-  'EM',
-  'Overall accuracy',
-  'Overall pass (%)',
-  'Overall (no subtitles)',
-  'Win Rate (%)',
-  '% Score',
-  '% Resolved',
-  '% Resolved',
-  'Unguided % Solved',
-  'Correct',
-  'Time horizon',
-  'Arena Score',
-  '120k token score',
-];
-
-const METADATA_COLUMNS = new Set([
-  'Model version',
-  'Release date',
-  'Organization',
-  'Country',
-  'Training compute (FLOP)',
-  'Training compute notes',
-  'Model accessibility',
-  'Model name',
-  'Description',
-  'Display name',
-  'Confidence',
-  'Source',
-  'Source link',
-  'Source Link',
-  'Source link (site from table)',
-  'Notes',
-  'Notes (details)',
-  'id',
-]);
 
 const loadEnv = async () => {
   const envPath = path.join(process.cwd(), '.env');
@@ -155,30 +108,17 @@ const slugToName = (slug) =>
     .replace(/\bAi2\b/u, 'AI2')
     .replace(/\bQa\b/u, 'QA');
 
-const getPrimaryScoreColumn = (row) =>
-  SCORE_COLUMNS.find((column) => toNumberOrNull(row[column]) !== null) ??
-  Object.keys(row).find(
-    (column) => !METADATA_COLUMNS.has(column) && toNumberOrNull(row[column]) !== null,
-  ) ??
-  null;
-
 const getSourceLink = (row) =>
   toTextOrNull(row['Source link']) ??
   toTextOrNull(row['Source Link']) ??
   toTextOrNull(row['Source link (site from table)']);
 
-const getRunId = (slug, row, scoreMetric) => {
+const getRunId = (slug, row) => {
   const sourceId = toTextOrNull(row.id);
   if (sourceId) return sourceId;
-  return [
-    slug,
-    row['Model version'],
-    scoreMetric,
-    row['Release date'],
-    getSourceLink(row),
-  ]
-    .map((part) => String(part ?? '').trim())
-    .join(':');
+  const observation = normalizeEpochRecord(row, slug);
+  if (!observation) throw new Error('Epoch row has no model identity');
+  return `${slug}:${createHash('sha256').update(observation.id).digest('hex')}`;
 };
 
 const readCsv = async (filePath) => parseCsv(await readFile(filePath, 'utf8'));
@@ -257,6 +197,8 @@ const main = async () => {
   const dryRun = process.argv.includes('--dry-run');
   const snapshotIndex = process.argv.indexOf('--write-public-snapshot');
   const snapshotPath = snapshotIndex >= 0 ? process.argv[snapshotIndex + 1] : null;
+  const cacheIndex = process.argv.indexOf('--write-cache-snapshot');
+  const cachePath = cacheIndex >= 0 ? process.argv[cacheIndex + 1] : null;
   const supabaseUrl = process.env.PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -367,7 +309,7 @@ const main = async () => {
         });
 
         runRows.push({
-          epoch_run_id: getRunId(slug, row, scoreMetric),
+          epoch_run_id: getRunId(slug, row),
           model_version: modelVersion,
           score,
           score_metric: scoreMetric,
@@ -394,29 +336,32 @@ const main = async () => {
       throw new Error('Epoch archive has no usable benchmark evidence; refusing an empty replacement.');
     }
 
-    if (snapshotPath) {
+    if (snapshotPath || cachePath) {
       const snapshot = {
         source: DATA_URL,
+        archive_manifest: { source: DATA_URL, sha256: createHash('sha256').update(await readFile(zipPath)).digest('hex'),
+          parsed: true, files: dataFileRows.map(file => ({ path: file.file_path, row_count: file.row_count })) },
         fetched_at: new Date().toISOString(),
         benchmarks: benchmarkRows,
         models: [...modelByVersion.values()],
-        runs: dedupedRunRows.map(({ benchmark_slug: benchmarkSlug, ...run }) => ({
-          id: run.epoch_run_id,
-          model_version: run.model_version,
-          benchmark_id: benchmarkSlug,
-          benchmark_slug: benchmarkSlug,
-          score: run.score,
-          score_metric: run.score_metric,
-          release_date: run.release_date,
-          organization: run.organization,
-          country: run.country,
-          stderr: run.stderr,
-          source_name: run.source_name,
-          source_link: run.source_link,
-        })),
+        runs: dedupedRunRows.map(({ benchmark_slug: benchmarkSlug, ...run }) =>
+          buildPublicEpochRun(run, benchmarkSlug)),
       };
-      await mkdir(path.dirname(snapshotPath), { recursive: true });
-      await writeFile(snapshotPath, `${JSON.stringify(snapshot)}\n`);
+      if (cachePath) {
+        await mkdir(path.dirname(cachePath), { recursive: true });
+        await writeFile(cachePath, `${JSON.stringify(snapshot)}\n`);
+      }
+      if (snapshotPath) {
+        let previous = null;
+        try { previous = JSON.parse(await readFile(snapshotPath, 'utf8')); }
+        catch (error) { if (error.code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error; }
+        assertEpochArchiveCoverage(previous, snapshot);
+        const selected = selectEpochArtifact(previous, snapshot);
+        if (selected.changed) {
+          await mkdir(path.dirname(snapshotPath), { recursive: true });
+          await writeFile(snapshotPath, `${JSON.stringify(selected.artifact)}\n`);
+        }
+      }
     }
 
     if (dryRun) {

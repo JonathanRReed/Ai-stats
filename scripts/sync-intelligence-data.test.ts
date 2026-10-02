@@ -631,3 +631,30 @@ test("sync fails locally when any dependent upsert representation omits a requir
       request.url.includes(testCase.forbiddenPath))).toBe(false);
   }
 });
+
+test("Epoch ingestion retains distinct evaluation settings and evidence dates", () => {
+  const input = createInput();
+  const base = input.epoch.runs[0];
+  const enhancedRuns = [
+    { ...base, id: "aider-diff", score: 8, score_metric: "Percent correct",
+      conditions: { "Edit format": "diff", "Token budget": 0 },
+      evaluation_date: "2026-09-15", score_unit: "percent" },
+    { ...base, id: "aider-whole", score: 16.4, score_metric: "Percent correct",
+      conditions: { "Edit format": "whole" }, evaluation_date: null, score_unit: "percent" },
+  ];
+  input.epoch.runs = enhancedRuns;
+  const rows = buildIntelligencePayloads(input).observations.filter(
+    (row: {source_key: string}) => row.source_key === "epoch-ai");
+  expect(rows).toHaveLength(2);
+  expect(rows.find((row: {observation_key: string}) => row.observation_key === "epoch-ai:aider-diff"))
+    .toMatchObject({ value: 8, metadata: { conditions: { "Edit format": "diff", "Token budget": 0 },
+      evaluationDate: "2026-09-15", scoreUnit: "percent" } });
+  expect(rows.find((row: {observation_key: string}) => row.observation_key === "epoch-ai:aider-whole"))
+    .toMatchObject({ value: 16.4, metadata: { conditions: { "Edit format": "whole" }, evaluationDate: null } });
+});
+
+test("Epoch legacy imports mark missing conditions as unknown", () => {
+  const row = buildIntelligencePayloads(createInput()).observations.find(
+    (row: {source_key: string}) => row.source_key === "epoch-ai");
+  expect(row.metadata).toMatchObject({ conditions: null, evaluationDate: null, scoreUnit: "native" });
+});

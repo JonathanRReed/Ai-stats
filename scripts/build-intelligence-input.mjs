@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { selectAaCurrentMembership } from './aa-membership.mjs';
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -131,15 +132,22 @@ export async function buildIntelligenceInput({
 } = {}) {
   const baseUrl = normalizeProjectUrl(env.SUPABASE_URL);
   const serviceKey = requiredText(env.SUPABASE_SERVICE_ROLE_KEY, "SUPABASE_SERVICE_ROLE_KEY");
-  const [rawAaModels, epoch, polibench, openrouterResponse] = await Promise.all([
+  const [rawAaModels, epoch, polibench, openrouterResponse, aaReceiptResponse] = await Promise.all([
     fetchSupabaseRows({ fetchImpl, baseUrl, serviceKey, table: "aa_models" }),
     readJson(path.join(process.cwd(), "public/data/epoch-benchmark-snapshot.json")),
     readJson(path.join(process.cwd(), "public/data/polibench-snapshot.json")),
     fetchImpl("https://openrouter.ai/api/v1/models?output_modalities=all", {
       headers: { Accept: "application/json", "User-Agent": "AI-Stats/1.0" },
     }),
+    fetchImpl(`${baseUrl}/rest/v1/aa_fetches?select=id,fetched_at,endpoint,status,data&status=eq.200&endpoint=like.language%2F*&order=fetched_at.desc&limit=1`, {
+      headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, Accept: "application/json" },
+    }),
   ]);
-  const aaModels = freshestAaModels(rawAaModels);
+  if (!aaReceiptResponse.ok) throw new Error('Unable to read AA source membership receipt');
+  const receipts = await aaReceiptResponse.json();
+  if (!Array.isArray(receipts) || receipts.length !== 1) throw new Error('AA source membership receipt unavailable');
+  const membership = selectAaCurrentMembership(rawAaModels, receipts[0]);
+  const aaModels = freshestAaModels(membership.models);
   if (!aaModels.length) throw new Error("Artificial Analysis source returned no models");
   if (!openrouterResponse.ok) {
     throw new Error(`OpenRouter source request failed (${openrouterResponse.status})`);
@@ -157,7 +165,7 @@ export async function buildIntelligenceInput({
   }, "1970-01-01T00:00:00.000Z");
   if (observedAt.startsWith("1970-")) throw new Error("Artificial Analysis rows have no valid freshness timestamp");
   return {
-    aa: { observedAt, models: aaModels },
+    aa: { observedAt, fetchedAt: membership.fetchedAt, snapshotId: membership.snapshotId, models: aaModels },
     epoch,
     openrouter: { fetchedAt: new Date().toISOString(), models: openrouterModels },
     polibench,

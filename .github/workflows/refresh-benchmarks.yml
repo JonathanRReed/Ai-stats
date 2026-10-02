@@ -3,7 +3,7 @@ name: Refresh benchmark evidence
 on:
   workflow_dispatch: {}
   schedule:
-    - cron: '37 1,13 * * *'
+    - cron: '37 1,7,13,19 * * *'
 
 permissions:
   contents: write
@@ -63,7 +63,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          bun scripts/sync-epoch-data.mjs --write-public-snapshot public/data/epoch-benchmark-snapshot.json
+          bun scripts/sync-epoch-data.mjs --write-public-snapshot public/data/epoch-benchmark-snapshot.json --write-cache-snapshot .tmp/epoch-cache-candidate.json
           bun run build:intelligence-input
           bun run sync:intelligence --input .tmp/intelligence-input.json
       - name: Verify the release candidate
@@ -77,11 +77,25 @@ jobs:
           PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
         run: bun run build
+      - name: Promote verified source caches
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          bun scripts/publish-epoch-cache.mjs --input .tmp/epoch-cache-candidate.json
+          bun scripts/publish-aa-membership.mjs --input .tmp/intelligence-input.json
+      - name: Verify promoted source selection and release manifest
+        env:
+          PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          bun scripts/source-release-manifest.mjs .tmp/intelligence-input.json public/data/source-manifest.json
+          bun run build
       - name: Publish only the verified public snapshots
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          git add -- public/data/epoch-benchmark-snapshot.json public/data/polibench-snapshot.json
+          git add -- public/data/epoch-benchmark-snapshot.json public/data/polibench-snapshot.json public/data/source-manifest.json
           if git diff --cached --quiet; then exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'

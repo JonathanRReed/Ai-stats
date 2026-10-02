@@ -45,7 +45,7 @@ test("the initial performance chart follows the default task preset", () => {
 
 test("the compare page describes measured data as a build-time snapshot", () => {
   expect(source).toContain(
-    "Selections start from priced models and named measurements captured by this build.",
+    "Models stay selectable when pricing is missing. Each chart uses its available measurements.",
   );
   expect(source).not.toContain("live data can replace the snapshot");
 });
@@ -90,4 +90,19 @@ test("Epoch metrics keep source-native units unless the source explicitly identi
 test("Epoch scores do not use fuzzy token fallback across source identities", () => {
   expect(source).not.toContain("tokens.every((token) => alias.includes(token))");
   expect(initialApiSource).not.toContain("tokens.every((token) => alias.includes(token))");
+});
+
+test("server and browser comparisons use the shared ambiguity-safe evidence index", () => {
+  expect(source).toContain("buildEpochScoreIndex");
+  expect(initialApiSource).toContain("buildEpochScoreIndex");
+  expect(source).not.toContain("inputPrice > 0 && outputPrice > 0");
+  expect(initialApiSource).not.toContain("inputPrice > 0 && outputPrice > 0");
+  expect(source).not.toContain("score <= 1 ? score * 100");
+  expect(source).toContain('availableForMetric(model, "price-pair")');
+});
+
+test("Epoch exact-data dates use observation receipts and empty price axes stay finite", () => {
+  expect(source).toContain("comparisonEvidenceDate(model, metric");
+  expect(initialApiSource).toContain("epochScoreReceipts");
+  expect(source).toContain("priceChartMaximum([...inputData, ...outputData])");
 });

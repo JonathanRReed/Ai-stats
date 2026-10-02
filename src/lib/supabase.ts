@@ -1,3 +1,4 @@
+import { readAaCohort } from './aa-membership';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { AA_MODEL_SELECT_COLUMNS } from './aa-model-columns';
 import {
@@ -74,6 +75,9 @@ export type EpochBenchmark = {
 };
 
 export type EpochBenchmarkRun = {
+  conditions?: Record<string, string | number | boolean> | null;
+  evaluation_date?: string | null;
+  score_unit?: 'native' | 'percent' | 'fraction';
   id: string;
   model_version: string;
   benchmark_id: string;
@@ -90,6 +94,7 @@ export type EpochBenchmarkRun = {
 };
 
 export type AaModel = {
+  current_source_member?: boolean | null;
   id: string;
   name: string | null;
   slug: string | null;
@@ -823,7 +828,7 @@ async function fetchOpenRouterEndpointSummaries(
  * Fetches models from public.aa_models and returns an array with UI-friendly fields.
  * Adds company_name derived from creator_name for the existing UI.
  */
-export async function getModels(): Promise<AaModel[]> {
+export async function getModels(includeHistory = false): Promise<AaModel[]> {
   if (!supabase) {
     console.warn('[supabase] Client unavailable, returning empty model list.');
     return [];
@@ -842,8 +847,16 @@ export async function getModels(): Promise<AaModel[]> {
     throw error;
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return normalizeAaModelsForDisplay((data ?? []).map((model: any) => ({
+  const cohort = await readAaCohort({
+    models: async () => (data ?? []) as AaModel[],
+    cache: async () => {
+      const result = await supabase.from('source_snapshot_cache').select('source_key,record_count,payload')
+        .eq('source_key', 'artificial-analysis').maybeSingle();
+      if (result.error) throw result.error;
+      return result.data;
+    },
+  }, includeHistory);
+  return normalizeAaModelsForDisplay(cohort.map((model) => ({
     ...model,
     company_name: model.creator_name ?? null,
   })) as AaModel[]);
