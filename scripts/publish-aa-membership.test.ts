@@ -1,5 +1,5 @@
 import {expect,test} from 'bun:test';
-const publisher=await import('./publish-aa-membership.mjs').catch(()=>({}));
+import * as publisher from './publish-aa-membership.mjs';
 test('AA membership publisher sends identities only after verified input validation', async()=>{
   let sent: unknown;
   const receipt=await publisher.runAaMembershipPublication?.({
