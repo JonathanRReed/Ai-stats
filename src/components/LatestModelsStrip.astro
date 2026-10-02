@@ -30,11 +30,9 @@ const providerFor = (model: AaModel): string =>
 <section class="latest-models" aria-label="Current benchmark snapshot">
   <div class="latest-models-opening">
     <div class="latest-models-intro">
-      <h1>See how these models compare.</h1>
+      <h1>Compare AI models</h1>
       <p class="latest-models-lede">
-        Price, speed, context, and named benchmark scores from Artificial Analysis,
-        Epoch AI, OpenRouter, and PoliBench, side by side. Every number keeps its
-        source and its date. There is no combined score and no winner.
+        Benchmarks, pricing and speed, with sources you can check.
       </p>
     </div>
     <div class="latest-models-actions">
@@ -46,6 +44,7 @@ const providerFor = (model: AaModel): string =>
   <header class="latest-models-header">
     <div>
       <h2>AI model benchmark snapshot</h2>
+      <details><summary>Selection and measurement details</summary>
       <p>
         One recent model per provider with AA Index, pricing, and speed available.
         Rows are ordered by AA Index, then by the number of available measurements.
@@ -53,6 +52,7 @@ const providerFor = (model: AaModel): string =>
         This describes the data, it does not recommend a model.
       </p>
       <p>{[...new Set(models.map((model) => aaEvidenceNote(model.source_metadata)))].join(' ')}</p>
+      </details>
     </div>
     {latestObserved ? (
       <p class="latest-models-observed">
