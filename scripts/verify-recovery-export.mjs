@@ -45,15 +45,16 @@ export async function verifyRecovery(directory, modulePath) {
   assert.ok(progress.every(table => table.done), 'Export is incomplete');
   const schema = await json(path.join(directory, 'schema-metadata.json'));
   const {PGlite} = await import(modulePath);
-  const db = new PGlite();
+  const {pgcrypto} = await import(path.join(path.dirname(modulePath), 'contrib/pgcrypto.js'));
+  const db = new PGlite({extensions:{pgcrypto}});
   const report = {kind: 'application-data-restore-test', complete: false, tables: [], limitations: [
     'Isolated PGlite engine is not the production Supabase engine',
     'Credentials, managed auth configuration and cron commands are deliberately excluded',
-    'Function definitions, grants and policies are archived but this test validates tables, data, constraints and indexes'
+    'External-service function bodies cannot be exercised offline; grants and policies are archived for recovery'
   ]};
   try {
     report.engine = (await db.query('select version() as version')).rows[0].version;
-    await db.exec("set timezone='UTC'; create schema if not exists aa; create schema if not exists private;");
+    await db.exec("create schema extensions; create extension pgcrypto with schema extensions; set timezone='UTC'; create schema if not exists aa; create schema if not exists private;");
     for (const table of schema.tables) {
       const columns = schema.columns.filter(c => c.schema_name === table.schema_name && c.table_name === table.table_name).sort((a,b) => a.position-b.position);
       await db.exec('create table ' + qualified(table.schema_name, table.table_name) + '(' + columns.map(c => ident(c.column_name) + ' ' + c.data_type + (c.not_null ? ' not null' : '')).join(',') + ')');
@@ -108,6 +109,12 @@ export async function verifyRecovery(directory, modulePath) {
       report.tables.push({table: table.table, rows: count, digest: actual.digest});
       console.log('Restored and verified ' + table.table + ': ' + count + ' rows');
     }
+    await db.exec('set check_function_bodies=off');
+    for (const fn of schema.functions ?? []) await db.exec(fn.definition);
+    await db.exec('set check_function_bodies=on');
+    for (const view of schema.views ?? []) await db.exec('create view ' + qualified(view.schema_name,view.view_name) + ' as ' + view.definition);
+    report.functionsCreated = (schema.functions ?? []).length;
+    report.viewsCreated = (schema.views ?? []).length;
     for (const kind of ['p','u','c','f','x']) {
       for (const c of schema.constraints.filter(c => c.kind === kind)) {
         await db.exec('alter table ' + qualified(c.schema_name,c.table_name) + ' add constraint ' + ident(c.constraint_name) + ' ' + c.definition);
