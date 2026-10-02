@@ -33,5 +33,10 @@
     "version": "20261002204705",
     "name": "aa_refresh_phase_alignment",
     "sqlDigest": "0c8bb4527b5d01140136628d2e276bbf"
+  },
+  {
+    "version": "20261002213840",
+    "name": "index_source_snapshot_cache_reference",
+    "sqlDigest": "426a54b0d35021a373bc3cc658fc120e"
   }
 ]
