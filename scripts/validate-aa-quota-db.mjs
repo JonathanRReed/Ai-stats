@@ -22,6 +22,21 @@ try{
  assert.equal((await db.query('select requests_used,remaining from private.aa_refresh_state')).rows[0].requests_used,1);
  await call('select public.finish_aa_refresh($1,$2) as value',[next.leaseId,true]);
  assert.equal((await call('select public.claim_aa_refresh() as value')).reason,'interval');
+
+ await db.exec("update private.aa_refresh_state set last_success_at=null,next_allowed_at=null,lease_id=null,lease_until=null,window_reset_at=now()+interval '1 hour',remaining=100,requests_used=0");
+ const budget=await call('select public.claim_aa_refresh() as value');
+ for(let n=0;n<90;n++)assert.equal(await call('select public.reserve_aa_request($1) as value',[budget.leaseId]),true);
+ assert.equal(await call('select public.reserve_aa_request($1) as value',[budget.leaseId]),false);
+ assert.equal(await call('select public.reserve_aa_request($1) as value',['00000000-0000-0000-0000-000000000000']),false);
+ await db.exec("update private.aa_refresh_state set window_reset_at=now()-interval '1 second',reset_verified=true,requests_used=89,remaining=10");
+ await call('select public.record_aa_response($1,$2,$3,$4,$5) as value',[budget.leaseId,100,99,new Date(Date.now()+24*3600000).toISOString(),null]);
+ const rollover=(await db.query('select requests_used,remaining from private.aa_refresh_state')).rows[0];
+ assert.equal(rollover.requests_used,1);assert.equal(rollover.remaining,99);
+ assert.equal(await call('select public.reserve_aa_request($1) as value',[budget.leaseId]),true);
+ await db.exec("update private.aa_refresh_state set lease_until=now()-interval '1 second'");
+ assert.equal(await call('select public.reserve_aa_request($1) as value',[budget.leaseId]),false);
+ const replacement=await call('select public.claim_aa_refresh() as value');assert.equal(replacement.claimed,true);
+ assert.equal(await call('select public.finish_aa_refresh($1,$2) as value',[budget.leaseId,true]),false);
  await db.exec('reset role; set role anon');
  await assert.rejects(call('select public.claim_aa_refresh() as value'),/permission denied/);
  await assert.rejects(db.query('select * from private.aa_refresh_state'),/permission denied/);

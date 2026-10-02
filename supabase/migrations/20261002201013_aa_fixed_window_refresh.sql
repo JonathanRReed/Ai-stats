@@ -2,7 +2,7 @@
 create table private.aa_refresh_state (
  id boolean primary key default true check(id),
  lease_id uuid,lease_until timestamptz,claimed_at timestamptz,last_success_at timestamptz,
- window_reset_at timestamptz,requests_used integer not null default 0 check(requests_used>=0),
+ window_reset_at timestamptz,reset_verified boolean not null default false,requests_used integer not null default 0 check(requests_used>=0),
  upstream_limit integer,remaining integer check(remaining>=0),next_allowed_at timestamptz,
  updated_at timestamptz not null default now()
 );
@@ -30,23 +30,26 @@ begin
  if s.lease_id is distinct from p_lease or s.lease_until is null or s.lease_until<=t then return false;end if;
  if s.next_allowed_at>t then return false;end if;
  if s.window_reset_at is null or s.window_reset_at<=t then
-  s.window_reset_at:=t+interval '24 hours';s.requests_used:=0;s.remaining:=null;
+  s.window_reset_at:=t+interval '24 hours';s.reset_verified:=false;s.requests_used:=0;s.remaining:=null;
  end if;
  if s.requests_used>=90 or s.remaining<=10 then return false;end if;
- update private.aa_refresh_state set window_reset_at=s.window_reset_at,requests_used=s.requests_used+1,
+ update private.aa_refresh_state set window_reset_at=s.window_reset_at,reset_verified=s.reset_verified,requests_used=s.requests_used+1,
  remaining=case when s.remaining is null then null else greatest(0,s.remaining-1) end,updated_at=t where id;
  return true;
 end;$$;
 create function public.record_aa_response(p_lease uuid,p_limit integer,p_remaining integer,p_reset timestamptz,p_not_before timestamptz)
 returns boolean language plpgsql security invoker set search_path='' as $$
-declare s private.aa_refresh_state%rowtype;t timestamptz:=clock_timestamp();v_reset timestamptz;v_remaining integer;
+declare s private.aa_refresh_state%rowtype;t timestamptz:=clock_timestamp();v_reset timestamptz;v_remaining integer;v_new_window boolean;
 begin
  select * into s from private.aa_refresh_state where id for update;
  if s.lease_id is distinct from p_lease or s.lease_until is null or s.lease_until<=t then return false;end if;
  if p_limit is not null and p_limit<1 or p_remaining is not null and p_remaining<0 then raise exception 'Invalid quota headers';end if;
  v_reset:=case when p_reset>t then p_reset else s.window_reset_at end;
- v_remaining:=case when p_remaining is null then s.remaining when s.remaining is null then p_remaining else least(s.remaining,p_remaining) end;
+ v_new_window:=s.reset_verified and p_reset>t and p_reset>s.window_reset_at;
+ v_remaining:=case when v_new_window then p_remaining when p_remaining is null then s.remaining when s.remaining is null then p_remaining else least(s.remaining,p_remaining) end;
  update private.aa_refresh_state set upstream_limit=coalesce(p_limit,upstream_limit),remaining=v_remaining,window_reset_at=v_reset,
+ reset_verified=case when p_reset>t then true else s.reset_verified end,
+ requests_used=case when v_new_window then 1 else s.requests_used end,
  next_allowed_at=greatest(next_allowed_at,p_not_before,case when v_remaining<=10 then v_reset else null end),updated_at=t where id;
  return true;
 end;$$;
