@@ -58,6 +58,10 @@ export function serializeCompareState(state:CompareState):URLSearchParams {
   return params;
 }
 export function selectFamily(selected:string[],catalog:CompareCatalogEntry[],family:string,checked:boolean,includeHistory=false):string[] {
-  const ids=catalog.filter(model=>model.family===family&&(includeHistory||model.current!==false)).map(model=>model.id);
+  const ids=catalog.filter(model=>model.family===family&&(!checked||includeHistory||model.current!==false)).map(model=>model.id);
   return checked?unique([...selected,...ids]):selected.filter(id=>!ids.includes(id));
+}
+
+export function readBenchmarkCache<T>(cache:Record<string,T[]>,slug:string):T[]|undefined {
+  return Object.prototype.hasOwnProperty.call(cache,slug)&&Array.isArray(cache[slug])?cache[slug]:undefined;
 }

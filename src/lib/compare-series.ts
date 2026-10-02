@@ -56,7 +56,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
     if(model.source!==source)return false;
     let reason:string|null=null;
     if(model.current===false&&!state.includeHistory)reason='Historical observation';
-    else if(state.reasoningEfforts.length&&!state.reasoningEfforts.includes(model.reasoning??'unknown'))reason='Reasoning filter';
+    else if(model.source==='aa'&&state.reasoningEfforts.length&&!state.reasoningEfforts.includes(model.reasoning??'unknown'))reason='Reasoning filter';
     if(reason){result.excluded.push({modelId:model.id,reason});return false;}
     return true;
   });

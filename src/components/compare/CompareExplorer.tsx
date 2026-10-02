@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {parseCompareState,serializeCompareState,selectFamily,type CompareState,type CompareChart} from '../../lib/compare-state';
+import {parseCompareState,serializeCompareState,selectFamily,readBenchmarkCache,type CompareState,type CompareChart} from '../../lib/compare-state';
 import {buildCompareSeries,type ExplorerModel} from '../../lib/compare-series';
 import {epochConditionKey,type EpochObservation} from '../../lib/epoch-observations';
 import {formatChartNumber} from '../../lib/compare-geometry';
@@ -26,9 +26,9 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
   useEffect(()=>{const read=()=>setState(parseCompareState(new URLSearchParams(window.location.search),models,defaultModelIds));
     read();window.addEventListener('popstate',read);return()=>window.removeEventListener('popstate',read);},[models,defaultModelIds]);
   const epochSlug=state.chart==='benchmark'&&state.metricId.startsWith('epoch_')?state.metricId.slice(6):null;
-  const observations=epochSlug?benchmarkCache[epochSlug]??EMPTY_OBSERVATIONS:EMPTY_OBSERVATIONS;
+  const observations=epochSlug?readBenchmarkCache(benchmarkCache,epochSlug)??EMPTY_OBSERVATIONS:EMPTY_OBSERVATIONS;
   useEffect(()=>{
-    if(!epochSlug||benchmarkCache[epochSlug]){setLoadState('');return;}
+    if(!epochSlug||readBenchmarkCache(benchmarkCache,epochSlug)){setLoadState('');return;}
     if(!benchmarks.some(benchmark=>benchmark.slug===epochSlug)){setLoadState('Unknown benchmark in this link.');return;}
     const controller=new AbortController();setLoadState('Loading benchmark observations…');
     fetch('/api/compare-benchmarks/'+encodeURIComponent(epochSlug)+'.json',{signal:controller.signal})

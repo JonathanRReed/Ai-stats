@@ -1,5 +1,5 @@
 import type {EvidenceReceipt} from './compare-series';
-type CsvPoint={label:string;reasoning?:string;x:number;y:number;unit:string;receipt:EvidenceReceipt};
+type CsvPoint={id?:string;modelId?:string;series?:string;label:string;reasoning?:string;x:number;y:number;unit:string;receipt:EvidenceReceipt};
 const cell=(value:unknown)=>{
   let text=value===null||value===undefined?'':String(value);
   if(typeof value!=='number'&&/^[\s]*[=+@-]/.test(text))text="'"+text;
@@ -7,9 +7,9 @@ const cell=(value:unknown)=>{
 };
 export function seriesCsv(points:CsvPoint[],options:{includeX?:boolean;xLabel?:string;yLabel?:string}={}):string{
   const includeX=options.includeX!==false;
-  const rows:Array<Array<string|number>>=[['Model','Reasoning',...(includeX?[options.xLabel??'X']:[]),
+  const rows:Array<Array<string|number>>=[['Model','Model ID','Observation ID','Series','Index version','Reasoning',...(includeX?[options.xLabel??'X']:[]),
     options.yLabel??'Value','Unit','Source','Observed','Retrieved','Conditions','Source URL','Snapshot']];
-  for(const point of points)rows.push([point.label,point.reasoning??'unknown',...(includeX?[point.x]:[]),point.y,point.unit,
+  for(const point of points)rows.push([point.label,point.modelId??'',point.id??'',point.series??'',point.receipt.indexVersion??'',point.reasoning??'unknown',...(includeX?[point.x]:[]),point.y,point.unit,
     point.receipt.source,point.receipt.observedAt??'',point.receipt.fetchedAt??'',
     point.receipt.conditions?JSON.stringify(point.receipt.conditions):'unknown',point.receipt.sourceUrl??'',point.receipt.snapshotId??'']);
   return rows.map(row=>row.map(cell).join(',')).join('\r\n')+'\r\n';

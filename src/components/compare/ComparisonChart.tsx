@@ -54,8 +54,8 @@ export default function ComparisonChart({series,labels,activeId,onPreview,onPin,
         onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onPin(point.id);}}}>
         <title>{inspect(point)}</title>
         {series.kind==='scatter'?<><circle cx={point.cx} cy={point.cy} r="11" fill="transparent"/><circle className="point-mark" cx={point.cx} cy={point.cy}
-          r={activeId===point.id?6:4.5} fill={familyColor(point.family)}/></>:<rect className="point-mark" x={point.cx-point.barWidth/2}
-          y={Math.min(point.cy,plot.baseline)} width={point.barWidth-2} height={Math.max(1,Math.abs(plot.baseline-point.cy))}
+          r={activeId===point.id?6:4.5} fill={familyColor(point.family)}/></>:<rect className="point-mark" x={point.cx-point.visibleBarWidth/2}
+          y={Math.min(point.cy,plot.baseline)} width={point.visibleBarWidth} height={Math.max(1,Math.abs(plot.baseline-point.cy))}
           fill={familyColor(point.family)} opacity={point.series==='input'?.55:1}/>}
         {labels?<text className="point-label" x={point.cx+8} y={point.cy-10}>{point.label}</text>:null}
       </g>)}

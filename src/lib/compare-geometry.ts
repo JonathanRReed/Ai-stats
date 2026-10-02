@@ -41,7 +41,7 @@ export function plotGeometry<T extends PlotPoint>(points:T[],kind:'scatter'|'bar
     const peerIndex=peers.findIndex(other=>other.id===point.id);
     const barWidth=Math.min(72,band*.72/Math.max(peers.length,1));
     return {...point,cx:kind==='scatter'?px(point.x):left+(groups.indexOf(point.x)+.5)*band+
-      (peerIndex-(peers.length-1)/2)*barWidth,cy:py(point.y),barWidth};
+      (peerIndex-(peers.length-1)/2)*barWidth,cy:py(point.y),barWidth,visibleBarWidth:Math.max(barWidth*.55,barWidth-2)};
   });
   const ticks=(range:[number,number],log:boolean,position:(value:number)=>number)=>{
     const values:number[]=[];
