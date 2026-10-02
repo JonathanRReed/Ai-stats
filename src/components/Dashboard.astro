@@ -2468,11 +2468,12 @@ function getScoreClass(score: number | null | undefined): string {
       const priceKey =
         key === "output_price" ? "completion_price_1m" : "prompt_price_1m";
       const candidates = (models || [])
+        .filter((model) => Array.isArray(model?.output_modalities) && model.output_modalities.includes('text'))
         .map((model) => ({
           model,
-          score: Number(model?.[priceKey]),
+          score: parseFiniteMetricValue(model?.[priceKey]),
         }))
-        .filter((entry) => Number.isFinite(entry.score) && entry.score > 0);
+        .filter((entry) => entry.score !== null && Number.isFinite(entry.score) && entry.score >= 0);
       if (!candidates.length) return null;
       candidates.sort((a, b) => a.score - b.score);
       return candidates[0];

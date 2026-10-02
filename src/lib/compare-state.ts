@@ -41,7 +41,9 @@ export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogE
     const matches=type?catalog.filter(model=>model.source===type&&
       (model.sourceModelId===native||(type==='aa'&&model.slug===native))&&
       (params.get('history')==='1'||model.current!==false)):[];
-    requested=matches.length===1?[matches[0].id]:[source+':'+native];
+    const fallback=params.get('inventory');
+    const inventory=type&&matches.length===0&&fallback?catalog.find(model=>model.source==='catalog'&&model.id===fallback):null;
+    requested=matches.length===1?[matches[0].id]:inventory?[inventory.id]:[source+':'+native];
   }
   const legacy=params.get('model');
   if(!params.has('m')&&!params.has('models')&&!source&&legacy){
