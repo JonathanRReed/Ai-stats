@@ -42,12 +42,13 @@ export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogE
   }
   const ids=new Set(catalog.map(model=>model.id));
   const selected=unique(requested.filter(safeIdentity));
+  const normalizedChart=COMPARE_CHARTS.includes(chart as CompareChart)?chart as CompareChart:'cost-intelligence';
   return {
-    chart:COMPARE_CHARTS.includes(chart as CompareChart)?chart as CompareChart:'cost-intelligence',
+    chart:normalizedChart,
     modelIds:selected.filter(id=>ids.has(id)), missingModelIds:selected.filter(id=>!ids.has(id)),
     reasoningEfforts:unique(params.getAll('reason').filter(value=>REASONING.has(value))).sort(),
     metricId,scoreMetricKey:scoreMetric(params.get('score_metric')),conditionKey:condition(params.get('condition')),
-    scale:params.has('scale')?(params.get('scale')==='log'?'log':'linear'):(chart==='cost-intelligence'?'log':'linear'),labels:params.get('labels')==='1',
+    scale:params.has('scale')?(params.get('scale')==='log'?'log':'linear'):(normalizedChart==='cost-intelligence'?'log':'linear'),labels:params.get('labels')==='1',
     frontier:params.get('frontier')!=='0',includeHistory:params.get('history')==='1',
   };
 }

@@ -60,3 +60,7 @@ test('explicit Epoch score metric round trips with shared URLs',()=>{
  expect(parsed.scoreMetricKey).toBe('["Accuracy","percent"]');
  expect(state.parseCompareState(state.serializeCompareState(parsed),catalog).scoreMetricKey).toBe(parsed.scoreMetricKey);
 });
+
+test('invalid chart defaults use the normalized chart scale',()=>{
+ expect(state.parseCompareState(new URLSearchParams('chart=not-a-chart'),catalog)).toMatchObject({chart:'cost-intelligence',scale:'log'});
+});
