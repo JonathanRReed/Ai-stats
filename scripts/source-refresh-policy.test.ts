@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-const policy = await import('./source-refresh-policy.mjs').catch(() => ({}));
+import * as policy from './source-refresh-policy.mjs';
 test('source cadences match bounded free-tier refresh targets', () => {
   for (const [source, intervalHours, staleAfterHours] of [
     ['artificial-analysis', 4, 8], ['epoch-ai', 6, 12], ['openrouter', 6, 12],
