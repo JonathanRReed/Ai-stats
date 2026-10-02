@@ -1,4 +1,5 @@
 ---
+import { buildCompareEvidence } from "../lib/compare-evidence";
 import {
   getModels,
   getPublicCatalogModels,
@@ -127,11 +128,7 @@ const buildEpochCompareDemoModels = (): any[] => {
   });
 };
 
-const validModels = models.filter((model: any) => {
-  const inputPrice = Number(model.price_1m_input_tokens);
-  const outputPrice = Number(model.price_1m_output_tokens);
-  return inputPrice > 0 && outputPrice > 0;
-});
+const validModels = buildCompareEvidence(models, []).models;
 const epochDemoModels = validModels.length > 0 ? [] : buildEpochCompareDemoModels();
 const compareModels = validModels.length > 0 ? validModels : epochDemoModels;
 const usingIllustrativeFallback =
@@ -2096,18 +2093,18 @@ const initialPerformanceAttribution =
             <strong>
               {usingIllustrativeFallback
                 ? "Benchmark-only Epoch rows"
-                : "Measured pricing and benchmarks"}
+                : "Source measurements"}
             </strong>
             <p>
               {usingIllustrativeFallback
                 ? "Current priced rows are unavailable. Epoch benchmark rows are shown without price estimates."
-                : "Selections start from priced models and named measurements captured by this build."}
+                : "Models stay selectable when pricing is missing. Each chart uses its available measurements."}
             </p>
           </div>
         </div>
         <dl class="compare-hero-stats" aria-label="Initial compare coverage">
           <div>
-            <dt>Priced</dt>
+            <dt>Models</dt>
             <dd>{validModels.length}</dd>
           </div>
           <div>
@@ -2248,6 +2245,7 @@ const initialPerformanceAttribution =
 
 <script>
   // @ts-nocheck
+  import { availableForMetric, buildEpochScoreIndex, fromEpochRuns } from "../lib/compare-evidence";
   import Chart from "chart.js/auto";
   import ChartDataLabels from "chartjs-plugin-datalabels";
   import { DEFAULT_TASK_PRESETS } from "../lib/model-intelligence";
@@ -3129,29 +3127,8 @@ const initialPerformanceAttribution =
       renderBenchmarkAttribution(metricSelector.value);
     };
 
-    const rebuildEpochScores = (runs, aliasesByVersion = {}) => {
-      const byAlias = {};
-      const registerScore = (aliasKey, benchmarkSlug, score) => {
-        if (!aliasKey || !benchmarkSlug || !Number.isFinite(score)) return;
-        if (!byAlias[aliasKey]) byAlias[aliasKey] = {};
-        byAlias[aliasKey][benchmarkSlug] = score;
-      };
-
-      runs.forEach((run) => {
-        if (!run.model_version || run.score === null || !run.benchmark_slug)
-          return;
-        const normalizedVersion = normalizeModelKey(run.model_version);
-        const aliases = new Set([
-          normalizedVersion,
-          normalizedVersion.replace(/\s+/g, ""),
-          ...((aliasesByVersion[run.model_version] || []).filter(Boolean) || []),
-        ]);
-        aliases.forEach((alias) => {
-          registerScore(alias, run.benchmark_slug, Number(run.score) || 0);
-        });
-      });
-      return byAlias;
-    };
+    const rebuildEpochScores = (runs, aliasesByVersion = {}) =>
+      buildEpochScoreIndex(fromEpochRuns(runs), aliasesByVersion).scores;
 
     const resolveMetricScore = (model, metricKey) => {
       if (!metricKey.startsWith("epoch_")) {
@@ -3159,10 +3136,7 @@ const initialPerformanceAttribution =
       }
 
       const epochSlug = metricKey.replace("epoch_", "");
-      const metricName = String(epochScoreMetrics?.[epochSlug] || "").toLowerCase();
-      const isPercentMetric = isExplicitPercentageMetric(metricName);
-      const normalizeEpochMetricScore = (score) =>
-        isPercentMetric && score <= 1 ? score * 100 : score;
+      // Scores are normalized once from explicit units by the shared evidence adapter.
       const { keys } = collectLookupKeys(model);
 
       for (const key of keys) {
@@ -3170,7 +3144,7 @@ const initialPerformanceAttribution =
           epochScores?.[key]?.[epochSlug],
         );
         if (exactScore !== null) {
-          return normalizeEpochMetricScore(exactScore);
+          return exactScore;
         }
       }
 
@@ -3315,10 +3289,10 @@ const initialPerformanceAttribution =
       const detail = `${selectedCovered} selected models currently have enough comparable measurements.`;
       const modeTitle = usingIllustrativeFallback
         ? "Benchmark-only Epoch rows"
-        : "Measured pricing and benchmarks";
+        : "Source measurements";
       const modeDetail = usingIllustrativeFallback
         ? "Current priced rows are unavailable. Epoch benchmark rows are shown without price estimates."
-        : "Selections start from priced models and named measurements captured by this build.";
+        : "Models stay selectable when pricing is missing. Each chart uses its available measurements.";
 
       if (evidenceCoverageEl) {
         evidenceCoverageEl.innerHTML = `<span>Comparable rows</span><strong>${sanitizeHTML(summary)}</strong><p>${sanitizeHTML(detail)}</p>`;
@@ -3588,7 +3562,7 @@ const initialPerformanceAttribution =
       };
 
       // Sort chosen models by price for price chart
-      const chosenByPrice = [...chosen].sort((a, b) => {
+      const chosenByPrice = chosen.filter(model => availableForMetric(model, "price-pair")).sort((a, b) => {
         const totalA =
           (Number(a.price_1m_input_tokens) || 0) +
           (Number(a.price_1m_output_tokens) || 0);
@@ -4014,11 +3988,7 @@ const initialPerformanceAttribution =
       if (!snapshot) return;
       await loadPublicCatalogData();
 
-      const nextModels = enrichWithPublicCatalog((snapshot.aaModels ?? []).filter((model) => {
-        const inputPrice = Number(model.price_1m_input_tokens);
-        const outputPrice = Number(model.price_1m_output_tokens);
-        return inputPrice > 0 && outputPrice > 0;
-      }));
+      const nextModels = enrichWithPublicCatalog(snapshot.aaModels ?? []);
 
       usingIllustrativeFallback = nextModels.length === 0 && epochDemoModels.length > 0;
       modelsState = usingIllustrativeFallback

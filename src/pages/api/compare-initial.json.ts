@@ -1,3 +1,4 @@
+import { buildCompareEvidence, buildEpochScoreIndex, fromEpochRuns } from '../../lib/compare-evidence';
 import type { APIRoute } from 'astro';
 import {
   getModels,
@@ -166,36 +167,10 @@ export const GET: APIRoute = async () => {
       `${getEpochBenchmarkLabel(benchmark)} (Epoch)`;
   });
 
-  const epochScoresByModel: Record<string, Record<string, number>> = {};
-  const registerEpochScore = (
-    aliasKey: string,
-    benchmarkSlug: string,
-    score: number,
-  ) => {
-    if (!aliasKey) return;
-    epochScoresByModel[aliasKey] ??= {};
-    epochScoresByModel[aliasKey][benchmarkSlug] = score;
-  };
-
-  epochRuns.forEach((run) => {
-    if (!run.model_version || run.score === null || !run.benchmark_slug) return;
-    const normalizedVersion = normalizeModelKey(run.model_version);
-    const aliases = new Set<string>([
-      normalizedVersion,
-      normalizedVersion.replace(/\s+/g, ''),
-      ...(epochAliasesByModelVersion[run.model_version] ?? []),
-    ]);
-
-    aliases.forEach((alias) => {
-      registerEpochScore(alias, run.benchmark_slug!, run.score!);
-    });
-  });
-
-  const validModels = (models as CompareModelRecord[]).filter((model) => {
-    const inputPrice = Number(model.price_1m_input_tokens);
-    const outputPrice = Number(model.price_1m_output_tokens);
-    return inputPrice > 0 && outputPrice > 0;
-  });
+  const observations = fromEpochRuns(epochRuns, epochEvidence.fetchedAt);
+  const { scores: epochScoresByModel, ambiguities: epochAmbiguities } =
+    buildEpochScoreIndex(observations, epochAliasesByModelVersion);
+  const validModels = buildCompareEvidence(models as CompareModelRecord[], observations).models;
 
   const buildEpochCompareDemoModels = (): EpochDemoModel[] => {
     const scoredModels = epochModels
@@ -277,6 +252,8 @@ export const GET: APIRoute = async () => {
 
   return new Response(
     JSON.stringify({
+      schemaVersion: 2,
+      epochAmbiguities,
       validModels: validModels.map(compactCompareModelForClient),
       defaultModelIds,
       epochDemoModels: epochDemoModels.map(compactCompareModelForClient),

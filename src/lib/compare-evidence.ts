@@ -1,3 +1,4 @@
+import type { EpochBenchmarkRun } from './supabase';
 import type { EpochObservation } from './epoch-observations';
 export type ComparisonEvidence<T> = {
   schemaVersion: 2;
@@ -57,4 +58,15 @@ export function buildEpochScoreIndex(
     if (conflicts.length) ambiguities.push([alias, Object.fromEntries(conflicts)]);
   }
   return { scores: Object.fromEntries(scores), ambiguities: Object.fromEntries(ambiguities) };
+}
+
+export function fromEpochRuns(runs: EpochBenchmarkRun[], fetchedAt: string | null = null): EpochObservation[] {
+  return runs.map(run => ({
+    id: run.id, modelVersion: run.model_version,
+    benchmarkSlug: run.benchmark_slug ?? run.benchmark_id,
+    metricKey: run.score_metric ?? null, unit: run.score_unit ?? 'native',
+    value: parseFiniteMetricValue(run.score), conditions: run.conditions ?? null,
+    evaluationDate: run.evaluation_date ?? null, sourceUrl: run.source_link ?? null,
+    fetchedAt, snapshotId: null,
+  }));
 }
