@@ -110,3 +110,13 @@ test('changed Epoch membership produces a new artifact and keeps the old value i
   expect(result?.artifact.runs).toHaveLength(2);
   expect(epoch.runs).toHaveLength(1);
 });
+
+test('AA cache contains only current model identities and explicit source receipt', () => {
+  const input = snapshots.buildAaMembershipCacheInput?.({snapshotId:'fetch',fetchedAt:'2026-10-02T00:00:00Z',
+    observedAt:'2026-10-02T00:00:01Z',models:[{id:'current',raw:{private:'discard'}}]});
+  expect(input?.sourceKey).toBe('artificial-analysis');
+  expect(input?.records).toEqual([{id:'current',kind:'model-membership'}]);
+});
+test('AA membership publication refuses an unproven batch', () => {
+  expect(()=>snapshots.buildAaMembershipCacheInput?.({models:[{id:'current'}]})).toThrow('receipt');
+});
