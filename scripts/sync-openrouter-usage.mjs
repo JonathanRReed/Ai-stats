@@ -1,1 +1,66 @@
-export {};
+import {retryDelayMs} from './source-refresh-policy.mjs';
+export const USAGE_SOURCE_URL='https://openrouter.ai/rankings';
+export const USAGE_LICENSE_URL='https://creativecommons.org/licenses/by/4.0/';
+const DAY=86400000;
+const object=value=>value&&typeof value==='object'&&!Array.isArray(value)?value:null;
+const date=value=>{
+ if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))throw new Error('Invalid usage date');
+ const milliseconds=Date.parse(value+'T00:00:00.000Z');
+ if(!Number.isFinite(milliseconds)||new Date(milliseconds).toISOString().slice(0,10)!==value)throw new Error('Invalid usage date');
+ return value;
+};
+const timestamp=value=>{
+ if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T/.test(value)||!Number.isFinite(Date.parse(value)))throw new Error('Invalid usage timestamp');
+ return new Date(value).toISOString();
+};
+/** Only exact, unfiltered, completed UTC days are admitted in this adapter. */
+export function normalizeUsageSnapshot(payload,{now=new Date().toISOString()}={}) {
+ const meta=object(payload?.meta),clock=timestamp(now);
+ if(!meta||meta.version!=='v1'||!Array.isArray(payload?.data)||!payload.data.length||payload.data.length>46665)throw new Error('Invalid usage dataset');
+ const asOf=timestamp(meta.as_of),startDate=date(meta.start_date),endDate=date(meta.end_date);
+ if(startDate<'2025-01-01'||startDate>endDate||endDate>=clock.slice(0,10)||endDate>=asOf.slice(0,10)||
+ Date.parse(asOf)>Date.parse(clock)+300000)throw new Error('Usage window includes incomplete or invalid days');
+ const span=(Date.parse(endDate)-Date.parse(startDate))/DAY+1;
+ if(span>915)throw new Error('Usage window exceeds supported history');
+ if((meta.period!==undefined&&meta.period!=='day')||(meta.estimated!==undefined&&meta.estimated!==false)||
+ ['category','language_type','modality','context_bucket'].some(key=>meta[key]!=null)||
+ (meta.filters!==undefined&&(!object(meta.filters)||Object.keys(meta.filters).length)))throw new Error('Only unfiltered exact daily usage is supported');
+ const keys=new Set(),counts=new Map(),present=new Set();
+ const rows=payload.data.map(value=>{
+  const row=object(value);if(!row)throw new Error('Invalid usage row');
+  const day=date(row.date),model=row.model_permaslug,tokens=row.total_tokens;
+  if(day<startDate||day>endDate||typeof model!=='string'||!model.trim()||model.length>512||
+   typeof tokens!=='string'||!/^(0|[1-9][0-9]{0,77})$/.test(tokens))throw new Error('Invalid usage row');
+  const key=day+'|'+model;if(keys.has(key))throw new Error('Duplicate usage bucket');
+  keys.add(key);present.add(day);counts.set(day,(counts.get(day)??0)+1);
+  if(counts.get(day)>51)throw new Error('Too many usage rows for a day');
+  return {date:day,modelPermaslug:model,totalTokens:tokens};
+ }).sort((a,b)=>a.date.localeCompare(b.date)||a.modelPermaslug.localeCompare(b.modelPermaslug));
+ const missingDays=[];
+ for(let day=Date.parse(startDate);day<=Date.parse(endDate);day+=DAY){
+  const value=new Date(day).toISOString().slice(0,10);if(!present.has(value))missingDays.push(value);
+ }
+ return {schemaVersion:1,asOf,startDate,endDate,period:'day',filters:{},estimated:false,rows,missingDays,
+  sourceUrl:USAGE_SOURCE_URL,licenseUrl:USAGE_LICENSE_URL};
+}
+/** Server-only request. The caller owns scheduling, storage and lease admission. */
+export async function fetchUsageSnapshot({apiKey,now:fixedNow,fetchImpl=(url,init)=>globalThis.fetch(url,init)}) {
+ if(typeof apiKey!=='string'||!apiKey.trim())throw new Error('OpenRouter usage authentication is not configured');
+ const clock=()=>fixedNow??new Date().toISOString();
+ const today=timestamp(clock()).slice(0,10);
+ const end=new Date(Date.parse(today)-DAY).toISOString().slice(0,10);
+ const start=new Date(Math.max(Date.parse('2025-01-01'),Date.parse(end)-89*DAY)).toISOString().slice(0,10);
+ const url=new URL('https://openrouter.ai/api/v1/datasets/rankings-daily');
+ url.searchParams.set('period','day');url.searchParams.set('start_date',start);url.searchParams.set('end_date',end);
+ let response;
+ try {response=await fetchImpl(url,{headers:{Authorization:'Bearer '+apiKey,Accept:'application/json'},
+  redirect:'error',signal:AbortSignal.timeout(30000)});}catch{throw new Error('OpenRouter usage request failed');}
+ if(!response.ok){
+  const error=new Error('OpenRouter usage request failed ('+response.status+')');
+  const retryAt=Date.parse(clock())+retryDelayMs(response.headers.get('Retry-After'),0,Date.parse(clock()));
+  Object.assign(error,{status:response.status,retryAt:Number.isFinite(retryAt)&&retryAt<=8640000000000000?new Date(retryAt).toISOString():'infinity'});
+  throw error;
+ }
+ let payload;try{payload=await response.json();}catch{throw new Error('OpenRouter usage returned invalid JSON');}
+ return normalizeUsageSnapshot(payload,{now:clock()});
+}
