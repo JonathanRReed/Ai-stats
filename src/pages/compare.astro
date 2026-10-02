@@ -18,7 +18,7 @@ const dates = [epoch.fetchedAt,...aaModels.map(model=>model.last_seen)]
 const dateModified = dates.length?new Date(Math.max(...dates.map(value=>Date.parse(value)))).toISOString():undefined;
 ---
 <Layout title="Compare AI Models: Price, Speed and Benchmarks | AI Stats"
-  description="Explore AI model price, output speed and benchmark observations. Compare exact variants, inspect conditions and share a source-backed view."
+  description="Compare AI model prices, speed and benchmark results. Filter models, inspect test settings and share your comparison."
   dateModified={dateModified}>
   <Header currentPage="compare" />
   <main id="main-content" class="compare-page">

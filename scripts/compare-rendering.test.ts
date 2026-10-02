@@ -28,10 +28,7 @@ test('legacy compare API remains compatible without fabricated prices or fuzzy s
   expect(initialApi).not.toContain('tokens.every((token) => alias.includes(token))');
 });
 test('explorer exposes measurement limits, history and compatible frontier controls',()=>{
-  expect(explorer).toContain('Each point is a source record, not a recommendation');
-  expect(explorer).toContain('Missing values are not zero');
-  expect(explorer).toContain('same AA index version and timing conditions');
-  expect(explorer).toContain('Catalog records without compatible measurements');
+  expect(explorer).toContain('same AA index version and timing settings');
   expect(explorer).toContain("window.addEventListener('popstate'");
   expect(explorer).not.toContain('dangerouslySetInnerHTML');
 });

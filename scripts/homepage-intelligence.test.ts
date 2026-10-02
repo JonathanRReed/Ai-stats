@@ -117,7 +117,7 @@ test("the source health strip exposes source dates and data mode labels", () => 
   expect(sourceHealthSource).toContain("PUBLIC_SNAPSHOT_NAMES");
   expect(sourceHealthSource).toContain("openrouter-usage");
   expect(sourceHealthSource).toContain("receipt.sameSnapshot");
-  expect(sourceHealthSource).toContain("Data mode");
+  expect(sourceHealthSource).toContain("Data sources");
   expect(sourceHealthSource).toContain("Artificial Analysis");
   expect(sourceHealthSource).toContain("Epoch AI");
   expect(sourceHealthSource).toContain("SimpleBench");
@@ -140,7 +140,7 @@ test("the measurements overview keeps the AA-price plot, coverage bars, and rece
   expect(overviewSource).toContain("<progress");
   expect(overviewSource).toContain("Artificial Analysis Intelligence Index");
   expect(overviewSource).toContain("USD per 1M tokens");
-  expect(overviewSource).toContain("PoliBench counts come from its own checked snapshot");
+  expect(overviewSource).toContain("PublicPoliBenchSnapshot");
   expect(overviewSource).toContain('href="/about"');
   expect(overviewSource).not.toContain('href="/methodology"');
 });
@@ -153,7 +153,7 @@ test("the intelligence plot supports inspection, filtering, and the complete evi
   expect(overviewSource).toContain('data-plot-point');
   expect(overviewSource).toContain('role="button"');
   expect(overviewSource).toContain("ArrowRight");
-  expect(overviewSource).toContain("How to read");
+  expect(overviewSource).toContain('aria-label="Chart legend"');
   expect(overviewSource).toContain("Complete quality and price data");
   expect(overviewSource).not.toContain(".slice(0, 12)");
 });

@@ -115,7 +115,7 @@ const workbenchPayloadJson = JSON.stringify({
   </form>
 
   <section class="reasoning-evidence" data-reasoning-evidence hidden aria-label="Reasoning benchmark results">
-    <p>Sample Epoch observations, listed alphabetically. Variants with multiple runs are omitted here; their source records remain available. Pricing is separate, so the budget filter does not apply.</p>
+    <p>Alphabetical sample of Epoch results with one run per variant. View repeated runs in Compare. The budget filter applies to AA results only.</p>
     <div class="reasoning-benchmarks">
       {reasoningHighlights.map(benchmark => (
         <article>
@@ -135,7 +135,7 @@ const workbenchPayloadJson = JSON.stringify({
         </article>
       ))}
     </div>
-    <p><a href="https://epoch.ai/benchmarks" target="_blank" rel="noopener noreferrer">Source: Epoch AI Benchmarking Hub</a>. SimpleBench results are republished through Epoch, not a separate rerun. Full source records are available in the <a href="/data/epoch-benchmark-snapshot.json">downloaded snapshot</a>.</p>
+    <p><a href="https://epoch.ai/benchmarks" target="_blank" rel="noopener noreferrer">Source: Epoch AI Benchmarking Hub</a>. Includes SimpleBench results republished by Epoch. <a href="/compare">Compare runs</a> or view the <a href="/data/epoch-benchmark-snapshot.json">data snapshot</a>.</p>
   </section>
 
   <div class="shortlist-frame" data-shortlist-frame aria-busy="false">

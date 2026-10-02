@@ -104,7 +104,7 @@ const money = (value: number | null | undefined): string =>
   <header class="overview-header">
     <div>
       <span>Compare the measurements</span>
-      <h2>Model data, without a universal score</h2>
+      <h2>Price and performance</h2>
     </div>
     <a href="/compare">View all model comparisons</a>
   </header>
@@ -161,7 +161,7 @@ const money = (value: number | null | undefined): string =>
         <div class="plot-stage" role="region" aria-label="Scrollable AA Index and price plot">
         <svg viewBox="0 0 640 340" role="group" aria-labelledby="quality-price-title quality-price-desc">
           <title id="quality-price-title">Artificial Analysis Intelligence Index versus price</title>
-          <desc id="quality-price-desc">Each point is a model. Horizontal position is blended US dollar price per one million tokens on a logarithmic scale. Vertical position is the Artificial Analysis Intelligence Index from 0 to 100. Copper points have no measured model that is both cheaper and higher-index.</desc>
+          <desc id="quality-price-desc">Each point is a model. Horizontal position is blended US dollar price per one million tokens on a logarithmic scale. Vertical position is the Artificial Analysis Intelligence Index. Copper points have no measured model that is both cheaper and higher-index.</desc>
           <rect x={chartLeft} y={chartTop} width={chartRight - chartLeft} height={chartBottom - chartTop} class="chart-frame" />
           {qualityTicks.map((tick) => (
             <g>
@@ -223,7 +223,6 @@ const money = (value: number | null | undefined): string =>
         <span><i class="frontier-swatch" /> Not dominated on price and AA Index</span>
         <span><i class="other-swatch" /> Other models</span>
       </div>
-      <p class="plot-how-to-read"><strong>How to read:</strong> higher points have a higher measured AA Index. Moving left means a lower blended token price. Copper points are models for which no measured model is both cheaper and higher-index. This is not a recommendation.</p>
       <details>
         <summary>Complete quality and price data</summary>
         <div class="table-scroll">
@@ -245,20 +244,19 @@ const money = (value: number | null | undefined): string =>
     </figure>
 
     <section class="coverage-panel" aria-labelledby="coverage-title">
-      <header><h3 id="coverage-title">Benchmark coverage</h3><p>Exact counts from this build.</p></header>
+      <header><h3 id="coverage-title">Benchmark coverage</h3></header>
       <div class="coverage-list">
         {coverageRows.map((row) => (
           <div>
             <div><span>{row.label}</span><b>{row.detail}</b></div>
-            {row.showProgress ? <progress value={row.value} max={row.max} aria-label={`${row.label}: ${row.detail}`}>{row.value} of {row.max}</progress> : <p class="coverage-source-note">Source-native count, not a cross-source percentage.</p>}
+            {row.showProgress ? <progress value={row.value} max={row.max} aria-label={`${row.label}: ${row.detail}`}>{row.value} of {row.max}</progress> : null}
           </div>
         ))}
       </div>
-      <p class="coverage-note">PoliBench counts come from its own checked snapshot. They are not joined to Artificial Analysis models without an explicit model match.</p>
     </section>
 
     <section class="changes-panel" aria-labelledby="changes-title">
-      <header><h3 id="changes-title">Recent source updates</h3><p>Latest dated observations in this build.</p></header>
+      <header><h3 id="changes-title">Recent source updates</h3></header>
       {recentSources.length ? (
         <ol>
           {recentSources.map((source) => (

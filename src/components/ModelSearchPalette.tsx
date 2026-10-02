@@ -77,7 +77,7 @@ export default function ModelSearchPalette() {
       open={open}
       onOpenChange={setOpen}
       title="Find a model"
-      description="Search source records. Open a measured model page or an exact comparison."
+      description="Search models and providers."
     >
       {/* This CommandDialog supplies only the dialog shell, so the cmdk
           provider has to be added here. Filtering is done above and capped,
@@ -93,7 +93,7 @@ export default function ModelSearchPalette() {
         {state === 'error' && <CommandEmpty>The model list could not be loaded. Close this and try again.</CommandEmpty>}
         {state === 'ready' && results.length === 0 && <CommandEmpty>No model or provider matches that search.</CommandEmpty>}
         {results.length > 0 && (
-          <CommandGroup heading={query.trim() ? `${results.length} shown` : `${entries.length} source records`}>
+          <CommandGroup heading={query.trim() ? `${results.length} shown` : `${entries.length} catalog entries`}>
             {results.map((entry) => (
               <CommandItem
                 key={entry.u}
