@@ -43,6 +43,9 @@ export async function verifyRecovery(directory, modulePath) {
   const manifest = await json(path.join(directory, 'start-manifest.json'));
   const progress = await json(path.join(directory, 'export-progress.json'));
   assert.ok(progress.every(table => table.done), 'Export is incomplete');
+  assert.equal(progress.length, manifest.tables.length, 'Recovery table set is incomplete');
+  assert.equal(new Set(progress.map(t => t.table)).size, progress.length, 'Duplicate recovery table');
+  assert.ok(manifest.tables.every(t => progress.some(p => p.table === t.table_name)), 'Recovery table set differs from manifest');
   const schema = await json(path.join(directory, 'schema-metadata.json'));
   const {PGlite} = await import(modulePath);
   const {pgcrypto} = await import(path.join(path.dirname(modulePath), 'contrib/pgcrypto.js'));
