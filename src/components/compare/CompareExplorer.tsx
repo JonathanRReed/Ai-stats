@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {parseCompareState,serializeCompareState,selectFamily,readBenchmarkCache,AA_METRIC_LABELS,type CompareState,type CompareChart} from '../../lib/compare-state';
+import {parseCompareState,serializeCompareState,selectFamily,readBenchmarkCache,AA_METRIC_LABELS,scoreMetricOptions,changeScoreMetric,type CompareState,type CompareChart} from '../../lib/compare-state';
 import {buildCompareSeries,epochScoreKey,type ExplorerModel} from '../../lib/compare-series';
 import {epochConditionKey,type EpochObservation} from '../../lib/epoch-observations';
 import {formatChartNumber} from '../../lib/compare-geometry';
@@ -46,6 +46,7 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
   const visibleModels=useMemo(()=>models.filter(model=>epochSlug?model.source==='epoch':model.source==='aa'),[models,epochSlug]);
   const conditions=useMemo(()=>[...new Set(observations.map(row=>epochConditionKey(row.conditions)))].sort(),[observations]);
   const scoreMetrics=useMemo(()=>[...new Set(observations.map(epochScoreKey))].sort(),[observations]);
+  const scoreOptions=scoreMetricOptions(scoreMetrics,state.scoreMetricKey);
   const unverifiedMembership=visibleModels.some(model=>model.source==='aa'&&model.current===null);
   const update=(patch:Partial<CompareState>)=>{const next={...state,...patch};setState(next);setPinned(null);setHovered(null);
     const url=new URL(window.location.href);url.search=serializeCompareState(next).toString();window.history.pushState(null,'',url);};
@@ -74,8 +75,8 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
         {state.chart==='benchmark'?<label>Benchmark<select value={state.metricId} onChange={event=>update({metricId:event.target.value,conditionKey:null,scoreMetricKey:null})}>
           <optgroup label="Artificial Analysis">{Object.entries(AA_METRIC_LABELS).map(([key,label])=><option key={key} value={key}>{label}</option>)}</optgroup>
           <optgroup label="Epoch AI">{benchmarks.map(benchmark=><option key={benchmark.slug} value={'epoch_'+benchmark.slug}>{benchmark.name}</option>)}</optgroup></select></label>:null}
-        {epochSlug&&scoreMetrics.length>1?<label>Score metric<select value={state.scoreMetricKey??''} onChange={event=>update({scoreMetricKey:event.target.value||null})}>
-          <option value="">Choose a score metric</option>{scoreMetrics.map(key=><option key={key} value={key}>{JSON.parse(key).join(' · ')}</option>)}</select></label>:null}
+        {epochSlug&&scoreOptions.visible?<label>Score metric<select value={state.scoreMetricKey??''} onChange={event=>update(changeScoreMetric(event.target.value))}>
+          <option value="">Choose a score metric</option>{scoreOptions.missing?<option value={state.scoreMetricKey!}>Unavailable saved metric</option>:null}{scoreMetrics.map(key=><option key={key} value={key}>{JSON.parse(key).join(' · ')}</option>)}</select></label>:null}
         {epochSlug&&conditions.length?<label>Conditions<select value={state.conditionKey??''} onChange={event=>update({conditionKey:event.target.value||null})}>
           <option value="">All recorded runs</option>{conditions.map(key=><option value={key} key={key}>{key==='unknown'?'Not recorded':JSON.parse(key).map(([name,value]:[string,unknown])=>name+': '+value).join(' · ')}</option>)}</select></label>:null}
         <div className="scale-buttons" aria-label="Axis scale"><button type="button" aria-pressed={state.scale==='linear'} onClick={()=>update({scale:'linear'})}>Linear</button>
@@ -88,6 +89,7 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
       </div>
       {state.missingModelIds.length?<p className="explorer-warning">Unavailable models in this link: {state.missingModelIds.join(', ')}</p>:null}
       {loadState?<p className="explorer-warning" role="status">{loadState}</p>:null}
+      {epochSlug&&scoreOptions.missing&&observations.length?<p className="explorer-warning">The saved score metric is no longer available. Choose a recorded score metric above.</p>:null}
       {loadFailed?<button type="button" onClick={()=>setRetryAttempt(value=>value+1)}>Retry benchmark</button>:null}
       {unverifiedMembership?<p className="explorer-warning">Current AA membership could not be verified. Records labelled Membership unverified may include retired models.</p>:null}
       {series.scaleNotice?<p className="explorer-warning">{series.scaleNotice}</p>:null}

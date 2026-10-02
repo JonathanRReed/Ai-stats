@@ -75,3 +75,8 @@ export function selectFamily(selected:string[],catalog:CompareCatalogEntry[],fam
 export function readBenchmarkCache<T>(cache:Record<string,T[]>,slug:string):T[]|undefined {
   return Object.prototype.hasOwnProperty.call(cache,slug)&&Array.isArray(cache[slug])?cache[slug]:undefined;
 }
+
+export function scoreMetricOptions(recorded:string[],selected:string|null) {
+  return {visible:recorded.length>1||Boolean(selected),missing:Boolean(selected&&!recorded.includes(selected))};
+}
+export const changeScoreMetric=(value:string):Pick<CompareState,'scoreMetricKey'|'conditionKey'>=>({scoreMetricKey:value||null,conditionKey:null});

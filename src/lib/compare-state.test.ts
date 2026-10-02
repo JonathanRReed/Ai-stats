@@ -64,3 +64,11 @@ test('explicit Epoch score metric round trips with shared URLs',()=>{
 test('invalid chart defaults use the normalized chart scale',()=>{
  expect(state.parseCompareState(new URLSearchParams('chart=not-a-chart'),catalog)).toMatchObject({chart:'cost-intelligence',scale:'log'});
 });
+
+test('a stale score metric remains visible and recoverable with one or zero recorded metrics',()=>{
+ expect(state.scoreMetricOptions(['valid'],'retired')).toEqual({visible:true,missing:true});
+ expect(state.scoreMetricOptions([],'retired')).toEqual({visible:true,missing:true});
+ expect(state.scoreMetricOptions(['valid'],null)).toEqual({visible:false,missing:false});
+ expect(state.changeScoreMetric('valid')).toEqual({scoreMetricKey:'valid',conditionKey:null});
+ expect(state.changeScoreMetric('')).toEqual({scoreMetricKey:null,conditionKey:null});
+});
