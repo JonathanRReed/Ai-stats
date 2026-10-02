@@ -1,4 +1,6 @@
 import {expect,test} from 'bun:test';
+import {prepareSourceSnapshot} from './source-snapshots.mjs';
+import {createCatalogStore} from './refresh-public-catalogs.mjs';
 import * as sync from './sync-openrouter-usage.mjs';
 const snapshot={schemaVersion:1,period:'day',estimated:false,filters:{},asOf:'2026-10-02T02:00:00.000Z',
  startDate:'2026-10-01',endDate:'2026-10-01',missingDays:[],sourceUrl:'https://openrouter.ai/rankings',
@@ -19,7 +21,25 @@ test('usage candidate keeps one replaceable dated snapshot, not appended traffic
 test('usage rate limit persists its lease-specific hold',async()=>{
  let failure:unknown;
  const result=await sync.prepareUsageRefresh?.({apiKey:'test-key',now:'2026-10-02T07:00:00Z',
- store:{claim:async()=>({claimed:true,leaseId:'lease'}),fail:async(value)=>{failure=value;}},
+ store:{claim:async()=>({claimed:true,leaseId:'lease'}),fail:async(value:unknown)=>{failure=value;}},
  fetchImpl:async()=>new Response(null,{status:429,headers:{'Retry-After':'7200'}})});
  expect(result?.status).toBe('failed');expect(failure).toMatchObject({sourceKey:'openrouter-usage',leaseId:'lease',notBefore:'2026-10-02T09:00:00.000Z'});
+});
+
+test('usage storage uses the existing guarded RPC without opening arbitrary sources',async()=>{
+ const calls:string[]=[];
+ const store=createCatalogStore({baseUrl:'https://bgbqdzmgxkwstjihgeef.supabase.co',serviceKey:'test-key',
+ fetchImpl:async(input)=>{calls.push(String(input));return Response.json({claimed:false,reason:'interval'});}});
+ expect(await store.claim('openrouter-usage')).toMatchObject({claimed:false,reason:'interval'});
+ expect(calls[0]).toContain('/rpc/claim_catalog_refresh');
+ await expect(store.claim('unknown')).rejects.toThrow();
+});
+test('usage cache verifies exact snapshot identity and reports its original dates',()=>{
+ const input={sourceKey:'openrouter-usage',observedAt:snapshot.asOf,fetchedAt:'2026-10-02T03:00:00Z',records:[{id:'daily-usage',snapshot}]};
+ const normalized=prepareSourceSnapshot(input);
+ const cache={source_key:'openrouter-usage',snapshot_id:42,content_hash:normalized.contentHash,record_count:1,
+ fetched_at:input.fetchedAt,published_at:'2026-10-02T04:00:00Z',refresh_status:'healthy',
+ payload:{schemaVersion:1,sourceKey:input.sourceKey,observedAt:input.observedAt,records:input.records}};
+ expect(sync.parseUsageCache?.(cache,{now:'2026-10-02T07:00:00Z'})).toMatchObject({snapshot,receipt:{snapshotId:'42',fetchedAt:'2026-10-02T03:00:00.000Z'}});
+ expect(sync.parseUsageCache?.({...cache,content_hash:'b'.repeat(64)},{now:'2026-10-02T07:00:00Z'})).toBeNull();
 });
