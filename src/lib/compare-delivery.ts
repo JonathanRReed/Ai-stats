@@ -4,7 +4,7 @@ import type {ComparePreset} from './compare-presets';
 const SOURCES:ExplorerModel['source'][]=['aa','epoch','openrouter','huggingface','litellm','catalog'];
 type CompactRow=[string,string,number,number,boolean|null,string|null,string|null,string|null,string|null,number];
 export type CompactCatalog={providers:string[];rows:CompactRow[]};
-export type CompareDelivery={catalog:CompactCatalog;revision:string;presets:ComparePreset[];charts:Array<{id:CompareChart;label:string}>;aaMetrics:Array<[string,string]>};
+export type CompareDelivery={assetBase?:string;benchmarkBase?:string;catalog:CompactCatalog;revision:string;presets:ComparePreset[];charts:Array<{id:CompareChart;label:string}>;aaMetrics:Array<[string,string]>};
 const finite=(value:unknown):value is number=>typeof value==='number'&&Number.isFinite(value);
 const metricKeys=['intelligence','coding','priceInput','priceOutput','priceBlended','outputSpeed','latency','aaTaskCost','aaEvaluationCost'] as const;
 export function compactCatalog(models:ExplorerModel[]):CompactCatalog{
@@ -51,13 +51,14 @@ export function validateMeasurementChunk(payload:unknown,revision:string,bucket:
 }
 
 /** Same-origin immutable files only. Pending calls coalesce; failures are evicted for explicit retry. */
-export function createMeasurementLoader(revision:string,catalog:ExplorerModel[],fetchImpl:(url:string)=>Promise<Response>=fetch){
+export function createMeasurementLoader(revision:string,catalog:ExplorerModel[],fetchImpl:(url:string)=>Promise<Response>=fetch,assetBase?:string){
+ if(assetBase&&!/^\/api\/releases\/[a-f0-9]{64}\/measurements$/.test(assetBase))throw new Error('Invalid measurement base');
  const known=new Set(catalog.map(model=>model.id)),cache=new Map<string,Promise<ExplorerModel[]>>();
  let active=0;const waiting:Array<()=>void>=[];
  const read=async(bucket:string)=>{
  if(active>=4)await new Promise<void>(resolve=>waiting.push(resolve));else active++;
  try{
- const response=await fetchImpl('/api/compare-measurements/'+encodeURIComponent(revision)+'/'+bucket+'.json');
+ const response=await fetchImpl((assetBase??('/api/compare-measurements/'+encodeURIComponent(revision)))+'/'+bucket+'.json');
  if(!response.ok)throw new Error('Measurements unavailable');
  return validateMeasurementChunk(await response.json(),revision,bucket,catalog);
  }finally{const next=waiting.shift();if(next)next();else active--;}
@@ -70,9 +71,9 @@ export function createMeasurementLoader(revision:string,catalog:ExplorerModel[],
  const buckets=[...new Set([...selected].map(measurementBucket))];
  const results=await Promise.allSettled(buckets.map(chunk));
  const records:ExplorerModel[]=[],failedBuckets=new Set<string>();
- results.forEach((result,index)=>{if(result.status==='fulfilled')records.push(...result.value.filter(model=>selected.has(model.id)));else failedBuckets.add(buckets[index]);});
+ results.forEach((result,index)=>{if(result.status==='fulfilled')records.push(...result.value);else failedBuckets.add(buckets[index]);});
  return {records,failedIds:[...selected].filter(id=>failedBuckets.has(measurementBucket(id)))};
  };
- return {loadPartial,load:async(ids:string[])=>{const result=await loadPartial(ids);if(result.failedIds.length)throw new Error('Measurements unavailable');return result.records;}};
+ return {loadPartial,load:async(ids:string[])=>{const result=await loadPartial(ids);if(result.failedIds.length)throw new Error('Measurements unavailable');return result.records.filter(model=>ids.includes(model.id));}};
 
 }

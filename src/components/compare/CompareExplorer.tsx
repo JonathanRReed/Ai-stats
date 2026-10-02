@@ -1,3 +1,4 @@
+import {validateBenchmarkAsset} from '../../lib/compare-benchmark-asset';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {parseCompareState,serializeCompareState,selectVisibleRecords,selectFamily,readBenchmarkCache,AA_METRIC_LABELS,scoreMetricOptions,changeScoreMetric,type CompareState,type CompareChart} from '../../lib/compare-state';
 import {buildCompareSeries,epochScoreKey,type ExplorerModel} from '../../lib/compare-series';
@@ -15,7 +16,7 @@ const EMPTY_OBSERVATIONS:EpochObservation[]=[];
 export default function CompareExplorer({models:initialModels,benchmarks,defaultModelIds,delivery}:Props){
   const models=useMemo(()=>delivery?expandCatalog(delivery.catalog):initialModels,[delivery,initialModels]);
   const [loaded,setLoaded]=useState(()=>new Map(initialModels.map(model=>[model.id,model])));
-  const loader=useMemo(()=>delivery?createMeasurementLoader(delivery.revision,models):null,[delivery,models]);
+  const loader=useMemo(()=>delivery?createMeasurementLoader(delivery.revision,models,fetch,delivery.assetBase):null,[delivery,models]);
   const [failedMeasurementIds,setFailedMeasurementIds]=useState<string[]>([]);
   const charts=useMemo(()=>delivery?.charts??availableCompareCharts(models),[delivery,models]);
   const aaMetrics=useMemo(()=>delivery?.aaMetrics??availableAaMetrics(models),[delivery,models]);
@@ -36,13 +37,13 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
     if(!epochSlug||readBenchmarkCache(benchmarkCache,epochSlug)){setLoadState('');return;}
     if(!benchmarks.some(benchmark=>benchmark.slug===epochSlug)){setLoadState('Unknown benchmark in this link.');return;}
     const controller=new AbortController();setLoadState('Loading benchmark observations…');
-    fetch('/api/compare-benchmarks/'+encodeURIComponent(epochSlug)+'.json',{signal:controller.signal})
+    fetch((delivery?.benchmarkBase??'/api/compare-benchmarks')+'/'+encodeURIComponent(epochSlug)+'.json',{signal:controller.signal})
       .then(response=>{if(!response.ok)throw new Error('unavailable');return response.json();})
-      .then(payload=>{if(payload.schemaVersion!==1||payload.slug!==epochSlug||!Array.isArray(payload.observations))throw new Error('invalid');
-        setBenchmarkCache(previous=>({...previous,[epochSlug]:payload.observations}));setLoadState('');})
+      .then(payload=>{const verified=validateBenchmarkAsset(payload,epochSlug);
+        setBenchmarkCache(previous=>({...previous,[epochSlug]:verified}));setLoadState('');})
       .catch(error=>{if(error.name!=='AbortError'){setLoadFailed(true);setLoadState('Benchmark data could not load. The other views still work.');}});
     return()=>controller.abort();
-  },[epochSlug,benchmarkCache,benchmarks,retryAttempt]);
+  },[epochSlug,benchmarkCache,benchmarks,retryAttempt,delivery?.benchmarkBase]);
   useEffect(()=>{if(filtersOpen&&!dialog.current?.open)dialog.current?.showModal();
     if(!filtersOpen&&dialog.current?.open){dialog.current.close();filterButton.current?.focus();}},[filtersOpen]);
   const unresolvedIds=state.modelIds.filter(id=>!loaded.has(id)&&models.find(model=>model.id===id)?.detailAvailable);
@@ -55,7 +56,8 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
     let cancelled=false;const ids=pendingKey.split('\n');
     loader.loadPartial(ids).then(({records,failedIds})=>{if(cancelled)return;
       setLoaded(previous=>new Map([...previous,...records.map(model=>[model.id,model] as const)]));
-      setFailedMeasurementIds(previous=>[...new Set([...previous,...failedIds])]);
+      const recovered=new Set(records.map(model=>model.id));
+      setFailedMeasurementIds(previous=>[...new Set([...previous.filter(id=>!recovered.has(id)),...failedIds])]);
     }).catch(()=>{if(!cancelled)setFailedMeasurementIds(previous=>[...new Set([...previous,...ids])]);});
     return()=>{cancelled=true;};
   },[loader,pendingKey]);
