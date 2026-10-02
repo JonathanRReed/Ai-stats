@@ -26,3 +26,10 @@ test('unverified previously-enriched fields do not survive a rebuild',()=>{
  const old={...aa,openrouter_id:'wrong/model',litellm_model_id:'wrong',hf_model_id:'wrong'};
  expect(enrichVerifiedCatalog([old],catalogs,{})[0]).toEqual(aa);
 });
+
+test('conflicting UUID and slug canonical anchors cannot mix other sources',()=>{
+ const rows=[alias({source_model_key:'aa-id',canonical_model_id:1}),alias({canonical_model_id:2}),
+ alias({canonical_model_id:1,intelligence_source_id:2,source_model_key:'lab/a',match_method:'explicit_cross_source'}),
+ alias({canonical_model_id:2,intelligence_source_id:3,source_model_key:'lab/b',match_method:'explicit_cross_source'})];
+ expect(buildVerifiedBindings([aa],rows,[...sources,{id:3,source_key:'huggingface'} as IntelligenceSourceRow])).toEqual({});
+});

@@ -181,7 +181,7 @@ test("normalizeAaOperationalMetrics preserves a positive native blended price", 
   expect(normalized.price_1m_blended_3_to_1).toBe(7);
 });
 
-test("normalizeAaOperationalMetrics treats zero operational telemetry as missing", () => {
+test("normalizeAaOperationalMetrics preserves zero prices while treating zero timing telemetry as missing", () => {
   const normalized = normalizeAaOperationalMetrics({
     ...aaModel("incomplete", "incomplete", 90, "2025-01-01"),
     price_1m_input_tokens: 0,
@@ -193,9 +193,9 @@ test("normalizeAaOperationalMetrics treats zero operational telemetry as missing
   });
 
   expect(normalized).toMatchObject({
-    price_1m_input_tokens: null,
-    price_1m_output_tokens: null,
-    price_1m_blended_3_to_1: null,
+    price_1m_input_tokens: 0,
+    price_1m_output_tokens: 0,
+    price_1m_blended_3_to_1: 0,
     median_output_tokens_per_second: null,
     median_time_to_first_token_seconds: null,
     median_time_to_first_answer_token: null,
@@ -239,4 +239,13 @@ test("hydrateEpochModelsFromRuns backfills missing Epoch models from runs and hu
     release_date: "2025-04-10",
     description: "Backfilled from Epoch benchmark runs.",
   });
+});
+
+test('normalized zero prices reach model receipts and null prices never become free',async()=>{
+ const {buildModelPageRecords}=await import('./model-pages');
+ const base=aaModel('zero-price','zero-price',1,'2026-10-02');
+ const normalized=normalizeAaOperationalMetrics({...base,price_1m_input_tokens:0,price_1m_output_tokens:0,price_1m_blended_3_to_1:0});
+ expect(buildModelPageRecords([normalized])[0].pricing.slice(0,3).map(item=>item.value)).toEqual([0,0,0]);
+ const missing=normalizeAaOperationalMetrics({...base,price_1m_input_tokens:null,price_1m_output_tokens:null,price_1m_blended_3_to_1:null});
+ expect([missing.price_1m_input_tokens,missing.price_1m_output_tokens,missing.price_1m_blended_3_to_1]).toEqual([null,null,null]);
 });
