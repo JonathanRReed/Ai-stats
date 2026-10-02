@@ -55,7 +55,7 @@ test("resolveSourceFreshness marks an old successful source stale", () => {
   ).toMatchObject({
     status: "stale",
     ageDays: 31,
-    message: "Last successful source snapshot is older than 8 hours.",
+    message: "Last successful source snapshot is older than 24 hours.",
   });
 });
 
@@ -177,10 +177,10 @@ test("getFreshnessUpdatedAt preserves the newest source observation instead of a
   );
 });
 
-test('AA is overdue after eight hours rather than fourteen days', () => {
+test('AA health uses the active schedule rather than a faster future target', () => {
   expect(resolveSourceFreshness(source({
     lastObservedAt: '2026-09-01T03:00:00Z', lastSuccessfulRunAt: '2026-09-01T03:00:00Z',
-  }), now)).toMatchObject({status: 'stale', ageDays: 0});
+  }), now)).toMatchObject({status: 'healthy', ageDays: 0});
 });
 test('Epoch retrieval can be healthy with an old evaluation date in a separate receipt', () => {
   expect(resolveSourceFreshness(source({
