@@ -47,3 +47,12 @@ test('Compare uses uncapped database caches rather than the capped homepage gett
  const css=readFileSync('src/styles/compare-explorer.css','utf8');
  expect(css).toContain('min-height:44px');
 });
+
+test('canonical inventory only suppresses exact source-native aliases',()=>{
+ const result=buildExplorerCatalog([{id:'a',name:'Same'}],[],{},{
+ sources:[{id:1,source_key:'artificial-analysis'}],
+ aliases:[{canonical_model_id:1,intelligence_source_id:1,source_model_key:'a'}],
+ models:[{id:1,canonical_key:'aa:a',display_name:'Same'},{id:2,canonical_key:'other:b',display_name:'Same'}]});
+ expect(result.map(model=>model.id)).toEqual(['a','catalog:other:b']);
+ expect(result[1].intelligence).toBeUndefined();
+});
