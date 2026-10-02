@@ -98,6 +98,11 @@ export async function verifyRecovery(directory, modulePath) {
         for (const doc of docs) { hash.update(digest(doc)); bytes += Buffer.byteLength(doc); }
         const name = qualified(table.schema, table.name);
         await db.query('insert into ' + name + ' select * from json_populate_recordset(null::' + name + ',$1::json)', ['[' + docs.join(',') + ']']);
+        // Match each original row by its typed primary key; local collation may differ.
+        const pkType = schema.columns.find(c => c.schema_name === table.schema && c.table_name === table.name && c.column_name === table.pk).data_type;
+        const checked = (await db.query("select count(*)::int as matched,count(*) filter(where md5(row_to_json(t)::text)=md5(source.doc::text))::int as exact from json_array_elements($1::json) source(doc) join " + name + " t on t." + ident(table.pk) + "=(source.doc->>$2)::" + pkType, ['[' + docs.join(',') + ']',table.pk])).rows[0];
+        assert.equal(checked.matched,docs.length,table.table + ' restored keys');
+        assert.equal(checked.exact,docs.length,table.table + ' restored row checksums');
         count += docs.length;
       }
       assert.equal(count, Number(expected.row_count), table.table + ' row count');
@@ -105,8 +110,7 @@ export async function verifyRecovery(directory, modulePath) {
       assert.equal(hash.digest('hex'), expected.content_digest, table.table + ' source checksum');
       const actual = (await db.query("select count(*)::text as count,coalesce(md5(string_agg(md5(row_to_json(t)::text),'' order by t." + ident(table.pk) + ")),md5('')) as digest from " + qualified(table.schema, table.name) + ' t')).rows[0];
       assert.equal(actual.count, String(count), table.table + ' restored row count');
-      assert.equal(actual.digest, expected.content_digest, table.table + ' restored checksum');
-      report.tables.push({table: table.table, rows: count, digest: actual.digest});
+      report.tables.push({table: table.table, rows: count, sourceDigest: expected.content_digest, exactRowChecksumsVerified: true});
       console.log('Restored and verified ' + table.table + ': ' + count + ' rows');
     }
     await db.exec('set check_function_bodies=off');
