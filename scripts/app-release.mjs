@@ -1,22 +1,9 @@
+import {canonical,measurementRevision} from './release-json.mjs';
+import {validateBenchmarkAsset} from '../src/lib/compare-benchmark-asset.ts';
 import {createHash} from 'node:crypto';
 import {readCompareRelease,benchmarkAssetKey} from '../src/lib/compare-release.ts';
 import {compactCatalog,expandCatalog,measurementBucket,validateMeasurementChunk} from '../src/lib/compare-delivery.ts';
 import {availableCompareCharts,availableAaMetrics,buildComparePresets} from '../src/lib/compare-presets.ts';
-const PRIVATE_KEYS=/^(raw(?:[_-]?(?:response|body|fetch))?|api[_-]?key|service[_-]?role[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization|password|secret)$/i;
-function canonical(value,depth=0){
- if(depth>32)throw new Error('Release nesting exceeds limit');
- if(value===null||typeof value==='boolean')return value;
- if(typeof value==='string'){
-  if(/^https?:\/\//.test(value)){const url=new URL(value);if(url.username||url.password||[...url.searchParams.keys()].some(key=>/^(token|key|api_key|access_token|signature|password)$/i.test(key)))throw new Error('Private URL in release');}
-  return value;
- }
- if(typeof value==='number'&&Number.isFinite(value))return value;
- if(Array.isArray(value))return value.map(item=>canonical(item,depth+1));
- if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b)).map(([key,item])=>{
- if(PRIVATE_KEYS.test(key))throw new Error('Private field in release');return [key,canonical(item,depth+1)];
- }));
- throw new Error('Release must contain finite JSON data');
-}
 const equal=(a,b)=>JSON.stringify(canonical(a))===JSON.stringify(canonical(b));
 export function prepareAppRelease(input,assetInput){
  const manifest=readCompareRelease(JSON.parse(JSON.stringify(input)));
@@ -29,13 +16,13 @@ export function prepareAppRelease(input,assetInput){
  }
  for(const benchmark of manifest.benchmarks){
  const key=benchmarkAssetKey(benchmark.slug),asset=assetInput[key];expected.add(key);
- if(!asset||asset.schemaVersion!==1||asset.slug!==benchmark.slug||!Array.isArray(asset.observations)||!asset.observations.length||
- asset.observations.some(row=>!row||typeof row.id!=='string'||typeof row.modelVersion!=='string'||row.benchmarkSlug!==benchmark.slug||
- !(row.value===null||typeof row.value==='number'&&Number.isFinite(row.value))||!['native','percent','fraction'].includes(row.unit)))throw new Error('Invalid benchmark asset');
+ validateBenchmarkAsset(asset,benchmark.slug);
  allObservations.push(...asset.observations);
  }
  if(Object.keys(assetInput).some(key=>!expected.has(key)))throw new Error('Unexpected release asset');
  const byId=new Map(allRows.map(model=>[model.id,model])),ordered=catalog.map(model=>byId.get(model.id));
+ if(measurementRevision(ordered)!==manifest.delivery.revision)throw new Error('Measurement fingerprint mismatch');
+ if(!equal(manifest.models,ordered.filter(model=>manifest.defaultModelIds.includes(model.id))))throw new Error('Default measurements differ from release assets');
  if(!equal(compactCatalog(ordered),manifest.delivery.catalog)||!equal(availableCompareCharts(ordered),manifest.delivery.charts)||
  !equal(availableAaMetrics(ordered),manifest.delivery.aaMetrics)||!equal(buildComparePresets(ordered),manifest.delivery.presets))throw new Error('Manifest does not match measurements');
  if(releaseDatasetRevision(manifest,allObservations)!==manifest.datasetRevision)throw new Error('Dataset fingerprint mismatch');

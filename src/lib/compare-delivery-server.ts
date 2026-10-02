@@ -1,4 +1,4 @@
-import {createHash} from 'node:crypto';
+import {measurementRevision} from '../../scripts/release-json.mjs';
 import {getModelCatalogData} from './model-catalog-data';
 import {compactCatalog,measurementBucket} from './compare-delivery';
 import {defaultExplorerSelection} from './compare-catalog';
@@ -6,7 +6,7 @@ import {availableCompareCharts,availableAaMetrics,buildComparePresets} from './c
 let cached:ReturnType<typeof load>|undefined;
 async function load(){
  const data=await getModelCatalogData(),records=data.records;
- const revision=createHash('sha256').update(JSON.stringify(records)).digest('hex');
+ const revision=measurementRevision(records);
  const defaultModelIds=defaultExplorerSelection(records);
  const chunks=new Map<string,typeof records>();
  for(const model of records){const bucket=measurementBucket(model.id);const rows=chunks.get(bucket)??[];rows.push(model);chunks.set(bucket,rows);}

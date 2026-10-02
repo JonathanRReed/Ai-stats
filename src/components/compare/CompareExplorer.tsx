@@ -1,3 +1,4 @@
+import {validateBenchmarkAsset} from '../../lib/compare-benchmark-asset';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {parseCompareState,serializeCompareState,selectVisibleRecords,selectFamily,readBenchmarkCache,AA_METRIC_LABELS,scoreMetricOptions,changeScoreMetric,type CompareState,type CompareChart} from '../../lib/compare-state';
 import {buildCompareSeries,epochScoreKey,type ExplorerModel} from '../../lib/compare-series';
@@ -38,8 +39,8 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
     const controller=new AbortController();setLoadState('Loading benchmark observations…');
     fetch((delivery?.benchmarkBase??'/api/compare-benchmarks')+'/'+encodeURIComponent(epochSlug)+'.json',{signal:controller.signal})
       .then(response=>{if(!response.ok)throw new Error('unavailable');return response.json();})
-      .then(payload=>{if(payload.schemaVersion!==1||payload.slug!==epochSlug||!Array.isArray(payload.observations))throw new Error('invalid');
-        setBenchmarkCache(previous=>({...previous,[epochSlug]:payload.observations}));setLoadState('');})
+      .then(payload=>{const verified=validateBenchmarkAsset(payload,epochSlug);
+        setBenchmarkCache(previous=>({...previous,[epochSlug]:verified}));setLoadState('');})
       .catch(error=>{if(error.name!=='AbortError'){setLoadFailed(true);setLoadState('Benchmark data could not load. The other views still work.');}});
     return()=>controller.abort();
   },[epochSlug,benchmarkCache,benchmarks,retryAttempt,delivery?.benchmarkBase]);

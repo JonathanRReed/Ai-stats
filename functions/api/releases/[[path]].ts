@@ -5,7 +5,8 @@ export async function onRequest(context:Context){
  const url=new URL(context.request.url);url.search='';
  const key=new Request(url,{method:'GET'});
  const cache=(caches as CacheStorage&{default:Cache}).default;
- const cached=await cache.match(key);
+ const forceCurrent=url.pathname==='/api/releases/current.json'&&context.request.headers.get('Cache-Control')==='no-cache';
+ const cached=forceCurrent?undefined:await cache.match(key);
  if(cached)return context.request.method==='HEAD'?new Response(null,{status:cached.status,headers:cached.headers}):cached;
  const result=await serveAppRelease(key,context.env);
  if(result.status===200)context.waitUntil(cache.put(key,result.clone()));
