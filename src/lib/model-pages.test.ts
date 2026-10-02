@@ -205,3 +205,8 @@ test('measured zero token prices survive the model receipt',()=>{
  const [record]=buildModelPageRecords([model({price_1m_input_tokens:0,price_1m_output_tokens:0,price_1m_blended_3_to_1:0})]);
  expect(record.pricing.slice(0,3).map(item=>item.value)).toEqual([0,0,0]);
 });
+
+test('an OpenRouter name match does not authorize a PoliBench association',()=>{
+ const [record]=buildModelPageRecords([model({openrouter_id:'lab/a'})],{poliBench:{models:[{modelSlug:'lab/a',label:'A',status:'completed'}]} as never});
+ expect(record.poliBench).toBeNull();
+});
