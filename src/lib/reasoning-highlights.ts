@@ -10,26 +10,29 @@ export function buildReasoningHighlights(runs: EpochBenchmarkRun[], models: Epoc
   const byVersion = new Map(models.map(model => [model.model_version, model]));
   return REASONING_BENCHMARKS.map(benchmark => {
     const measured = runs.filter(run => run.benchmark_slug === benchmark.slug &&
-      typeof run.score === 'number' && Number.isFinite(run.score) && run.score >= 0 && run.score <= 1);
-    const byModel = new Map<string, { version: string; name: string; score: number; runId: string }>();
+      typeof run.score === 'number' && Number.isFinite(run.score) && run.score >= 0 &&
+      (run.score_unit !== 'fraction' || run.score <= 1) &&
+      (run.score_unit !== 'percent' || run.score <= 100));
+    const grouped = new Map<string, EpochBenchmarkRun[]>();
     for (const run of measured) {
-      // These three source series report accuracy as a fraction, not index points.
-      const score = run.score! * 100;
-      const existing = byModel.get(run.model_version);
-      if (existing && existing.score >= score) continue;
-      const model = byVersion.get(run.model_version);
-      byModel.set(run.model_version, {
-        version: run.model_version,
-        name: model?.display_name || model?.model_name || run.model_version,
-        score,
-        runId: run.id,
-      });
+      const group = grouped.get(run.model_version) ?? [];
+      group.push(run);
+      grouped.set(run.model_version, group);
     }
-    return {
-      ...benchmark,
-      runCount: measured.length,
-      rows: [...byModel.values()].sort((a, b) => b.score - a.score || a.version.localeCompare(b.version)).slice(0, 3),
-    };
+    const ambiguousModelCount = [...grouped.values()].filter(group => group.length > 1).length;
+    const rows = [...grouped.entries()].flatMap(([version, group]) => {
+      if (group.length !== 1) return [];
+      const run = group[0];
+      const model = byVersion.get(version);
+      const unit = run.score_unit === 'fraction' || run.score_unit === 'percent' ? 'percent' : 'native';
+      return [{
+        version, name: model?.display_name || model?.model_name || version,
+        score: run.score! * (run.score_unit === 'fraction' ? 100 : 1),
+        unit, metric: run.score_metric ?? 'Source score', runId: run.id,
+        conditions: run.conditions ?? null, evaluationDate: run.evaluation_date ?? null,
+      }];
+    }).sort((a, b) => a.version.localeCompare(b.version)).slice(0, 3);
+    return { ...benchmark, runCount: measured.length, ambiguousModelCount, rows };
   });
 }
 

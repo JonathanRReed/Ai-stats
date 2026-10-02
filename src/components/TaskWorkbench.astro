@@ -115,18 +115,18 @@ const workbenchPayloadJson = JSON.stringify({
   </form>
 
   <section class="reasoning-evidence" data-reasoning-evidence hidden aria-label="Reasoning benchmark results">
-    <p>Source-specific results from Epoch AI. These are the highest reported scores per exact model variant, not recommendations. Test settings differ. Pricing is not attached to these records, so the budget filter does not apply.</p>
+    <p>Sample Epoch observations, listed alphabetically. Variants with multiple runs need a condition choice in Compare. Pricing is separate, so the budget filter does not apply.</p>
     <div class="reasoning-benchmarks">
       {reasoningHighlights.map(benchmark => (
         <article>
           <h2>{benchmark.name}</h2>
-          <p>{benchmark.description} {benchmark.runCount} reported runs.</p>
+          <p>{benchmark.description} {benchmark.runCount} reported runs. {benchmark.ambiguousModelCount > 0 && `${benchmark.ambiguousModelCount} variants require a run selection.`}</p>
           {benchmark.rows.length ? (
             <ol>
               {benchmark.rows.map(row => (
                 <li>
                   <div><strong>{row.name}</strong><small>{row.version}</small></div>
-                  <span>{row.score.toFixed(1)}%</span>
+                  <span>{row.score.toFixed(1)}{row.unit === 'percent' ? '%' : ` ${row.metric}`}</span>
                 </li>
               ))}
             </ol>
