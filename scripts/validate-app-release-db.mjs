@@ -1,0 +1,29 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+const modulePath=process.env.PGLITE_TEST_MODULE;
+if(!modulePath)throw new Error('Set PGLITE_TEST_MODULE to the isolated test database module');
+const {PGlite}=await import(modulePath);const db=new PGlite();
+try{
+ await db.exec('create role anon; create role authenticated; create role service_role bypassrls; grant usage on schema public to anon,authenticated,service_role;');
+ await db.exec(await readFile('supabase/migrations/20261002184839_independent_app_release_cache.sql','utf8'));
+ const manifest={schemaVersion:'ai-stats-compare-release.v1',generatedAt:'2026-10-02T12:00:00.000Z',models:[{id:'a'},{id:'b'}],defaultModelIds:['a','b'],delivery:{catalog:{rows:[['a'],['b']]}}};
+ const assets={m00:{records:[{id:'a'}]},m01:{records:[{id:'b'}]}};
+ const publish=async(revision,data=manifest)=>db.query('select public.publish_app_release($1,$2::jsonb,$3::jsonb,$4::jsonb) as revision',[revision,JSON.stringify(data),JSON.stringify(assets),JSON.stringify([])]);
+ const current=async()=> (await db.query('select revision from public.app_release_cache where active')).rows[0]?.revision;
+ await db.exec('set role service_role');
+ await publish('a'.repeat(64));assert.equal(await current(),'a'.repeat(64));
+ await publish('a'.repeat(64));assert.equal((await db.query('select count(*)::int as n from public.app_release_cache')).rows[0].n,1);
+ await assert.rejects(publish('b'.repeat(64),{...manifest,models:[]}),/empty|seed|manifest/i);assert.equal(await current(),'a'.repeat(64));
+ await assert.rejects(publish('b'.repeat(64),{...manifest,password:'do-not-publish'}),/private/i);
+ await publish('b'.repeat(64),{...manifest,generatedAt:'2026-10-02T13:00:00.000Z'});
+ await publish('c'.repeat(64),{...manifest,generatedAt:'2026-10-02T14:00:00.000Z'});
+ assert.equal((await db.query('select count(*)::int as n from public.app_release_cache')).rows[0].n,2);
+ await assert.rejects(publish('d'.repeat(64)),/older/i);assert.equal(await current(),'c'.repeat(64));
+ await db.query('select public.rollback_app_release($1)', ['b'.repeat(64)]);assert.equal(await current(),'b'.repeat(64));
+ await db.exec('reset role; set role anon');
+ assert.equal(await current(),'b'.repeat(64));
+ await assert.rejects(publish('d'.repeat(64)),/permission denied/i);
+ await assert.rejects(db.query('select public.rollback_app_release($1)',['c'.repeat(64)]),/permission denied/i);
+ await assert.rejects(db.query('update public.app_release_cache set active=false'),/permission denied/i);
+ console.log('PASS: atomic release promotion, bounded derived cache, idempotence, rejection, rollback and public read-only boundary');
+}finally{await db.close();}
