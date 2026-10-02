@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { selectEpochArtifact } from './source-snapshots.mjs';
+import { selectEpochArtifact, assertEpochArchiveCoverage } from './source-snapshots.mjs';
 
 import { createHash } from 'node:crypto';
 import { getEpochScoreMetric as getPrimaryScoreColumn, normalizeEpochRecord, buildPublicEpochRun } from './epoch-records.mjs';
@@ -339,6 +339,8 @@ const main = async () => {
     if (snapshotPath || cachePath) {
       const snapshot = {
         source: DATA_URL,
+        archive_manifest: { source: DATA_URL, sha256: createHash('sha256').update(await readFile(zipPath)).digest('hex'),
+          parsed: true, files: dataFileRows.map(file => ({ path: file.file_path, row_count: file.row_count })) },
         fetched_at: new Date().toISOString(),
         benchmarks: benchmarkRows,
         models: [...modelByVersion.values()],
@@ -353,6 +355,7 @@ const main = async () => {
         let previous = null;
         try { previous = JSON.parse(await readFile(snapshotPath, 'utf8')); }
         catch (error) { if (error.code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error; }
+        assertEpochArchiveCoverage(previous, snapshot);
         const selected = selectEpochArtifact(previous, snapshot);
         if (selected.changed) {
           await mkdir(path.dirname(snapshotPath), { recursive: true });

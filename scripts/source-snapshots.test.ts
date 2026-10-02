@@ -68,6 +68,7 @@ test('failed staging never triggers promotion or leaks server response bodies', 
 });
 
 const epoch = { fetched_at: '2026-10-02T00:00:00Z',
+  archive_manifest:{source:'https://epoch.ai/data/benchmark_data.zip',sha256:'a'.repeat(64),parsed:true,files:[{path:'test.csv',row_count:2}]},
   models: [{ model_version: 'model', display_name: 'Model', updated_at: '2026-10-02T00:00:00Z' }],
   benchmarks: [{ slug: 'test', name: 'Test' }],
   runs: [{ id: 'run', model_version: 'model', benchmark_slug: 'test', score: 0,

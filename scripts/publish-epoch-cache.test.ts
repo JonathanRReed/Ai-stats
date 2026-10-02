@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 import { runEpochCachePublication } from './publish-epoch-cache.mjs';
 
 const snapshot = { fetched_at: '2026-10-02T00:00:00Z',
+  archive_manifest:{source:'https://epoch.ai/data/benchmark_data.zip',sha256:'a'.repeat(64),parsed:true,files:[{path:'bench.csv',row_count:1}]},
   models: [{ model_version: 'model' }], benchmarks: [{ slug: 'bench' }],
   runs: [{ id: 'run', model_version: 'model', benchmark_slug: 'bench', score: 0 }] };
 test('dry-run validates the artifact without credentials or network writes', async () => {

@@ -97,6 +97,16 @@ export function buildEpochCacheInput(snapshot) {
   if (!snapshot || !['models', 'benchmarks', 'runs'].every(key => Array.isArray(snapshot[key]) && snapshot[key].length)) {
     throw new Error('Epoch snapshot is incomplete');
   }
+  const manifest = snapshot.archive_manifest;
+  if (!manifest || manifest.source !== 'https://epoch.ai/data/benchmark_data.zip' ||
+    !/^[a-f0-9]{64}$/.test(manifest.sha256 ?? '') || manifest.parsed !== true ||
+    !Array.isArray(manifest.files) || !manifest.files.length ||
+    manifest.files.some(file => typeof file.path !== 'string' || !file.path ||
+      !Number.isSafeInteger(file.row_count) || file.row_count < 0) ||
+    new Set(manifest.files.map(file => file.path)).size !== manifest.files.length ||
+    snapshot.benchmarks.some(benchmark => !manifest.files.some(file => file.path === benchmark.slug + '.csv'))) {
+    throw new Error('Epoch publication requires a complete parsed archive receipt');
+  }
   const identity = value => typeof value === 'string' && value.trim().length > 0;
   if (snapshot.models.some(row => !row || !identity(row.model_version)) ||
     snapshot.benchmarks.some(row => !row || !identity(row.slug)) ||
@@ -156,4 +166,18 @@ export function buildAaMembershipCacheInput(aa) {
     records:aa.models.map(model=>({id:model.id,kind:'model-membership'}))};
   prepareSourceSnapshot(input);
   return input;
+}
+
+/** Hold unexpected source shrinkage for review; do not confuse loss with a valid refresh. */
+export function assertEpochArchiveCoverage(previous, candidate) {
+  if (!previous?.benchmarks?.length || !previous?.runs?.length) return;
+  const slugs=new Set(candidate.benchmarks.map(row=>row.slug));
+  if(previous.benchmarks.some(row=>!slugs.has(row.slug))) {
+    throw new Error('Epoch archive omitted a published benchmark; retain the previous snapshot pending source review');
+  }
+  for(const collection of ['models','runs']) {
+    if(previous[collection]?.length && candidate[collection].length < previous[collection].length * 0.8) {
+      throw new Error('Epoch archive coverage fell by more than 20%; retain the previous snapshot pending source review');
+    }
+  }
 }
