@@ -84,11 +84,11 @@ jobs:
           bun run lint
           bun run typecheck
           bun run test
-      - name: Build with public credentials only
+      - name: Compile app data with public credentials only
         env:
           PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
-        run: bun run build
+        run: bun scripts/build-app-release.mjs
       - name: Promote verified source caches
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -104,14 +104,14 @@ jobs:
           PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
         run: |
           bun scripts/source-release-manifest.mjs .tmp/intelligence-input.json public/data/source-manifest.json
-          bun run build
+          bun scripts/build-app-release.mjs
       - name: Publish validated app data independently of deployment
         id: app_release
         continue-on-error: true
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: bun scripts/publish-app-release.mjs --publish
+        run: bun scripts/publish-app-release.mjs --directory .tmp/app-release --publish
       - name: Publish only the verified public snapshots
         if: github.ref_name == 'main'
         env:

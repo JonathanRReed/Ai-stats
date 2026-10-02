@@ -38,9 +38,9 @@ jobs:
         env:
           PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
-        run: bun run build
+        run: bun scripts/build-app-release.mjs
       - name: Publish validated app data
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: bun scripts/publish-app-release.mjs --publish
+        run: bun scripts/publish-app-release.mjs --directory .tmp/app-release --publish
