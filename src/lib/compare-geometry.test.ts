@@ -34,3 +34,10 @@ test('large finite logarithmic values cannot hang tick generation',async()=>{
  const result=spawnSync(process.execPath,['-e',"import {plotGeometry} from './src/lib/compare-geometry.ts';const result=plotGeometry([{id:'extreme',x:1e308,y:1}],'scatter','log');if(!result.xTicks.every(t=>Number.isFinite(t.position))||!Number.isFinite(result.points[0].cx))process.exit(2);"],{cwd:process.cwd(),timeout:2000});
  expect(result.status).toBe(0);
 });
+
+test('negative-only bar values retain a visible zero baseline inside the plot',()=>{
+ const plot=geometry.plotGeometry([{id:'a',x:0,y:-100},{id:'b',x:1,y:-80}],'bars','linear',300,420);
+ expect(plot.baseline).toBeGreaterThanOrEqual(plot.top);
+ expect(plot.baseline).toBeLessThanOrEqual(plot.bottom);
+ for(const point of plot.points){expect(point.cy).toBeGreaterThanOrEqual(plot.top);expect(point.cy).toBeLessThanOrEqual(plot.bottom);}
+});
