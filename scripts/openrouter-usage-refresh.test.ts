@@ -54,3 +54,12 @@ test('usage CLI keeps missing-auth runs inert and rejects malformed publish cand
  readJson:async()=>({sourceKey:'openrouter-usage',status:'prepared',leaseId:'lease',input:{sourceKey:'openrouter-usage',records:[]}})})).rejects.toThrow();
  expect(published).toBe(0);
 });
+
+test('usage cache accepts Postgres microsecond receipts without relaxing date validation',()=>{
+ const records=[{id:'daily-usage',snapshot}];
+ const checked=prepareSourceSnapshot({sourceKey:'openrouter-usage',observedAt:snapshot.asOf,fetchedAt:'2026-10-02T03:00:00Z',records});
+ const row={source_key:'openrouter-usage',snapshot_id:42,record_count:1,content_hash:checked.contentHash,
+ fetched_at:'2026-10-02T03:00:00.123456+00:00',published_at:'2026-10-02T04:00:00.654321+00:00',
+ payload:{schemaVersion:1,sourceKey:'openrouter-usage',observedAt:snapshot.asOf,records}};
+ expect(sync.parseUsageCache(row,{now:'2026-10-02T07:00:00Z'})).toMatchObject({receipt:{fetchedAt:'2026-10-02T03:00:00.123Z',publishedAt:'2026-10-02T04:00:00.654Z'}});
+});
