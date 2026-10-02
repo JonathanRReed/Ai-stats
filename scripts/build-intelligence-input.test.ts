@@ -80,6 +80,8 @@ test("buildIntelligenceInput joins the live and checked source bundles", async (
 test("buildIntelligenceInput keeps the freshest Artificial Analysis row for each slug", async () => {
   const fetchImpl = async (input: string | URL | Request) => {
     const url = String(input);
+    if (url.includes("/rest/v1/aa_fetches")) return Response.json([{id:'receipt',status:200,endpoint:'language/models/free',
+      fetched_at:'2026-09-01T00:00:00Z',data:[{id:'newer-id'}]}]);
     if (url.includes("/rest/v1/aa_models")) {
       return new Response(JSON.stringify([
         {
