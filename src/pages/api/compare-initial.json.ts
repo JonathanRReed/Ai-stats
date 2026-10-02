@@ -94,31 +94,6 @@ const compactCompareModelForClient = (model: CompareModelRecord) => ({
   release_date: model.release_date,
 });
 
-const collectInitialEpochLookup = (model: CompareModelRecord) => {
-  const keys = new Set<string>();
-  const register = (candidate: string | null | undefined) => {
-    const normalized = normalizeModelKey(candidate);
-    if (!normalized) return;
-    keys.add(normalized);
-    keys.add(normalized.replace(/\s+/g, ''));
-  };
-
-  register(String(model.name ?? ''));
-  register(String(model.slug ?? ''));
-
-  const normalizedName = normalizeModelKey(String(model.name ?? ''));
-  const normalizedCompany = normalizeModelKey(String(model.company_name ?? ''));
-  if (
-    normalizedName &&
-    normalizedCompany &&
-    normalizedName.startsWith(`${normalizedCompany} `)
-  ) {
-    register(normalizedName.slice(normalizedCompany.length).trim());
-  }
-
-  return { keys };
-};
-
 export const GET: APIRoute = async () => {
   const [baseModels, publicCatalogs, epochEvidence] =
     await Promise.all([
@@ -126,7 +101,8 @@ export const GET: APIRoute = async () => {
       getPublicCatalogModels(),
       getEpochEvidence(),
     ]);
-  const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs, await getVerifiedCatalogBindings(baseModels));
+  const bindings=await getVerifiedCatalogBindings(baseModels);
+  const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs, bindings);
   const { epochBenchmarks, epochRuns, epochModels } = epochEvidence;
 
   const epochAliasesByModelVersion: Record<string, string[]> = {};
@@ -235,7 +211,9 @@ export const GET: APIRoute = async () => {
   const initialClientEpochScores: Record<string, Record<string, number>> = {};
 
   compareModels.forEach((model) => {
-    const { keys } = collectInitialEpochLookup(model);
+    const version=bindings[model.id]?.['epoch-ai'];
+    if(!version)return;
+    const key=normalizeModelKey(version);const keys=new Set([key,key.replace(/\s+/g,'')]);
     scoreEntries.forEach(([alias, aliasScores]) => {
       if (keys.has(alias)) {
         initialClientEpochScores[alias] = aliasScores;

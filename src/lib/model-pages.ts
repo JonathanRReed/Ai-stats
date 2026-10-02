@@ -178,12 +178,12 @@ export const matchEpochRuns = (
 };
 
 const findPoliBenchModel = (
-  model: Pick<AaModel, 'openrouter_id'>,
+  verifiedKey:string|undefined,
   snapshot: PublicPoliBenchSnapshot | null | undefined,
 ): PublicPoliBenchModel | null => {
-  const key = text(model.openrouter_id)?.toLowerCase();
+  const key = text(verifiedKey);
   if (!key || !snapshot) return null;
-  return snapshot.models.find((entry) => entry.modelSlug.toLowerCase() === key) ?? null;
+  return snapshot.models.find((entry) => entry.modelSlug === key) ?? null;
 };
 
 const poliBenchModelUrl = (slug: string): string =>
@@ -206,7 +206,7 @@ export const buildModelPageRecord = (
   const provider = text(model.company_name) ?? text(model.creator_name) ?? 'Unknown provider';
   const openRouterId = text(model.openrouter_id);
   const huggingFaceId = text(model.hf_model_id);
-  const poliBench = findPoliBenchModel(model, context.poliBench);
+  const poliBench = findPoliBenchModel(context.verifiedBindings?.[model.id]?.polibench, context.poliBench);
   const now = new Date().toISOString();
 
   const aliases: ModelPassportAlias[] = [

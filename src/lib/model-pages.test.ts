@@ -79,6 +79,7 @@ test("the record carries the receipt, the sibling routes, and only real values",
       }),
     ],
     {
+      verifiedBindings:{"id-1":{polibench:"test-labs/test-model-1"}},
       poliBench: {
         models: [
           {

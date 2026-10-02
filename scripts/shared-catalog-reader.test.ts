@@ -29,7 +29,7 @@ test('shared catalog retries a failed load and coalesces successful concurrent r
  const loader=readFileSync('src/lib/model-catalog-data.ts','utf8').replace(/^import .*$/gm,'').replace('export const getModelCatalogData','const getModelCatalogData');
  let calls=0;
  const get=runInNewContext(transpiler.transformSync(loader)+';getModelCatalogData;',{
- getModels:async()=>{if(++calls===1)throw new Error('temporary');return [];},
+ supabase:{},getModels:async()=>{if(++calls===1)throw new Error('temporary');return [];},
  getCompareCatalogSources:async()=>({openrouter:[],huggingface:[],litellm:[],availability:[]}),
  getCanonicalModels:async()=>[],getModelAliases:async()=>[],getIntelligenceSources:async()=>[],
  normalizeAaModelsForDisplay:(rows:unknown[])=>rows,getEpochEvidence:async()=>({epochModels:[]}),

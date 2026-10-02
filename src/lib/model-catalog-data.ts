@@ -1,5 +1,5 @@
 import {buildVerifiedBindings} from './catalog-bindings';
-import {getModels,getCompareCatalogSources,getCanonicalModels,getModelAliases,getIntelligenceSources,normalizeAaModelsForDisplay} from './supabase';
+import {supabase,getModels,getCompareCatalogSources,getCanonicalModels,getModelAliases,getIntelligenceSources,normalizeAaModelsForDisplay} from './supabase';
 import {getEpochEvidence} from './epoch-evidence';
 import {EXPLORER_SOURCE_LABELS} from './compare-series';
 import {buildExplorerCatalog} from './compare-catalog';
@@ -12,8 +12,7 @@ async function load(){
  const bindings=buildVerifiedBindings(currentAaModels,aliases,sources);
  const unavailableSources=[
   ...catalogs.availability.filter(source=>!source.available).map(source=>EXPLORER_SOURCE_LABELS[source.sourceKey as keyof typeof EXPLORER_SOURCE_LABELS]),
-  ...(aaModels.length?[]:['Artificial Analysis']),...(epoch.epochModels.length?[]:['Epoch AI']),
-  ...(canonical.length?[]:['Database inventory'])
+  ...(supabase?[]:['Artificial Analysis','Database inventory']),...(epoch.fetchedAt?[]:['Epoch AI'])
  ];
  return {aaModels,currentAaModels,epoch,catalogs,canonical,aliases,sources,records,unavailableSources,bindings};
 }

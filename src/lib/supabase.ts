@@ -360,17 +360,6 @@ export type PublicCatalogModels = {
 
 const toPricePerMillion = (value: unknown): number | null => catalogPricePerMillion(value);
 
-const normalizeModelLookupKey = (value: string | null | undefined): string => {
-  if (!value) return '';
-  return value
-    .toLowerCase()
-    .replace(/^(openai|anthropic|google|meta|mistral|moonshotai|moonshot|alibaba|qwen|xai|deepseek|minimax|nvidia|cohere|perplexity):\s*/i, '')
-    .replace(/\([^)]*\)/g, ' ')
-    .replace(/:free$/i, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-};
-
 async function readPublicCatalog(sourceKey: string) {
   if (!supabase) return null;
   try {
