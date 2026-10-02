@@ -84,11 +84,18 @@ jobs:
         run: |
           bun scripts/publish-epoch-cache.mjs --input .tmp/epoch-cache-candidate.json
           bun scripts/publish-aa-membership.mjs --input .tmp/intelligence-input.json
+      - name: Verify promoted source selection and release manifest
+        env:
+          PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          bun scripts/source-release-manifest.mjs .tmp/intelligence-input.json public/data/source-manifest.json
+          bun run build
       - name: Publish only the verified public snapshots
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          git add -- public/data/epoch-benchmark-snapshot.json public/data/polibench-snapshot.json
+          git add -- public/data/epoch-benchmark-snapshot.json public/data/polibench-snapshot.json public/data/source-manifest.json
           if git diff --cached --quiet; then exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'

@@ -108,6 +108,10 @@ export function buildEpochCacheInput(snapshot) {
   if (snapshot.runs.some(run => !modelKeys.has(run.model_version) || !benchmarkKeys.has(run.benchmark_slug))) {
     throw new Error('Epoch observation identity does not resolve');
   }
+  if (snapshot.runs.some(run => !(run.score === null ||
+    (typeof run.score === 'number' && Number.isFinite(run.score))))) {
+    throw new Error('Epoch observation score must be a finite number or explicit null');
+  }
   if (!snapshot.runs.some(run => typeof run.score === 'number' && Number.isFinite(run.score))) {
     throw new Error('Epoch snapshot has incomplete measured evidence');
   }

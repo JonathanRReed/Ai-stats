@@ -1,5 +1,5 @@
 import {expect,test} from 'bun:test';
-const release=await import('./source-release-manifest.mjs').catch(()=>({}));
+import * as release from './source-release-manifest.mjs';
 const source={aa:{models:[{id:'a',aa_intelligence_index:5,last_seen:'2026-10-02T00:00:00Z'}]},
   epoch:{models:[{model_version:'a',updated_at:'2026-10-02T00:00:00Z'}],runs:[{id:'r',score:1}]},
   polibench:{generatedAt:'2026-09-01T00:00:00Z',runs:[{id:'p',score:1}]}};

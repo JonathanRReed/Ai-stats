@@ -36,6 +36,24 @@ export function buildEpochScoreIndex(
   receipts: Record<string, Record<string, EpochObservation>>;
   units: Record<string, 'native' | 'percent' | 'mixed'>;
 } {
+  const forms = (value: string) => {
+    const normalized = key(value);
+    return normalized ? [...new Set([normalized, normalized.replace(/\s+/g, '')])] : [];
+  };
+  const versions = new Set([...Object.keys(aliasesByVersion), ...observations.map(row => row.modelVersion)]);
+  const owners = new Map<string, Set<string>>();
+  const exactOwners = new Map<string, Set<string>>();
+  const addOwner = (map: Map<string, Set<string>>, alias: string, version: string) => {
+    const values = map.get(alias) ?? new Set<string>();
+    values.add(version);
+    map.set(alias, values);
+  };
+  for (const version of versions) {
+    for (const alias of forms(version)) addOwner(exactOwners, alias, version);
+    for (const alias of [version, ...(aliasesByVersion[version] ?? [])].flatMap(forms)) {
+      addOwner(owners, alias, version);
+    }
+  }
   const groups = new Map<string, Map<string, EpochObservation[]>>();
   const unitSets = new Map<string, Set<string>>();
   for (const observation of observations) {
@@ -47,6 +65,8 @@ export function buildEpochScoreIndex(
     const aliases = new Set([observation.modelVersion, ...(aliasesByVersion[observation.modelVersion] ?? [])]
       .flatMap(value => { const normalized = key(value); return normalized ? [normalized, normalized.replace(/\s+/g, '')] : []; }));
     for (const alias of aliases) {
+      const exact = exactOwners.get(alias);
+      if (exact?.size === 1 ? !exact.has(observation.modelVersion) : (owners.get(alias)?.size ?? 0) !== 1) continue;
       let benchmarks = groups.get(alias);
       if (!benchmarks) { benchmarks = new Map(); groups.set(alias, benchmarks); }
       const rows = benchmarks.get(observation.benchmarkSlug) ?? [];

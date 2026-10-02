@@ -1,6 +1,6 @@
 import { getEpochBenchmarks, getEpochBenchmarkRuns, getHydratedEpochModels, supabase } from './supabase';
 import { getPublicEpochSnapshot } from './epoch-snapshot';
-import { preferPublishedEpoch, chooseValidatedEpoch } from './epoch-selection';
+import { chooseValidatedEpoch } from './epoch-selection';
 import { decodeEpochCache } from './epoch-cache';
 
 type EpochEvidence = NonNullable<Awaited<ReturnType<typeof getPublicEpochSnapshot>>>;
@@ -37,18 +37,14 @@ const defaultSources: EpochSources = {
 };
 
 export async function readEpochEvidence(sources: EpochSources = defaultSources): Promise<EpochEvidence> {
-  const [published, receipt, cache] = await Promise.all([
-    sources.published(), sources.receipt(), sources.cache(),
+  const [published, cache] = await Promise.all([
+    sources.published().catch(() => null),
+    sources.cache().catch(() => ({ found: true, evidence: null })),
   ]);
-  if (cache.found) {
-    return chooseValidatedEpoch(published, cache.evidence) ??
-      { fetchedAt: null, epochBenchmarks: [], epochRuns: [], epochModels: [] };
-  }
-  // Legacy fallback is retained only until this source has a validated cache.
-  if (published && preferPublishedEpoch(published, receipt, receipt ? 1 : 0)) return published;
-  const legacy = await sources.legacy(receipt);
-  if (published && preferPublishedEpoch(published, receipt, legacy.epochRuns.length)) return published;
-  return legacy;
+  // Only validated cache data or the checked artifact may serve this reader.
+  // Legacy tables can be midway through an import even when their receipt is newer.
+  return chooseValidatedEpoch(published, cache.found ? cache.evidence : null) ??
+    { fetchedAt: null, epochBenchmarks: [], epochRuns: [], epochModels: [] };
 }
 
 let cached: ReturnType<typeof readEpochEvidence> | undefined;

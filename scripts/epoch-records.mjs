@@ -14,8 +14,9 @@ export function normalizeEpochEvaluationDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(value)) return null;
   const time = Date.parse(value);
   if (!Number.isFinite(time)) return null;
-  const day = new Date(time).toISOString().slice(0, 10);
-  return day === value.slice(0, 10) ? day : null;
+  const day = value.slice(0, 10);
+  const calendarTime = Date.parse(day + 'T00:00:00Z');
+  return Number.isFinite(calendarTime) && new Date(calendarTime).toISOString().slice(0, 10) === day ? day : null;
 }
 
 export function normalizeEpochScoreUnit(value) {
