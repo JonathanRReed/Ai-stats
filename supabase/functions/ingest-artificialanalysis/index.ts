@@ -1,4 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
+import {createAaRequestGate} from "./quota.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
@@ -28,7 +29,7 @@ const PATH_FREE = "language/models/free";
  */
 const PROMPT_TYPE = "medium";
 
-/** Rate-limit safety: Free tier is 100 req/day, Pro 500. Cron runs twice daily. */
+/** Per-request durable quota guard leaves a reserve in the upstream fixed 24-hour window. */
 const MAX_PAGES = 6;
 
 const USER_AGENT =
@@ -64,8 +65,8 @@ function pageUrl(path: string, page: number): string {
   return url.toString();
 }
 
-async function fetchPage(path: string, page: number, apiKey: string) {
-  const res = await fetch(pageUrl(path, page), {
+async function fetchPage(path: string, page: number, apiKey: string, request: ReturnType<typeof createAaRequestGate>) {
+  const res = await request(pageUrl(path, page), {
     headers: {
       "x-api-key": apiKey,
       "User-Agent": USER_AGENT,
@@ -86,7 +87,7 @@ async function fetchPage(path: string, page: number, apiKey: string) {
  * Walks every page of a model list endpoint and returns the aggregated models plus the raw
  * page envelopes. Never returns a silently truncated first page.
  */
-async function fetchAllPages(path: string, apiKey: string, first: { status: number; body: any }) {
+async function fetchAllPages(path: string, apiKey: string, first: { status: number; body: any }, request: ReturnType<typeof createAaRequestGate>) {
   const pages: any[] = [first.body];
   if (!Array.isArray(first.body?.data) || first.body.data.length === 0) {
     throw new Error("AA returned no model data; refusing an empty snapshot");
@@ -103,7 +104,7 @@ async function fetchAllPages(path: string, apiKey: string, first: { status: numb
     }
 
     page += 1;
-    const next = await fetchPage(path, page, apiKey);
+    const next = await fetchPage(path, page, apiKey, request);
 
     if (next.status !== 200) {
       throw new Error(
@@ -133,16 +134,16 @@ async function fetchAllPages(path: string, apiKey: string, first: { status: numb
  * tier does not cover it. The contract documents 403 for that case; 402 is not documented but is
  * handled defensively as a payment/tier signal.
  */
-async function fetchLLMs(apiKey: string) {
+async function fetchLLMs(apiKey: string, request: ReturnType<typeof createAaRequestGate>) {
   let path = PATH_PRO;
   let fellBackToFree = false;
 
-  let first = await fetchPage(path, 1, apiKey);
+  let first = await fetchPage(path, 1, apiKey, request);
 
   if (first.status === 403 || first.status === 402) {
     path = PATH_FREE;
     fellBackToFree = true;
-    first = await fetchPage(path, 1, apiKey);
+    first = await fetchPage(path, 1, apiKey, request);
   }
 
   if (first.status !== 200) {
@@ -153,7 +154,7 @@ async function fetchLLMs(apiKey: string) {
     );
   }
 
-  const { pages, models, pagination, pageCount } = await fetchAllPages(path, apiKey, first);
+  const { pages, models, pagination, pageCount } = await fetchAllPages(path, apiKey, first, request);
 
   return {
     status: first.status,
@@ -244,6 +245,7 @@ Deno.serve(async (_req: Request) => {
   if (!serviceCaller) {
     return new Response("Unauthorized", { status: 401 });
   }
+  let finishQuota: ((success:boolean)=>Promise<void>)|undefined;
   try {
     const SUPABASE_URL = requireEnv("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
@@ -254,7 +256,16 @@ Deno.serve(async (_req: Request) => {
       global: { headers: { "X-Client-Info": "ingest-artificialanalysis" } },
     });
 
-    const result = await fetchLLMs(AA_API_KEY);
+    const claim = await supabase.rpc('claim_aa_refresh');
+    if(claim.error)throw new Error('Could not claim AA refresh');
+    if(!claim.data?.claimed)return Response.json({ok:true,skipped:true,reason:claim.data?.reason??'unavailable'});
+    const lease=claim.data.leaseId;
+    if(typeof lease!=='string')throw new Error('Invalid AA refresh lease');
+    finishQuota=async(success:boolean)=>{
+      const result=await supabase.rpc('finish_aa_refresh',{p_lease:lease,p_success:success});
+      if(result.error||result.data!==true)throw new Error('Could not finish AA refresh lease');
+    };
+    const result = await fetchLLMs(AA_API_KEY,createAaRequestGate(supabase,lease));
 
     console.log(
       `[ingest-artificialanalysis] endpoint=${result.path} tier=${result.tier} pages=${result.pageCount} models=${result.models.length} prompt_type=${result.promptType ?? "n/a"} fell_back_to_free=${result.fellBackToFree}`,
@@ -328,6 +339,8 @@ Deno.serve(async (_req: Request) => {
       }
     }
 
+    await finishQuota(true);
+    finishQuota=undefined;
     return new Response(
       JSON.stringify({
         ok: true,
@@ -342,6 +355,7 @@ Deno.serve(async (_req: Request) => {
       { headers: { "Content-Type": "application/json" }, status: 200 },
     );
   } catch (err) {
+    if(finishQuota)await finishQuota(false).catch(()=>{});
     return new Response(
       JSON.stringify({ ok: false, error: (err as Error).message }),
       { headers: { "Content-Type": "application/json" }, status: 500 },
