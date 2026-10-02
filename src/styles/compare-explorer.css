@@ -143,3 +143,14 @@
 .category-label{font-size:9px}
 
 .plot-legend{fill:var(--ink-1);font:10px var(--font-sans)}
+
+.compare-explorer{
+  --compare-family-0:#8ccab8;--compare-family-1:#e39775;--compare-family-2:#82aee0;
+  --compare-family-3:#b79bdf;--compare-family-4:#dfbf73;--compare-family-5:#80c1d0;
+  --compare-family-6:#d88fb6;--compare-family-7:#c4cb91;--compare-family-8:#c6ccce;
+}
+:root[data-theme="light"] .compare-explorer,html.light .compare-explorer{
+  --compare-family-0:#2d7159;--compare-family-1:#a25032;--compare-family-2:#3e6598;
+  --compare-family-3:#7653a7;--compare-family-4:#7d5e17;--compare-family-5:#246a7b;
+  --compare-family-6:#9b466f;--compare-family-7:#59662a;--compare-family-8:#4e5b61;
+}

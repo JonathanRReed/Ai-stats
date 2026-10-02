@@ -1,8 +1,15 @@
 import {useEffect,useRef,useState,type RefObject} from 'react';
 import {plotGeometry,formatChartNumber} from '../../lib/compare-geometry';
 import type {CompareSeries,SeriesPoint} from '../../lib/compare-series';
-const COLORS=['#8ccab8','#e39775','#82aee0','#b79bdf','#dfbf73','#80c1d0','#d88fb6','#c4cb91'];
-export function familyColor(family:string){let hash=0;for(const letter of family)hash=(hash*31+letter.charCodeAt(0))>>>0;return COLORS[hash%COLORS.length];}
+const FAMILY_HUES:Array<[RegExp,number]>=[
+  [/^Claude/i,1],[/^(GPT|o[1-9])/i,8],[/^(Gemini|Gemma)/i,0],[/^(Muse|Llama)/i,2],
+  [/^Grok/i,3],[/^MiMo/i,4],[/^Qwen/i,5],[/^Kimi/i,6],[/^GLM/i,7],[/^DeepSeek/i,5],
+];
+export function familyColor(family:string){
+  const known=FAMILY_HUES.find(([pattern])=>pattern.test(family));
+  let hash=0;for(const letter of family)hash=(hash*31+letter.charCodeAt(0))>>>0;
+  return 'var(--compare-family-'+(known?.[1]??hash%9)+')';
+}
 type Props={series:CompareSeries;labels:boolean;activeId:string|null;onPreview:(id:string|null)=>void;onPin:(id:string)=>void;svgRef:RefObject<SVGSVGElement|null>};
 export default function ComparisonChart({series,labels,activeId,onPreview,onPin,svgRef}:Props){
   const frame=useRef<HTMLDivElement>(null);const [width,setWidth]=useState(1000);
