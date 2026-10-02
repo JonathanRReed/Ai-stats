@@ -1,108 +1,36 @@
-/// <reference types="bun" />
-
-import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-
-const source = readFileSync("src/pages/compare.astro", "utf8");
-const initialApiSource = readFileSync(
-  "src/pages/api/compare-initial.json.ts",
-  "utf8",
-);
-
-test("the compare page keeps the loading skeleton and branded empty state in source", () => {
-  expect(source).toContain('class="chart-container is-loading" id="price-chart"');
-  expect(source).toContain('class="chart-container is-loading" id="performance-chart"');
-  expect(source).toContain('className = "no-data chart-empty"');
-  expect(source).toContain("No models selected");
-  expect(source).toContain("Pick models to compare");
+import {expect,test} from 'bun:test';
+import {existsSync,readFileSync} from 'node:fs';
+const source=readFileSync('src/pages/compare.astro','utf8');
+const explorer=readFileSync('src/components/compare/CompareExplorer.tsx','utf8');
+const initialApi=readFileSync('src/pages/api/compare-initial.json.ts','utf8');
+const route='src/pages/api/compare-benchmarks/[slug].json.ts';
+test('Compare is a small chart-first Astro shell over focused explorer components',()=>{
+  expect(source).toContain('<CompareExplorer');
+  expect(source).toContain('client:load');
+  expect(source.length).toBeLessThan(6000);
+  expect(source).toContain('defaultExplorerSelection');
 });
-
-test("the compare page keeps the guidance that there is no single overall rank", () => {
-  expect(source).toContain("There is no single overall rank here");
-  expect(source).toContain("Coding, math, reasoning, long-context review, and agent tool use measure different capabilities");
+test('public comparison data stays server-backed and clients fetch only a selected benchmark',()=>{
+  expect(source).toContain('getModels(true)');
+  expect(explorer).toContain("fetch('/api/compare-benchmarks/'");
+  expect(explorer).not.toContain('fetchLiveSnapshot');
+  expect(explorer).not.toContain('supabase.co');
+  expect(explorer).not.toContain('fetch("https://artificialanalysis');
+  expect(existsSync(route)).toBe(true);
+  if(existsSync(route))expect(readFileSync(route,'utf8')).toContain('getStaticPaths');
 });
-
-test("the compare page starts with compact controls and explicit comparable coverage", () => {
-  expect(source).toContain('id="compare-task-preset"');
-  expect(source).toContain("Compare by");
-  expect(source).toContain('id="compare-evidence-coverage"');
-  expect(source).toContain("Comparable rows");
-  expect(source).toContain('id="compare-evidence-mode"');
-  expect(source).toContain("DEFAULT_TASK_PRESETS");
-  expect(source).toContain('id="compare-selected-count"');
-  expect(source).toContain("selectedStatEl.textContent = String(selected.size);");
+test('legacy compare API remains compatible without fabricated prices or fuzzy scores',()=>{
+  expect(initialApi).toContain('epochScoreReceipts');
+  expect(initialApi).toContain('buildEpochScoreIndex');
+  expect(initialApi).toContain('priceEvidence: "unavailable"');
+  expect(initialApi).not.toContain('synthetic-estimate');
+  expect(initialApi).not.toContain('tokens.every((token) => alias.includes(token))');
 });
-
-test("the initial performance chart follows the default task preset", () => {
-  expect(source).toContain(
-    "const initialPerformanceMetric = preferredMetricForPreset(defaultTaskPreset);",
-  );
-  expect(source).toContain(
-    'selected={value === initialPerformanceMetric}',
-  );
-  expect(source).not.toContain('selected={value === "mmlu_pro"}');
-});
-
-test("the compare page describes measured data as a build-time snapshot", () => {
-  expect(source).toContain(
-    "Models stay selectable when pricing is missing. Each chart uses its available measurements.",
-  );
-  expect(source).not.toContain("live data can replace the snapshot");
-});
-
-test("the compare page revalidates its stable initial-data URL", () => {
-  expect(source).toContain('fetch("/api/compare-initial.json")');
-  expect(source).not.toContain(
-    'fetch("/api/compare-initial.json", {\n      cache: "force-cache",\n    })',
-  );
-});
-
-test("benchmark-only Epoch fallback is labeled, unpriced, and never selected as a default", () => {
-  expect(source).toContain("Benchmark-only Epoch rows");
-  expect(source).toContain("shown without price estimates");
-  expect(source).toContain(
-    "const curatedSelectedModels = selectBenchmarkSnapshotModels(validModels, 3);",
-  );
-  expect(source).toContain(
-    "const selectedModels = validModels.length > 0",
-  );
-  expect(source).toContain(
-    "usingIllustrativeFallback\n        ? []",
-  );
-  expect(initialApiSource).toContain("validModels: validModels.map(compactCompareModelForClient)");
-  expect(initialApiSource).toContain("isIllustrativeFallback: true");
-  expect(initialApiSource).toContain('priceEvidence: "unavailable"');
-  expect(source).not.toContain("synthetic-estimate");
-  expect(initialApiSource).not.toContain("synthetic-estimate");
-  expect(source).not.toContain("aa_intelligence_index: model.eci_score");
-  expect(initialApiSource).not.toContain("aa_intelligence_index: model.eci_score");
-  expect(initialApiSource).toContain("validModels as AaModel[]");
-  expect(initialApiSource).toContain("first_seen: null");
-  expect(initialApiSource).toContain("release_date:");
-});
-
-test("Epoch metrics keep source-native units unless the source explicitly identifies a percentage", () => {
-  expect(source).not.toContain('metricName.includes("score")');
-  expect(source).not.toContain('metricName.includes("average")');
-  expect(initialApiSource).toContain("? 'mixed'");
-});
-
-test("Epoch scores do not use fuzzy token fallback across source identities", () => {
-  expect(source).not.toContain("tokens.every((token) => alias.includes(token))");
-  expect(initialApiSource).not.toContain("tokens.every((token) => alias.includes(token))");
-});
-
-test("server and browser comparisons use the shared ambiguity-safe evidence index", () => {
-  expect(source).toContain("buildEpochScoreIndex");
-  expect(initialApiSource).toContain("buildEpochScoreIndex");
-  expect(source).not.toContain("inputPrice > 0 && outputPrice > 0");
-  expect(initialApiSource).not.toContain("inputPrice > 0 && outputPrice > 0");
-  expect(source).not.toContain("score <= 1 ? score * 100");
-  expect(source).toContain('availableForMetric(model, "price-pair")');
-});
-
-test("Epoch exact-data dates use observation receipts and empty price axes stay finite", () => {
-  expect(source).toContain("comparisonEvidenceDate(model, metric");
-  expect(initialApiSource).toContain("epochScoreReceipts");
-  expect(source).toContain("priceChartMaximum([...inputData, ...outputData])");
+test('explorer exposes measurement limits, history and compatible frontier controls',()=>{
+  expect(explorer).toContain('Each point is a source record, not a recommendation');
+  expect(explorer).toContain('Missing values are not zero');
+  expect(explorer).toContain('same AA index version and timing conditions');
+  expect(explorer).toContain('Task-cost and token-total views await');
+  expect(explorer).toContain("window.addEventListener('popstate'");
+  expect(explorer).not.toContain('dangerouslySetInnerHTML');
 });

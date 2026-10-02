@@ -1,31 +1,19 @@
-/// <reference types="bun" />
-
-import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-
-const source = readFileSync("src/pages/compare.astro", "utf8");
-
-test("the compact compare header and task lens stack cleanly on mobile", () => {
-  const baseHeroIndex = source.indexOf(
-    ".compare-hero {\n      position: relative;",
-  );
-  const mobileOverrideIndex = source.indexOf(
-    "@media (max-width: 640px)",
-    baseHeroIndex,
-  );
-
-  expect(baseHeroIndex).toBeGreaterThan(-1);
-  expect(mobileOverrideIndex).toBeGreaterThan(baseHeroIndex);
-
-  const mobileOverride = source.slice(
-    mobileOverrideIndex,
-    source.indexOf("\n    }", mobileOverrideIndex) + 6,
-  );
-  expect(mobileOverride).toContain("grid-template-columns: 1fr");
-  expect(mobileOverride).not.toContain("15vw");
-  expect(source).toContain(".compare-preset-strip");
-  expect(source).toContain("grid-template-columns: 1fr;");
-  expect(source.indexOf('id="compare-task-preset"')).toBeLessThan(
-    source.indexOf('class="charts-section'),
-  );
+import {expect,test} from 'bun:test';
+import {existsSync,readFileSync} from 'node:fs';
+const path='src/styles/compare-explorer.css';
+const css=existsSync(path)?readFileSync(path,'utf8'):'';
+const component=readFileSync('src/components/compare/CompareExplorer.tsx','utf8');
+test('mobile explorer uses a native modal filter drawer and returns focus',()=>{
+  expect(component).toContain('<dialog');
+  expect(component).toContain('.showModal()');
+  expect(component).toContain('onCancel');
+  expect(component).toContain('filterButton.current?.focus()');
+  expect(css).toContain('@media (max-width: 900px)');
+  expect(css).toContain('grid-template-columns: 1fr');
+  expect(css).toContain('.desktop-model-selector');
+});
+test('chart tabs and tables stay scrollable while reduced motion is respected',()=>{
+  expect(css).toContain('overflow-x: auto');
+  expect(css).toContain('prefers-reduced-motion');
+  expect(css).toContain('font-family: var(--font-mono)');
 });
