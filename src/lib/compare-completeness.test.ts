@@ -56,3 +56,10 @@ test('canonical inventory only suppresses exact source-native aliases',()=>{
  expect(result.map(model=>model.id)).toEqual(['a','catalog:other:b']);
  expect(result[1].intelligence).toBeUndefined();
 });
+
+test('Epoch inventory uses the registered epoch-ai source key',()=>{
+ const result=buildExplorerCatalog([],[{model_version:'v',display_name:'V'}],{},{
+ sources:[{id:2,source_key:'epoch-ai'}],aliases:[{canonical_model_id:2,intelligence_source_id:2,source_model_key:'v'}],
+ models:[{id:2,canonical_key:'epoch-ai:v',display_name:'V'}]});
+ expect(result.map(model=>model.id)).toEqual(['epoch:v']);
+});
