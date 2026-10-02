@@ -2,19 +2,16 @@
 import Layout from "../components/Layout.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
-import CompareExplorer from "../components/compare/CompareExplorer";
-import {getCompareDelivery} from "../lib/compare-delivery-server";
-import {getEpochBenchmarksWithRuns,getEpochBenchmarkLabel} from "../lib/benchmark-catalog";
+import CompareLive from "../components/compare/CompareLive";
+import {getCompareReleaseManifest} from "../lib/compare-release-server";
+
 
 import "../styles/compare-explorer.css";
 
 export const prerender = true;
-const {data:{aaModels,epoch,unavailableSources},delivery,defaultModelIds,initialModels}=await getCompareDelivery();
-const benchmarks = getEpochBenchmarksWithRuns(epoch.epochBenchmarks,epoch.epochRuns)
-  .map(benchmark=>({slug:benchmark.slug,name:getEpochBenchmarkLabel(benchmark)}));
-const dates = [epoch.fetchedAt,...aaModels.map(model=>model.last_seen)]
-  .filter((value):value is string=>typeof value==="string"&&Number.isFinite(Date.parse(value)));
-const dateModified = dates.length?new Date(Math.max(...dates.map(value=>Date.parse(value)))).toISOString():undefined;
+const manifest=await getCompareReleaseManifest();
+const unavailableSources=manifest.sources.filter(source=>!source.available).map(source=>source.sourceKey);
+const dateModified=manifest.generatedAt;
 ---
 <Layout title="Compare AI Models: Price, Speed and Benchmarks | AI Stats"
   description="Compare AI model prices, speed and benchmark results. Filter models, inspect test settings and share your comparison."
@@ -22,7 +19,7 @@ const dateModified = dates.length?new Date(Math.max(...dates.map(value=>Date.par
   <Header currentPage="compare" />
   <main id="main-content" class="compare-page">
     {unavailableSources.length?<p role="status">Partial catalog. Could not load: {unavailableSources.join(', ')}.</p>:null}
-    <CompareExplorer client:load models={initialModels} delivery={delivery} benchmarks={benchmarks} defaultModelIds={defaultModelIds} />
+    <CompareLive client:load initial={manifest} />
   </main>
   <Footer />
 </Layout>

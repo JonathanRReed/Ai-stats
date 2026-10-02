@@ -12,6 +12,7 @@ const sources=new Set(['artificial-analysis','epoch-ai','openrouter','huggingfac
 export function readCompareRelease(value:unknown):CompareReleaseManifest{
  if(!object(value)||value.schemaVersion!==RELEASE_SCHEMA||typeof value.datasetRevision!=='string'||!/^[a-f0-9]{64}$/.test(value.datasetRevision)||!text(value.generatedAt)||!date(value.generatedAt)||!object(value.delivery))throw new Error('Invalid release manifest');
  const delivery=value.delivery,catalog=delivery.catalog;
+ if('assetBase' in delivery||'benchmarkBase' in delivery)throw new Error('Release paths must be derived by the client');
  if(!text(delivery.revision)||!/^[a-f0-9]{64}$/.test(delivery.revision)||!object(catalog)||!Array.isArray(catalog.providers)||!catalog.providers.every(text)||
  !Array.isArray(catalog.rows)||catalog.rows.length<2||catalog.rows.length>30000)throw new Error('Invalid release catalog');
  const ids=new Set<string>();

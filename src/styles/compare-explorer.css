@@ -197,3 +197,6 @@
 .compare-presets button{min-height:44px;padding:.5rem .8rem;border:1px solid var(--border-color, #39424c);border-radius:6px;background:transparent;color:inherit;cursor:pointer}
 .compare-presets button:hover,.compare-presets button:focus-visible{border-color:var(--accent-color, #e1bb62)}
 .preset-criteria{font-size:.8rem;line-height:1.5;max-width:80ch;opacity:.85}
+
+.release-refresh{display:flex;justify-content:flex-end;margin:.5rem 0}
+.release-refresh button{min-height:44px;padding:.5rem .8rem;border:1px solid var(--line-1);border-radius:4px;background:var(--surface-1);color:var(--ink-0);cursor:pointer}
