@@ -25,7 +25,7 @@ try {
   const payload = { schemaVersion: 1, sourceKey: 'epoch-ai', observedAt: '2026-10-01T00:00:00.000Z', records: [{ id: 'one', value: 0 }] };
   const stage = async (data, hash, fetched = '2026-10-02T00:00:00Z') => {
     const result = await db.query('select public.stage_source_snapshot($1,$2,$3,$4,$5::jsonb,$6) as id',
-      ['epoch-ai', hash, payload.observedAt, fetched, JSON.stringify(data), data.records.length]);
+      ['epoch-ai', hash, data.observedAt, fetched, JSON.stringify(data), data.records.length]);
     return result.rows[0].id;
   };
   await db.exec('set role service_role');
@@ -46,6 +46,10 @@ try {
   const history = await db.query('select count(*)::int as n from private.source_snapshots');
   assert.equal(history.rows[0].n, 2, 'Replacing current membership must preserve history');
   await assert.rejects(db.query('select public.promote_source_snapshot($1)', [first]), /older/);
+  const oldEvidence = { ...payload, observedAt: '2026-09-29T00:00:00Z', records: [{ id: 'old', value: 1 }] };
+  const third = await stage(oldEvidence, 'd'.repeat(64), '2026-10-02T03:00:00Z');
+  await assert.rejects(db.query('select public.promote_source_snapshot($1)', [third]), /older/);
+  assert.equal((await getCurrent()).snapshot_id, second, 'A fresh download cannot replace newer source evidence');
   await db.exec('reset role; set role anon');
   assert.equal((await getCurrent()).snapshot_id, second, 'Public sanitized cache must be readable');
   await assert.rejects(db.query('select * from private.source_snapshots'), /permission denied/);
