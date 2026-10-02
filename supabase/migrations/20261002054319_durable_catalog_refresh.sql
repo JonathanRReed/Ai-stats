@@ -1,0 +1,1 @@
+-- Generated migration placeholder; admission and publication contract is tested before implementation.
