@@ -60,6 +60,7 @@ const normalizeHuggingFace = raw => {
 };
 const normalizeLiteLlm = ([key,raw]) => {
   if (key === 'sample_spec') return null;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('LiteLLM catalog record is malformed');
   const model = object(raw), mode = text(model.mode);
   if (mode && !['chat','completion','responses'].includes(mode)) return null;
   const id = identity(key);

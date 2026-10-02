@@ -68,3 +68,11 @@ test('an unchanged 200 response clears obsolete HTTP validators',async()=>{
  const result=await refresh.prepareCatalogRefresh({sourceKey:'openrouter',store,now,fetchImpl:async()=>Response.json({data:[{id:'lab/model'}]})});
  expect(result.etag).toBeNull();expect(result.lastModified).toBeNull();
 });
+
+test('malformed LiteLLM records cannot replace last-good measurements',async()=>{
+ for(const value of [null,[], 'broken'])expect(()=>catalogs.normalizeCatalog('litellm',{'provider/model':value})).toThrow();
+ let failed=false;
+ const store={claim:async()=>({claimed:true,leaseId:'lease',attempts:0}),current:async()=>({...snapshot,payload:{...snapshot.payload,sourceKey:'litellm',records:[{id:'provider/model',input_price_1m:2,max_input_tokens:10000}]}}),fail:async()=>{failed=true;}};
+ const result=await refresh.prepareCatalogRefresh({sourceKey:'litellm',store,now,fetchImpl:async()=>Response.json({'provider/model':null})});
+ expect(result.status).toBe('failed');expect(result.input).toBeUndefined();expect(failed).toBe(true);
+});
