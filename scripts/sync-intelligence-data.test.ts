@@ -635,13 +635,14 @@ test("sync fails locally when any dependent upsert representation omits a requir
 test("Epoch ingestion retains distinct evaluation settings and evidence dates", () => {
   const input = createInput();
   const base = input.epoch.runs[0];
-  input.epoch.runs = [
+  const enhancedRuns = [
     { ...base, id: "aider-diff", score: 8, score_metric: "Percent correct",
       conditions: { "Edit format": "diff", "Token budget": 0 },
       evaluation_date: "2026-09-15", score_unit: "percent" },
     { ...base, id: "aider-whole", score: 16.4, score_metric: "Percent correct",
       conditions: { "Edit format": "whole" }, evaluation_date: null, score_unit: "percent" },
-  ] as typeof input.epoch.runs;
+  ];
+  input.epoch.runs = enhancedRuns;
   const rows = buildIntelligencePayloads(input).observations.filter(
     (row: {source_key: string}) => row.source_key === "epoch-ai");
   expect(rows).toHaveLength(2);
