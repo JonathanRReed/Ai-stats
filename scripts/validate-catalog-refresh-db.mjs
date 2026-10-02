@@ -47,6 +47,13 @@ try{
  assert.equal((await current()).snapshot_id,id,'failure preserves last-good snapshot');
  assert.equal((await db.query("select refresh_status from public.source_snapshot_cache where source_key='openrouter'")).rows[0].refresh_status,'failed');
  await db.exec("update private.catalog_refresh_state set next_allowed_at=null,lease_until=null where source_key='openrouter'");
+ const infinite=await claim();
+ await db.query("select public.fail_catalog_refresh('openrouter',$1,'infinity'::timestamptz,'operator review required')",[infinite.leaseId]);
+ assert.equal((await db.query("select next_allowed_at::text as hold from private.catalog_refresh_state where source_key='openrouter'")).rows[0].hold,'infinity');
+ assert.equal((await claim()).reason,'backoff');
+ assert.equal((await current()).snapshot_id,id,'infinite hold preserves published data');
+ // Simulate an explicit operator release after investigation, not an automatic retry override.
+ await db.exec("update private.catalog_refresh_state set next_allowed_at=null where source_key='openrouter'");
  const expired=await claim();
  await db.exec("update private.catalog_refresh_state set lease_until=now()-interval '1 second' where source_key='openrouter'");
  const replacement=await claim();assert.equal(replacement.claimed,true);

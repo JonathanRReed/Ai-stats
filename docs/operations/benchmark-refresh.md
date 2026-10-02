@@ -79,7 +79,7 @@ Catalog payloads contain public model metadata only. Request validators, leases,
 
 These commands use the existing SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY workflow secrets. Do not paste keys into logs, committed files, browser code, or command history. Preparation changes lease/backoff receipts but does not replace public model data. Candidate files are private temporary workflow artifacts.
 
-A manual run on a feature branch can validate and populate the approved source caches after the additive migration is installed. Only main may push the checked public snapshot files back to main. Source changes still require a PR and merge.
+Production refresh runs only for refs/heads/main and checks out reviewed main. Feature-branch validation must use public read-only credentials or an isolated test database; it cannot populate production caches. Install reviewed additive migrations and merge source changes before the first production refresh. The initial catalog bootstrap was explicitly reviewed and has finished; its temporary branch-dispatch path is closed.
 
 ### Data and receipt behavior
 

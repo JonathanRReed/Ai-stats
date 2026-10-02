@@ -12,7 +12,7 @@ test('embedding reader keeps valid records and excludes conflicting duplicates',
  {id:'lab/good',pricing:{prompt:'0.000002'}},{name:'missing id'},null,
  {id:'lab/conflict',pricing:{prompt:'0.01'}},{id:'lab/conflict',pricing:{prompt:'0.02'}},
  ]});
- expect(rows?.map(row=>row.id)).toEqual(['lab/good']);
+ expect(rows?.map((row:{id:string})=>row.id)).toEqual(['lab/good']);
  expect(rows?.[0].prompt_price_1m).toBe(2);
  expect(()=>catalogs.normalizeCatalog('openrouter',{data:[{id:'lab/good'},{name:'missing'}]})).toThrow();
 });
