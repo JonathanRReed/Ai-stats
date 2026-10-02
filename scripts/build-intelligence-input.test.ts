@@ -54,8 +54,10 @@ test("buildIntelligenceInput joins the live and checked source bundles", async (
   const polibench = { models: [{ modelSlug: "openai/current-model" }], runs: [{ runId: "run-1" }] };
   const fetchImpl = async (input: string | URL | Request) => {
     const url = String(input);
+    if (url.includes("/rest/v1/aa_fetches")) return Response.json([{id:'receipt',status:200,endpoint:'language/models/free',
+      fetched_at:'2026-09-01T00:00:00Z',data:[{id:'one'}]}]);
     if (url.includes("/rest/v1/aa_models")) {
-      return new Response(JSON.stringify([{ id: 1, slug: "aa-model", name: "AA model", last_seen: "2026-09-01T00:00:00Z" }]), { status: 200 });
+      return new Response(JSON.stringify([{ id: "one", slug: "aa-model", name: "AA model", last_seen: "2026-09-01T00:00:00Z" }]), { status: 200 });
     }
     return new Response(JSON.stringify({ data: [{ id: "openai/current-model", name: "Current model" }] }), { status: 200 });
   };
