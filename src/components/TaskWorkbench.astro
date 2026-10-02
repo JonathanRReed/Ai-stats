@@ -115,7 +115,7 @@ const workbenchPayloadJson = JSON.stringify({
   </form>
 
   <section class="reasoning-evidence" data-reasoning-evidence hidden aria-label="Reasoning benchmark results">
-    <p>Sample Epoch observations, listed alphabetically. Variants with multiple runs need a condition choice in Compare. Pricing is separate, so the budget filter does not apply.</p>
+    <p>Sample Epoch observations, listed alphabetically. Variants with multiple runs are omitted here; their source records remain available. Pricing is separate, so the budget filter does not apply.</p>
     <div class="reasoning-benchmarks">
       {reasoningHighlights.map(benchmark => (
         <article>

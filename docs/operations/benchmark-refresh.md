@@ -44,3 +44,18 @@ The new tables are additive. A code rollback can ignore them; dropping them is u
 ### Source boundaries
 
 AA's public-display permission request is pending. Do not enable richer AA redistribution or scrape its website. Epoch's own data is CC BY with attribution; external benchmark records retain their original licenses. OpenRouter's daily usage dataset is CC BY 4.0 with its specified source/as-of attribution. Its category and language filters are sampled weekly estimates and are not interchangeable with the exact day-grain series.
+
+
+## Evidence/cache rollout checkpoint (October 2, 2026)
+
+This first corrective release preserves conditions, prevents ambiguous score overwrites, validates sanitized Epoch snapshots, and publishes an identity-only AA current-membership cache. It also replaces the generic fourteen-day freshness threshold with source-specific targets.
+
+The refresh workflow runs Epoch and normalized evidence every six hours. Cache promotion follows tests and a successful build. The checked Epoch artifact changes only when sanitized content changes; successful unchanged retrievals still update the durable cache receipt. AA source membership is validated against the latest complete private fetch and imported rows; the private fetch payload is never published.
+
+AA's upstream cron remains twelve-hourly in this release. Seven days of successful receipts showed four pages per fetch. The four-hour target requires a shared daily request counter and failure-aware quota enforcement before changing that separate cron. The source-policy helper alone is not an active scheduler.
+
+Remaining implementation: durable OpenRouter/HuggingFace/LiteLLM catalog adapters and selective manifest refresh, persisted upstream backoff/conditional requests, richer freshness receipts across every surface, chart-first Compare and official OpenRouter daily usage. Do not label those finished based on this corrective release.
+
+If AA membership is unavailable, page readers retain existing rows with current_source_member=null. They must not present that uncertainty as verified current membership. Full history remains available via getModels(true). Current-cohort filtering is effective only after a valid cache promotion.
+
+The isolated migration harness runs PostgreSQL 18 through PGlite; production is PostgreSQL 17. It verifies supported SQL behavior, permissions and rollback preservation, but does not replace production readback/advisor checks. No engine upgrade is part of this release.
