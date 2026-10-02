@@ -3,7 +3,7 @@ export const AA_METRIC_LABELS:Record<string,string> = {
  aa_intelligence_index:'Intelligence Index',aa_coding_index:'Coding Index',aa_agentic_index:'Agentic Index',aa_math_index:'Math Index',
  mmlu_pro:'MMLU-Pro',gpqa:'GPQA Diamond',hle:"Humanity's Last Exam",livecodebench:'LiveCodeBench',scicode:'SciCode',math_500:'MATH-500',aime:'AIME',
 };
-export const COMPARE_CHARTS = ['cost-intelligence','speed-intelligence','price','benchmark'] as const;
+export const COMPARE_CHARTS = ['cost-intelligence','speed-intelligence','price','benchmark','task-cost','total-cost'] as const;
 export type CompareChart = typeof COMPARE_CHARTS[number];
 export type CompareCatalogEntry = {id:string; name?:string; slug?:string; source?:string; sourceModelId?:string; family?:string; reasoning?:string; current?:boolean|null};
 export type CompareState = {
@@ -36,12 +36,16 @@ export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogE
   const chart=params.get('chart')??(params.has('metric')?'benchmark':'cost-intelligence');
   let requested=params.has('m')?params.getAll('m'):params.has('models')?(params.get('models')??'').split(','):defaults;
   const source=params.get('source'),native=params.get('record');
+  let unresolvedSource=false;
   if(!params.has('m')&&!params.has('models')&&source&&native){
     const type=Object.hasOwn(SOURCE_RECORD_TYPES,source)?SOURCE_RECORD_TYPES[source]:null;
     const matches=type?catalog.filter(model=>model.source===type&&
       (model.sourceModelId===native||(type==='aa'&&model.slug===native))&&
       (params.get('history')==='1'||model.current!==false)):[];
-    requested=matches.length===1?[matches[0].id]:[source+':'+native];
+    const fallback=params.get('inventory');
+    const inventory=type&&matches.length===0&&fallback?catalog.find(model=>model.source==='catalog'&&model.id===fallback):null;
+    unresolvedSource=matches.length!==1&&!inventory;
+    requested=matches.length===1?[matches[0].id]:inventory?[inventory.id]:[source+':'+native];
   }
   const legacy=params.get('model');
   if(!params.has('m')&&!params.has('models')&&!source&&legacy){
@@ -50,10 +54,11 @@ export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogE
   }
   const ids=new Set(catalog.map(model=>model.id));
   const selected=unique(requested.filter(safeIdentity));
+  const explicitMissing=unique(params.getAll('missing').filter(safeIdentity));
   const normalizedChart=COMPARE_CHARTS.includes(chart as CompareChart)?chart as CompareChart:'cost-intelligence';
   return {
     chart:normalizedChart,
-    modelIds:selected.filter(id=>ids.has(id)), missingModelIds:selected.filter(id=>!ids.has(id)),
+    modelIds:unresolvedSource?[]:selected.filter(id=>ids.has(id)&&!explicitMissing.includes(id)), missingModelIds:unique([...explicitMissing,...(unresolvedSource?selected:selected.filter(id=>!ids.has(id)))]),
     reasoningEfforts:unique(params.getAll('reason').filter(value=>REASONING.has(value))).sort(),
     metricId,scoreMetricKey:scoreMetric(params.get('score_metric')),conditionKey:condition(params.get('condition')),
     scale:params.has('scale')?(params.get('scale')==='log'?'log':'linear'):(normalizedChart==='cost-intelligence'?'log':'linear'),labels:params.get('labels')==='1',
@@ -63,7 +68,8 @@ export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogE
 export function serializeCompareState(state:CompareState):URLSearchParams {
   const params=new URLSearchParams();
   params.set('chart',state.chart);
-  const ids=unique([...state.modelIds,...state.missingModelIds]);
+  const ids=unique(state.modelIds);
+  for(const id of unique(state.missingModelIds))params.append('missing',id);
   for(const id of ids.length?ids:['']) params.append('m',id);
   params.set('metric',state.metricId);
   if(state.scoreMetricKey) params.set('score_metric',state.scoreMetricKey);

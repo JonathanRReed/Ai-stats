@@ -86,6 +86,6 @@ test('native HF and LiteLLM passports cannot point at suppressed inventory recor
  for(const source of ['huggingface','litellm']){
  const aliases=[{sourceKey:source,sourceName:source,sourceModelKey:'lab/a',sourceModelName:'A',matchMethod:'source_native' as const,confidence:1,provenance:'Native ID',updatedAt:'2026-10-02'}];
  const href=buildPassportRoutes('A',aliases,undefined,'catalog:'+source+':lab/a').aiStatsCompare;
- expect(href).toBe('/compare?source='+source+'&record=lab%2Fa'+(source==='litellm'?'&chart=price':''));
+ expect(href).toBe('/compare?source='+source+'&record=lab%2Fa&inventory='+encodeURIComponent('catalog:'+source+':lab/a')+(source==='litellm'?'&chart=price':''));
  }
 });

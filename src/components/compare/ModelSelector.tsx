@@ -1,10 +1,12 @@
-import {useDeferredValue,useMemo,useState} from 'react';
+import {useDeferredValue,useMemo,useState,useEffect} from 'react';
 import {EXPLORER_SOURCE_LABELS,type ExplorerModel} from '../../lib/compare-series';
+import {nextCatalogSource} from '../../lib/compare-presets';
 import {familyColor} from './ComparisonChart';
 type Props={models:ExplorerModel[];selected:string[];includeHistory:boolean;onToggle:(id:string)=>void;
   onFamily:(family:string,checked:boolean)=>void;onGroup?:(ids:string[],checked:boolean)=>void;onHistory:(value:boolean)=>void;reasoningEfforts:string[];onReasoning:(value:string)=>void;onClear:()=>void;onReset:()=>void};
-export default function ModelSelector({models,selected,includeHistory,onToggle,onFamily,onGroup,onHistory,reasoningEfforts,onReasoning,onClear,onReset}:Props){
+export default function ModelSelector({models,selected,includeHistory,onToggle,onGroup,onHistory,reasoningEfforts,onReasoning,onClear,onReset}:Props){
   const [limit,setLimit]=useState(80);const [source,setSource]=useState('all');
+  useEffect(()=>{setSource(previous=>nextCatalogSource(models,previous,includeHistory));},[models,includeHistory]);
   const [search,setSearch]=useState('');const query=useDeferredValue(search).toLowerCase().trim();
   const browsable=models.filter(model=>includeHistory||model.current!==false);
   const selectedSet=useMemo(()=>new Set(selected),[selected]);
@@ -13,18 +15,16 @@ export default function ModelSelector({models,selected,includeHistory,onToggle,o
   const visible=matches.slice(0,limit);const groups=new Map<string,ExplorerModel[]>();
   for(const model of visible){const group=groups.get(model.family)??[];group.push(model);groups.set(model.family,group);}
   const chosen=models.filter(model=>selectedSet.has(model.id));
-  const chosenGroups=new Map<string,ExplorerModel[]>();
-  for(const model of chosen){const group=chosenGroups.get(model.family)??[];group.push(model);chosenGroups.set(model.family,group);}
   const groupChosen=(group:ExplorerModel[])=>group.every(model=>selectedSet.has(model.id));
   return <div className="model-selector">
     <label className="model-search-label">Find models<input type="search" placeholder="Search models or providers" value={search} onChange={event=>{setSearch(event.target.value);setLimit(80);}}/></label>
     <label className="catalog-source-label">Catalog source<select value={source} onChange={event=>{setSource(event.target.value);setLimit(80);}}>
-      <option value="all">All sources ({browsable.length})</option>{Object.entries(EXPLORER_SOURCE_LABELS).filter(([key])=>models.some(model=>model.source===key)).map(([key,label])=><option key={key} value={key}>{label} ({browsable.filter(model=>model.source===key).length})</option>)}
+      <option value="all">All sources ({browsable.length})</option>{Object.entries(EXPLORER_SOURCE_LABELS).filter(([key])=>browsable.some(model=>model.source===key)).map(([key,label])=><option key={key} value={key}>{label} ({browsable.filter(model=>model.source===key).length})</option>)}
     </select></label>
     <div className="selector-heading"><h2>Selected models <span>{chosen.length}</span></h2><button type="button" onClick={onClear}>Clear</button></div>
-    <div className="selected-models">{chosen.length?[...chosenGroups].map(([family,group])=><button type="button" key={family}
-      onClick={()=>onFamily(family,false)} aria-label={'Remove family '+family}><span style={{background:familyColor(family)}}/>
-      <span className="selected-family-name">{family}<small>{group.length} {group.length===1?'variant':'variants'}</small></span>
+    <div className="selected-models">{chosen.length?chosen.map(model=><button type="button" key={model.id}
+      onClick={()=>onToggle(model.id)} aria-label={'Remove '+model.name+' from '+EXPLORER_SOURCE_LABELS[model.source]}><span style={{background:familyColor(model.family)}}/>
+      <span className="selected-family-name">{model.name}<small>{EXPLORER_SOURCE_LABELS[model.source]}</small></span>
       <span aria-hidden="true">×</span></button>):<p>No models selected</p>}</div>
     <details className="model-advanced"><summary>Reasoning and history</summary>{models.some(model=>model.source==='aa')?<fieldset className="reasoning-filters"><legend>Reasoning label</legend>
       <button type="button" aria-pressed={!reasoningEfforts.length} onClick={()=>onReasoning('all')}>All</button>

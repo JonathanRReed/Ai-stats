@@ -29,6 +29,7 @@ export function buildExplorerCatalog(aaRows:unknown[],epochRows:unknown[],catalo
     models.push({id,name,slug:text(row.slug)??undefined,...modelDisplayFacets(name),provider:text(row.creator_name)??'Unknown',
       source:'aa',sourceModelId:id,current:typeof row.current_source_member==='boolean'?row.current_source_member:null,
       intelligence:number(row.aa_intelligence_index),coding:number(row.aa_coding_index),
+      aaTaskCost:number(record(record(metadata.index_cost).cost_per_task).total_cost),aaEvaluationCost:number(record(metadata.index_cost).total_cost),
       priceInput:number(row.price_1m_input_tokens),priceOutput:number(row.price_1m_output_tokens),
       priceBlended:number(row.price_1m_blended_3_to_1),outputSpeed:number(row.median_output_tokens_per_second),
       latency:number(row.median_time_to_first_answer_token),indexVersion:typeof version==='string'||typeof version==='number'?String(version):null,
@@ -53,6 +54,8 @@ export function buildExplorerCatalog(aaRows:unknown[],epochRows:unknown[],catalo
       models.push({id:source+':'+key,name,family:name,provider:text(row.provider)??text(row.author_slug)??text(row.author)??key.split('/')[0],
         reasoning:'unknown',source,sourceModelId:key,current:true,sourceUrl:url,
         fetchedAt:text(row.fetched_at),observedAt:null,
+        ...(source==='openrouter'?{inputModalities:Array.isArray(row.input_modalities)?row.input_modalities.filter((value):value is string=>typeof value==='string'):[],
+          outputModalities:Array.isArray(row.output_modalities)?row.output_modalities.filter((value):value is string=>typeof value==='string'):[]}:{}),
         ...(source==='huggingface'?{}:{priceInput:number(source==='openrouter'?row.prompt_price_1m:row.input_price_1m),
           priceOutput:number(source==='openrouter'?row.completion_price_1m:row.output_price_1m)})});
     }

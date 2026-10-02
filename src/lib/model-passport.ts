@@ -80,12 +80,12 @@ export function buildPassportRoutes(
   if (openRouterKey) dragRaceParams.set('provider', 'openrouter');
   return {
     aiStatsCompare: compareId?compareRecordHref(compareId):
-      aliases.some(alias=>alias.sourceKey==='artificial-analysis')?sourceRecordHref('artificial-analysis',aliases.find(alias=>alias.sourceKey==='artificial-analysis')!.sourceModelKey):
-      openRouterKey?sourceRecordHref('openrouter',openRouterKey):
-      aliases.some(alias=>alias.sourceKey==='epoch-ai')?sourceRecordHref('epoch-ai',aliases.find(alias=>alias.sourceKey==='epoch-ai')!.sourceModelKey):
+      aliases.some(alias=>alias.sourceKey==='artificial-analysis')?sourceRecordHref('artificial-analysis',aliases.find(alias=>alias.sourceKey==='artificial-analysis')!.sourceModelKey,inventoryId):
+      openRouterKey?sourceRecordHref('openrouter',openRouterKey,inventoryId):
+      aliases.some(alias=>alias.sourceKey==='epoch-ai')?sourceRecordHref('epoch-ai',aliases.find(alias=>alias.sourceKey==='epoch-ai')!.sourceModelKey,inventoryId):
       aliases.some(alias=>alias.sourceKey==='huggingface'||alias.sourceKey==='litellm')?(()=>{
         const alias=aliases.find(alias=>alias.sourceKey==='huggingface'||alias.sourceKey==='litellm')!;
-        return sourceRecordHref(alias.sourceKey,alias.sourceModelKey);
+        return sourceRecordHref(alias.sourceKey,alias.sourceModelKey,inventoryId);
       })():inventoryId?compareRecordHref(inventoryId):route('/compare?model=',displayName),
     aiDragRace: `https://ai-dragrace.jonathanrreed.com/?${dragRaceParams.toString()}`,
     aiNewsSearch: route('https://ai-news.helloworldfirm.com/?q=', displayName),

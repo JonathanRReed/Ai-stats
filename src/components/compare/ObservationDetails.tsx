@@ -1,7 +1,7 @@
-import type {SeriesPoint} from '../../lib/compare-series';
+import type {SeriesPoint,CompareSeries} from '../../lib/compare-series';
 import {formatChartNumber} from '../../lib/compare-geometry';
-type Props={point:SeriesPoint|null;pinned:boolean;onPin:()=>void;onClose:()=>void};
-export default function ObservationDetails({point,pinned,onPin,onClose}:Props){
+type Props={point:SeriesPoint|null;series:CompareSeries;pinned:boolean;onPin:()=>void;onClose:()=>void};
+export default function ObservationDetails({point,series,pinned,onPin,onClose}:Props){
   if(!point)return <p className="inspect-hint">Tap a point or bar for its values and source. You can also use the exact data below.</p>;
   const receipt=point.receipt;
   return <section className="observation-details" aria-label="Observation details">
@@ -9,6 +9,7 @@ export default function ObservationDetails({point,pinned,onPin,onClose}:Props){
       <button type="button" onClick={onPin} aria-pressed={pinned}>{pinned?'Unpin':'Pin'}</button>
       <button type="button" onClick={onClose} aria-label="Close observation">×</button></div></div>
     <dl><div><dt>Record</dt><dd>{point.id}</dd></div><div><dt>{point.series==='input'?'Input token price':point.series==='output'?'Output token price':'Value'}</dt><dd>{formatChartNumber(point.y)} {point.unit}</dd></div>
+      {series.kind==='scatter'?<div><dt>{series.xLabel}</dt><dd>{formatChartNumber(point.x)}</dd></div>:null}
       <div><dt>Reasoning label</dt><dd>{point.reasoning}</dd></div>
       {receipt.indexVersion?<div><dt>Index version</dt><dd>{receipt.indexVersion}</dd></div>:null}
       <div><dt>Source</dt><dd>{receipt.sourceUrl?<a href={receipt.sourceUrl} target="_blank" rel="noreferrer">{receipt.source}</a>:receipt.source}</dd></div>
