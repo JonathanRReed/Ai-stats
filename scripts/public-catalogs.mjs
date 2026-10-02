@@ -110,3 +110,17 @@ export function validCatalogRecords(sourceKey, records) {
   }
   return true;
 }
+
+/** Separate read-only embedding surface: retain unambiguous valid rows, never use this for cache publication. */
+export function normalizeEmbeddingCatalog(payload) {
+ if(!Array.isArray(payload?.data))throw new Error('Invalid embedding response');
+ const counts=new Map();
+ for(const row of payload.data){const id=text(object(row).id);if(id)counts.set(id,(counts.get(id)??0)+1);}
+ const records=[];
+ for(const row of payload.data){
+  const id=text(object(row).id);if(!id||counts.get(id)!==1)continue;
+  try{records.push(normalizeOpenRouter(row));}catch{ /* One unusable row does not erase the remaining models. */ }
+ }
+ if(!records.length)throw new Error('No usable embedding models');
+ return records.sort((a,b)=>a.id.localeCompare(b.id));
+}

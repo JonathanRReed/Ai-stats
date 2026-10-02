@@ -1,4 +1,4 @@
-import {normalizeCatalog,catalogPricePerMillion} from '../../scripts/public-catalogs.mjs';
+import {normalizeEmbeddingCatalog,catalogPricePerMillion} from '../../scripts/public-catalogs.mjs';
 import {parseCatalogCache} from './catalog-cache';
 import { readAaCohort } from './aa-membership';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -535,7 +535,7 @@ async function fetchOpenRouterEmbeddingModels(limit: number): Promise<OpenRouter
 
   const body:unknown = await response.json();
   const fetchedAt=new Date().toISOString();
-  return (normalizeCatalog('openrouter',body) as unknown as Omit<OpenRouterModel,'fetched_at'>[])
+  return (normalizeEmbeddingCatalog(body) as unknown as Omit<OpenRouterModel,'fetched_at'>[])
     .map((model) => ({
       id: model.id,
       openrouter_id: model.openrouter_id,
@@ -1066,7 +1066,7 @@ export async function getOpenRouterEmbeddingModels(
     })
     .catch((error) => {
       console.warn('[openrouter] Public embedding model fetch failed:', error);
-      return [];
+      return openRouterEmbeddingModelsCache?.models ?? [];
     })
     .finally(() => {
       openRouterEmbeddingModelsPromise = null;
