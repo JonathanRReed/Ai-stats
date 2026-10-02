@@ -95,3 +95,18 @@ test('missing model and run IDs cannot masquerade as a valid corpus', () => {
   expect(() => snapshots.buildEpochCacheInput({ ...epoch,
     runs: [{ ...epoch.runs[0], id: undefined }] })).toThrow('identity');
 });
+
+test('unchanged Epoch artifacts preserve the published download date without triggering a deploy', () => {
+  const next = {...epoch, fetched_at: '2026-10-02T06:00:00Z'};
+  const result = snapshots.selectEpochArtifact?.(epoch, next);
+  expect(result?.changed).toBe(false);
+  expect(result?.artifact.fetched_at).toBe(epoch.fetched_at);
+  expect(result?.fetchedAt).toBe(next.fetched_at);
+});
+test('changed Epoch membership produces a new artifact and keeps the old value intact', () => {
+  const next = {...epoch, runs: [...epoch.runs, {...epoch.runs[0], id: 'other', score: 2}]};
+  const result = snapshots.selectEpochArtifact?.(epoch, next);
+  expect(result?.changed).toBe(true);
+  expect(result?.artifact.runs).toHaveLength(2);
+  expect(epoch.runs).toHaveLength(1);
+});
