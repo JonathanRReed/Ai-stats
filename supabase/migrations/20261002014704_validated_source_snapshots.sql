@@ -1,0 +1,1 @@
+-- Atomic validated source cache. Schema is implemented after its isolated regression test.
