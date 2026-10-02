@@ -105,6 +105,11 @@ jobs:
         run: |
           bun scripts/source-release-manifest.mjs .tmp/intelligence-input.json public/data/source-manifest.json
           bun run build
+      - name: Publish validated app data independently of deployment
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: bun scripts/publish-app-release.mjs --publish
       - name: Publish only the verified public snapshots
         if: github.ref_name == 'main'
         env:

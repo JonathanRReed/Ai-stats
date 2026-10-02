@@ -23,7 +23,7 @@ export async function publishAppRelease({release,baseUrl,serviceKey,fetchImpl=(u
  if(prepared.revision!==release.revision)throw new Error('App release revision mismatch');
  if(typeof serviceKey!=='string'||!serviceKey.trim())throw new Error('Missing server publication identity');
  let response;
- try{response=await fetchImpl(origin+'/rest/v1/rpc/publish_app_release',{method:'POST',headers:{apikey:serviceKey,Authorization:'Bearer '+serviceKey,'Content-Type':'application/json'},
+ try{response=await fetchImpl(origin+'/rest/v1/rpc/publish_app_release',{method:'POST',redirect:'error',headers:{apikey:serviceKey,Authorization:'Bearer '+serviceKey,'Content-Type':'application/json'},
  body:JSON.stringify({p_revision:prepared.revision,p_manifest:prepared.manifest,p_assets:prepared.assets,p_source_receipts:prepared.sourceReceipts})});}
  catch{throw new Error('App release publication request failed');}
  if(!response.ok)throw new Error('App release publication failed ('+response.status+')');
