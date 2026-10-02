@@ -11,7 +11,8 @@ test('Compare is a small chart-first Astro shell over focused explorer component
   expect(source).toContain('defaultExplorerSelection');
 });
 test('public comparison data stays server-backed and clients fetch only a selected benchmark',()=>{
-  expect(source).toContain('getModels(true,true)');
+  expect(source).toContain('getModelCatalogData');
+  expect(readFileSync('src/lib/model-catalog-data.ts','utf8')).toContain('getModels(true,true)');
   expect(explorer).toContain("fetch('/api/compare-benchmarks/'");
   expect(explorer).not.toContain('fetchLiveSnapshot');
   expect(explorer).not.toContain('supabase.co');

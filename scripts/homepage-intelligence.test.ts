@@ -33,7 +33,7 @@ test("the model snapshot explains its evidence filter and links into comparison"
   expect(latestModelsSource).toContain("number of available measurements");
   expect(latestModelsSource).toContain("First tracked");
   expect(latestModelsSource).toContain("does not recommend a model");
-  expect(latestModelsSource).toContain('href={`/compare?model=${encodeURIComponent(model.name ?? model.id)}`}');
+  expect(latestModelsSource).toContain('href={compareRecordHref(model.id)}');
   expect(latestModelsSource).not.toContain("latest-model-order");
   expect(latestModelsSource).not.toContain("overflow-x-auto");
 });

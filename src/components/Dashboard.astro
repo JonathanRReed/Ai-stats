@@ -336,7 +336,6 @@ function getScoreClass(score: number | null | undefined): string {
 
 <div class="site-shell min-h-screen bg-base text-text">
   <Header currentPage="dashboard" />
-  <div class="eco-container"><CatalogCoverage /></div>
 
   <main
     id="main-content"
@@ -357,6 +356,7 @@ function getScoreClass(score: number | null | undefined): string {
       <OpenRouterUsage snapshot={dailyUsage?.snapshot ?? null} receipt={dailyUsage?.receipt ?? null} client:visible />
       <PoliBenchLab snapshot={publicPoliBenchSnapshot} />
     </div>
+    <CatalogCoverage />
     <details class="dashboard-definition">
       <summary>Data in this build</summary>
       <p>{definitionFacts.join("; ")}. Charts update when a new source snapshot is published and the site rebuilds.</p>
