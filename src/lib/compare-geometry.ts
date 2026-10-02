@@ -17,7 +17,7 @@ export function plotGeometry<T extends PlotPoint>(points:T[],kind:'scatter'|'bar
     if(log){
       min=Math.max(Number.MIN_VALUE,10**Math.floor(Math.log10(min)));
       max=Math.min(Number.MAX_VALUE,10**Math.ceil(Math.log10(max)));
-      if(min===max){min/=10;max*=10;}
+      if(min===max){min=Math.max(Number.MIN_VALUE,min/10);max=Math.min(Number.MAX_VALUE,max*10);}
     }else{
       if(min===max)max=min+1;
       else {const padded=max+(max-min)*.08;max=Number.isFinite(padded)?padded:max;}
