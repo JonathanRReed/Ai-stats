@@ -22,6 +22,7 @@ import type { AaModel } from '../../lib/supabase';
 type CompareModelRecord = Record<string, unknown>;
 type EpochDemoModel = {
   id: string;
+  sourceModelId:string;
   name: string;
   slug: string;
   creator_name: string | null | undefined;
@@ -50,6 +51,7 @@ const normalizeModelKey = (value: string | null | undefined): string => {
 
 const compactCompareModelForClient = (model: CompareModelRecord) => ({
   id: model.id,
+  sourceModelId:model.sourceModelId,
   name: model.name,
   slug: model.slug,
   company_name: model.company_name,
@@ -177,6 +179,7 @@ export const GET: APIRoute = async () => {
       const name = model.display_name || model.model_name || model.model_version;
       return {
         id: `epoch-demo-${model.id || model.model_version || index}`,
+        sourceModelId:model.model_version,
         name,
         slug: normalizeModelKey(name).replace(/\s+/g, '-'),
         creator_name: model.organization,
@@ -211,9 +214,11 @@ export const GET: APIRoute = async () => {
   const initialClientEpochScores: Record<string, Record<string, number>> = {};
 
   compareModels.forEach((model) => {
-    const version=typeof model.id==='string'?bindings[model.id]?.['epoch-ai']:undefined;
+    const isEpoch=model.isIllustrativeFallback===true&&typeof model.sourceModelId==='string';
+    const version=isEpoch?String(model.sourceModelId):typeof model.id==='string'?bindings[model.id]?.['epoch-ai']:undefined;
     if(!version)return;
-    const key=normalizeModelKey(version);const keys=new Set([key,key.replace(/\s+/g,'')]);
+    const nativeKeys=isEpoch?[version,...(epochAliasesByModelVersion[version]??[])]:[version];
+    const keys=new Set(nativeKeys.flatMap(value=>{const key=normalizeModelKey(value);return [key,key.replace(/\s+/g,'')];}));
     scoreEntries.forEach(([alias, aliasScores]) => {
       if (keys.has(alias)) {
         initialClientEpochScores[alias] = aliasScores;
