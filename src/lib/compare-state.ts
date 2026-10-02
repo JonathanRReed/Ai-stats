@@ -3,7 +3,7 @@ export const AA_METRIC_LABELS:Record<string,string> = {
  aa_intelligence_index:'Intelligence Index',aa_coding_index:'Coding Index',aa_agentic_index:'Agentic Index',aa_math_index:'Math Index',
  mmlu_pro:'MMLU-Pro',gpqa:'GPQA Diamond',hle:"Humanity's Last Exam",livecodebench:'LiveCodeBench',scicode:'SciCode',math_500:'MATH-500',aime:'AIME',
 };
-export const COMPARE_CHARTS = ['cost-intelligence','speed-intelligence','price','benchmark'] as const;
+export const COMPARE_CHARTS = ['cost-intelligence','speed-intelligence','price','benchmark','task-cost','total-cost'] as const;
 export type CompareChart = typeof COMPARE_CHARTS[number];
 export type CompareCatalogEntry = {id:string; name?:string; slug?:string; source?:string; sourceModelId?:string; family?:string; reasoning?:string; current?:boolean|null};
 export type CompareState = {

@@ -5,6 +5,7 @@ export type ExplorerModel = {
   id:string; name:string; slug?:string; family:string; provider?:string; reasoning?:string;
   source:'aa'|'epoch'|'openrouter'|'huggingface'|'litellm'|'catalog'; sourceModelId:string; current:boolean|null;
   intelligence?:number|null; coding?:number|null; priceInput?:number|null; priceOutput?:number|null;
+  aaTaskCost?:number|null; aaEvaluationCost?:number|null; inputModalities?:string[]; outputModalities?:string[];
   priceBlended?:number|null; outputSpeed?:number|null; latency?:number|null;
   indexVersion?:string|null; performancePrompt?:string|null; observedAt?:string|null; fetchedAt?:string|null; sourceUrl?:string|null;
   metrics?:Record<string,number|null>;
@@ -45,12 +46,9 @@ export function paretoFrontiers<T extends {id:string;x:number;y:number;cohortKey
 }
 export const epochScoreKey=(row:Pick<EpochObservation,'metricKey'|'unit'>)=>JSON.stringify([row.metricKey??'Unknown metric',row.unit==='fraction'?'percent':row.unit]);
 export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState):CompareSeries {
-  const result:CompareSeries={available:true,unavailableReason:null,kind:state.chart==='cost-intelligence'||state.chart==='speed-intelligence'?'scatter':'bars',
+  const result:CompareSeries={available:true,unavailableReason:null,kind:['cost-intelligence','speed-intelligence','task-cost','total-cost'].includes(state.chart)?'scatter':'bars',
     points:[],excluded:[],xLabel:'Model',yLabel:'Value',scale:state.scale,scaleNotice:null,mixedConditions:false,
     frontierGroups:{},higherXIsBetter:state.chart==='speed-intelligence'};
-  if(['task-cost','total-cost','tokens-task','tokens-total'].includes(state.chart)){
-    return {...result,available:false,unavailableReason:'Additional benchmark cost and token data is awaiting source permission.'};
-  }
   const selected=new Set(state.modelIds);
   const models=evidence.models.filter(model=>{
     if(!selected.has(model.id))return false;
@@ -95,7 +93,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
       result.excluded.push({modelId:model.id,reason:'No matching Epoch observation'});
     }
   } else {
-    result.xLabel=state.chart==='cost-intelligence'?'USD / 1M tokens (3:1 input/output)':state.chart==='speed-intelligence'?'Output tokens / second':'Model';
+    result.xLabel=state.chart==='cost-intelligence'?'USD / 1M tokens (3:1 input/output)':state.chart==='speed-intelligence'?'Output tokens / second':state.chart==='task-cost'?'USD / evaluation task':state.chart==='total-cost'?'USD / complete evaluation':'Model';
     result.yLabel=result.kind==='scatter'?'AA Intelligence Index':state.chart==='price'?'USD / 1M tokens':'AA benchmark value';
     models.forEach((model,index)=>{
       const cohort=model.source==='aa'&&model.indexVersion&&(state.chart!=='speed-intelligence'||model.performancePrompt)?model.indexVersion+':'+(model.performancePrompt??'unknown'):null;
@@ -109,9 +107,9 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
         if(finite(value))add(model,index,value,'benchmark',state.metricId.endsWith('_index')?'Index points':'Source-native score',receiptFor(model),model.id,cohort);
         else result.excluded.push({modelId:model.id,reason:'Missing benchmark measurement'});
       }else{
-        const x=state.chart==='cost-intelligence'?model.priceBlended:model.outputSpeed;
+        const x=state.chart==='cost-intelligence'?model.priceBlended:state.chart==='task-cost'?model.aaTaskCost:state.chart==='total-cost'?model.aaEvaluationCost:model.outputSpeed;
         if(nonnegative(x)&&finite(model.intelligence))add(model,x,model.intelligence,'model','AA Index points',receiptFor(model),model.id,cohort);
-        else result.excluded.push({modelId:model.id,reason:state.chart==='cost-intelligence'?'Missing price or intelligence':'Missing speed or intelligence'});
+        else result.excluded.push({modelId:model.id,reason:state.chart==='cost-intelligence'?'Missing price or intelligence':state.chart==='task-cost'||state.chart==='total-cost'?'Missing evaluation cost or intelligence':'Missing speed or intelligence'});
       }
     });
   }

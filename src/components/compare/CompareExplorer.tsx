@@ -4,24 +4,25 @@ import {buildCompareSeries,epochScoreKey,type ExplorerModel} from '../../lib/com
 import {epochConditionKey,type EpochObservation} from '../../lib/epoch-observations';
 import {formatChartNumber} from '../../lib/compare-geometry';
 import {seriesCsv,downloadText,downloadChartPng,chartExportCaption} from '../../lib/compare-export';
+import {availableCompareCharts,availableAaMetrics,buildComparePresets,COMPARE_VIEW_LABELS} from '../../lib/compare-presets';
 import ComparisonChart from './ComparisonChart';
 import ModelSelector from './ModelSelector';
 import ObservationDetails from './ObservationDetails';
 export type ExplorerBenchmark={slug:string;name:string};
 type Props={models:ExplorerModel[];benchmarks:ExplorerBenchmark[];defaultModelIds:string[]};
-const CHARTS:Array<{id:CompareChart;label:string}>=[
-  {id:'cost-intelligence',label:'Price vs intelligence'},{id:'speed-intelligence',label:'Speed vs intelligence'},
-  {id:'price',label:'Token prices'},{id:'benchmark',label:'Benchmarks'},
-];
 const EMPTY_OBSERVATIONS:EpochObservation[]=[];
 export default function CompareExplorer({models,benchmarks,defaultModelIds}:Props){
+  const charts=useMemo(()=>availableCompareCharts(models),[models]);
+  const aaMetrics=useMemo(()=>availableAaMetrics(models),[models]);
+  const presets=useMemo(()=>buildComparePresets(models),[models]);
+  const [presetDescription,setPresetDescription]=useState('');
   const [state,setState]=useState(()=>parseCompareState(new URLSearchParams(),models,defaultModelIds));
   const [benchmarkCache,setBenchmarkCache]=useState<Record<string,EpochObservation[]>>({});
   const [loadState,setLoadState]=useState('');const [loadFailed,setLoadFailed]=useState(false);const [retryAttempt,setRetryAttempt]=useState(0);const [notice,setNotice]=useState('');
   const [hovered,setHovered]=useState<string|null>(null);const [pinned,setPinned]=useState<string|null>(null);
   const [filtersOpen,setFiltersOpen]=useState(false);const dialog=useRef<HTMLDialogElement>(null);
   const filterButton=useRef<HTMLButtonElement>(null);const svg=useRef<SVGSVGElement>(null);
-  useEffect(()=>{const read=()=>setState(parseCompareState(new URLSearchParams(window.location.search),models,defaultModelIds));
+  useEffect(()=>{const read=()=>{setPresetDescription('');setState(parseCompareState(new URLSearchParams(window.location.search),models,defaultModelIds));};
     read();window.addEventListener('popstate',read);return()=>window.removeEventListener('popstate',read);},[models,defaultModelIds]);
   const epochSlug=state.chart==='benchmark'&&state.metricId.startsWith('epoch_')?state.metricId.slice(6):null;
   const observations=epochSlug?readBenchmarkCache(benchmarkCache,epochSlug)??EMPTY_OBSERVATIONS:EMPTY_OBSERVATIONS;
@@ -46,7 +47,7 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
   const scoreMetrics=useMemo(()=>[...new Set(observations.map(epochScoreKey))].sort(),[observations]);
   const scoreOptions=scoreMetricOptions(scoreMetrics,state.scoreMetricKey);
   const unverifiedMembership=visibleModels.some(model=>model.source==='aa'&&model.current===null);
-  const update=(patch:Partial<CompareState>)=>{const next={...state,...patch};setState(next);setPinned(null);setHovered(null);
+  const update=(patch:Partial<CompareState>)=>{setPresetDescription('');const next={...state,...patch};setState(next);setPinned(null);setHovered(null);
     const url=new URL(window.location.href);url.search=serializeCompareState(next).toString();window.history.pushState(null,'',url);};
   const toggle=(id:string)=>update({modelIds:state.modelIds.includes(id)?state.modelIds.filter(value=>value!==id):[...state.modelIds,id].slice(0,100)});
   const reset=()=>update(parseCompareState(new URLSearchParams(),models,defaultModelIds));
@@ -61,19 +62,25 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
   const share=async()=>{try{const url=new URL(window.location.href);url.search=serializeCompareState(state).toString();
     await navigator.clipboard.writeText(url.href);setNotice('Comparison link copied.');}catch{setNotice('Copy the address bar to share this comparison.');}};
   const metricName=state.chart==='benchmark'?(epochSlug?benchmarks.find(item=>item.slug===epochSlug)?.name??state.metricId:
-    AA_METRIC_LABELS[state.metricId]??state.metricId)+(state.scoreMetricKey?' · '+JSON.parse(state.scoreMetricKey).join(' · '):''):CHARTS.find(item=>item.id===state.chart)?.label??state.chart;
+    AA_METRIC_LABELS[state.metricId]??state.metricId)+(state.scoreMetricKey?' · '+JSON.parse(state.scoreMetricKey).join(' · '):''):COMPARE_VIEW_LABELS.find(item=>item.id===state.chart)?.label??state.chart;
   const exportPng=async()=>{if(!svg.current)return;try{await downloadChartPng(svg.current,chartExportCaption(series.points,metricName));}
     catch{setNotice('Image export is unavailable in this browser. CSV export is still available.');}};
   return <section className="compare-explorer" aria-label="Model comparison explorer">
     <div className="explorer-title"><h1>Compare models</h1><button type="button" className="mobile-filter-button" ref={filterButton} onClick={()=>setFiltersOpen(true)}>Choose models ({state.modelIds.length})</button></div>
-    <label className="mobile-chart-choice">Compare by<select value={state.chart} onChange={event=>update({chart:event.target.value as CompareChart})}>{CHARTS.map(chart=><option key={chart.id} value={chart.id}>{chart.label}</option>)}</select></label>
-    <nav className="chart-tabs" aria-label="Chart type">{CHARTS.map(chart=><button type="button" key={chart.id}
+    <label className="mobile-chart-choice">Compare by<select value={charts.some(chart=>chart.id===state.chart)?state.chart:''} onChange={event=>update({chart:event.target.value as CompareChart})}>{!charts.some(chart=>chart.id===state.chart)?<option value="">Choose a chart</option>:null}{charts.map(chart=><option key={chart.id} value={chart.id}>{chart.label}</option>)}</select></label>
+    <nav className="chart-tabs" aria-label="Chart type">{charts.map(chart=><button type="button" key={chart.id}
       aria-pressed={state.chart===chart.id} onClick={()=>update({chart:chart.id})}>{chart.label}</button>)}</nav>
-    <p className="comparison-context">{state.chart==='price'?'Compare recorded input and output prices from AA, OpenRouter and LiteLLM.':epochSlug?'Choose Epoch records with results for this benchmark.':'This chart uses AA measurements. Other source records are available in Choose models and Token prices.'}</p>
+    <div className="compare-presets" aria-label="Starting selections"><span>Start with</span>{presets.map(preset=><button type="button" key={preset.id} onClick={()=>{
+      update({modelIds:preset.modelIds,missingModelIds:[],chart:preset.chart,metricId:preset.metricId,includeHistory:false,reasoningEfforts:[],conditionKey:null,scoreMetricKey:null});
+      setPresetDescription(preset.description);
+    }}>{preset.label}</button>)}</div>
+    {presetDescription?<p className="preset-criteria" role="status">{presetDescription}</p>:null}
+    {!charts.some(chart=>chart.id===state.chart)?<p className="explorer-warning">This saved view has no recorded data. Choose another chart.</p>:null}
+    <p className="comparison-context">{state.chart==='price'?'Recorded token prices · source-specific routes':epochSlug?'Epoch AI · select matching test conditions':state.chart==='task-cost'||state.chart==='total-cost'?'Artificial Analysis · recorded evaluation spend, not a workload estimate':'Artificial Analysis · compare scores within the same index version'}</p>
     <div className="explorer-workspace"><div className="chart-panel">
       <div className="chart-toolbar">
-        {state.chart==='benchmark'?<label>Benchmark<select value={state.metricId} onChange={event=>update({metricId:event.target.value,conditionKey:null,scoreMetricKey:null})}>
-          <optgroup label="Artificial Analysis">{Object.entries(AA_METRIC_LABELS).map(([key,label])=><option key={key} value={key}>{label}</option>)}</optgroup>
+        {state.chart==='benchmark'?<label>Benchmark<select value={epochSlug||aaMetrics.some(([key])=>key===state.metricId)?state.metricId:''} onChange={event=>update({metricId:event.target.value,conditionKey:null,scoreMetricKey:null})}>
+          {!epochSlug&&!aaMetrics.some(([key])=>key===state.metricId)?<option value="">Choose a benchmark</option>:null}<optgroup label="Artificial Analysis">{aaMetrics.map(([key,label])=><option key={key} value={key}>{label}</option>)}</optgroup>
           <optgroup label="Epoch AI">{benchmarks.map(benchmark=><option key={benchmark.slug} value={'epoch_'+benchmark.slug}>{benchmark.name}</option>)}</optgroup></select></label>:null}
         {epochSlug&&scoreOptions.visible?<label>Score metric<select value={state.scoreMetricKey??''} onChange={event=>update(changeScoreMetric(event.target.value))}>
           <option value="">Choose a score metric</option>{scoreOptions.missing?<option value={state.scoreMetricKey!}>Unavailable saved metric</option>:null}{scoreMetrics.map(key=><option key={key} value={key}>{JSON.parse(key).join(' · ')}</option>)}</select></label>:null}
@@ -106,7 +113,7 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
         {models.find(model=>model.id===item.modelId)?.name??item.modelId}: {item.reason}</li>)}</ul></details>:null}</div>
     <p className="share-notice" role="status">{notice}</p>
     <details className="explorer-methodology"><summary>Methodology and data access</summary>
-      <p>Each point is a source record, not a recommendation. Price uses USD per million tokens with a 3:1 input/output blend; it is not benchmark task cost. Speed is output tokens per second.</p>
+      <p>Each point is a source record, not a recommendation. Price uses USD per million tokens with a 3:1 input/output blend; it is not benchmark task cost. Speed is output tokens per second. Evaluation cost and cost per task are AA-reported spend for that evaluation and index version; they are not estimated from token prices. Token counts are not available.</p>
       <p>Frontiers stay within the same AA index version and timing conditions. Lines connect recorded reasoning variants within a family. Reasoning labels come from the source model name; they do not establish matching Epoch test conditions.</p>
       <p>Epoch observations keep their exact model IDs, units and conditions. Repeated runs are shown separately. Missing values are not zero. Historical AA records are opt-in.</p>
       <p>Catalog records without compatible measurements remain searchable but are not plotted. Prices from different sources are not joined to benchmark scores. OpenRouter routes and LiteLLM provider entries remain separate, including free routes.</p>
