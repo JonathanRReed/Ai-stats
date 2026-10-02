@@ -117,7 +117,7 @@ test("the source health strip exposes source dates and data mode labels", () => 
   expect(sourceHealthSource).toContain("PUBLIC_SNAPSHOT_NAMES");
   expect(sourceHealthSource).toContain("openrouter-usage");
   expect(sourceHealthSource).toContain("receipt.sameSnapshot");
-  expect(sourceHealthSource).toContain("Data mode");
+  expect(sourceHealthSource).toContain("Data sources");
   expect(sourceHealthSource).toContain("Artificial Analysis");
   expect(sourceHealthSource).toContain("Epoch AI");
   expect(sourceHealthSource).toContain("SimpleBench");
