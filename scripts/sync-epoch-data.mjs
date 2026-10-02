@@ -1,3 +1,4 @@
+import { selectEpochArtifact } from './source-snapshots.mjs';
 #!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
@@ -196,6 +197,8 @@ const main = async () => {
   const dryRun = process.argv.includes('--dry-run');
   const snapshotIndex = process.argv.indexOf('--write-public-snapshot');
   const snapshotPath = snapshotIndex >= 0 ? process.argv[snapshotIndex + 1] : null;
+  const cacheIndex = process.argv.indexOf('--write-cache-snapshot');
+  const cachePath = cacheIndex >= 0 ? process.argv[cacheIndex + 1] : null;
   const supabaseUrl = process.env.PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -333,7 +336,7 @@ const main = async () => {
       throw new Error('Epoch archive has no usable benchmark evidence; refusing an empty replacement.');
     }
 
-    if (snapshotPath) {
+    if (snapshotPath || cachePath) {
       const snapshot = {
         source: DATA_URL,
         fetched_at: new Date().toISOString(),
@@ -342,8 +345,20 @@ const main = async () => {
         runs: dedupedRunRows.map(({ benchmark_slug: benchmarkSlug, ...run }) =>
           buildPublicEpochRun(run, benchmarkSlug)),
       };
-      await mkdir(path.dirname(snapshotPath), { recursive: true });
-      await writeFile(snapshotPath, `${JSON.stringify(snapshot)}\n`);
+      if (cachePath) {
+        await mkdir(path.dirname(cachePath), { recursive: true });
+        await writeFile(cachePath, `${JSON.stringify(snapshot)}\n`);
+      }
+      if (snapshotPath) {
+        let previous = null;
+        try { previous = JSON.parse(await readFile(snapshotPath, 'utf8')); }
+        catch (error) { if (error.code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error; }
+        const selected = selectEpochArtifact(previous, snapshot);
+        if (selected.changed) {
+          await mkdir(path.dirname(snapshotPath), { recursive: true });
+          await writeFile(snapshotPath, `${JSON.stringify(selected.artifact)}\n`);
+        }
+      }
     }
 
     if (dryRun) {

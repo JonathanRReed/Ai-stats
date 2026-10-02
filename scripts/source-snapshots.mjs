@@ -134,3 +134,12 @@ export function buildEpochCacheInput(snapshot) {
   prepareSourceSnapshot(input);
   return input;
 }
+
+/** Keep the checked-in artifact stable when only retrieval time changed. */
+export function selectEpochArtifact(previous, candidate) {
+  const next = prepareSourceSnapshot(buildEpochCacheInput(candidate));
+  let priorHash = null;
+  try { priorHash = prepareSourceSnapshot(buildEpochCacheInput(previous)).contentHash; } catch { /* first valid artifact */ }
+  const changed = priorHash !== next.contentHash;
+  return { changed, artifact: changed ? candidate : previous, fetchedAt: candidate.fetched_at };
+}
