@@ -222,18 +222,9 @@ const topLiteLlmContextMatch =
       Number(b.litellm_max_input_tokens ?? 0) -
       Number(a.litellm_max_input_tokens ?? 0),
   )[0] ?? null;
-const matchedOpenRouterUsageModels = models.filter(
-  (model) => Number(model.openrouter_usage_tokens ?? 0) > 0,
-);
 const matchedOpenRouterEndpointModels = models.filter(
   (model) => Number(model.openrouter_endpoint_provider_count ?? 0) > 0,
 );
-const topOpenRouterUsageModel =
-  [...matchedOpenRouterUsageModels].sort(
-    (a, b) =>
-      Number(b.openrouter_usage_tokens ?? 0) -
-      Number(a.openrouter_usage_tokens ?? 0),
-  )[0] ?? null;
 const openRouterProviderUsage = openRouterUsageRankings.reduce(
   (summary, ranking) => {
     const provider = ranking.provider ?? "unknown";
@@ -308,12 +299,10 @@ const openRouterProviderSummary = Object.values(
     >,
   ),
 )
-  .sort((a, b) => b.usageTokens - a.usageTokens || b.total - a.total)
+  .sort((a, b) => b.total - a.total)
   .slice(0, 6);
 
 const openRouterRankOptions = [
-  { key: "usage", label: "Usage tokens" },
-  { key: "requests", label: "Usage requests" },
   { key: "catalog", label: "Catalog coverage" },
   { key: "tools", label: "Tool-ready routes" },
   { key: "vision", label: "Vision coverage" },
@@ -449,10 +438,6 @@ function getScoreClass(score: number | null | undefined): string {
                   <dd>{matchedOpenRouterModels.length}</dd>
                 </div>
                 <div>
-                  <dt>OR usage</dt>
-                  <dd>{matchedOpenRouterUsageModels.length}</dd>
-                </div>
-                <div>
                   <dt>Route detail</dt>
                   <dd>{matchedOpenRouterEndpointModels.length}</dd>
                 </div>
@@ -461,15 +446,15 @@ function getScoreClass(score: number | null | undefined): string {
                 Routing and availability signals. Benchmark scores stay AA and Epoch.
               </p>
             </section>
-            <section class="openrouter-table" aria-label="Public catalog providers by usage">
+            <section class="openrouter-table" aria-label="Public catalog provider coverage">
               <div class="openrouter-table-meta">
                 <span id="openrouter-board-title">Provider coverage</span>
-                <small id="openrouter-board-note">OpenRouter route catalog by usage</small>
+                <small id="openrouter-board-note">OpenRouter route catalog</small>
               </div>
               <div class="openrouter-table-head">
                 <span>Provider</span>
-                <span id="openrouter-col-detail">Requests</span>
-                <span id="openrouter-col-value">Usage tokens</span>
+                <span id="openrouter-col-detail">Tool-ready routes</span>
+                <span id="openrouter-col-value">Catalog models</span>
                 <span>Models</span>
                 <span>Max ctx</span>
               </div>
@@ -479,15 +464,15 @@ function getScoreClass(score: number | null | undefined): string {
                     <button
                       type="button"
                       class="openrouter-provider-row"
-                      aria-label={`Provider ${provider.provider}. Requests ${formatCompactNumber(provider.usageRequests)}. Usage tokens ${formatCompactNumber(provider.usageTokens)}. Models ${provider.total}. Max context ${formatContextLength(provider.maxContext)}.`}
+                      aria-label={`Provider ${provider.provider}. Tool-ready routes ${provider.tools}. Models ${provider.total}. Max context ${formatContextLength(provider.maxContext)}.`}
                       data-openrouter-provider={provider.provider}
                       data-openrouter-provider-query={provider.provider}
                     >
                       <span class="openrouter-model" title={provider.provider}>
                         {provider.provider}
                       </span>
-                      <span class="openrouter-leader">{formatCompactNumber(provider.usageRequests)} requests</span>
-                      <span class="openrouter-score">{formatCompactNumber(provider.usageTokens)}</span>
+                      <span class="openrouter-leader">{provider.tools} tool-ready</span>
+                      <span class="openrouter-score">{provider.total}</span>
                       <span>{provider.total}</span>
                       <span>{formatContextLength(provider.maxContext)}</span>
                     </button>
@@ -504,9 +489,7 @@ function getScoreClass(score: number | null | undefined): string {
                   : `${formatContextLength(topLiteLlmContextMatch?.litellm_max_input_tokens)} LiteLLM context`}
               </span>
               <small>
-                {topLiteLlmContextMatch
-                  ? `Most OpenRouter usage: ${topOpenRouterUsageModel?.name ?? "-"}, ${topOpenRouterUsageModel ? formatCompactNumber(topOpenRouterUsageModel.openrouter_usage_tokens) : "-"} tokens`
-                  : `${openRouterToolModels.length} OpenRouter tool-ready routes, ${openRouterVisionModels.length} vision routes, ${openRouterEndpointSummaries.length} endpoint checks`}
+                {`${openRouterToolModels.length} OpenRouter tool-ready routes, ${openRouterVisionModels.length} vision routes, ${openRouterEndpointSummaries.length} endpoint checks`}
               </small>
             </aside>
           </div>
@@ -2678,8 +2661,6 @@ function getScoreClass(score: number | null | undefined): string {
     };
 
     const OPENROUTER_RANK_METRICS = [
-      { key: "usage", label: "Usage tokens", detailLabel: "Requests", note: "OpenRouter weekly usage tokens", kind: "usage", direction: "desc" },
-      { key: "requests", label: "Usage requests", detailLabel: "Usage tokens", note: "OpenRouter weekly usage requests", kind: "requests", direction: "desc" },
       { key: "catalog", label: "Catalog coverage", detailLabel: "Route detail", note: "OpenRouter catalog", kind: "catalog", direction: "desc" },
       { key: "tools", label: "Tool-ready routes", detailLabel: "Vision routes", note: "OpenRouter supported parameters", kind: "tools", direction: "desc" },
       { key: "vision", label: "Vision coverage", detailLabel: "Tool-ready routes", note: "OpenRouter input modalities", kind: "vision", direction: "desc" },

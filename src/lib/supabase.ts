@@ -9,7 +9,6 @@ import {
   normalizeAaOperationalMetrics,
   sortAaModelsByIntelligence,
 } from './data-integrity';
-import { parseOpenRouterRankingRows, type OpenRouterRankingRow } from './openrouter-ranking-parser';
 
 // Public client for server-side fetching (Astro on the server).
 // Uses anon key; RLS allows read on public tables.
@@ -392,85 +391,6 @@ async function fetchLiteLlmCachedModels(limit: number): Promise<LiteLLMCatalogMo
     .sort((a,b)=>Number(b.max_input_tokens??0)-Number(a.max_input_tokens??0)).slice(0,limit):[];
 }
 
-const extractNextFlightText = (html: string): string => {
-  const chunks = html.matchAll(/self\.__next_f\.push\((.*?)\)<\/script>/gs);
-  let result = '';
-  for (const chunk of chunks) {
-    try {
-      const parsed = JSON.parse(chunk[1]) as unknown[];
-      if (typeof parsed[1] === 'string') result += parsed[1];
-    } catch {
-      // Ignore chunks that are not plain JSON push payloads.
-    }
-  }
-  return result;
-};
-
-async function fetchOpenRouterUsageRankings(limit: number): Promise<OpenRouterUsageRanking[]> {
-  const response = await fetch('https://openrouter.ai/rankings/', {
-    headers: {
-      Accept: 'text/html',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`OpenRouter rankings fetch failed with HTTP ${response.status}`);
-  }
-
-  const html = await response.text();
-  const flightText = extractNextFlightText(html);
-  const rows = parseOpenRouterRankingRows(flightText);
-  const normalized = rows
-    .map((row) => {
-      const modelPermaslug = String(row.model_permaslug || '').trim();
-      if (!modelPermaslug) return null;
-      const totalTokens =
-        Number(row.total_prompt_tokens || 0) +
-        Number(row.total_completion_tokens || 0) +
-        Number(row.total_native_tokens_reasoning || 0);
-      return {
-        row,
-        modelPermaslug,
-        totalTokens,
-      };
-    })
-    .filter(
-      (
-        row,
-      ): row is {
-        row: OpenRouterRankingRow;
-        modelPermaslug: string;
-        totalTokens: number;
-      } => row !== null && row.totalTokens > 0,
-    )
-    .sort((a, b) => b.totalTokens - a.totalTokens);
-
-  const totalAllTokens = normalized.reduce((sum, item) => sum + item.totalTokens, 0);
-  return normalized.slice(0, limit).map((item, index) => {
-    const variantPermaslug =
-      item.row.variant_permaslug ||
-      (item.row.variant && item.row.variant !== 'standard'
-        ? `${item.modelPermaslug}:${item.row.variant}`
-        : item.modelPermaslug);
-    return {
-      id: variantPermaslug,
-      model_permaslug: item.modelPermaslug,
-      variant_permaslug: variantPermaslug,
-      provider: item.modelPermaslug.split('/')[0] || null,
-      variant: item.row.variant ?? null,
-      rank: index + 1,
-      total_tokens: item.totalTokens,
-      request_count: Number(item.row.count || 0),
-      tool_calls: Number(item.row.total_tool_calls || 0),
-      tool_call_errors: Number(item.row.requests_with_tool_call_errors || 0),
-      usage_share: totalAllTokens > 0 ? item.totalTokens / totalAllTokens : null,
-      change: typeof item.row.change === 'number' ? item.row.change : null,
-      date: item.row.date ?? null,
-      fetched_at: new Date().toISOString(),
-    };
-  });
-}
-
 async function fetchOpenRouterProviders(): Promise<OpenRouterProvider[]> {
   const response = await fetch('https://openrouter.ai/api/v1/providers', {
     headers: {
@@ -768,7 +688,6 @@ const OPENROUTER_CACHE_TTL_MS = 15 * 60 * 1000;
 const OPENROUTER_DEFAULT_LIMIT = 390;
 const HUGGINGFACE_DEFAULT_LIMIT = 700;
 const LITELLM_DEFAULT_LIMIT = 2500;
-const OPENROUTER_USAGE_DEFAULT_LIMIT = 500;
 const OPENROUTER_EMBEDDING_DEFAULT_LIMIT = 200;
 const OPENROUTER_ENDPOINT_DETAIL_LIMIT = 32;
 let openRouterModelsCache:
@@ -783,10 +702,6 @@ let liteLlmModelsCache:
   | { fetchedAt: number; limit: number; models: LiteLLMCatalogModel[] }
   | null = null;
 let liteLlmModelsPromise: Promise<LiteLLMCatalogModel[]> | null = null;
-let openRouterUsageCache:
-  | { fetchedAt: number; limit: number; rankings: OpenRouterUsageRanking[] }
-  | null = null;
-let openRouterUsagePromise: Promise<OpenRouterUsageRanking[]> | null = null;
 let openRouterProvidersCache:
   | { fetchedAt: number; providers: OpenRouterProvider[] }
   | null = null;
@@ -952,39 +867,8 @@ export async function getLiteLlmModels(
   return models.slice(0, limit);
 }
 
-export async function getOpenRouterUsageRankings(
-  limit = OPENROUTER_USAGE_DEFAULT_LIMIT,
-): Promise<OpenRouterUsageRanking[]> {
-  const sourceLimit = Math.max(limit, OPENROUTER_USAGE_DEFAULT_LIMIT);
-  const now = Date.now();
-  if (
-    openRouterUsageCache &&
-    openRouterUsageCache.limit >= limit &&
-    now - openRouterUsageCache.fetchedAt < OPENROUTER_CACHE_TTL_MS
-  ) {
-    return openRouterUsageCache.rankings.slice(0, limit);
-  }
-
-  openRouterUsagePromise ??= fetchOpenRouterUsageRankings(sourceLimit)
-    .then((rankings) => {
-      openRouterUsageCache = {
-        fetchedAt: Date.now(),
-        limit: sourceLimit,
-        rankings,
-      };
-      return rankings;
-    })
-    .catch((error) => {
-      console.warn('[openrouter] Public rankings fetch failed:', error);
-      return [];
-    })
-    .finally(() => {
-      openRouterUsagePromise = null;
-    });
-
-  const rankings = await openRouterUsagePromise;
-  return rankings.slice(0, limit);
-}
+/** Deprecated weekly wire field: official daily usage has a different contract. */
+export async function getOpenRouterUsageRankings():Promise<OpenRouterUsageRanking[]> {return [];}
 
 export async function getOpenRouterProviders(): Promise<OpenRouterProvider[]> {
   const now = Date.now();

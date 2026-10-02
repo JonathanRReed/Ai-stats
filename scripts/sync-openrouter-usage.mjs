@@ -15,7 +15,9 @@ const date=value=>{
  return value;
 };
 const timestamp=value=>{
- if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T/.test(value)||!Number.isFinite(Date.parse(value)))throw new Error('Invalid usage timestamp');
+ if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.test(value))throw new Error('Invalid usage timestamp');
+ date(value.slice(0,10));
+ if(!Number.isFinite(Date.parse(value)))throw new Error('Invalid usage timestamp');
  return new Date(value).toISOString();
 };
 /** Only exact, unfiltered, completed UTC days are admitted in this adapter. */
@@ -30,7 +32,7 @@ export function normalizeUsageSnapshot(payload,{now=new Date().toISOString()}={}
  if((meta.period!==undefined&&meta.period!=='day')||(meta.estimated!==undefined&&meta.estimated!==false)||
  ['category','language_type','modality','context_bucket'].some(key=>meta[key]!=null)||
  (meta.filters!==undefined&&(!object(meta.filters)||Object.keys(meta.filters).length)))throw new Error('Only unfiltered exact daily usage is supported');
- const keys=new Set(),counts=new Map(),present=new Set();
+ const keys=new Set(),counts=new Map(),namedCounts=new Map(),present=new Set();
  const rows=payload.data.map(value=>{
   const row=object(value);if(!row)throw new Error('Invalid usage row');
   const day=date(row.date),model=row.model_permaslug,tokens=row.total_tokens;
@@ -38,7 +40,8 @@ export function normalizeUsageSnapshot(payload,{now=new Date().toISOString()}={}
    typeof tokens!=='string'||!/^(0|[1-9][0-9]{0,77})$/.test(tokens))throw new Error('Invalid usage row');
   const key=day+'|'+model;if(keys.has(key))throw new Error('Duplicate usage bucket');
   keys.add(key);present.add(day);counts.set(day,(counts.get(day)??0)+1);
-  if(counts.get(day)>51)throw new Error('Too many usage rows for a day');
+  if(model!=='other')namedCounts.set(day,(namedCounts.get(day)??0)+1);
+  if(counts.get(day)>51||(namedCounts.get(day)??0)>50)throw new Error('Too many usage rows for a day');
   return {date:day,modelPermaslug:model,totalTokens:tokens};
  }).sort((a,b)=>a.date.localeCompare(b.date)||a.modelPermaslug.localeCompare(b.modelPermaslug));
  const missingDays=[];
@@ -83,7 +86,9 @@ export async function prepareUsageRefresh({apiKey,store,now:fixedNow,fetchImpl})
  }catch(error){
   const value=error&&typeof error==='object'?error:{};
   const delay=retryDelayMs(null,lease.attempts??0,Date.parse(clock()));
-  const notBefore=typeof value.retryAt==='string'?value.retryAt:new Date(Date.parse(clock())+delay).toISOString();
+  const providerTime=value.retryAt==='infinity'?Infinity:Date.parse(value.retryAt??'');
+  const retryAt=Math.max(Date.parse(clock())+delay,Number.isNaN(providerTime)?0:providerTime);
+  const notBefore=Number.isFinite(retryAt)&&retryAt<=8640000000000000?new Date(retryAt).toISOString():'infinity';
   await store.fail({sourceKey,leaseId:lease.leaseId,notBefore,message:'Official daily usage refresh failed; last good snapshot retained.'});
   return {sourceKey,status:'failed'};
  }
