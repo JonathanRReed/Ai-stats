@@ -43,3 +43,14 @@ test('usage cache verifies exact snapshot identity and reports its original date
  expect(sync.parseUsageCache?.(cache,{now:'2026-10-02T07:00:00Z'})).toMatchObject({snapshot,receipt:{snapshotId:'42',fetchedAt:'2026-10-02T03:00:00.000Z'}});
  expect(sync.parseUsageCache?.({...cache,content_hash:'b'.repeat(64)},{now:'2026-10-02T07:00:00Z'})).toBeNull();
 });
+
+test('usage CLI keeps missing-auth runs inert and rejects malformed publish candidates',async()=>{
+ let wrote:unknown;let published=0;
+ const store={claim:async()=>({claimed:false}),publish:async()=>{published++;return 1;}};
+ const result=await sync.runUsageCli?.({argv:['--prepare','--file','test.json'],env:{},store,
+ writeJson:async(_path:string,value:unknown)=>{wrote=value;}});
+ expect(result).toMatchObject({status:'blocked'});expect(wrote).toMatchObject({status:'blocked'});
+ await expect(sync.runUsageCli?.({argv:['--publish','--file','test.json'],env:{},store,
+ readJson:async()=>({sourceKey:'openrouter-usage',status:'prepared',leaseId:'lease',input:{sourceKey:'openrouter-usage',records:[]}})})).rejects.toThrow();
+ expect(published).toBe(0);
+});
