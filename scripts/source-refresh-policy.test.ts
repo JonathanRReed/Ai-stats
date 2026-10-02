@@ -39,8 +39,8 @@ test('unchanged responses and payloads do not require deployment', () => {
   expect(policy.shouldPublishContent?.({status: 503, previousHash: 'a', contentHash: 'b'})).toBe(false);
 });
 
-test('active AA health follows its current twelve-hour schedule until quota guards are enabled',()=>{
-  expect(policy.getActiveRefreshPolicy?.('artificial-analysis')).toMatchObject({intervalHours:12,staleAfterHours:24});
+test('active AA health follows the deployed four-hour quota-guarded schedule',()=>{
+  expect(policy.getActiveRefreshPolicy?.('artificial-analysis')).toMatchObject({intervalHours:4,staleAfterHours:8});
 });
 
 test('an unrepresentably long Retry-After holds refreshes instead of retrying immediately',()=>{
