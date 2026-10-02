@@ -61,3 +61,23 @@ test('rate-limit failure exposes only a bounded retry receipt and no provider bo
  expect(error).toMatchObject({status:429,retryAt:'2026-10-02T09:00:00.000Z'});
  expect(String(error)).not.toContain('secret provider body');expect(String(error)).not.toContain('test-key');
 });
+
+test('invalid or timezone-less observation timestamps are rejected without normalization',()=>{
+ for(const as_of of ['2026-09-31T02:00:00Z','2026-10-02T02:00:00','2026-10-01T24:00:00Z']){
+  const payload=fixture();payload.meta.as_of=as_of;expect(()=>usage.normalizeUsageSnapshot(payload,{now})).toThrow();
+ }
+});
+test('daily source admits at most 50 named models, with Other separately optional',()=>{
+ const payload=fixture();payload.data=Array.from({length:51},(_,index)=>({date:'2026-10-01',model_permaslug:'lab/'+index,total_tokens:'1'}));
+ expect(()=>usage.normalizeUsageSnapshot(payload,{now})).toThrow();
+ payload.data.pop();expect(usage.normalizeUsageSnapshot(payload,{now}).rows).toHaveLength(50);
+ payload.data.push({date:'2026-10-01',model_permaslug:'other',total_tokens:'2'});
+ expect(usage.normalizeUsageSnapshot(payload,{now}).rows).toHaveLength(51);
+});
+test('HTTP failure backoff escalates from the persisted attempt count',async()=>{
+ let receipt:unknown;
+ await usage.prepareUsageRefresh({apiKey:'test-key',now,
+  store:{claim:async()=>({claimed:true,leaseId:'lease',attempts:8}),fail:async(value:unknown)=>{receipt=value;}},
+  fetchImpl:async()=>new Response(null,{status:500})});
+ expect(receipt).toMatchObject({notBefore:'2026-10-02T07:04:16.000Z'});
+});
