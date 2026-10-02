@@ -50,3 +50,26 @@ test('source runs adapt to observation records without inventing conditions', ()
     value: 0.8, unit: 'percent', conditions: { 'Edit format': 'diff' },
     evaluationDate: '2026-09-15', fetchedAt: '2026-10-01T00:00:00Z' });
 });
+
+test('each displayed Epoch score keeps its own source receipt', () => {
+  const run = { ...row, evaluationDate: '2024-11-21', fetchedAt: '2026-10-02T00:00:00Z',
+    sourceUrl: 'https://aider.chat/docs/leaderboards/' };
+  expect(compare.buildEpochScoreIndex([run], {}).receipts?.['model high']?.aider).toMatchObject({
+    evaluationDate: '2024-11-21', fetchedAt: '2026-10-02T00:00:00Z',
+    conditions: { 'Edit format': 'diff' }, sourceUrl: 'https://aider.chat/docs/leaderboards/',
+  });
+});
+test('Epoch dates never inherit AA refresh timestamps', () => {
+  const model = { last_seen: '2026-10-02T00:00:00Z' };
+  expect(compare.comparisonEvidenceDate?.(model, 'epoch_aider', { ...row, evaluationDate: '2024-11-21' }))
+    .toEqual({ kind: 'evaluated', value: '2024-11-21' });
+  expect(compare.comparisonEvidenceDate?.(model, 'epoch_aider'))
+    .toEqual({ kind: 'unknown', value: null });
+  expect(compare.comparisonEvidenceDate?.(model, 'epoch_aider', { ...row, fetchedAt: '2026-10-01T00:00:00Z' }))
+    .toEqual({ kind: 'retrieved', value: '2026-10-01T00:00:00Z' });
+});
+test('price axes stay finite for zero and missing prices', () => {
+  expect(compare.priceChartMaximum?.([])).toBe(1);
+  expect(compare.priceChartMaximum?.([0, 0])).toBe(1);
+  expect(compare.priceChartMaximum?.([null, 2])).toBe(2.4);
+});

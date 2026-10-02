@@ -100,3 +100,9 @@ test("server and browser comparisons use the shared ambiguity-safe evidence inde
   expect(source).not.toContain("score <= 1 ? score * 100");
   expect(source).toContain('availableForMetric(model, "price-pair")');
 });
+
+test("Epoch exact-data dates use observation receipts and empty price axes stay finite", () => {
+  expect(source).toContain("comparisonEvidenceDate(model, metric");
+  expect(initialApiSource).toContain("epochScoreReceipts");
+  expect(source).toContain("priceChartMaximum([...inputData, ...outputData])");
+});
