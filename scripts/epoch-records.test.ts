@@ -62,3 +62,12 @@ test('measured outcomes are not mislabeled as evaluation settings', () => {
     Shots: '0', 'Token budget': '0',
   });
 });
+
+test('public observation links reject executable and credential-bearing URLs', () => {
+  for (const source_link of ['javascript:alert(1)', 'https://user:password@example.test/']) {
+    const result = records.buildPublicEpochRun({ epoch_run_id: 'x', model_version: row['Model version'],
+      score: 8, score_metric: 'Percent correct', source_link,
+      raw: { ...row, 'Source link': source_link } }, 'aider_polyglot_external');
+    expect(result.source_link).toBeNull();
+  }
+});

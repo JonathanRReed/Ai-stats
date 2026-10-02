@@ -88,3 +88,10 @@ test('partial Epoch corpora cannot be promoted as valid snapshots', () => {
   expect(() => snapshots.buildEpochCacheInput?.({ ...epoch, runs: [] })).toThrow('incomplete');
   expect(() => snapshots.buildEpochCacheInput?.({ ...epoch, runs: [{ ...epoch.runs[0], model_version: 'missing' }] })).toThrow('identity');
 });
+
+test('missing model and run IDs cannot masquerade as a valid corpus', () => {
+  expect(() => snapshots.buildEpochCacheInput({ ...epoch,
+    models: [{}], runs: [{ ...epoch.runs[0], model_version: undefined }] })).toThrow('identity');
+  expect(() => snapshots.buildEpochCacheInput({ ...epoch,
+    runs: [{ ...epoch.runs[0], id: undefined }] })).toThrow('identity');
+});
