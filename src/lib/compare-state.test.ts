@@ -1,5 +1,5 @@
 import {expect,test} from 'bun:test';
-const state=await import('./compare-state').catch(()=>({}));
+import * as state from './compare-state';
 const catalog=[
   {id:'a-high',name:'Model A (High)',family:'Model A',reasoning:'high',current:true},
   {id:'a-low',name:'Model A (Low)',family:'Model A',reasoning:'low',current:true},
