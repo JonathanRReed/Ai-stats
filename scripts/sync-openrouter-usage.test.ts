@@ -11,10 +11,10 @@ test('daily usage preserves exact integers, Other, gaps and source dates',()=>{
  expect(value?.rows[0]).toEqual({date:'2026-09-29',modelPermaslug:'lab/a',totalTokens:'9007199254740993'});
  expect(value?.missingDays).toEqual(['2026-09-30']);
  expect(value).toMatchObject({period:'day',estimated:false,filters:{},asOf:'2026-10-02T02:00:00.000Z'});
- expect(value?.rows.some(row=>row.modelPermaslug==='other')).toBe(true);
+ expect(value?.rows.some((row:{modelPermaslug:string})=>row.modelPermaslug==='other')).toBe(true);
 });
 test('daily adapter rejects malformed numbers, duplicate buckets and incomplete days',()=>{
- for(const total_tokens of ['-1','1.5','1e3',9007199254740992,null]){
+ for(const total_tokens of ['-1','1.5','1e3',Number.MAX_SAFE_INTEGER+1,null]){
   const payload=fixture();payload.data[0].total_tokens=total_tokens as never;
   expect(()=>usage.normalizeUsageSnapshot?.(payload,{now})).toThrow();
  }
