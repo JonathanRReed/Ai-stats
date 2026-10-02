@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {parseCompareState,serializeCompareState,selectFamily,readBenchmarkCache,type CompareState,type CompareChart} from '../../lib/compare-state';
+import {parseCompareState,serializeCompareState,selectFamily,readBenchmarkCache,AA_METRIC_LABELS,type CompareState,type CompareChart} from '../../lib/compare-state';
 import {buildCompareSeries,type ExplorerModel} from '../../lib/compare-series';
 import {epochConditionKey,type EpochObservation} from '../../lib/epoch-observations';
 import {formatChartNumber} from '../../lib/compare-geometry';
@@ -68,7 +68,7 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
     <div className="explorer-workspace"><div className="chart-panel">
       <div className="chart-toolbar">
         {state.chart==='benchmark'?<label>Benchmark<select value={state.metricId} onChange={event=>update({metricId:event.target.value,conditionKey:null})}>
-          <optgroup label="Artificial Analysis"><option value="aa_intelligence_index">Intelligence Index</option><option value="aa_coding_index">Coding Index</option><option value="aa_math_index">Math Index</option></optgroup>
+          <optgroup label="Artificial Analysis">{Object.entries(AA_METRIC_LABELS).map(([key,label])=><option key={key} value={key}>{label}</option>)}</optgroup>
           <optgroup label="Epoch AI">{benchmarks.map(benchmark=><option key={benchmark.slug} value={'epoch_'+benchmark.slug}>{benchmark.name}</option>)}</optgroup></select></label>:null}
         {epochSlug&&conditions.length?<label>Conditions<select value={state.conditionKey??''} onChange={event=>update({conditionKey:event.target.value||null})}>
           <option value="">All recorded runs</option>{conditions.map(key=><option value={key} key={key}>{key==='unknown'?'Not recorded':JSON.parse(key).map(([name,value]:[string,unknown])=>name+': '+value).join(' · ')}</option>)}</select></label>:null}
