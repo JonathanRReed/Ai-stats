@@ -26,3 +26,12 @@ test('a superseded displayed snapshot cannot keep its healthy badge after live r
  const healthy=cache.catalogReceiptUpdate('b'.repeat(64),{...row,refresh_status:'healthy',fetched_at:new Date().toISOString()})!;
  expect(cache.catalogReceiptPresentation(healthy)).toMatchObject({status:'partial',label:'New snapshot available',state:'warn'});
 });
+
+test('catalog read receipts preserve valid snapshot metadata and disclose unusable inputs',()=>{
+ expect(cache.catalogReadReceipt('huggingface',cache.parseCatalogCache(row,'huggingface'))).toMatchObject({
+ sourceKey:'huggingface',available:true,status:'failed',snapshotId:'3',contentHash:'a'.repeat(64),fetchedAt:'2026-10-01T00:00:00.000Z'});
+ for(const invalid of [null,{...row,record_count:2},{...row,payload:{...row.payload,records:[{}]}}]){
+  expect(cache.catalogReadReceipt('huggingface',cache.parseCatalogCache(invalid,'huggingface'))).toMatchObject({
+   sourceKey:'huggingface',available:false,status:'unavailable',reason:'No validated cache available',fetchedAt:null});
+ }
+});

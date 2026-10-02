@@ -19,3 +19,7 @@ test('partial source reads cannot be labelled a complete catalog',()=>{
  expect(result.complete).toBe(false);expect(result.unavailableSources).toEqual(['OpenRouter']);
  expect(catalogCoverage([aa,route],[]).complete).toBe(true);
 });
+
+test('unknown AA membership stays explicit rather than being counted as current',()=>{
+ expect(catalogCoverage([{...aa,current:null}])).toMatchObject({membershipUnverified:1,historical:0});
+});
