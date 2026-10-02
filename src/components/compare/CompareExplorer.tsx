@@ -3,7 +3,7 @@ import {parseCompareState,serializeCompareState,selectFamily,readBenchmarkCache,
 import {buildCompareSeries,type ExplorerModel} from '../../lib/compare-series';
 import {epochConditionKey,type EpochObservation} from '../../lib/epoch-observations';
 import {formatChartNumber} from '../../lib/compare-geometry';
-import {seriesCsv,downloadText,downloadChartPng} from '../../lib/compare-export';
+import {seriesCsv,downloadText,downloadChartPng,chartExportCaption} from '../../lib/compare-export';
 import ComparisonChart from './ComparisonChart';
 import ModelSelector from './ModelSelector';
 import ObservationDetails from './ObservationDetails';
@@ -57,8 +57,9 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
     update({modelIds:visibleModels.filter(model=>versions.has(model.sourceModelId)).slice(0,8).map(model=>model.id)});};
   const share=async()=>{try{const url=new URL(window.location.href);url.search=serializeCompareState(state).toString();
     await navigator.clipboard.writeText(url.href);setNotice('Comparison link copied.');}catch{setNotice('Copy the address bar to share this comparison.');}};
-  const exportPng=async()=>{if(!svg.current)return;try{await downloadChartPng(svg.current,
-    'AI Stats · '+series.xLabel+' / '+series.yLabel+' · '+[...new Set(series.points.map(point=>point.receipt.source+' '+(point.receipt.observedAt?.slice(0,10)??'date unknown')))].join(' · '));}
+  const metricName=state.chart==='benchmark'?(epochSlug?benchmarks.find(item=>item.slug===epochSlug)?.name??state.metricId:
+    AA_METRIC_LABELS[state.metricId]??state.metricId):CHARTS.find(item=>item.id===state.chart)?.label??state.chart;
+  const exportPng=async()=>{if(!svg.current)return;try{await downloadChartPng(svg.current,chartExportCaption(series.points,metricName));}
     catch{setNotice('Image export is unavailable in this browser. CSV export is still available.');}};
   return <section className="compare-explorer" aria-label="Model comparison explorer">
     <div className="explorer-title"><h1>Compare models</h1><button type="button" className="mobile-filter-button" ref={filterButton} onClick={()=>setFiltersOpen(true)}>Models and filters</button></div>
@@ -77,7 +78,7 @@ export default function CompareExplorer({models,benchmarks,defaultModelIds}:Prop
         <label className="toolbar-check"><input type="checkbox" checked={state.labels} onChange={event=>update({labels:event.target.checked})}/>Labels</label>
         {series.kind==='scatter'?<label className="toolbar-check"><input type="checkbox" checked={state.frontier} onChange={event=>update({frontier:event.target.checked})}/>Frontier</label>:null}
         <button type="button" onClick={share}>Share</button>
-        <details className="export-menu"><summary>Export</summary><div><button type="button" disabled={!series.points.length} onClick={()=>downloadText(seriesCsv(series.points,{includeX:series.kind==='scatter',xLabel:series.xLabel,yLabel:series.yLabel}),'ai-stats-comparison.csv')}>CSV with sources</button>
+        <details className="export-menu"><summary>Export</summary><div><button type="button" disabled={!series.points.length} onClick={()=>downloadText(seriesCsv(series.points,{includeX:series.kind==='scatter',xLabel:series.xLabel,yLabel:series.yLabel,metricId:state.chart==='benchmark'?state.metricId:state.chart,metricName}),'ai-stats-comparison.csv')}>CSV with sources</button>
           <button type="button" disabled={!series.points.length} onClick={exportPng}>PNG chart</button></div></details>
       </div>
       {state.missingModelIds.length?<p className="explorer-warning">Unavailable models in this link: {state.missingModelIds.join(', ')}</p>:null}
