@@ -16,3 +16,14 @@ export function filterAaCurrentModels<T extends {id: string}>(rows: T[], cache: 
   const selected = rows.filter(row => ids.has(row.id));
   return selected.length === ids.size ? selected : null;
 }
+
+export async function readAaCohort<T extends {id: string}>(
+  sources: {models: () => Promise<T[]>; cache: () => Promise<unknown>}, includeHistory = false,
+): Promise<Array<T & {current_source_member: boolean | null}>> {
+  const [rows, cache] = await Promise.all([sources.models(), sources.cache().catch(() => null)]);
+  const current = filterAaCurrentModels(rows, cache);
+  const ids = current ? new Set(current.map(row => row.id)) : null;
+  return (includeHistory || !current ? rows : current).map(row => ({
+    ...row, current_source_member: ids ? ids.has(row.id) : null,
+  }));
+}
