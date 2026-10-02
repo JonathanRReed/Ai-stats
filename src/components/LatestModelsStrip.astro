@@ -148,12 +148,14 @@ const providerFor = (model: AaModel): string =>
     font-size: var(--text-xl);
   }
 
-  .latest-models-header > div > p {
+  .latest-models-header details > p {
     max-width: 64ch;
     margin-top: var(--space-2);
     color: var(--ink-2);
     font-size: var(--text-sm);
   }
+
+  .latest-models-header summary {font-size:var(--text-sm);color:var(--ink-1);cursor:pointer;margin-top:var(--space-2);}
 
   .latest-models-observed {
     display: grid;
