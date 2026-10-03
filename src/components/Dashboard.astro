@@ -1,4 +1,5 @@
 ---
+import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings} from '../lib/benchmark-leaderboard';
 import OpenRouterUsage from './OpenRouterUsage';
 import {getOpenRouterUsageSnapshot} from '../lib/openrouter-usage-server';
 import '../styles/openrouter-usage.css';
@@ -165,11 +166,9 @@ const benchmarkConfigs = [
     label: "AA Intelligence Index",
     source: "aa",
   },
-  ...epochBenchmarksWithRuns.map((benchmark) => ({
-    key: `epoch_${benchmark.slug}`,
-    label: `${getEpochBenchmarkLabel(benchmark)} (Epoch)`,
-    source: "epoch" as const,
-  })),
+  ...epochBenchmarksWithRuns.flatMap(benchmark=>buildBenchmarkCohorts(benchmark,epochRuns).map(cohort=>({
+    key:cohort.key,label:cohort.label,source:"epoch" as const,
+  }))),
 ];
 
 const benchmarkModelNames = new Map([
@@ -193,10 +192,9 @@ benchmarkConfigs
 
 epochBenchmarksWithRuns.forEach((benchmark) => {
   const slug = benchmark.slug;
-  const runs = epochRuns
-    .filter((r) => r.benchmark_slug === slug && hasFiniteMetricValue(r.score))
-    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-    .slice(0, 5)
+  buildBenchmarkCohorts(benchmark,epochRuns).forEach(cohort=>{
+  benchmarkAttributions[cohort.key]=benchmarkAttributions[`epoch_${slug}`];
+  const runs = cohort.runs.slice(0,5)
     .map((r) => ({
       name: benchmarkModelNames.get(r.model_version) ?? r.model_version.replace(/_/g, " ").replace(/-/g, " "),
       company_name: r.organization,
@@ -209,8 +207,10 @@ epochBenchmarksWithRuns.forEach((benchmark) => {
       benchmark_version: r.benchmark_version ?? null,
       conditions: r.conditions ?? null,
       isEpoch: true,
+      metric_key:cohort.metricKey,
     }));
-  topByBenchmark[`epoch_${slug}`] = runs;
+  topByBenchmark[cohort.key] = runs;
+  });
 });
 
 
@@ -224,14 +224,8 @@ const formatEpochLeaderboardScore = (score: number, unit: string | undefined) =>
   if (unit === 'percent') return `${score.toFixed(1)}%`;
   return score.toLocaleString('en-US', {maximumFractionDigits: 3});
 };
-const epochRunHref = (model: any, metric: string) => '/compare?' + new URLSearchParams({
-  source:model.source_key?'publisher':'epoch-ai', record:model.model_version, chart:'benchmark', metric,
-  ...(model.conditions ? {condition:JSON.stringify(Object.entries(model.conditions).sort(([a],[b]) => a.localeCompare(b)))} : {}),
-  score_metric:JSON.stringify([model.score_metric ?? 'Unknown metric',model.score_unit==='fraction'?'percent':model.score_unit ?? 'native',...(model.benchmark_version?[model.benchmark_version]:[])])
-}).toString();
-const epochRunSettings = (model: any) => Object.entries(model.conditions ?? {})
-  .filter(([key])=>/^(agent|agent version|harness|harness version|reasoning effort|livebench version|metr version)$/i.test(key))
-  .map(([,value])=>String(value)).join(' · ');
+const epochRunHref = (model:any,metric:string)=>benchmarkRecordHref(model,model.metric_key??metric);
+const epochRunSettings = benchmarkRunSettings;
 
 const openRouterToolModels = openRouterModels.filter((model) =>
   model.supported_parameters.includes("tools"),
@@ -2058,6 +2052,7 @@ function getScoreClass(score: number | null | undefined): string {
 </script>
 
 <script>
+import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings} from '../lib/benchmark-leaderboard';
   // @ts-nocheck
   import { findAaComparableCoverageLeader } from "../lib/data-integrity";
   import {
@@ -2859,16 +2854,9 @@ function getScoreClass(score: number | null | undefined): string {
       });
 
       sortEpochBenchmarksByValue(epochBenchmarks).forEach((benchmark) => {
-        const key = `epoch_${benchmark.slug}`;
-        const list = epochRuns
-          .filter(
-            (run) =>
-              run.benchmark_slug === benchmark.slug &&
-              hasFiniteMetricValue(run.score),
-          )
-          .sort((a, b) => Number(b.score) - Number(a.score))
-          .slice(0, 5)
-          .map((run) => ({
+        buildBenchmarkCohorts(benchmark,epochRuns).forEach(cohort=>{
+        const key=cohort.key;
+        const list=cohort.runs.slice(0,5)          .map((run) => ({
             name: String(run.model_version || "")
               .replace(/_/g, " ")
               .replace(/-/g, " "),
@@ -2876,6 +2864,7 @@ function getScoreClass(score: number | null | undefined): string {
             score: parseFiniteMetricValue(run.score) ?? 0,
             score_metric: run.score_metric,
             source_key: run.source_key,
+            metric_key:cohort.metricKey,
             score_unit: run.score_unit ?? 'native',
             model_version: run.model_version,
             benchmark_version: run.benchmark_version ?? null,
@@ -2886,9 +2875,10 @@ function getScoreClass(score: number | null | undefined): string {
         topByBenchmark[key] = list;
         epochConfigs.push({
           key,
-          label: `${EPOCH_BENCHMARK_LABELS[benchmark.slug] || benchmark.name} (Epoch)`,
+          label: cohort.label,
           source: "epoch",
           scoreMetric: list[0]?.score_metric ?? null,
+        });
         });
       });
 
@@ -2979,10 +2969,10 @@ function getScoreClass(score: number | null | undefined): string {
               const scoreText = formatBenchmarkScore(score, model);
               const name = escapeHtml(toDisplayName(model.name));
               const company = escapeHtml(
-                toDisplayName(model.company_name, "Unknown provider"),
+                benchmarkRunSettings(model)||toDisplayName(model.company_name, "Unknown provider"),
               );
               const rowAction = isEpoch
-                ? `data-compare-href="/compare?${escapeHtml(new URLSearchParams({source:model.source_key?"publisher":"epoch-ai",record:model.model_version,chart:"benchmark",metric:config.key}).toString())}"`
+                ? `data-compare-href="${escapeHtml(benchmarkRecordHref(model,model.metric_key??config.key))}"`
                 : `data-model-id="${escapeHtml(model.id)}"`;
               const rankBadge =
                 index === 0
