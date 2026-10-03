@@ -72,7 +72,7 @@ The output is `public/data/epoch-benchmark-snapshot.json`. Dashboard and compari
 
 ## PoliBench snapshot
 
-`public/data/polibench-snapshot.json` derives from [`src/data/liveBenchmark.generated.json`](https://github.com/JonathanRReed/Poli-bench/blob/f49763cdbca9387d823ba19578992434b5ac04b0/src/data/liveBenchmark.generated.json) at commit `f49763cdbca9387d823ba19578992434b5ac04b0`. That artifact was generated at `2026-08-30T07:15:38.021Z` for the `full` suite. It contains 103 models, 103 model rows, and 110 run receipts.
+`public/data/polibench-snapshot.json` derives from [`src/data/liveBenchmark.generated.json`](https://github.com/JonathanRReed/Poli-bench/blob/7faa5014a9942501831e50ac6588e9f519924823/src/data/liveBenchmark.generated.json) at commit `7faa5014a9942501831e50ac6588e9f519924823`. That artifact was generated at `2026-10-02T22:36:56.284Z` for the `full` suite. It contains 113 models, 113 model rows, and 118 run receipts.
 
 Refresh from a sibling `../Poli-bench` checkout:
 
@@ -82,7 +82,7 @@ bun run sync:polibench
 
 The transform preserves source model slugs, providers, and labels without matching models across sources. Robustness, completion and parse validity, stability, contradiction consistency, resolution, cost per completed response, p95 latency, and political axes stay in separate fields.
 
-These are live model-output measurements, not human validation, external validation, or a frozen paper release. Cite PoliBench's [`CITATION.cff`](https://github.com/JonathanRReed/Poli-bench/blob/f49763cdbca9387d823ba19578992434b5ac04b0/CITATION.cff) with the exact source commit. That checkout states no dataset license for the artifact.
+These are live model-output measurements, not human validation, external validation, or a frozen paper release. Cite PoliBench's [`CITATION.cff`](https://github.com/JonathanRReed/Poli-bench/blob/7faa5014a9942501831e50ac6588e9f519924823/CITATION.cff) with the exact source commit. That checkout states no dataset license for the artifact.
 
 ## Credits and licensing
 
