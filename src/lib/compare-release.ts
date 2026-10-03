@@ -9,7 +9,7 @@ const object=(value:unknown):value is Record<string,unknown>=>Boolean(value)&&ty
 const text=(value:unknown):value is string=>typeof value==='string'&&value.length>0&&value.length<=2048;
 const date=(value:unknown)=>value===null||typeof value==='string'&&Number.isFinite(Date.parse(value));
 const nullableText=(value:unknown)=>value===null||text(value);
-const sources=new Set(['artificial-analysis','epoch-ai','openrouter','huggingface','litellm','polibench','openrouter-usage','livebench','weirdml','posttrainbench','terminal-bench','osworld']);
+const sources=new Set(['artificial-analysis','epoch-ai','openrouter','huggingface','litellm','polibench','openrouter-usage','livebench','weirdml','posttrainbench','terminal-bench','osworld','proofbench','blueprint-bench','apex-agents']);
 export function readCompareRelease(value:unknown):CompareReleaseManifest{
  if(!object(value)||![RELEASE_SCHEMA,LEGACY_RELEASE_SCHEMA].includes(value.schemaVersion as typeof RELEASE_SCHEMA)||typeof value.datasetRevision!=='string'||!/^[a-f0-9]{64}$/.test(value.datasetRevision)||!text(value.generatedAt)||!date(value.generatedAt)||!object(value.delivery))throw new Error('Invalid release manifest');
  const delivery=value.delivery,catalog=delivery.catalog;

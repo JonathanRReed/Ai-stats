@@ -1,5 +1,5 @@
 import {expect,test} from 'bun:test';
-import {buildComparePresets,availableCompareCharts,availableAaMetrics,nextCatalogSource} from './compare-presets';
+import {buildComparePresets,selectAaBenchmarkModels,availableCompareCharts,availableAaMetrics,nextCatalogSource} from './compare-presets';
 import type {ExplorerModel} from './compare-series';
 const aa=(id:string,extra:Partial<ExplorerModel>={}):ExplorerModel=>({id,name:id,family:id,provider:id,source:'aa',sourceModelId:id,current:true,indexVersion:'4.3',intelligence:50,coding:60,priceBlended:0.5,...extra});
 test('presets use current same-version measured rows with explicit criteria',()=>{
@@ -23,4 +23,13 @@ test('turning off history resets a source that has no current records',()=>{
  const rows=[aa('old',{current:false}),{...aa('or'),source:'openrouter' as const}];
  expect(nextCatalogSource(rows,'aa',false)).toBe('all');
  expect(nextCatalogSource(rows,'aa',true)).toBe('aa');
+});
+
+test('historical-only AA metrics are not offered as current benchmark choices',()=>{const old={id:'old',name:'Old',family:'Old',source:'aa' as const,sourceModelId:'old',current:false,metrics:{aime:90}};expect(availableAaMetrics([old])).toEqual([]);});
+
+test('switching from a publisher benchmark selects measured current AA records',()=>{
+ const rows:ExplorerModel[]=[{id:'p',name:'Publisher',family:'P',source:'publisher',sourceModelId:'p',current:true},{id:'a',name:'AA',family:'A',source:'aa',sourceModelId:'a',current:true,intelligence:40,coding:0},{id:'old',name:'Old',family:'Old',source:'aa',sourceModelId:'old',current:false,intelligence:90}];
+ expect(selectAaBenchmarkModels(rows,'aa_intelligence_index')).toEqual(['a']);
+ expect(selectAaBenchmarkModels(rows,'aa_coding_index')).toEqual(['a']);
+ expect(selectAaBenchmarkModels(rows,'aime')).toEqual([]);
 });

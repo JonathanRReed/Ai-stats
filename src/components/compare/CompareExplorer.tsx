@@ -5,7 +5,7 @@ import {buildCompareSeries,epochScoreKey,type ExplorerModel} from '../../lib/com
 import {epochConditionKey,type EpochObservation} from '../../lib/epoch-observations';
 import {formatChartNumber} from '../../lib/compare-geometry';
 import {seriesCsv,downloadText,downloadChartPng,chartExportCaption} from '../../lib/compare-export';
-import {availableCompareCharts,availableAaMetrics,buildComparePresets,COMPARE_VIEW_LABELS} from '../../lib/compare-presets';
+import {availableCompareCharts,availableAaMetrics,selectAaBenchmarkModels,buildComparePresets,COMPARE_VIEW_LABELS} from '../../lib/compare-presets';
 import {expandCatalog,createMeasurementLoader,type CompareDelivery} from '../../lib/compare-delivery';
 import ComparisonChart from './ComparisonChart';
 import ModelSelector from './ModelSelector';
@@ -82,7 +82,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
     onReasoning:(value:string)=>update({reasoningEfforts:value==='all'?[]:state.reasoningEfforts.includes(value)
       ?state.reasoningEfforts.filter(reason=>reason!==value):[...state.reasoningEfforts,value]}),onClear:()=>update({modelIds:[]}),onReset:reset};
   const chooseMeasured=()=>update(benchmarkStartingSelection(visibleModels,observations.filter(row=>!state.conditionKey||epochConditionKey(row.conditions)===state.conditionKey),state.scoreMetricKey));
-  const chooseBenchmark=(metricId:string)=>{const slug=metricId.startsWith('epoch_')?metricId.slice(6):null;const rows=slug?readBenchmarkCache(benchmarkCache,slug):null;pendingBenchmarkChoice.current=rows?null:slug;update({metricId,conditionKey:null,scoreMetricKey:null,...(rows?{...benchmarkStartingSelection(models,rows),missingModelIds:[]}: {})});};
+  const chooseBenchmark=(metricId:string)=>{const slug=metricId.startsWith('epoch_')?metricId.slice(6):null;const rows=slug?readBenchmarkCache(benchmarkCache,slug):null;pendingBenchmarkChoice.current=rows?null:slug;if(!slug){update({metricId,conditionKey:null,scoreMetricKey:null,modelIds:selectAaBenchmarkModels(measuredModels,metricId),missingModelIds:[]});return;}update({metricId,conditionKey:null,scoreMetricKey:null,...(rows?{...benchmarkStartingSelection(models,rows),missingModelIds:[]}: {})});};
   const share=async()=>{try{const url=new URL(window.location.href);url.search=serializeCompareState(state).toString();
     await navigator.clipboard.writeText(url.href);setNotice('Comparison link copied.');}catch{setNotice('Copy the address bar to share this comparison.');}};
   const metricName=state.chart==='benchmark'?(epochSlug?benchmarks.find(item=>item.slug===epochSlug)?.name??state.metricId:

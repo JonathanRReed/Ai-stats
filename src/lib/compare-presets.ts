@@ -12,7 +12,7 @@ export function availableCompareCharts(models:ExplorerModel[]){
  model.source==='aa'&&finite(model.intelligence)&&nonnegative(view.id==='task-cost'?model.aaTaskCost:model.aaEvaluationCost)));
 }
 export function availableAaMetrics(models:ExplorerModel[]){
- return Object.entries(AA_METRIC_LABELS).filter(([key])=>models.some(model=>model.source==='aa'&&finite(
+ return Object.entries(AA_METRIC_LABELS).filter(([key])=>models.some(model=>model.source==='aa'&&model.current!==false&&finite(
  key==='aa_intelligence_index'?model.intelligence:key==='aa_coding_index'?model.coding:model.metrics?.[key])));
 }
 export function nextCatalogSource(models:ExplorerModel[],source:string,includeHistory:boolean):string{
@@ -48,4 +48,9 @@ export function buildComparePresets(models:ExplorerModel[]):ComparePreset[]{
  chart:'price',metricId:'aa_intelligence_index',modelIds:diverse(models.filter(model=>model.source==='openrouter'&&model.current===true&&
  model.sourceModelId.endsWith(':free')&&model.priceInput===0&&model.priceOutput===0&&model.inputModalities?.includes('text')&&model.outputModalities?.includes('text')).sort(byId))},
  ];return presets.filter(preset=>preset.modelIds.length);
+}
+
+export function selectAaBenchmarkModels(models:ExplorerModel[],metricId:string,limit=8):string[]{
+ const value=(model:ExplorerModel)=>metricId==='aa_intelligence_index'?model.intelligence:metricId==='aa_coding_index'?model.coding:model.metrics?.[metricId];
+ return models.filter(model=>model.source==='aa'&&model.current!==false&&finite(value(model))).sort((a,b)=>Number(value(b))-Number(value(a))||a.id.localeCompare(b.id)).slice(0,limit).map(model=>model.id);
 }

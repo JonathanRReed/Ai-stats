@@ -3,7 +3,7 @@ import path from 'node:path';
 import type {ExplorerModel} from './compare-series';
 import type {EpochBenchmark,EpochBenchmarkRun} from './supabase';
 
-export const PUBLISHER_NAMES:Record<string,string>={livebench:'LiveBench',weirdml:'WeirdML',posttrainbench:'PostTrainBench','terminal-bench':'Terminal-Bench',osworld:'OSWorld'};
+export const PUBLISHER_NAMES:Record<string,string>={livebench:'LiveBench',weirdml:'WeirdML',posttrainbench:'PostTrainBench','terminal-bench':'Terminal-Bench',osworld:'OSWorld',proofbench:'ProofBench','blueprint-bench':'Blueprint-Bench','apex-agents':'APEX-Agents'};
 export type PublisherRecord={systemId:string;modelId:string;label:string;provider?:string;benchmarkSlug:string;benchmarkVersion:string;metric:string;unit:'percent'|'fraction'|'points';score:number;higherIsBetter:boolean;conditions:Record<string,unknown>;evaluatedAt:string|null;sourceUrl:string};
 export type PublisherSnapshot={schemaVersion:1;sourceKey:string;fetchedAt:string;observedAt:string|null;benchmarkVersion:string;sourceUrl:string;refreshMode?:string;records:PublisherRecord[]};
 const object=(value:unknown):value is Record<string,unknown>=>Boolean(value)&&typeof value==='object'&&!Array.isArray(value);
