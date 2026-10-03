@@ -20,8 +20,8 @@ test('missing usage source is honest and has no fabricated chart',()=>{
 });
 test('Stats hero is concise while methodology remains available',()=>{
  const source=readFileSync('src/components/LatestModelsStrip.astro','utf8');
- expect(source).toContain('<h1>Compare AI models</h1>');
- expect(source).toContain('Benchmarks, pricing and speed, with sources you can check.');
+ expect(readFileSync('src/components/Dashboard.astro','utf8')).toContain('<h1>AI model stats</h1>');
+ expect(source).not.toContain('latest-models-opening');
  expect(source).toContain('<summary>Selection and measurement details</summary>');
  expect(source).not.toContain('There is no combined score and no winner.');
 });

@@ -11,27 +11,31 @@ const latestModelsSource = readPendingSource("src/components/LatestModelsStrip.a
 const sourceHealthSource = readPendingSource("src/components/SourceHealthStrip.astro");
 const overviewSource = readPendingSource("src/components/IntelligenceOverview.astro");
 
-test("the homepage renders a current benchmark snapshot before the evidence lens and deeper content", () => {
-  const latestModelsIndex = dashboardSource.indexOf("<LatestModelsStrip");
-  const workbenchIndex = dashboardSource.indexOf("<TaskWorkbench");
-  const sourceHealthIndex = dashboardSource.indexOf("<SourceHealthStrip");
-  const overviewIndex = dashboardSource.indexOf("<IntelligenceOverview");
-
-  expect(latestModelsIndex).toBeGreaterThan(-1);
-  expect(workbenchIndex).toBeGreaterThan(latestModelsIndex);
-  expect(sourceHealthIndex).toBeGreaterThan(workbenchIndex);
-  expect(overviewIndex).toBeGreaterThan(sourceHealthIndex);
-  expect(dashboardSource.indexOf('aria-label="Public catalog collections"')).toBeGreaterThan(overviewIndex);
+test("Stats has a clear Overview, Benchmarks, Usage order before optional details", () => {
+  const overview = dashboardSource.indexOf('id="stats-overview"');
+  const benchmarks = dashboardSource.indexOf('id="stats-benchmarks"');
+  const usage = dashboardSource.indexOf('id="stats-usage"');
+  const sources = dashboardSource.indexOf('id="stats-sources"');
+  expect(overview).toBeGreaterThan(-1);
+  expect(benchmarks).toBeGreaterThan(overview);
+  expect(usage).toBeGreaterThan(benchmarks);
+  expect(sources).toBeGreaterThan(usage);
+  expect(dashboardSource).toContain('aria-label="Stats sections"');
+  for (const id of ['stats-sources','stats-profiles','stats-models']) {
+    expect(dashboardSource).toMatch(new RegExp('<details[^>]*id="' + id + '"[^>]*>'));
+    expect(dashboardSource).not.toMatch(new RegExp('<details[^>]*id="' + id + '"[^>]*\\\\bopen\\\\b'));
+  }
+  expect(dashboardSource.indexOf('<SourceHealthStrip')).toBeGreaterThan(sources);
 });
 
 test("the model snapshot explains its evidence filter and links into comparison", () => {
   expect(latestModelsSource).toContain('aria-label="Current benchmark snapshot"');
-  expect(latestModelsSource).toContain("<h1");
-  expect(latestModelsSource).toContain("AI model benchmark snapshot");
+  expect(dashboardSource).toContain("<h1>AI model stats</h1>");
+  expect(latestModelsSource).not.toContain("<h1");
+  expect(latestModelsSource).toContain("Leading models");
   expect(latestModelsSource).toContain("One recent model per provider");
   expect(latestModelsSource).toContain("ordered by AA Index");
   expect(latestModelsSource).toContain("number of available measurements");
-  expect(latestModelsSource).toContain("First tracked");
   expect(latestModelsSource).toContain("does not recommend a model");
   expect(latestModelsSource).toContain('href={compareRecordHref(model.id)}');
   expect(latestModelsSource).not.toContain("latest-model-order");
