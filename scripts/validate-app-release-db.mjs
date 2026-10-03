@@ -6,7 +6,7 @@ const {PGlite}=await import(modulePath);const db=new PGlite();
 try{
  await db.exec('create role anon; create role authenticated; create role service_role bypassrls; grant usage on schema public to anon,authenticated,service_role;');
  await db.exec(await readFile('supabase/migrations/20261002200437_independent_app_release_cache.sql','utf8'));
- await db.exec(await readFile('supabase/migrations/20261003154125_publisher_release_protocol_v2.sql','utf8'));
+ await db.exec(await readFile('supabase/migrations/20261003173339_publisher_release_protocol_v2.sql','utf8'));
  const config=(await db.query("select proconfig from pg_proc where proname='publish_app_release'")).rows[0].proconfig;
  assert.ok(config.includes('statement_timeout=30s'));assert.ok(config.some(value=>value.startsWith('search_path=')));
  const manifest={datasetRevision:'d'.repeat(64),schemaVersion:'ai-stats-compare-release.v1',generatedAt:'2026-10-02T12:00:00.000Z',models:[{id:'a'},{id:'b'}],defaultModelIds:['a','b'],delivery:{catalog:{rows:[['a'],['b']]}}};
