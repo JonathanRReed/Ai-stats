@@ -51,7 +51,7 @@ async function load(){
  const snapshots:PublisherSnapshot[]=[];
  for(const source of Object.keys(PUBLISHER_NAMES)){
   try{snapshots.push(validatePublisherSnapshot(JSON.parse(await readFile(path.join(process.cwd(),'public/data/publisher-benchmarks',source+'.json'),'utf8')),source));}
-  catch(error){if(!(error&&typeof error==='object'&&'code' in error&&error.code==='ENOENT'))console.warn('Publisher snapshot unavailable:',source);}
+  catch{throw new Error('Required publisher snapshot unavailable: '+source);}
  }
  return adaptPublisherEvidence(snapshots);
 }

@@ -142,7 +142,7 @@ const definitionFacts = [
     ? `${totalModels.toLocaleString("en-US")} current measured models with input, output, and blended token prices`
     : null,
   epochRuns.length > 0
-    ? `${epochModels.length.toLocaleString("en-US")} models scored across ${epochBenchmarksWithRuns.length} Epoch AI benchmarks in ${epochRuns.length.toLocaleString("en-US")} recorded runs`
+    ? `${catalog.epoch.epochModels.length.toLocaleString("en-US")} models scored across ${catalog.epoch.epochBenchmarks.length} Epoch AI benchmarks in ${catalog.epoch.epochRuns.length.toLocaleString("en-US")} recorded runs`
     : null,
   openRouterTotal > 0
     ? `${openRouterTotal.toLocaleString("en-US")} OpenRouter models routed through ${openRouterProviders.length} providers`
@@ -376,7 +376,7 @@ function getScoreClass(score: number | null | undefined): string {
       <a href="#stats-sources">Sources</a>
     </nav>
     <section id="stats-overview" class="stats-section" aria-label="Overview">
-      <IntelligenceOverview models={currentMeasuredModels} epochModels={epochModels} epochBenchmarks={epochBenchmarks} epochRuns={epochRuns} polibench={publicPoliBenchSnapshot} freshness={dataFreshness} />
+      <IntelligenceOverview models={currentMeasuredModels} epochModels={catalog.epoch.epochModels} epochBenchmarks={catalog.epoch.epochBenchmarks} epochRuns={catalog.epoch.epochRuns} polibench={publicPoliBenchSnapshot} freshness={dataFreshness} />
       <LatestModelsStrip models={benchmarkSnapshotModels} />
     </section>
     <section id="stats-benchmarks" class="stats-section" aria-label="Benchmarks">

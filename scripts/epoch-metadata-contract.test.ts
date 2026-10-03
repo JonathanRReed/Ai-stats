@@ -25,3 +25,8 @@ test('explicit benchmark versions and agents survive normalization and publicati
  expect(p.score_unit).toBe('fraction');
  expect(p.conditions).toMatchObject({Version:'v1.1'});
 });
+
+test('sub-unit ECI ceilings preserve the source fraction and percent storage units',()=>{
+ expect(normalizeEpochRecord({'Model version':'m','mean_score':'.4'},'frontiermath',{metadata:{score_column:'mean_score',scale:'1',score_ceiling:'.57'}})?.unit).toBe('fraction');
+ expect(normalizeEpochRecord({'Model version':'m',Score:'63.3'},'lmca_external',{metadata:{score_column:'Score',scale:'.01',score_ceiling:'.85'}})?.unit).toBe('percent');
+});

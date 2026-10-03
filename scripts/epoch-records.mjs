@@ -112,8 +112,8 @@ export function buildPublicEpochRun(run, benchmarkSlug, context = {}) {
 export function getEpochStoredUnit(slug, metric, metadata = null) {
   if (metric && metric === text(metadata?.score_column)) {
     const scale = number(metadata.scale), ceiling = number(metadata.score_ceiling);
-    if (ceiling === 1 && scale === 1) return 'fraction';
-    if (ceiling === 1 && scale === 0.01) return 'percent';
+    if (ceiling > 0 && ceiling <= 1 && scale === 1) return 'fraction';
+    if (ceiling > 0 && ceiling <= 1 && scale === 0.01) return 'percent';
     return 'native';
   }
   // Verified legacy contracts, for callers without the archive metadata.
