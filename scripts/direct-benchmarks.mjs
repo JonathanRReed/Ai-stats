@@ -194,3 +194,20 @@ export function normalizeGdpPdf(html,fetchedAt){
  });
  return {schemaVersion:1,sourceKey:'gdp-pdf',fetchedAt:timestamp(fetchedAt),observedAt:null,benchmarkVersion:'unversioned',sourceUrl:'https://surgehq.ai/benchmarks/gdp-pdf',records:nonempty(records)};
 }
+
+export function normalizeTerminalBench(payload,fetchedAt){
+ if(payload?.name!=='4-0-0'||payload.visibility!=='public'||!Array.isArray(payload.rows)||!payload.rows.length)throw new Error('Unsupported public Terminal-Bench release');
+ const records=payload.rows.filter(row=>row.status==='display').map(row=>{
+  const meta=row.metadata,metrics=row.metrics;
+  if(!text(row.id)||row.leaderboard_id!==payload.id||!text(meta?.agent_display?.label)||!text(meta?.model_display?.label)||!text(meta?.reasoning_effort)||!finite(metrics?.accuracy)||metrics.accuracy<0||metrics.accuracy>100||!Number.isSafeInteger(metrics.n_trials)||metrics.n_trials<=0)throw new Error('Invalid Terminal-Bench result');
+  return {systemId:'terminal-bench:4.0.0:'+row.id,modelId:meta.model_display.label,label:meta.model_display.label,provider:text(meta.model_org?.label)??undefined,
+   benchmarkSlug:'terminal-bench',benchmarkVersion:'4.0.0',metric:'Accuracy',unit:'percent',score:metrics.accuracy,higherIsBetter:true,
+   conditions:{agent:meta.agent_display.label,reasoningEffort:meta.reasoning_effort,trials:metrics.n_trials},
+   confidence95HalfWidth:finite(metrics.accuracy_ci95_half_width)?metrics.accuracy_ci95_half_width:null,
+   totalTokens:finite(metrics.total_tokens)?metrics.total_tokens:null,totalCostUsd:finite(metrics.total_cost_usd)?metrics.total_cost_usd:null,
+   publisherRowId:row.id,evaluatedAt:null,sourceUrl:'https://hub.harborframework.com/datasets/terminal-bench/terminal-bench/latest?leaderboard=4-0-0&tab=leaderboard'};
+ });
+ const dates=payload.rows.map(row=>row.updated_at).filter(value=>typeof value==='string'&&Number.isFinite(Date.parse(value)));
+ return {schemaVersion:1,sourceKey:'terminal-bench',fetchedAt:timestamp(fetchedAt),observedAt:dates.length?new Date(Math.max(...dates.map(Date.parse))).toISOString():null,benchmarkVersion:'4.0.0',refreshMode:'automatic',
+  sourceUrl:'https://hub.harborframework.com/datasets/terminal-bench/terminal-bench/latest?leaderboard=4-0-0&tab=leaderboard',records:nonempty(records)};
+}

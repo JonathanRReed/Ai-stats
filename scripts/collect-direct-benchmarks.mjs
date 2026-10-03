@@ -2,16 +2,16 @@ import {mkdir,readFile,writeFile,rename} from 'node:fs/promises';
 import path from 'node:path';
 import {validatePublisherSnapshot} from '../src/lib/publisher-evidence.ts';
 import {pathToFileURL} from 'node:url';
-import {normalizeLiveBench,normalizeWeirdML,normalizePostTrainBench,normalizeOSWorld,normalizeProofBench,normalizeBlueprintBench,normalizeApexAgents,normalizeGdpPdf,publisherContentHash} from './direct-benchmarks.mjs';
+import {normalizeLiveBench,normalizeWeirdML,normalizePostTrainBench,normalizeOSWorld,normalizeProofBench,normalizeBlueprintBench,normalizeApexAgents,normalizeGdpPdf,normalizeTerminalBench,publisherContentHash} from './direct-benchmarks.mjs';
 
 const LIVEBENCH_AVERAGING_SHA='8048d175739ea66e8069711ff6e572c684cfc75b';
-const SOURCE_KEYS=['livebench','weirdml','posttrainbench','osworld','proofbench','blueprint-bench','apex-agents','gdp-pdf'];
+const SOURCE_KEYS=['livebench','weirdml','posttrainbench','osworld','proofbench','blueprint-bench','apex-agents','gdp-pdf','terminal-bench'];
 /** Public, unauthenticated reads only; each failed source retains its prior artifact. */
 export async function collectDirectBenchmarks({fetchImpl=(input,init)=>globalThis.fetch(input,init),now=()=>new Date().toISOString(),sources=SOURCE_KEYS}={}){
  if(!Array.isArray(sources)||!sources.length||sources.some(source=>!SOURCE_KEYS.includes(source)))throw new Error('Unknown direct benchmark source');
  const fetchedAt=now();
- const read=async(url,json=true)=>{
-  const response=await fetchImpl(url,{headers:{Accept:json?'application/json':'text/plain'},signal:AbortSignal.timeout(30000)});
+ const read=async(url,json=true,init={})=>{
+  const response=await fetchImpl(url,{...init,headers:{Accept:json?'application/json':'text/plain',...init.headers},signal:AbortSignal.timeout(30000)});
   if(!response.ok)throw new Error('Publisher fetch failed ('+response.status+')');
   if(Number(response.headers.get('content-length'))>32*1024*1024)throw new Error('Publisher response exceeds size limit');
   const body=await response.text();
@@ -36,6 +36,35 @@ export async function collectDirectBenchmarks({fetchImpl=(input,init)=>globalThi
    const version=latest.slice(6,-4).replaceAll('_','-');
    const [csv,categories]=await Promise.all([read(repo.raw('public/'+latest),false),read(repo.raw('public/'+latest.replace('table_','categories_').replace('.csv','.json')))]);
    return normalizeLiveBench({version,categories,csv,commit:repo.sha,fetchedAt});
+  },
+  'terminal-bench':async()=>{
+   const origin='https://hub.harborframework.com',url=origin+'/datasets/terminal-bench/terminal-bench/latest?leaderboard=4-0-0&tab=leaderboard';
+   const html=await read(url,false),flights=[];
+   for(const match of html.matchAll(/<script>self\.__next_f\.push\((\[[\s\S]*?\])\)<\/script>/g)){
+    try{const block=JSON.parse(match[1]);if(block[0]===1&&typeof block[1]==='string')flights.push(block[1]);}catch{/* Other bootstrap records are not leaderboard data. */}
+   }
+   const lines=flights.join('\n').split('\n');let leaderboards,paths;
+   for(const line of lines){
+    const module=line.match(/^[a-f0-9]+:I(\[.*\])$/);if(module){const value=JSON.parse(module[1]);if(value[2]==='DatasetLeaderboardPanel')paths=value[1];}
+    const element=line.match(/^[a-f0-9]+:(\[.*\])$/);if(element){try{const value=JSON.parse(element[1]);if(Array.isArray(value?.[3]?.leaderboards))leaderboards=value[3].leaderboards;}catch{/* Unrelated flight record. */}}
+   }
+   if(!Array.isArray(leaderboards)||!Array.isArray(paths)||paths.length>30)throw new Error('Terminal-Bench public page schema changed');
+   const current=leaderboards.find(item=>item.name==='4-0-0'&&item.visibility==='public');
+   if(!current||typeof current.id!=='string'||leaderboards.some(item=>/^\d+-\d+-\d+$/.test(item.name)&&item.name.localeCompare('4-0-0',undefined,{numeric:true})>0))throw new Error('Terminal-Bench version changed; review before updating');
+   let action;
+   for(const path of [...paths].reverse()){
+    if(!/^\/_next\/static\/immutable\/chunks\/[a-zA-Z0-9_-]+\.js$/.test(path))throw new Error('Unexpected Terminal-Bench client asset path');
+    const script=await read(origin+path,false);
+    const match=script.match(/\.createServerReference\)\("([a-f0-9]{40,64})",[^)]{0,500},"fetchLeaderboardWithRows"\)/);
+    if(match){action=match[1];break;}
+   }
+   if(!action)throw new Error('Public leaderboard read action changed');
+   // This is the same unauthenticated read action used by the publisher's public page.
+   const response=await read(url,false,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8',Accept:'text/x-component','Next-Action':action},body:JSON.stringify([current.id])});
+   const result=response.split('\n').find(line=>line.startsWith('1:{'));
+   if(!result)throw new Error('Terminal-Bench public result unavailable');
+   const payload=JSON.parse(result.slice(2));if(payload.id!==current.id)throw new Error('Terminal-Bench leaderboard identity changed');
+   return normalizeTerminalBench(payload,fetchedAt);
   },
   'gdp-pdf':async()=>normalizeGdpPdf(await read('https://surgehq.ai/benchmarks/gdp-pdf',false),fetchedAt),
   'apex-agents':async()=>normalizeApexAgents(await read('https://www.mercor.com/apex/apex-agents-leaderboard/?pass=pass-1',false),fetchedAt),
