@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 test('shared provider action opens folded model results before filtering and scrolling',()=>{
  const source=readFileSync('src/components/Dashboard.astro','utf8');
- const body=source.match(/const openOpenRouterProviderRow = \\(row\\) => \\{([\\s\\S]*?)\\n    \\};/)?.[1];
+ const body=source.match(/const openOpenRouterProviderRow = \(row\) => \{([\s\S]*?)\n    \};/)?.[1];
  expect(body).toBeDefined();
  class Details{open=false;}
  const disclosure=new Details();const searchInput={value:''};const states:boolean[]=[];
