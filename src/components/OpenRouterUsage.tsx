@@ -20,7 +20,7 @@ export default function OpenRouterUsage({snapshot,receipt}:Props){
  const dayRefs=useRef<Array<SVGGElement|null>>([]);
  const series=useMemo(()=>snapshot?buildUsageSeries(snapshot,windowDays,selected,mode):null,[snapshot,windowDays,selected,mode]);
  if(!snapshot||!series)return <section className="usage-module usage-unavailable" aria-label="OpenRouter traffic">
-  <h2>OpenRouter traffic</h2><p>Usage history is not available yet.</p></section>;
+  <h2>Usage</h2><p>Usage history is not available yet.</p></section>;
  const keys=[...series.selectedModels,'unselected','other'];
  const active=series.days.find(day=>day.date===activeDate)??series.days.at(-1);
  const ceiling=mode==='share'?100:Math.max(1,...series.days.map(day=>Number(day.totalTokens??0)));
@@ -29,7 +29,7 @@ export default function OpenRouterUsage({snapshot,receipt}:Props){
  const inspect=(index:number)=>{setActiveDate(series.days[index].date);dayRefs.current[index]?.focus();};
  const toggle=(key:string)=>setSelected(current=>current.includes(key)?current.filter(value=>value!==key):current.length<8?[...current,key]:current);
  return <section className="usage-module" aria-labelledby="usage-title">
-  <header className="usage-heading"><div><h2 id="usage-title">OpenRouter traffic</h2>
+  <header className="usage-heading"><div><h2 id="usage-title">Usage</h2>
    <p>Daily tokens across OpenRouter’s public models.</p></div>
    <div className="usage-controls">
     <div role="group" aria-label="Usage window">{[7,30,90].map(days=><button type="button" key={days} aria-pressed={days===windowDays} onClick={()=>setWindowDays(days)}>{days} days</button>)}</div>

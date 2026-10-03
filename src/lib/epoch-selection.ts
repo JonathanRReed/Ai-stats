@@ -12,9 +12,10 @@ export function preferPublishedEpoch<T extends { fetchedAt: string | null; epoch
 }
 
 /** Once available, validated cache and artifact data outrank uncommitted legacy table updates. */
-export function chooseValidatedEpoch<T extends { fetchedAt: string | null; epochRuns: unknown[] }>(
+export function chooseValidatedEpoch<T extends { fetchedAt: string | null; epochRuns: unknown[]; sourceContract?: number }>(
   published: T | null, cached: T | null,
 ): T | null {
   if (!cached?.epochRuns.length) return published;
+  if(published?.epochRuns.length && (published.sourceContract??1)!==(cached.sourceContract??1)) return (published.sourceContract??1)>(cached.sourceContract??1)?published:cached;
   return published && preferPublishedEpoch(published, cached.fetchedAt, cached.epochRuns.length) ? published : cached;
 }

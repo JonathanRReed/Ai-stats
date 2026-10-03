@@ -34,6 +34,7 @@ const normalizeBenchmark = (row: Record<string, unknown>): EpochBenchmark => ({
   name: toStringOrEmpty(row.name || row.slug),
   description: toStringOrNull(row.description),
   source: toStringOrNull(row.source),
+  metadata: row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata) ? row.metadata as Record<string, string | null> : null,
 });
 
 const normalizeModel = (row: Record<string, unknown>): EpochModel => ({
@@ -73,12 +74,14 @@ const normalizeRun = (
     conditions: normalizeEpochConditions(row.conditions),
     evaluation_date: normalizeEpochEvaluationDate(row.evaluation_date),
     score_unit: normalizeEpochScoreUnit(row.score_unit),
+    benchmark_version: toStringOrNull(row.benchmark_version),
     benchmark_name: benchmark?.name ?? toStringOrNull(row.benchmark_name) ?? undefined,
     benchmark_slug: benchmark?.slug ?? benchmarkSlug,
   };
 };
 
 export async function getPublicEpochSnapshot(providedSnapshot?: PublicEpochSnapshot): Promise<{
+  sourceContract?: number;
   fetchedAt: string | null;
   epochBenchmarks: EpochBenchmark[];
   epochModels: EpochModel[];
@@ -104,7 +107,8 @@ export async function getPublicEpochSnapshot(providedSnapshot?: PublicEpochSnaps
 
     if (!epochBenchmarks.length || !epochRuns.length) return null;
     const fetchedAt = snapshot.fetched_at && Number.isFinite(Date.parse(snapshot.fetched_at)) ? snapshot.fetched_at : null;
-    return { fetchedAt, epochBenchmarks, epochModels, epochRuns };
+    const sourceContract = (snapshot.runs ?? []).every(row => Object.hasOwn(row,'benchmark_version')) && epochBenchmarks.some(row => typeof row.metadata?.score_column === 'string') ? 2 : 1;
+    return { sourceContract, fetchedAt, epochBenchmarks, epochModels, epochRuns };
   } catch {
     return null;
   }

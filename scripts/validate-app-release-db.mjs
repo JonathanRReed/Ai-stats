@@ -6,6 +6,9 @@ const {PGlite}=await import(modulePath);const db=new PGlite();
 try{
  await db.exec('create role anon; create role authenticated; create role service_role bypassrls; grant usage on schema public to anon,authenticated,service_role;');
  await db.exec(await readFile('supabase/migrations/20261002200437_independent_app_release_cache.sql','utf8'));
+ await db.exec(await readFile('supabase/migrations/20261003173339_publisher_release_protocol_v2.sql','utf8'));
+ const config=(await db.query("select proconfig from pg_proc where proname='publish_app_release'")).rows[0].proconfig;
+ assert.ok(config.includes('statement_timeout=30s'));assert.ok(config.some(value=>value.startsWith('search_path=')));
  const manifest={datasetRevision:'d'.repeat(64),schemaVersion:'ai-stats-compare-release.v1',generatedAt:'2026-10-02T12:00:00.000Z',models:[{id:'a'},{id:'b'}],defaultModelIds:['a','b'],delivery:{catalog:{rows:[['a'],['b']]}}};
  const assets={m00:{records:[{id:'a'}]},m01:{records:[{id:'b'}]}};
  const publish=async(revision,data=manifest,contents=assets)=>db.query('select public.publish_app_release($1,$2::jsonb,$3::jsonb,$4::jsonb) as revision',[revision,JSON.stringify(data),JSON.stringify(contents),JSON.stringify([])]);
@@ -26,6 +29,10 @@ try{
  assert.equal((await db.query('select count(*)::int as n from public.app_release_cache')).rows[0].n,2);
  await assert.rejects(publish('d'.repeat(64)),/older/i);assert.equal(await current(),'c'.repeat(64));
  await db.query('select public.rollback_app_release($1)', ['b'.repeat(64)]);assert.equal(await current(),'b'.repeat(64));
+ await publish('e'.repeat(64),{...manifest,schemaVersion:'ai-stats-compare-release.v2',generatedAt:'2026-10-02T15:00:00.000Z'});assert.equal(await current(),'e'.repeat(64));
+ await assert.rejects(publish('f'.repeat(64),{...manifest,schemaVersion:'ai-stats-compare-release.v3'}),/manifest/i);
+ await assert.rejects(publish('f'.repeat(64),{...manifest,schemaVersion:null}),/manifest/i);
+ await db.query('select public.rollback_app_release($1)',['b'.repeat(64)]);
  await db.exec('reset role; set role anon');
  assert.equal(await current(),'b'.repeat(64));
  await assert.rejects(publish('d'.repeat(64)),/permission denied/i);

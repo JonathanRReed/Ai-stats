@@ -1,4 +1,7 @@
 export type EpochObservation = {
+  sourceName?: string;
+  sourceKey?: string;
+  benchmarkVersion?: string | null;
   id: string;
   modelVersion: string;
   benchmarkSlug: string;

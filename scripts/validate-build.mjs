@@ -20,8 +20,8 @@ export function validateComparisonBuild(data) {
   }
   for (const id of defaults) {
     const model = models.get(id);
-    if (!model || !Number.isFinite(model.aa_coding_index) || model.isIllustrativeFallback) {
-      throw new Error('Release blocked: a default comparison lacks measured coding evidence.');
+    if (!model || !Number.isFinite(model.aa_intelligence_index) || model.isIllustrativeFallback) {
+      throw new Error('Release blocked: a default comparison lacks measured intelligence evidence.');
     }
   }
   const benchmarks = data.availableBenchmarks;

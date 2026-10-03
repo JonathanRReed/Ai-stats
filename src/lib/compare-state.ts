@@ -1,3 +1,5 @@
+import {epochScoreKey} from './compare-series';
+import type {EpochObservation} from './epoch-observations';
 import {SOURCE_RECORD_TYPES} from './model-identity';
 export const AA_METRIC_LABELS:Record<string,string> = {
  aa_intelligence_index:'Intelligence Index',aa_coding_index:'Coding Index',aa_agentic_index:'Agentic Index',aa_math_index:'Math Index',
@@ -28,7 +30,7 @@ const condition = (value:string|null):string|null => {
 };
 const scoreMetric=(value:string|null):string|null=>{
   if(!value||value.length>1024)return null;
-  try{const parsed=JSON.parse(value);return Array.isArray(parsed)&&parsed.length===2&&parsed.every(item=>typeof item==='string'&&item.length<=512)?JSON.stringify(parsed):null;}catch{return null;}
+  try{const parsed=JSON.parse(value);return Array.isArray(parsed)&&(parsed.length===2||parsed.length===3)&&parsed.every(item=>typeof item==='string'&&item.length<=512)?JSON.stringify(parsed):null;}catch{return null;}
 };
 export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogEntry[],defaults:string[]=[]):CompareState {
   const metric=params.get('metric')??'aa_intelligence_index';
@@ -112,4 +114,21 @@ export const changeScoreMetric=(value:string):Pick<CompareState,'scoreMetricKey'
 /** Group selection is scoped to the exact visible records, not a display-name join. */
 export function selectVisibleRecords(selected:string[],visibleIds:string[],checked:boolean):string[]{
  const ids=new Set(visibleIds);return checked?unique([...selected,...visibleIds]):selected.filter(id=>!ids.has(id));
+}
+
+/** Select only identities with real observations; source-native records are not interchangeable. */
+export function selectBenchmarkModels(catalog:CompareCatalogEntry[],observations:Array<{modelVersion:string;sourceKey?:string;value:number|null}>,limit=8):string[]{
+ const matches=new Set(observations.filter(row=>typeof row.value==='number'&&Number.isFinite(row.value)).map(row=>(row.sourceKey&&row.sourceKey!=='epoch-ai'?'publisher':'epoch')+':'+row.modelVersion));
+ return catalog.filter(model=>model.current!==false&&matches.has(model.source+':'+model.sourceModelId)).slice(0,limit).map(model=>model.id);
+}
+
+/** A deliberate benchmark change starts with one explicit version/metric cohort. Saved links are left untouched. */
+export function benchmarkStartingSelection(catalog:CompareCatalogEntry[],observations:EpochObservation[],requestedMetric?:string|null){
+ const scored=observations.filter(row=>typeof row.value==='number'&&Number.isFinite(row.value));
+ const groups=[...new Set(scored.map(epochScoreKey))].sort((a,b)=>{
+  const va=JSON.parse(a)[2]??'',vb=JSON.parse(b)[2]??'';
+  return vb.localeCompare(va,undefined,{numeric:true})||a.localeCompare(b);
+ });
+ const scoreMetricKey=requestedMetric??groups[0]??null;
+ return {modelIds:selectBenchmarkModels(catalog,scored.filter(row=>epochScoreKey(row)===scoreMetricKey)),scoreMetricKey};
 }

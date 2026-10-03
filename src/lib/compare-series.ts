@@ -3,14 +3,14 @@ import {epochConditionKey,type EpochObservation} from './epoch-observations';
 
 export type ExplorerModel = {
   id:string; name:string; slug?:string; family:string; provider?:string; reasoning?:string;
-  source:'aa'|'epoch'|'openrouter'|'huggingface'|'litellm'|'catalog'; sourceModelId:string; current:boolean|null;
+  source:'aa'|'epoch'|'openrouter'|'huggingface'|'litellm'|'catalog'|'publisher'; sourceModelId:string; current:boolean|null;
   intelligence?:number|null; coding?:number|null; priceInput?:number|null; priceOutput?:number|null;
   aaTaskCost?:number|null; aaEvaluationCost?:number|null; inputModalities?:string[]; outputModalities?:string[];
   priceBlended?:number|null; outputSpeed?:number|null; latency?:number|null;
   indexVersion?:string|null; performancePrompt?:string|null; observedAt?:string|null; fetchedAt?:string|null; sourceUrl?:string|null;
   metrics?:Record<string,number|null>; hasTokenPrices?:boolean; detailAvailable?:boolean;
 };
-export const EXPLORER_SOURCE_LABELS:Record<ExplorerModel['source'],string>={aa:'Artificial Analysis',epoch:'Epoch AI',openrouter:'OpenRouter',huggingface:'Hugging Face',litellm:'LiteLLM',catalog:'Database inventory'};
+export const EXPLORER_SOURCE_LABELS:Record<ExplorerModel['source'],string>={aa:'Artificial Analysis',epoch:'Epoch AI',openrouter:'OpenRouter',huggingface:'Hugging Face',litellm:'LiteLLM',catalog:'Database inventory',publisher:'Original publishers'};
 export type ExplorerEvidence = {models:ExplorerModel[]; observations:EpochObservation[]};
 export type EvidenceReceipt = {
   source:string; sourceUrl:string|null; observedAt:string|null; fetchedAt:string|null;
@@ -44,7 +44,7 @@ export function paretoFrontiers<T extends {id:string;x:number;y:number;cohortKey
     !group.some(other=>other.id!==point.id&&(direction==='min'?other.x<=point.x:other.x>=point.x)&&other.y>=point.y&&
       (other.x!==point.x||other.y!==point.y))).sort((a,b)=>a.x-b.x||a.id.localeCompare(b.id)).map(point=>point.id)]));
 }
-export const epochScoreKey=(row:Pick<EpochObservation,'metricKey'|'unit'>)=>JSON.stringify([row.metricKey??'Unknown metric',row.unit==='fraction'?'percent':row.unit]);
+export const epochScoreKey=(row:Pick<EpochObservation,'metricKey'|'unit'|'benchmarkVersion'>)=>JSON.stringify([row.metricKey??'Unknown metric',row.unit==='fraction'?'percent':row.unit,...(row.benchmarkVersion?[row.benchmarkVersion]:[])]);
 export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState):CompareSeries {
   const result:CompareSeries={available:true,unavailableReason:null,kind:['cost-intelligence','speed-intelligence','task-cost','total-cost'].includes(state.chart)?'scatter':'bars',
     points:[],excluded:[],xLabel:'Model',yLabel:'Value',scale:state.scale,scaleNotice:null,mixedConditions:false,
@@ -53,7 +53,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
   const models=evidence.models.filter(model=>{
     if(!selected.has(model.id))return false;
     const source=state.chart==='benchmark'&&state.metricId.startsWith('epoch_')?'epoch':'aa';
-    if(state.chart!=='price'&&model.source!==source){result.excluded.push({modelId:model.id,reason:source==='epoch'?'Choose an Epoch record for this benchmark':'No AA measurements for this source record'});return false;}
+    if(state.chart!=='price'&&model.source!==source&&!(source==='epoch'&&model.source==='publisher')){result.excluded.push({modelId:model.id,reason:source==='epoch'?'Choose a measured source record for this benchmark':'No AA measurements for this source record'});return false;}
     let reason:string|null=null;
     if(model.current===false&&!state.includeHistory)reason='Historical observation';
     else if(model.source==='aa'&&state.reasoningEfforts.length&&!state.reasoningEfforts.includes(model.reasoning??'unknown'))reason='Reasoning filter';
@@ -69,7 +69,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
   };
   if(state.chart==='benchmark'&&state.metricId.startsWith('epoch_')){
     const slug=state.metricId.slice(6);
-    const versions=new Map(models.filter(model=>model.source==='epoch').map(model=>[model.sourceModelId,model]));
+    const versions=new Map(models.filter(model=>(model.source==='epoch'||model.source==='publisher')).map(model=>[model.sourceModelId,model]));
     const rows=evidence.observations.filter(row=>versions.has(row.modelVersion)&&row.benchmarkSlug===slug&&finite(row.value)&&
       (!state.conditionKey||epochConditionKey(row.conditions)===state.conditionKey)&&
       (!state.scoreMetricKey||epochScoreKey(row)===state.scoreMetricKey));
@@ -84,13 +84,14 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
       const model=versions.get(row.modelVersion)!;
       const unit=row.unit==='fraction'||row.unit==='percent'?'percent':row.metricKey??'Source-native score';
       add(model,index,row.value!*(row.unit==='fraction'?100:1),'observation',unit,
-        {source:'Epoch AI',sourceUrl:sourceUrl(row.sourceUrl),observedAt:row.evaluationDate,fetchedAt:row.fetchedAt,
-          indexVersion:null,conditions:row.conditions,snapshotId:row.snapshotId},
-        model.id+':'+row.id,row.conditions===null?null:slug+':'+epochConditionKey(row.conditions));
+        {source:row.sourceName??'Epoch AI',sourceUrl:sourceUrl(row.sourceUrl),observedAt:row.evaluationDate,fetchedAt:row.fetchedAt,
+          indexVersion:row.benchmarkVersion??null,conditions:row.conditions,snapshotId:row.snapshotId},
+        model.id+':'+row.id,row.conditions===null||!row.benchmarkVersion?null:slug+':'+row.benchmarkVersion+':'+epochScoreKey(row)+':'+epochConditionKey(row.conditions));
     });
     result.yLabel=rows[0]?.unit==='fraction'||rows[0]?.unit==='percent'?'Score (%)':rows[0]?.metricKey??'Source-native score';
+    if(slug==='btf3_external')result.yLabel+=' (lower is better)';
     for(const model of models)if(!result.points.some(point=>point.modelId===model.id)){
-      result.excluded.push({modelId:model.id,reason:'No matching Epoch observation'});
+      result.excluded.push({modelId:model.id,reason:'No matching benchmark observation'});
     }
   } else {
     result.xLabel=state.chart==='cost-intelligence'?'USD / 1M tokens (3:1 input/output)':state.chart==='speed-intelligence'?'Output tokens / second':state.chart==='task-cost'?'USD / evaluation task':state.chart==='total-cost'?'USD / complete evaluation':'Model';

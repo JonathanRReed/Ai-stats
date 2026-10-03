@@ -1,4 +1,5 @@
 ---
+import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboardBarWidth} from '../lib/benchmark-leaderboard';
 import OpenRouterUsage from './OpenRouterUsage';
 import {getOpenRouterUsageSnapshot} from '../lib/openrouter-usage-server';
 import '../styles/openrouter-usage.css';
@@ -16,6 +17,7 @@ import {
   getEpochBenchmarkAttribution,
   getEpochBenchmarksWithRuns,
   getEpochBenchmarkLabel,
+  preferPublisherBenchmarks,
 } from "../lib/benchmark-catalog";
 import {getModelCatalogData} from "../lib/model-catalog-data";
 import CatalogCoverage from "./CatalogCoverage.astro";
@@ -42,7 +44,7 @@ const [catalog, publicCatalogs] =
     getModelCatalogData(),
     getPublicCatalogModels(),
   ]);
-const {currentAaModels:baseModels,epoch:epochEvidence}=catalog;
+const {currentAaModels:baseModels}=catalog;
 const {
   openRouterModels,
   huggingFaceModels,
@@ -53,7 +55,7 @@ const {
   openRouterEmbeddingModels,
   openRouterEndpointSummaries,
 } = publicCatalogs;
-const { epochBenchmarks, epochRuns, epochModels } = epochEvidence;
+const { epochBenchmarks, epochRuns, epochModels } = catalog.benchmarks;
 const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs, catalog.bindings);
 const publicPoliBenchSnapshot = await getPublicPoliBenchSnapshot();
 const dailyUsage = await getOpenRouterUsageSnapshot();
@@ -81,10 +83,10 @@ const workbenchModels = currentMeasuredModels.map((model) => ({
 
 const dataFreshness = await getDataFreshness();
 
-const epochBenchmarksWithRuns = getEpochBenchmarksWithRuns(
+const epochBenchmarksWithRuns = preferPublisherBenchmarks(getEpochBenchmarksWithRuns(
   epochBenchmarks,
   epochRuns,
-);
+));
 const preferredEpochBenchmarkSlugs = [...VALUABLE_FREE_BENCHMARK_SLUGS];
 
 // Get benchmark name mapping
@@ -102,6 +104,7 @@ const benchmarkAttributions: Record<string, any> = {
   livecodebench: AA_BENCHMARK_ATTRIBUTION,
   aa_math_index: AA_BENCHMARK_ATTRIBUTION,
   aa_coding_index: AA_BENCHMARK_ATTRIBUTION,
+  aa_agentic_index: AA_BENCHMARK_ATTRIBUTION,
   aa_intelligence_index: AA_BENCHMARK_ATTRIBUTION,
 };
 epochBenchmarksWithRuns.forEach((benchmark) => {
@@ -110,9 +113,7 @@ epochBenchmarksWithRuns.forEach((benchmark) => {
     epochRuns,
   );
 });
-const clientBenchmarkAttributions = Object.fromEntries(
-  Object.entries(benchmarkAttributions).filter(([key]) => !key.startsWith("epoch_")),
-);
+const clientBenchmarkAttributions = benchmarkAttributions;
 
 const validModels = currentMeasuredModels.filter((model: any) => {
   const inputPrice = Number(model.price_1m_input_tokens);
@@ -143,7 +144,7 @@ const definitionFacts = [
     ? `${totalModels.toLocaleString("en-US")} current measured models with input, output, and blended token prices`
     : null,
   epochRuns.length > 0
-    ? `${epochModels.length.toLocaleString("en-US")} models scored across ${epochBenchmarksWithRuns.length} Epoch AI benchmarks in ${epochRuns.length.toLocaleString("en-US")} recorded runs`
+    ? `${catalog.epoch.epochModels.length.toLocaleString("en-US")} models scored across ${catalog.epoch.epochBenchmarks.length} Epoch AI benchmarks in ${catalog.epoch.epochRuns.length.toLocaleString("en-US")} recorded runs`
     : null,
   openRouterTotal > 0
     ? `${openRouterTotal.toLocaleString("en-US")} OpenRouter models routed through ${openRouterProviders.length} providers`
@@ -162,17 +163,21 @@ const benchmarkConfigs = [
   { key: "livecodebench", label: "LiveCodeBench", source: "aa" },
   { key: "aa_math_index", label: "AA Math Index", source: "aa" },
   { key: "aa_coding_index", label: "AA Coding Index", source: "aa" },
+  { key: "aa_agentic_index", label: "AA Agentic Index", source: "aa" },
   {
     key: "aa_intelligence_index",
     label: "AA Intelligence Index",
     source: "aa",
   },
-  ...epochBenchmarksWithRuns.map((benchmark) => ({
-    key: `epoch_${benchmark.slug}`,
-    label: `${getEpochBenchmarkLabel(benchmark)} (Epoch)`,
-    source: "epoch" as const,
-  })),
+  ...epochBenchmarksWithRuns.flatMap(benchmark=>buildBenchmarkCohorts(benchmark,epochRuns).map(cohort=>({
+    key:cohort.key,label:cohort.label,source:"epoch" as const,
+  }))),
 ];
+
+const benchmarkModelNames = new Map([
+ ...epochModels.map(model=>[model.model_version,model.display_name??model.model_name??model.model_version] as const),
+ ...catalog.publishers.snapshots.flatMap(snapshot=>snapshot.records.map(row=>[row.systemId,row.label] as const)),
+]);
 
 // Build top models for AA benchmarks
 const topByBenchmark: Record<string, any[]> = {};
@@ -181,7 +186,7 @@ const topByBenchmark: Record<string, any[]> = {};
 benchmarkConfigs
   .filter((c) => c.source === "aa")
   .forEach(({ key }) => {
-    const list = [...validModels]
+    const list = [...currentMeasuredModels]
       .filter((m: any) => hasFiniteMetricValue(m[key]))
       .sort((a: any, b: any) => Number(b[key]) - Number(a[key]))
       .slice(0, 5);
@@ -190,18 +195,41 @@ benchmarkConfigs
 
 epochBenchmarksWithRuns.forEach((benchmark) => {
   const slug = benchmark.slug;
-  const runs = epochRuns
-    .filter((r) => r.benchmark_slug === slug && r.score !== null)
-    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-    .slice(0, 5)
+  buildBenchmarkCohorts(benchmark,epochRuns).forEach(cohort=>{
+  benchmarkAttributions[cohort.key]=benchmarkAttributions[`epoch_${slug}`];
+  const runs = cohort.runs.slice(0,5)
     .map((r) => ({
-      name: r.model_version.replace(/_/g, " ").replace(/-/g, " "),
+      name: benchmarkModelNames.get(r.model_version) ?? r.model_version.replace(/_/g, " ").replace(/-/g, " "),
       company_name: r.organization,
       score: r.score,
+      score_metric: r.score_metric,
+      source_key: r.source_key,
+      score_unit: r.score_unit ?? 'native',
+      model_version: r.model_version,
+      run_id: r.id,
+      benchmark_version: r.benchmark_version ?? null,
+      conditions: r.conditions ?? null,
       isEpoch: true,
+      metric_key:cohort.metricKey,
+      higher_is_better:cohort.higherIsBetter,
     }));
-  topByBenchmark[`epoch_${slug}`] = runs;
+  topByBenchmark[cohort.key] = runs;
+  });
 });
+
+
+const availableBenchmarkConfigs = benchmarkConfigs.filter(
+  ({key}) => (topByBenchmark[key]?.length ?? 0) > 0,
+);
+const defaultBenchmarkKey = availableBenchmarkConfigs.some(({key}) => key === "aa_intelligence_index")
+  ? "aa_intelligence_index" : availableBenchmarkConfigs[0]?.key ?? "";
+const formatEpochLeaderboardScore = (score: number, unit: string | undefined) => {
+  if (unit === 'fraction') return `${(score * 100).toFixed(1)}%`;
+  if (unit === 'percent') return `${score.toFixed(1)}%`;
+  return score.toLocaleString('en-US', {maximumFractionDigits: 3});
+};
+const epochRunHref = (model:any,metric:string)=>benchmarkRecordHref(model,model.metric_key??metric);
+const epochRunSettings = benchmarkRunSettings;
 
 const openRouterToolModels = openRouterModels.filter((model) =>
   model.supported_parameters.includes("tools"),
@@ -339,157 +367,23 @@ function getScoreClass(score: number | null | undefined): string {
 
   <main
     id="main-content"
-    class="telemetry-main eco-container flex flex-col gap-12 pb-20 pt-2 md:gap-14"
+    class="telemetry-main eco-container flex flex-col gap-8 pb-20 pt-2"
   >
-    <div class="intelligence-stack">
+    <header class="stats-page-heading">
+      <div><h1>AI model stats</h1><p>Benchmarks, prices and usage.</p></div>
+      <a href="/compare" class="eco-btn eco-btn-primary">Compare models</a>
+    </header>
+    <nav class="stats-nav" aria-label="Stats sections">
+      <a href="#stats-overview">Overview</a>
+      <a href="#stats-benchmarks">Benchmarks</a>
+      <a href="#stats-usage">Usage</a>
+      <a href="#stats-sources">Sources</a>
+    </nav>
+    <section id="stats-overview" class="stats-section" aria-label="Overview">
+      <IntelligenceOverview models={currentMeasuredModels} epochModels={catalog.epoch.epochModels} epochBenchmarks={catalog.epoch.epochBenchmarks} epochRuns={catalog.epoch.epochRuns} polibench={publicPoliBenchSnapshot} freshness={dataFreshness} />
       <LatestModelsStrip models={benchmarkSnapshotModels} />
-      <TaskWorkbench models={workbenchModels} reasoningHighlights={buildReasoningHighlights(epochRuns, epochModels)} />
-      <SourceHealthStrip freshness={dataFreshness} />
-      <IntelligenceOverview
-        models={currentMeasuredModels}
-        epochModels={epochModels}
-        epochBenchmarks={epochBenchmarks}
-        epochRuns={epochRuns}
-        polibench={publicPoliBenchSnapshot}
-        freshness={dataFreshness}
-      />
-      <OpenRouterUsage snapshot={dailyUsage?.snapshot ?? null} receipt={dailyUsage?.receipt ?? null} client:visible />
-      <PoliBenchLab snapshot={publicPoliBenchSnapshot} />
-    </div>
-    <CatalogCoverage />
-    <details class="dashboard-definition">
-      <summary>Data in this build</summary>
-      <p>{definitionFacts.join("; ")}. Charts update when a new source snapshot is published and the site rebuilds.</p>
-    </details>
-    {
-      openRouterModels.length ||
-      huggingFaceModels.length ||
-      liteLlmModels.length ||
-      openRouterUsageRankings.length ? (
-        <section
-          aria-label="Public catalog collections"
-          class="openrouter-panel fade-in-section"
-        >
-          <header class="openrouter-header">
-            <div>
-              <p class="console-label">Public catalog sources</p>
-              <h2>Public catalog data</h2>
-            </div>
-            <div class="openrouter-actions">
-              <label for="openrouter-rank-metric">Order by</label>
-              <div class="openrouter-select-wrap">
-                <select id="openrouter-rank-metric" class="openrouter-rank-select">
-                  {openRouterRankOptions.map((option) => (
-                    <option value={option.key}>{option.label}</option>
-                  ))}
-                </select>
-              </div>
-              <a
-                href="https://huggingface.co/models"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="toolbar-control px-3 py-2 text-xs text-text"
-              >
-                Hugging Face
-              </a>
-            </div>
-          </header>
-          <p class="openrouter-notice" id="openrouter-catalog-notice" role="status" hidden>
-            <span>Live public catalog data could not be loaded. The figures below are the ones stored when this page was built.</span>
-            <button type="button" id="openrouter-catalog-retry" class="toolbar-control px-3 py-1 text-xs text-text">Retry</button>
-          </p>
-          <div class="openrouter-grid">
-            <section class="openrouter-stats" aria-label="Public catalog totals">
-              <dl>
-                <div>
-                  <dt>OR models</dt>
-                  <dd>{openRouterModelCount?.count ?? openRouterModels.length}</dd>
-                </div>
-                <div>
-                  <dt>OR routes</dt>
-                  <dd>{openRouterModels.length}</dd>
-                </div>
-                <div>
-                  <dt>Providers</dt>
-                  <dd>{openRouterProviders.length}</dd>
-                </div>
-                <div>
-                  <dt>Embeddings</dt>
-                  <dd>{openRouterEmbeddingModels.length}</dd>
-                </div>
-                <div>
-                  <dt>HF matched</dt>
-                  <dd>{matchedHuggingFaceModels.length}</dd>
-                </div>
-                <div>
-                  <dt>LiteLLM matched</dt>
-                  <dd>{matchedLiteLlmModels.length}</dd>
-                </div>
-                <div>
-                  <dt>OR matched</dt>
-                  <dd>{matchedOpenRouterModels.length}</dd>
-                </div>
-                <div>
-                  <dt>Route detail</dt>
-                  <dd>{matchedOpenRouterEndpointModels.length}</dd>
-                </div>
-              </dl>
-              <p>
-                Routing and availability signals. Benchmark scores stay AA and Epoch.
-              </p>
-            </section>
-            <section class="openrouter-table" aria-label="Public catalog provider coverage">
-              <div class="openrouter-table-meta">
-                <span id="openrouter-board-title">Provider coverage</span>
-                <small id="openrouter-board-note">OpenRouter route catalog</small>
-              </div>
-              <div class="openrouter-table-head">
-                <span>Provider</span>
-                <span id="openrouter-col-detail">Tool-ready routes</span>
-                <span id="openrouter-col-value">Catalog models</span>
-                <span>Models</span>
-                <span>Max ctx</span>
-              </div>
-              <ul id="openrouter-provider-board">
-                {openRouterProviderSummary.map((provider) => (
-                  <li>
-                    <button
-                      type="button"
-                      class="openrouter-provider-row"
-                      aria-label={`Provider ${provider.provider}. Tool-ready routes ${provider.tools}. Models ${provider.total}. Max context ${formatContextLength(provider.maxContext)}.`}
-                      data-openrouter-provider={provider.provider}
-                      data-openrouter-provider-query={provider.provider}
-                    >
-                      <span class="openrouter-model" title={provider.provider}>
-                        {provider.provider}
-                      </span>
-                      <span class="openrouter-leader">{provider.tools} tool-ready</span>
-                      <span class="openrouter-score">{provider.total}</span>
-                      <span>{provider.total}</span>
-                      <span>{formatContextLength(provider.maxContext)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-            <aside class="openrouter-long-context">
-              <span class="console-label">Useful catalog signals</span>
-              <strong>{topHuggingFaceMatch?.name ?? topLiteLlmContextMatch?.name ?? "-"}</strong>
-              <span>
-                {topHuggingFaceMatch
-                  ? `${Number(topHuggingFaceMatch.hf_downloads ?? 0).toLocaleString()} HF downloads`
-                  : `${formatContextLength(topLiteLlmContextMatch?.litellm_max_input_tokens)} LiteLLM context`}
-              </span>
-              <small>
-                {`${openRouterToolModels.length} OpenRouter tool-ready routes, ${openRouterVisionModels.length} vision routes, ${openRouterEndpointSummaries.length} endpoint checks`}
-              </small>
-            </aside>
-          </div>
-        </section>
-      ) : null
-    }
-
-    <!-- Models by metric -->
+    </section>
+    <section id="stats-benchmarks" class="stats-section" aria-label="Benchmarks">
     <section id="leaderboard" aria-label="Models by metric" class="space-y-4 fade-in-section scroll-mt-28">
       <article class="brutalist-card">
         <header
@@ -497,7 +391,7 @@ function getScoreClass(score: number | null | undefined): string {
         >
           <div>
             <h2 class="text-lg font-semibold text-text">
-              Models by metric
+              Benchmarks
             </h2>
             <p class="text-[length:var(--text-xs)] text-subtle md:text-xs">
               Switch metrics to reorder the table.
@@ -522,8 +416,8 @@ function getScoreClass(score: number | null | undefined): string {
               class="toolbar-control relative z-30 pointer-events-auto px-3 py-1 text-xs text-text"
             >
               {
-                benchmarkConfigs.map(({ key, label }) => (
-                  <option value={key} selected={key === "aa_intelligence_index"}>
+                availableBenchmarkConfigs.map(({ key, label }) => (
+                  <option value={key} selected={key === defaultBenchmarkKey}>
                     {label}
                   </option>
                 ))
@@ -537,12 +431,12 @@ function getScoreClass(score: number | null | undefined): string {
         >
           Source:
           <a
-            href={benchmarkAttributions.mmlu_pro.sourceUrl}
+            href={benchmarkAttributions[defaultBenchmarkKey]?.sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
             class="text-text underline decoration-highlight-med/70 underline-offset-4"
           >
-            {benchmarkAttributions.mmlu_pro.sourceName}
+            {benchmarkAttributions[defaultBenchmarkKey]?.sourceName}
           </a>
         </p>
 
@@ -551,26 +445,24 @@ function getScoreClass(score: number | null | undefined): string {
           id="leaderboard-panels"
         >
           {
-            benchmarkConfigs.filter(({ key }) => key === "aa_intelligence_index").map(({ key, source }) => {
+            availableBenchmarkConfigs.map(({ key, source }) => {
               const list = topByBenchmark[key] ?? [];
               if (!list.length) return null;
               const isEpoch = source === "epoch";
               // For epoch benchmarks, score is stored in model.score; for AA, it's model[key]
               const getScore = (m: any) =>
                 parseFiniteMetricValue(isEpoch ? m.score : m[key]) ?? 0;
-              const maxScore = Math.max(...list.map(getScore));
 
               return (
                 <div
                   data-metric={key}
                   class="overflow-hidden border border-highlight-low/60"
-                  hidden={key !== "aa_intelligence_index"}
+                  hidden={key !== defaultBenchmarkKey}
                 >
                   <ul class="divide-y divide-highlight-low/40">
                     {list.map((model: any, index: number) => {
                       const score = getScore(model);
-                      const barWidth =
-                        maxScore > 0 ? (score / maxScore) * 100 : 0;
+                      const barWidth = leaderboardBarWidth(score,list.map(getScore),model.higher_is_better!==false);
                       const rankColors = [
                         "lbb1",
                         "lbb2",
@@ -586,6 +478,7 @@ function getScoreClass(score: number | null | undefined): string {
                             class="lr"
                             data-lr
                             data-model-id={isEpoch ? undefined : model.id}
+                            data-compare-href={isEpoch ? epochRunHref(model, key) : undefined}
                           >
                             {/* Background bar */}
                             <div
@@ -620,12 +513,13 @@ function getScoreClass(score: number | null | undefined): string {
                                 <div class="lbml">
                                   <span
                                     class={`lbn ${index === 0 ? "lbnt" : "lbnx"}`}
+                                    title={model.name}
                                   >
                                     {model.name}
                                   </span>
                                 </div>
                                 <div class="lbc">
-                                  {model.company_name ?? "Unknown provider"}
+                                  {isEpoch && epochRunSettings(model) ? epochRunSettings(model) : model.company_name ?? "Unknown provider"}
                                 </div>
                               </div>
 
@@ -634,7 +528,7 @@ function getScoreClass(score: number | null | undefined): string {
                                 class={`lbs ${index === 0 ? "score-high" : index < 3 ? "lbsp" : "lbsx"}`}
                               >
                                 {isEpoch
-                                  ? `${(score * 100).toFixed(1)}%`
+                                  ? formatEpochLeaderboardScore(score, model.score_unit)
                                   : key.startsWith("aa_") ? formatIndex(model[key]) : formatScore(model[key])}
                               </div>
                             </div>
@@ -652,6 +546,22 @@ function getScoreClass(score: number | null | undefined): string {
     </section>
 
     <!-- All models -->
+
+      <details class="stats-disclosure" id="stats-tasks">
+        <summary>Compare by task</summary>
+        <div class="stats-disclosure-content"><TaskWorkbench models={workbenchModels} reasoningHighlights={buildReasoningHighlights(epochRuns, epochModels)} /></div>
+      </details>
+    </section>
+    <section id="stats-usage" class="stats-section" aria-label="Usage">
+      <OpenRouterUsage snapshot={dailyUsage?.snapshot ?? null} receipt={dailyUsage?.receipt ?? null} client:visible />
+    </section>
+    <details class="stats-disclosure" id="stats-profiles">
+      <summary>Political profiles · PoliBench</summary>
+      <div class="stats-disclosure-content"><PoliBenchLab snapshot={publicPoliBenchSnapshot} /></div>
+    </details>
+    <details class="stats-disclosure" id="stats-models">
+      <summary>Browse all models</summary>
+      <div class="stats-disclosure-content">
     <section id="model-browser" aria-label="All models" class="space-y-4 fade-in-section">
       <header
         class="flex flex-col gap-2 md:flex-row md:items-baseline md:justify-between"
@@ -903,6 +813,150 @@ function getScoreClass(score: number | null | undefined): string {
         </button>
       </div>
     </section>
+
+      </div>
+    </details>
+    <details class="stats-disclosure" id="stats-sources">
+      <summary>Sources and coverage</summary>
+      <div class="stats-disclosure-content">
+        <SourceHealthStrip freshness={dataFreshness} />
+        <CatalogCoverage />
+        <details class="dashboard-definition">
+          <summary>Data in this build</summary>
+          <p>{definitionFacts.join("; ")}. Charts update when a new source snapshot is published and the site rebuilds.</p>
+        </details>
+    {
+      openRouterModels.length ||
+      huggingFaceModels.length ||
+      liteLlmModels.length ||
+      openRouterUsageRankings.length ? (
+        <section
+          aria-label="Public catalog collections"
+          class="openrouter-panel fade-in-section"
+        >
+          <header class="openrouter-header">
+            <div>
+              <p class="console-label">Public catalog sources</p>
+              <h2>Public catalog data</h2>
+            </div>
+            <div class="openrouter-actions">
+              <label for="openrouter-rank-metric">Order by</label>
+              <div class="openrouter-select-wrap">
+                <select id="openrouter-rank-metric" class="openrouter-rank-select">
+                  {openRouterRankOptions.map((option) => (
+                    <option value={option.key}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+              <a
+                href="https://huggingface.co/models"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="toolbar-control px-3 py-2 text-xs text-text"
+              >
+                Hugging Face
+              </a>
+            </div>
+          </header>
+          <p class="openrouter-notice" id="openrouter-catalog-notice" role="status" hidden>
+            <span>Live public catalog data could not be loaded. The figures below are the ones stored when this page was built.</span>
+            <button type="button" id="openrouter-catalog-retry" class="toolbar-control px-3 py-1 text-xs text-text">Retry</button>
+          </p>
+          <div class="openrouter-grid">
+            <section class="openrouter-stats" aria-label="Public catalog totals">
+              <dl>
+                <div>
+                  <dt>OR models</dt>
+                  <dd>{openRouterModelCount?.count ?? openRouterModels.length}</dd>
+                </div>
+                <div>
+                  <dt>OR routes</dt>
+                  <dd>{openRouterModels.length}</dd>
+                </div>
+                <div>
+                  <dt>Providers</dt>
+                  <dd>{openRouterProviders.length}</dd>
+                </div>
+                <div>
+                  <dt>Embeddings</dt>
+                  <dd>{openRouterEmbeddingModels.length}</dd>
+                </div>
+                <div>
+                  <dt>HF matched</dt>
+                  <dd>{matchedHuggingFaceModels.length}</dd>
+                </div>
+                <div>
+                  <dt>LiteLLM matched</dt>
+                  <dd>{matchedLiteLlmModels.length}</dd>
+                </div>
+                <div>
+                  <dt>OR matched</dt>
+                  <dd>{matchedOpenRouterModels.length}</dd>
+                </div>
+                <div>
+                  <dt>Route detail</dt>
+                  <dd>{matchedOpenRouterEndpointModels.length}</dd>
+                </div>
+              </dl>
+              <p>
+                Routing and availability signals. Benchmark scores stay AA and Epoch.
+              </p>
+            </section>
+            <section class="openrouter-table" aria-label="Public catalog provider coverage">
+              <div class="openrouter-table-meta">
+                <span id="openrouter-board-title">Provider coverage</span>
+                <small id="openrouter-board-note">OpenRouter route catalog</small>
+              </div>
+              <div class="openrouter-table-head">
+                <span>Provider</span>
+                <span id="openrouter-col-detail">Tool-ready routes</span>
+                <span id="openrouter-col-value">Catalog models</span>
+                <span>Models</span>
+                <span>Max ctx</span>
+              </div>
+              <ul id="openrouter-provider-board">
+                {openRouterProviderSummary.map((provider) => (
+                  <li>
+                    <button
+                      type="button"
+                      class="openrouter-provider-row"
+                      aria-label={`Provider ${provider.provider}. Tool-ready routes ${provider.tools}. Models ${provider.total}. Max context ${formatContextLength(provider.maxContext)}.`}
+                      data-openrouter-provider={provider.provider}
+                      data-openrouter-provider-query={provider.provider}
+                    >
+                      <span class="openrouter-model" title={provider.provider}>
+                        {provider.provider}
+                      </span>
+                      <span class="openrouter-leader">{provider.tools} tool-ready</span>
+                      <span class="openrouter-score">{provider.total}</span>
+                      <span>{provider.total}</span>
+                      <span>{formatContextLength(provider.maxContext)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+            <aside class="openrouter-long-context">
+              <span class="console-label">Useful catalog signals</span>
+              <strong>{topHuggingFaceMatch?.name ?? topLiteLlmContextMatch?.name ?? "-"}</strong>
+              <span>
+                {topHuggingFaceMatch
+                  ? `${Number(topHuggingFaceMatch.hf_downloads ?? 0).toLocaleString()} HF downloads`
+                  : `${formatContextLength(topLiteLlmContextMatch?.litellm_max_input_tokens)} LiteLLM context`}
+              </span>
+              <small>
+                {`${openRouterToolModels.length} OpenRouter tool-ready routes, ${openRouterVisionModels.length} vision routes, ${openRouterEndpointSummaries.length} endpoint checks`}
+              </small>
+            </aside>
+          </div>
+        </section>
+      ) : null
+    }
+
+    <!-- Models by metric -->
+
+      </div>
+    </details>
   </main>
 
   <Footer />
@@ -910,6 +964,20 @@ function getScoreClass(score: number | null | undefined): string {
 </div>
 
 <style is:global>
+  .stats-page-heading{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding-top:1.5rem}
+  .stats-page-heading h1{font-size:clamp(1.9rem,4vw,2.75rem);line-height:1.12;letter-spacing:-.035em;margin:0}
+  .stats-page-heading p{margin:.5rem 0 0;color:var(--ink-2);font-size:var(--text-base)}
+  .stats-nav{display:flex;gap:.35rem;border-bottom:1px solid var(--line-1);padding-bottom:.6rem;flex-wrap:wrap}
+  .stats-nav a{display:flex;align-items:center;min-height:44px;padding:.45rem 1rem;color:var(--ink-1);border-radius:var(--radius-sm);text-decoration:none;font-weight:600}
+  .stats-nav a:hover,.stats-nav a:focus-visible{background:var(--surface-2);color:var(--signal-text)}
+  .stats-section{display:grid;gap:1.5rem;min-width:0;scroll-margin-top:6rem}
+  .stats-disclosure{min-width:0;border:1px solid var(--line-1);border-radius:var(--radius-md);background:var(--surface-1);scroll-margin-top:6rem}
+  .stats-disclosure>summary{padding:1rem 1.2rem;cursor:pointer;font-size:var(--text-base);font-weight:600;color:var(--ink-0);min-height:54px}
+  .stats-disclosure[open]>summary{border-bottom:1px solid var(--line-1)}
+  .stats-disclosure-content{padding:1rem;display:grid;gap:1.25rem;min-width:0}
+  #stats-sources .openrouter-panel,#stats-models #model-browser{margin:0}
+  @media(max-width:600px){.stats-page-heading{align-items:flex-start;flex-direction:column}.stats-page-heading .eco-btn{min-height:44px}.stats-nav{gap:0}.stats-nav a{padding:.4rem .7rem;font-size:.875rem}.stats-disclosure-content{padding:.75rem}.stats-section{gap:1rem}}
+
   .site-shell {
     position: relative;
     width: 100%;
@@ -1987,6 +2055,8 @@ function getScoreClass(score: number | null | undefined): string {
 
 <script>
   // @ts-nocheck
+import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboardBarWidth} from '../lib/benchmark-leaderboard';
+  import {preferPublisherBenchmarks} from '../lib/benchmark-catalog';
   import { findAaComparableCoverageLeader } from "../lib/data-integrity";
   import {
     hasFiniteMetricValue,
@@ -2005,6 +2075,7 @@ function getScoreClass(score: number | null | undefined): string {
       { key: "livecodebench", label: "LiveCodeBench", source: "aa" },
       { key: "aa_math_index", label: "AA Math Index", source: "aa" },
       { key: "aa_coding_index", label: "AA Coding Index", source: "aa" },
+      { key: "aa_agentic_index", label: "AA Agentic Index", source: "aa" },
       {
         key: "aa_intelligence_index",
         label: "AA Intelligence Index",
@@ -2624,6 +2695,8 @@ function getScoreClass(score: number | null | undefined): string {
       }
       const query = row.dataset.openrouterProviderQuery;
       if (!query || !searchInput) return;
+      const modelDisclosure = document.getElementById("stats-models");
+      if (modelDisclosure instanceof HTMLDetailsElement) modelDisclosure.open = true;
       searchInput.value = query;
       applySearch(true);
       setView("cards");
@@ -2784,32 +2857,33 @@ function getScoreClass(score: number | null | undefined): string {
         aaConfigs.push(config);
       });
 
-      sortEpochBenchmarksByValue(epochBenchmarks).forEach((benchmark) => {
-        const key = `epoch_${benchmark.slug}`;
-        const list = epochRuns
-          .filter(
-            (run) =>
-              run.benchmark_slug === benchmark.slug &&
-              hasFiniteMetricValue(run.score),
-          )
-          .sort((a, b) => Number(b.score) - Number(a.score))
-          .slice(0, 5)
-          .map((run) => ({
+      sortEpochBenchmarksByValue(preferPublisherBenchmarks(epochBenchmarks)).forEach((benchmark) => {
+        buildBenchmarkCohorts(benchmark,epochRuns).forEach(cohort=>{
+        const key=cohort.key;
+        const list=cohort.runs.slice(0,5)          .map((run) => ({
             name: String(run.model_version || "")
               .replace(/_/g, " ")
               .replace(/-/g, " "),
             company_name: run.organization ?? "Unknown provider",
             score: parseFiniteMetricValue(run.score) ?? 0,
             score_metric: run.score_metric,
+            source_key: run.source_key,
+            metric_key:cohort.metricKey,
+            higher_is_better:cohort.higherIsBetter,
+            score_unit: run.score_unit ?? 'native',
+            model_version: run.model_version,
+            benchmark_version: run.benchmark_version ?? null,
+            conditions: run.conditions ?? null,
         }));
         if (!list.length) return;
         ensureEpochAttribution(key, benchmark, epochRuns);
         topByBenchmark[key] = list;
         epochConfigs.push({
           key,
-          label: `${EPOCH_BENCHMARK_LABELS[benchmark.slug] || benchmark.name} (Epoch)`,
+          label: cohort.label,
           source: "epoch",
           scoreMetric: list[0]?.score_metric ?? null,
+        });
         });
       });
 
@@ -2877,24 +2951,13 @@ function getScoreClass(score: number | null | undefined): string {
             parseFiniteMetricValue(
               isEpoch ? model.score : model[config.key],
             ) ?? 0;
-          const formatBenchmarkScore = (score) => {
+          const formatBenchmarkScore = (score, model) => {
             if (!Number.isFinite(score)) return "N/A";
             if (!isEpoch) return config.key.startsWith("aa_") ? formatIndex(score) : formatScore(score);
-            const metric = String(config.scoreMetric || "").toLowerCase();
-            const isPercentMetric =
-              score <= 1 ||
-              metric.includes("%") ||
-              metric.includes("percent") ||
-              metric.includes("accuracy");
-            if (isPercentMetric) {
-              const pct = score <= 1 ? score * 100 : score;
-              return `${pct.toFixed(1)}%`;
-            }
-            return score >= 100
-              ? score.toLocaleString(undefined, { maximumFractionDigits: 1 })
-              : score.toFixed(2);
+            if (model.score_unit === 'fraction') return `${(score * 100).toFixed(1)}%`;
+            if (model.score_unit === 'percent') return `${score.toFixed(1)}%`;
+            return score.toLocaleString('en-US',{maximumFractionDigits:3});
           };
-          const maxScore = Math.max(...list.map(getScore), 0);
           const rankColors = [
             "lbb1",
             "lbb2",
@@ -2906,14 +2969,14 @@ function getScoreClass(score: number | null | undefined): string {
           const rows = list
             .map((model, index) => {
               const score = getScore(model);
-              const barWidth = maxScore > 0 ? (score / maxScore) * 100 : 0;
-              const scoreText = formatBenchmarkScore(score);
+              const barWidth = leaderboardBarWidth(score,list.map(getScore),model.higher_is_better!==false);
+              const scoreText = formatBenchmarkScore(score, model);
               const name = escapeHtml(toDisplayName(model.name));
               const company = escapeHtml(
-                toDisplayName(model.company_name, "Unknown provider"),
+                benchmarkRunSettings(model)||toDisplayName(model.company_name, "Unknown provider"),
               );
               const rowAction = isEpoch
-                ? ""
+                ? `data-compare-href="${escapeHtml(benchmarkRecordHref(model,model.metric_key??config.key))}"`
                 : `data-model-id="${escapeHtml(model.id)}"`;
               const rankBadge =
                 index === 0
@@ -3258,6 +3321,7 @@ function getScoreClass(score: number | null | undefined): string {
     };
 
     const openLeaderboardRow = (row) => {
+      if (row.dataset.compareHref?.startsWith("/compare?")) {window.location.href=row.dataset.compareHref;return;}
       if (row.dataset.modelId || row.dataset.modelJson) {
         void openModelDrawerFromElement(row);
         return;
@@ -3666,8 +3730,26 @@ function getScoreClass(score: number | null | undefined): string {
         epochRuns,
       );
       renderOpenRouterProviderLeaderboard();
-      renderLeaderboard(liveModels, epochBenchmarks, epochRuns);
+      renderLeaderboard((snapshot.aaModels??[]).filter(model=>model.current_source_member!==false), epochBenchmarks, epochRuns);
       renderModels(liveModels);
     });
   }
+</script>
+
+<script>
+ const revealStatsTarget=(id:string)=>{
+  const target=document.getElementById(id);
+  if(!target)return;
+  let node:HTMLElement|null=target;
+  while(node){if(node instanceof HTMLDetailsElement)node.open=true;node=node.parentElement;}
+ };
+ document.addEventListener('click',(event)=>{
+  if(!(event.target instanceof Element))return;
+  if(event.target.closest('[data-openrouter-provider]'))revealStatsTarget('model-browser');
+  const link=event.target.closest<HTMLAnchorElement>('a[href^="#"]');
+  if(link){try{revealStatsTarget(decodeURIComponent(link.hash.slice(1)));}catch{/* Invalid fragment leaves native navigation unchanged. */}}
+ },true);
+ const revealCurrentStatsHash=()=>{try{revealStatsTarget(decodeURIComponent(location.hash.slice(1)));}catch{/* Ignore malformed fragments. */}};
+ window.addEventListener('hashchange',revealCurrentStatsHash);
+ revealCurrentStatsHash();
 </script>

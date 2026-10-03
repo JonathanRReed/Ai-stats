@@ -72,6 +72,7 @@ test("getPublicEpochSnapshot normalizes benchmark and run identifiers from the p
       slug: "simplebench_external",
       name: "SimpleBench",
       description: null,
+      metadata: null,
       source: "Epoch AI",
     },
   ]);

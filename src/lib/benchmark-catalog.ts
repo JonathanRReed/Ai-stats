@@ -219,6 +219,9 @@ export const getEpochBenchmarkAttribution = (
   benchmark: EpochBenchmark,
   runs: EpochBenchmarkRun[],
 ): BenchmarkAttribution => {
+  if(benchmark.metadata?.source_key&&benchmark.metadata.source_url){
+    return {sourceName:benchmark.source??benchmark.name,sourceUrl:benchmark.metadata.source_url};
+  }
   const fallback = EPOCH_SOURCE_FALLBACKS[benchmark.slug];
   const sourceCounts = new Map<
     string,
@@ -265,3 +268,18 @@ export const getEpochBenchmarkAttribution = (
     license: fallback?.license ?? EPOCH_BENCHMARK_ATTRIBUTION.license,
   };
 };
+
+export const ORIGINAL_PUBLISHER_REPLACEMENTS:Record<string,string>={
+ terminalbench_external:'terminal-bench',live_bench_external:'livebench',posttrainbench_external:'posttrainbench',
+ weirdml_v3_external:'weirdml',osworld_2_external:'osworld',proofbench_external:'proofbench',
+ blueprint_bench_2_external:'blueprint-bench',apex_agents_external:'apex-agents',gdp_pdf_external:'gdp-pdf'
+};
+/** Keep the default Stats menu current; source archives remain available in Compare. */
+export function preferPublisherBenchmarks(benchmarks:EpochBenchmark[]):EpochBenchmark[]{
+ const publishers=new Set(benchmarks.map(row=>row.metadata?.source_key).filter(Boolean));
+ const names=new Set(benchmarks.map(row=>row.metadata?.benchmark).filter(Boolean));
+ return benchmarks.filter(row=>!publishers.has(ORIGINAL_PUBLISHER_REPLACEMENTS[row.slug])&&
+  !(row.metadata?.superseded_by&&names.has(row.metadata.superseded_by)));
+}
+
+export const getCompareBenchmarkLabel=(benchmark:EpochBenchmark):string=>getEpochBenchmarkLabel(benchmark)+(Object.hasOwn(ORIGINAL_PUBLISHER_REPLACEMENTS,benchmark.slug)||benchmark.metadata?.superseded_by?' (Epoch archive)':'');

@@ -79,8 +79,8 @@ const simpleBenchRuns = epochRuns.filter((run) =>
   String(run.benchmark_slug ?? run.benchmark_name ?? "").toLowerCase().includes("simplebench"),
 );
 const coverageRows = [
-  { label: "AA Index available", value: aaIntelligenceCount, max: Math.max(models.length, 1), detail: `${aaIntelligenceCount} / ${models.length} priced models`, showProgress: true },
-  { label: "Coding metrics available", value: aaCodingCount, max: Math.max(models.length, 1), detail: `${aaCodingCount} / ${models.length} priced models`, showProgress: true },
+  { label: "AA Index available", value: aaIntelligenceCount, max: Math.max(models.length, 1), detail: `${aaIntelligenceCount} / ${models.length} models`, showProgress: true },
+  { label: "Coding metrics available", value: aaCodingCount, max: Math.max(models.length, 1), detail: `${aaCodingCount} / ${models.length} models`, showProgress: true },
   { label: "Epoch models with runs", value: epochModelVersions.size, max: Math.max(epochModels.length, 1), detail: `${epochModelVersions.size} / ${epochModels.length} models`, showProgress: true },
   { label: "SimpleBench via Epoch snapshot", value: simpleBenchRuns.length, max: 0, detail: `${simpleBenchRuns.length.toLocaleString("en-US")} recorded observations`, showProgress: false },
   { label: "PoliBench current snapshot", value: polibench?.counts.models ?? 0, max: 0, detail: polibench ? `${polibench.counts.models} models / ${polibench.counts.runs} runs` : "No checked snapshot", showProgress: false },
@@ -103,32 +103,27 @@ const money = (value: number | null | undefined): string =>
 <section class="intelligence-overview" aria-label="Compare the measurements">
   <header class="overview-header">
     <div>
-      <span>Compare the measurements</span>
-      <h2>Price and performance</h2>
+      <span>Price and performance</span>
+      <h2>Overview</h2>
     </div>
-    <a href="/compare">View all model comparisons</a>
   </header>
 
   <div class="overview-facts">
     <article>
-      <span>Tracked models</span>
+      <span>Priced AA models</span>
       <strong>{models.length}</strong>
-      <p>Priced Artificial Analysis models in this build.</p>
     </article>
     <article>
       <span>AA Index range</span>
       <strong>{qualityValues.length ? `${Math.min(...qualityValues).toFixed(1)}–${Math.max(...qualityValues).toFixed(1)}` : "No observations"}</strong>
-      <p>{qualityValues.length} current index observations.</p>
     </article>
     <article>
-      <span>Blended price span</span>
+      <span title="USD per 1M tokens">Blended price / 1M</span>
       <strong>{priceValues.length ? `${money(priceMin)}–${money(priceMax)}` : "No prices"}</strong>
-      <p>USD per 1M tokens on current measured rows.</p>
     </article>
     <article>
-      <span>Epoch corpus</span>
+      <span>Benchmarks · {epochBenchmarks.length} benchmarks</span>
       <strong>{epochRuns.length.toLocaleString("en-US")} runs</strong>
-      <p>{epochModels.length} models across {epochBenchmarks.length} benchmarks.</p>
     </article>
   </div>
 
@@ -243,6 +238,7 @@ const money = (value: number | null | undefined): string =>
       </details>
     </figure>
 
+    <details class="overview-details"><summary>Coverage and recent updates</summary><div class="overview-extra">
     <section class="coverage-panel" aria-labelledby="coverage-title">
       <header><h3 id="coverage-title">Benchmark coverage</h3></header>
       <div class="coverage-list">
@@ -275,6 +271,7 @@ const money = (value: number | null | undefined): string =>
       )}
       <a href="/about">Read source methodology</a>
     </section>
+    </div></details>
   </div>
 </section>
 
@@ -417,6 +414,13 @@ const money = (value: number | null | undefined): string =>
   @media (prefers-reduced-motion: reduce) {
     .quality-price summary { scroll-behavior: auto; }
   }
+
+ .overview-grid{display:block}
+ .overview-details{border-top:1px solid var(--line-0)}
+ .overview-details>summary{min-height:44px;display:list-item;cursor:pointer;color:var(--ink-1);font-size:var(--text-sm);padding:.5rem 0}
+ .overview-extra{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;padding-top:1rem}
+ .quality-price svg{max-height:440px}
+ @media(max-width:660px){.overview-extra{grid-template-columns:1fr}.overview-facts{grid-template-columns:1fr 1fr}.overview-facts article{padding:1rem}.overview-facts strong{font-size:1.25rem}}
 </style>
 
 <script>

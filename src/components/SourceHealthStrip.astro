@@ -1,4 +1,5 @@
 ---
+import {PUBLISHER_NAMES} from '../lib/publisher-evidence';
 import {PUBLIC_SNAPSHOT_NAMES} from "../lib/catalog-cache";
 import type {
   DataFreshness,
@@ -16,6 +17,7 @@ const requiredSources = [
   { sourceKey: "epoch-ai", displayName: "Epoch AI" },
   { sourceKey: "simplebench", displayName: "SimpleBench" },
   { sourceKey: "polibench", displayName: "PoliBench" },
+  ...Object.entries(PUBLISHER_NAMES).map(([sourceKey,displayName])=>({sourceKey,displayName})),
   ...Object.entries(PUBLIC_SNAPSHOT_NAMES).map(([sourceKey,displayName])=>({sourceKey,displayName})),
 ];
 
