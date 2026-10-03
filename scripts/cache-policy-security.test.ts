@@ -3,7 +3,7 @@ import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
 const CachePolicy=require('http-cache-semantics');
 const request=(cc='max-stale=999999')=>({url:'https://cache.test/item',method:'GET',headers:{host:'cache.test','cache-control':cc}});
-function policy(headers:Record<string,string>,requestHeaders:Record<string,string>={},shared=true){
+function policy(headers:Record<string,string|undefined>,requestHeaders:Record<string,string|undefined>={},shared=true){
  const p=new CachePolicy({...request(''),headers:{host:'cache.test',...requestHeaders}},{status:200,headers},{shared});
  const time=p.now();p.now=()=>time+10000;return p;
 }
