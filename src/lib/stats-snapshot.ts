@@ -80,7 +80,8 @@ export function readStatsSnapshot(input:unknown,expected:{aaIds?:string[]}={}):S
   if(run.score_unit==='percent'&&typeof run.score==='number'&&(run.score<0||run.score>100))throw new Error('Invalid percent score');
   if(run.conditions!==undefined&&run.conditions!==null&&(!plain(run.conditions)||!Object.values(run.conditions).every(item=>typeof item==='string'||typeof item==='boolean'||typeof item==='number'&&Number.isFinite(item))))throw new Error('Invalid observation conditions');
  }
- if(!plain(value.publicCatalogs)||!requiredArrays.every(key=>Array.isArray(value.publicCatalogs[key])&&(value.publicCatalogs[key] as unknown[]).length<=30000))throw new Error('Invalid Stats public catalogs');
+ const publicCatalogs=value.publicCatalogs;
+ if(!plain(publicCatalogs)||!requiredArrays.every(key=>Array.isArray(publicCatalogs[key])&&(publicCatalogs[key] as unknown[]).length<=30000))throw new Error('Invalid Stats public catalogs');
  const freshness=value.freshness;
  if(!plain(freshness)||![freshness.updatedAt,freshness.aaLastSeen,freshness.epochFetchedAt].every(date)||
  !uniqueRows(freshness.sources,'sourceKey',30)||!freshness.sources.every(source=>text(source.displayName)&&statuses.includes(String(source.status))&&
