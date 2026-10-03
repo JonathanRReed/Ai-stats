@@ -402,8 +402,10 @@ const SOURCE_URLS = {
 } as const;
 
 export const modelPageTitle = (name: string, catalogSlug?: string): string => {
-  // Keep source names intact; only colliding titles need their existing catalog key.
-  const label = catalogSlug ? `${name} (${catalogSlug})` : name;
+  // Spell out a trailing plus so punctuation-insensitive search keeps variants distinct.
+  // The visible model heading retains the original source name.
+  const searchName = name.replace(/\+\s*$/, ' Plus');
+  const label = catalogSlug ? `${searchName} (${catalogSlug})` : searchName;
   const detailed = `${label} price, speed, and benchmarks | AI Stats`;
   if (detailed.length <= 70) return detailed;
   const branded = `${label} | AI Stats`;

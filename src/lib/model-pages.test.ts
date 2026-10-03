@@ -211,3 +211,13 @@ test('an OpenRouter name match does not authorize a PoliBench association',()=>{
  const [record]=buildModelPageRecords([model({openrouter_id:'lab/a'})],{poliBench:{models:[{modelSlug:'lab/a',label:'A',status:'completed'}]} as never});
  expect(record.poliBench).toBeNull();
 });
+
+
+test('plus-suffixed names stay distinct when search ignores title punctuation',()=>{
+ const plain=modelPageTitle('Command A');
+ const plus=modelPageTitle('Command A+');
+ const searchKey=(text:string)=>text.toLowerCase().replace(/[^a-z0-9]+/g,'');
+ expect(searchKey(plus)).not.toBe(searchKey(plain));
+ expect(plus).toContain('Command A Plus');
+ expect(modelPageTitle('Claude 2.0')).toBe('Claude 2.0 price, speed, and benchmarks | AI Stats');
+});
