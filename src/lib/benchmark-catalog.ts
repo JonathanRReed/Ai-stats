@@ -281,3 +281,5 @@ export function preferPublisherBenchmarks(benchmarks:EpochBenchmark[]):EpochBenc
  return benchmarks.filter(row=>!publishers.has(ORIGINAL_PUBLISHER_REPLACEMENTS[row.slug])&&
   !(row.metadata?.superseded_by&&names.has(row.metadata.superseded_by)));
 }
+
+export const getCompareBenchmarkLabel=(benchmark:EpochBenchmark):string=>getEpochBenchmarkLabel(benchmark)+(Object.hasOwn(ORIGINAL_PUBLISHER_REPLACEMENTS,benchmark.slug)||benchmark.metadata?.superseded_by?' (Epoch archive)':'');

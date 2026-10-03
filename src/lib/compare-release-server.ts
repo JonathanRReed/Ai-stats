@@ -1,7 +1,7 @@
 import {releaseDatasetRevision} from '../../scripts/app-release.mjs';
 import {fromEpochRuns} from './compare-evidence';
 import {getCompareDelivery} from './compare-delivery-server';
-import {getEpochBenchmarksWithRuns,getEpochBenchmarkLabel} from './benchmark-catalog';
+import {getEpochBenchmarksWithRuns,getCompareBenchmarkLabel} from './benchmark-catalog';
 import {getActiveRefreshPolicy} from '../../scripts/source-refresh-policy.mjs';
 import {RELEASE_SCHEMA,type ReleaseSource,type CompareReleaseManifest} from './compare-release';
 const latest=(values:Array<string|null|undefined>)=>{
@@ -23,6 +23,6 @@ export async function getCompareReleaseManifest():Promise<CompareReleaseManifest
  ];
  const manifest:Omit<CompareReleaseManifest,'datasetRevision'>={schemaVersion:RELEASE_SCHEMA,generatedAt:latest(sources.map(source=>source.fetchedAt))??new Date(0).toISOString(),
  models:initialModels,defaultModelIds,delivery,sources,benchmarks:getEpochBenchmarksWithRuns(data.benchmarks.epochBenchmarks,data.benchmarks.epochRuns)
- .filter(benchmark=>/^[a-z0-9_-]{1,120}$/.test(benchmark.slug)).map(benchmark=>({slug:benchmark.slug,name:getEpochBenchmarkLabel(benchmark)}))};
+ .filter(benchmark=>/^[a-z0-9_-]{1,120}$/.test(benchmark.slug)).map(benchmark=>({slug:benchmark.slug,name:getCompareBenchmarkLabel(benchmark)}))};
  return {...manifest,datasetRevision:releaseDatasetRevision(manifest,fromEpochRuns(data.benchmarks.epochRuns.filter(run=>manifest.benchmarks.some(benchmark=>benchmark.slug===run.benchmark_slug)),data.epoch.fetchedAt))};
 }
