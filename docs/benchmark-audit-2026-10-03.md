@@ -27,6 +27,7 @@ GDP.pdf has no numbered release in its public scoreboard; its version is explici
 ## Data and presentation fixes
 
 - Epoch primary columns and stored units follow the archive's benchmark metadata; sub-unit ceilings do not erase a documented percentage or fraction scale
+- Valid AA benchmark evidence is eligible regardless of missing price, speed, secondary benchmark, or provider-adoption telemetry. The build gate validates the displayed Intelligence default rather than requiring an unrelated Coding score
 - BTF-3 ranks lower pooled scores first
 - Benchmark version, metric, unit, and source-native system identity are preserved; multiple agents or reasoning settings are separate observations
 - Current publisher feeds replace their older Epoch copies in the default Stats menu. Historical evidence remains accessible in Compare, and superseded FrontierMath editions are not relabeled as v2
