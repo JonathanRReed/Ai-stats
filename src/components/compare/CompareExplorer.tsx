@@ -1,6 +1,6 @@
 import {validateBenchmarkAsset} from '../../lib/compare-benchmark-asset';
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {parseCompareState,serializeCompareState,selectBenchmarkModels,selectVisibleRecords,selectFamily,readBenchmarkCache,AA_METRIC_LABELS,scoreMetricOptions,changeScoreMetric,type CompareState,type CompareChart} from '../../lib/compare-state';
+import {parseCompareState,serializeCompareState,benchmarkStartingSelection,selectVisibleRecords,selectFamily,readBenchmarkCache,AA_METRIC_LABELS,scoreMetricOptions,changeScoreMetric,type CompareState,type CompareChart} from '../../lib/compare-state';
 import {buildCompareSeries,epochScoreKey,type ExplorerModel} from '../../lib/compare-series';
 import {epochConditionKey,type EpochObservation} from '../../lib/epoch-observations';
 import {formatChartNumber} from '../../lib/compare-geometry';
@@ -42,7 +42,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
       .then(response=>{if(!response.ok)throw new Error('unavailable');return response.json();})
       .then(payload=>{const verified=validateBenchmarkAsset(payload,epochSlug);
         setBenchmarkCache(previous=>({...previous,[epochSlug]:verified}));setLoadState('');
-        if(pendingBenchmarkChoice.current===epochSlug){pendingBenchmarkChoice.current=null;setState(previous=>{if(previous.metricId!=='epoch_'+epochSlug)return previous;const next={...previous,modelIds:selectBenchmarkModels(models,verified),missingModelIds:[]};const url=new URL(window.location.href);url.search=serializeCompareState(next).toString();window.history.replaceState(null,'',url);return next;});}})
+        if(pendingBenchmarkChoice.current===epochSlug){pendingBenchmarkChoice.current=null;setState(previous=>{if(previous.metricId!=='epoch_'+epochSlug)return previous;const next={...previous,...benchmarkStartingSelection(models,verified),missingModelIds:[]};const url=new URL(window.location.href);url.search=serializeCompareState(next).toString();window.history.replaceState(null,'',url);return next;});}})
       .catch(error=>{if(error.name!=='AbortError'){setLoadFailed(true);setLoadState('Benchmark data could not load. The other views still work.');}});
     return()=>controller.abort();
   },[epochSlug,benchmarkCache,benchmarks,retryAttempt,delivery?.benchmarkBase]);
@@ -81,8 +81,8 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
     onHistory:(includeHistory:boolean)=>update({includeHistory}),reasoningEfforts:state.reasoningEfforts,
     onReasoning:(value:string)=>update({reasoningEfforts:value==='all'?[]:state.reasoningEfforts.includes(value)
       ?state.reasoningEfforts.filter(reason=>reason!==value):[...state.reasoningEfforts,value]}),onClear:()=>update({modelIds:[]}),onReset:reset};
-  const chooseMeasured=()=>update({modelIds:selectBenchmarkModels(visibleModels,observations)});
-  const chooseBenchmark=(metricId:string)=>{const slug=metricId.startsWith('epoch_')?metricId.slice(6):null;const rows=slug?readBenchmarkCache(benchmarkCache,slug):null;pendingBenchmarkChoice.current=rows?null:slug;update({metricId,conditionKey:null,scoreMetricKey:null,...(rows?{modelIds:selectBenchmarkModels(models,rows),missingModelIds:[]}: {})});};
+  const chooseMeasured=()=>update(benchmarkStartingSelection(visibleModels,observations.filter(row=>!state.conditionKey||epochConditionKey(row.conditions)===state.conditionKey),state.scoreMetricKey));
+  const chooseBenchmark=(metricId:string)=>{const slug=metricId.startsWith('epoch_')?metricId.slice(6):null;const rows=slug?readBenchmarkCache(benchmarkCache,slug):null;pendingBenchmarkChoice.current=rows?null:slug;update({metricId,conditionKey:null,scoreMetricKey:null,...(rows?{...benchmarkStartingSelection(models,rows),missingModelIds:[]}: {})});};
   const share=async()=>{try{const url=new URL(window.location.href);url.search=serializeCompareState(state).toString();
     await navigator.clipboard.writeText(url.href);setNotice('Comparison link copied.');}catch{setNotice('Copy the address bar to share this comparison.');}};
   const metricName=state.chart==='benchmark'?(epochSlug?benchmarks.find(item=>item.slug===epochSlug)?.name??state.metricId:
@@ -105,7 +105,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
         {state.chart==='benchmark'?<label>Benchmark<select value={epochSlug||aaMetrics.some(([key])=>key===state.metricId)?state.metricId:''} onChange={event=>chooseBenchmark(event.target.value)}>
           {!epochSlug&&!aaMetrics.some(([key])=>key===state.metricId)?<option value="">Choose a benchmark</option>:null}<optgroup label="Artificial Analysis">{aaMetrics.map(([key,label])=><option key={key} value={key}>{label}</option>)}</optgroup>
           <optgroup label="Benchmark publishers">{benchmarks.map(benchmark=><option key={benchmark.slug} value={'epoch_'+benchmark.slug}>{benchmark.name}</option>)}</optgroup></select></label>:null}
-        {epochSlug&&scoreOptions.visible?<label>Score metric<select value={state.scoreMetricKey??''} onChange={event=>update(changeScoreMetric(event.target.value))}>
+        {epochSlug&&scoreOptions.visible?<label>Score metric<select value={state.scoreMetricKey??''} onChange={event=>update({...changeScoreMetric(event.target.value),...benchmarkStartingSelection(models,observations,event.target.value||null)})}>
           <option value="">Choose a score metric</option>{scoreOptions.missing?<option value={state.scoreMetricKey!}>Unavailable saved metric</option>:null}{scoreMetrics.map(key=><option key={key} value={key}>{JSON.parse(key).join(' · ')}</option>)}</select></label>:null}
         {epochSlug&&conditions.length?<label>Conditions<select value={state.conditionKey??''} onChange={event=>update({conditionKey:event.target.value||null})}>
           <option value="">All recorded runs</option>{conditions.map(key=><option value={key} key={key}>{key==='unknown'?'Not recorded':JSON.parse(key).map(([name,value]:[string,unknown])=>name+': '+value).join(' · ')}</option>)}</select></label>:null}

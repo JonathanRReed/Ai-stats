@@ -1,3 +1,5 @@
+import {epochScoreKey} from './compare-series';
+import type {EpochObservation} from './epoch-observations';
 import {SOURCE_RECORD_TYPES} from './model-identity';
 export const AA_METRIC_LABELS:Record<string,string> = {
  aa_intelligence_index:'Intelligence Index',aa_coding_index:'Coding Index',aa_agentic_index:'Agentic Index',aa_math_index:'Math Index',
@@ -118,4 +120,15 @@ export function selectVisibleRecords(selected:string[],visibleIds:string[],check
 export function selectBenchmarkModels(catalog:CompareCatalogEntry[],observations:Array<{modelVersion:string;sourceKey?:string;value:number|null}>,limit=8):string[]{
  const matches=new Set(observations.filter(row=>typeof row.value==='number'&&Number.isFinite(row.value)).map(row=>(row.sourceKey&&row.sourceKey!=='epoch-ai'?'publisher':'epoch')+':'+row.modelVersion));
  return catalog.filter(model=>model.current!==false&&matches.has(model.source+':'+model.sourceModelId)).slice(0,limit).map(model=>model.id);
+}
+
+/** A deliberate benchmark change starts with one explicit version/metric cohort. Saved links are left untouched. */
+export function benchmarkStartingSelection(catalog:CompareCatalogEntry[],observations:EpochObservation[],requestedMetric?:string|null){
+ const scored=observations.filter(row=>typeof row.value==='number'&&Number.isFinite(row.value));
+ const groups=[...new Set(scored.map(epochScoreKey))].sort((a,b)=>{
+  const va=JSON.parse(a)[2]??'',vb=JSON.parse(b)[2]??'';
+  return vb.localeCompare(va,undefined,{numeric:true})||a.localeCompare(b);
+ });
+ const scoreMetricKey=requestedMetric??groups[0]??null;
+ return {modelIds:selectBenchmarkModels(catalog,scored.filter(row=>epochScoreKey(row)===scoreMetricKey)),scoreMetricKey};
 }
