@@ -6,10 +6,13 @@ import {fromEpochRuns} from '../src/lib/compare-evidence.ts';
 import {benchmarkAssetKey} from '../src/lib/compare-release.ts';
 export function assembleAppRelease(manifest,{delivery,chunks,data}){
  const assets={};
+ const evidence=data.benchmarks??data.epoch;
  for(const [bucket,records] of chunks)assets['m_'+bucket]={schemaVersion:1,revision:delivery.revision,bucket,records};
  for(const benchmark of manifest.benchmarks){
- assets[benchmarkAssetKey(benchmark.slug)]={schemaVersion:1,slug:benchmark.slug,name:benchmark.name,fetchedAt:data.epoch.fetchedAt,
- observations:fromEpochRuns(data.epoch.epochRuns.filter(run=>run.benchmark_slug===benchmark.slug),data.epoch.fetchedAt)};
+ const runs=evidence.epochRuns.filter(run=>run.benchmark_slug===benchmark.slug);
+ const fetchedAt=runs[0]?.source_fetched_at??data.epoch.fetchedAt;
+ assets[benchmarkAssetKey(benchmark.slug)]={schemaVersion:1,slug:benchmark.slug,name:benchmark.name,fetchedAt,
+ observations:fromEpochRuns(runs,fetchedAt)};
  }
  return prepareAppRelease(manifest,assets);
 }

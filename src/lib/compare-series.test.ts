@@ -66,7 +66,7 @@ test('selections from another source explain why they are not plotted',()=>{
   const epochModel:ExplorerModel={id:'epoch:v',name:'V',family:'V',source:'epoch',sourceModelId:'v',current:true};
   const state=selection('chart=benchmark&metric=epoch_b');
   const result=series.buildCompareSeries({models:[...models,epochModel],observations:[]},state);
-  expect(result.excluded).toEqual([{modelId:'a',reason:'Choose an Epoch record for this benchmark'},{modelId:'b',reason:'Choose an Epoch record for this benchmark'}]);
+  expect(result.excluded).toEqual([{modelId:'a',reason:'Choose a measured source record for this benchmark'},{modelId:'b',reason:'Choose a measured source record for this benchmark'}]);
 });
 
 test('AA reasoning filters do not suppress Epoch measurements',()=>{
@@ -85,4 +85,18 @@ test('mixed Epoch metrics become accessible through an explicit score selection'
  const state=parseCompareState(params,[model]);
  const result=series.buildCompareSeries({models:[model],observations:[row,{...row,id:'rating',metricKey:'Rating',unit:'native',value:1400}]},state);
  expect(result.points).toHaveLength(1);expect(result.points[0].y).toBe(8);
+});
+
+test('original publisher observations reach the chart without an Epoch source filter',()=>{
+ const model:ExplorerModel={id:'publisher:system',source:'publisher',sourceModelId:'system',name:'System',family:'System',current:true};
+ const row:EpochObservation={id:'run',modelVersion:'system',benchmarkSlug:'publisher_terminal_bench_4_0_0',metricKey:'accuracy',unit:'percent',value:58.2,conditions:{agent:'Codex'},evaluationDate:null,sourceUrl:'https://hub.harborframework.com/',fetchedAt:'2026-10-03T04:45:31Z',snapshotId:null,sourceKey:'terminal-bench',sourceName:'Terminal-Bench',benchmarkVersion:'4.0.0'};
+ const state=parseCompareState(new URLSearchParams('chart=benchmark&m=publisher%3Asystem&metric=epoch_publisher_terminal_bench_4_0_0'),[model]);
+ const result=series.buildCompareSeries({models:[model],observations:[row]},state);
+ expect(result.points).toHaveLength(1);expect(result.points[0].y).toBe(58.2);expect(result.points[0].receipt.source).toBe('Terminal-Bench');
+});
+
+test('BTF-3 chart labels its lower-is-better scale while retaining raw scores',()=>{
+ const model:ExplorerModel={id:'epoch:m',source:'epoch',sourceModelId:'m',name:'M',family:'M',current:true};
+ const row:EpochObservation={id:'r',modelVersion:'m',benchmarkSlug:'btf3_external',metricKey:'Pooled score',unit:'native',value:.12,conditions:null,evaluationDate:null,sourceUrl:null,fetchedAt:null,snapshotId:null};
+ const state=parseCompareState(new URLSearchParams('chart=benchmark&metric=epoch_btf3_external&m=epoch%3Am'),[model]);const result=series.buildCompareSeries({models:[model],observations:[row]},state);expect(result.yLabel).toContain('lower is better');expect(result.points[0].y).toBe(.12);
 });

@@ -81,6 +81,8 @@ jobs:
           bun scripts/sync-epoch-data.mjs --write-public-snapshot public/data/epoch-benchmark-snapshot.json --write-cache-snapshot .tmp/epoch-cache-candidate.json
           bun run build:intelligence-input
           bun run sync:intelligence --input .tmp/intelligence-input.json
+      - name: Collect original publisher benchmark snapshots
+        run: bun scripts/collect-direct-benchmarks.mjs --output-directory public/data/publisher-benchmarks
       - name: Verify the release candidate
         run: |
           bun run audit
@@ -120,7 +122,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          git add -- public/data/epoch-benchmark-snapshot.json public/data/polibench-snapshot.json public/data/source-manifest.json
+          git add -- public/data/epoch-benchmark-snapshot.json public/data/polibench-snapshot.json public/data/source-manifest.json public/data/publisher-benchmarks
           if git diff --cached --quiet; then exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'

@@ -1,4 +1,4 @@
-import {readCompareRelease,type CompareReleaseManifest} from './compare-release';
+import {readCompareRelease,RELEASE_SCHEMA,type CompareReleaseManifest} from './compare-release';
 export type ReleaseCandidate={revision:string;manifest:CompareReleaseManifest};
 type Fetcher=(url:string,init?:RequestInit)=>Promise<Response>;
 export const shouldApplyRelease=(firstCheck:boolean,interacted:boolean)=>firstCheck&&!interacted;
@@ -16,5 +16,7 @@ export async function fetchNewCompareRelease(datasetRevision:string,fetchImpl:Fe
  if(!result.ok)throw new Error('Release manifest unavailable');
  const manifest=readCompareRelease(await result.json());
  if(manifest.datasetRevision!==current.datasetRevision)throw new Error('Release changed during refresh');
+ // A pre-migration cache cannot remove sources introduced by this deployment.
+ if(manifest.schemaVersion!==RELEASE_SCHEMA)return null;
  return {revision:current.revision,manifest:{...manifest,delivery:{...manifest.delivery,assetBase:root+'/measurements',benchmarkBase:root+'/benchmarks'}}};
 }

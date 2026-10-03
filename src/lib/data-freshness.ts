@@ -1,3 +1,4 @@
+import {getPublisherEvidence,PUBLISHER_NAMES,type PublisherSnapshot} from './publisher-evidence';
 import {getOpenRouterUsageSnapshot} from './openrouter-usage-server';
 import {catalogReceiptUpdate,PUBLIC_CATALOG_NAMES} from './catalog-cache';
 import { getActiveRefreshPolicy } from '../../scripts/source-refresh-policy.mjs';
@@ -196,8 +197,9 @@ const readStaticSources = async (
   aaLastSeen: Date | null,
   epoch: Awaited<ReturnType<typeof readEpochSnapshotMetadata>>,
 ): Promise<SourceFreshness[]> => {
-  const polibench = await getPublicPoliBenchSnapshot();
+  const [polibench,publishers] = await Promise.all([getPublicPoliBenchSnapshot(),getPublisherEvidence().catch(()=>null)]);
   return [
+    ...Object.keys(PUBLISHER_NAMES).map(key=>publisherSourceFreshness(publishers?.snapshots.find(snapshot=>snapshot.sourceKey===key)??null,key)),
     resolveSourceFreshness({
       sourceKey: 'artificial-analysis',
       displayName: 'Artificial Analysis',
@@ -208,7 +210,8 @@ const readStaticSources = async (
     resolveSourceFreshness({
       sourceKey: 'epoch-ai',
       displayName: 'Epoch AI',
-      lastObservedAt: epoch.runCount ? epoch.fetchedAt : null,
+      lastObservedAt: null,
+      fetchedAt: epoch.runCount ? epoch.fetchedAt : null,
       lastSuccessfulRunAt: epoch.runCount ? epoch.fetchedAt : null,
       coverageLabel: epoch.runCount
         ? `${epoch.modelCount} models / ${epoch.runCount} observations`
@@ -217,7 +220,8 @@ const readStaticSources = async (
     resolveSourceFreshness({
       sourceKey: 'simplebench',
       displayName: 'SimpleBench',
-      lastObservedAt: epoch.simpleBenchRunCount ? epoch.fetchedAt : null,
+      lastObservedAt: null,
+      fetchedAt: epoch.simpleBenchRunCount ? epoch.fetchedAt : null,
       lastSuccessfulRunAt: epoch.simpleBenchRunCount ? epoch.fetchedAt : null,
       coverageLabel: epoch.simpleBenchRunCount
         ? `${epoch.simpleBenchRunCount} SimpleBench results from the Epoch AI snapshot`
@@ -401,3 +405,11 @@ const dataDateFormatter = new Intl.DateTimeFormat('en-US', {
 
 export const formatDataDate = (value: Date | null): string | null =>
   value ? dataDateFormatter.format(value) : null;
+
+export function publisherSourceFreshness(snapshot:PublisherSnapshot|null,sourceKey:string,now=new Date()):SourceFreshness{
+ return resolveSourceFreshness({sourceKey,displayName:PUBLISHER_NAMES[sourceKey]??sourceKey,
+  ...(snapshot?{fetchedAt:snapshot.fetchedAt,lastSuccessfulRunAt:snapshot.fetchedAt,lastObservedAt:snapshot.observedAt,
+    status:snapshot.refreshStatus==='failed'?'partial':undefined,
+    statusMessage:snapshot.refreshStatus==='failed'?'Refresh failed; showing the last checked snapshot.':snapshot.refreshMode==='manual'?'Manually checked publisher snapshot.':undefined,
+    coverageLabel:snapshot.records.length+' source records'}:{status:'unavailable',statusMessage:'No validated publisher snapshot.'})},now);
+}

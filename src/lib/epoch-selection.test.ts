@@ -24,3 +24,11 @@ test('validated cache selection chooses recency rather than row count', () => {
   expect(selection.chooseValidatedEpoch?.(cached, published)).toBe(cached);
   expect(selection.chooseValidatedEpoch?.(published, null)).toBe(published);
 });
+
+test('an older compatible artifact beats a freshly fetched obsolete ingestion contract',()=>{
+ const artifact={fetchedAt:'2026-10-03T05:00:00Z',epochRuns:[{}],sourceContract:2};
+ const legacy={fetchedAt:'2026-10-03T14:00:00Z',epochRuns:[{}],sourceContract:1};
+ expect(selection.chooseValidatedEpoch(artifact,legacy)).toBe(artifact);
+ expect(selection.chooseValidatedEpoch(legacy,artifact)).toBe(artifact);
+ const upgraded={...legacy,sourceContract:2};expect(selection.chooseValidatedEpoch(artifact,upgraded)).toBe(upgraded);
+});

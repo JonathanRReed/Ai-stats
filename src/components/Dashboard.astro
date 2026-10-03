@@ -1,4 +1,5 @@
 ---
+import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboardBarWidth} from '../lib/benchmark-leaderboard';
 import OpenRouterUsage from './OpenRouterUsage';
 import {getOpenRouterUsageSnapshot} from '../lib/openrouter-usage-server';
 import '../styles/openrouter-usage.css';
@@ -16,6 +17,7 @@ import {
   getEpochBenchmarkAttribution,
   getEpochBenchmarksWithRuns,
   getEpochBenchmarkLabel,
+  preferPublisherBenchmarks,
 } from "../lib/benchmark-catalog";
 import {getModelCatalogData} from "../lib/model-catalog-data";
 import CatalogCoverage from "./CatalogCoverage.astro";
@@ -42,7 +44,7 @@ const [catalog, publicCatalogs] =
     getModelCatalogData(),
     getPublicCatalogModels(),
   ]);
-const {currentAaModels:baseModels,epoch:epochEvidence}=catalog;
+const {currentAaModels:baseModels}=catalog;
 const {
   openRouterModels,
   huggingFaceModels,
@@ -53,7 +55,7 @@ const {
   openRouterEmbeddingModels,
   openRouterEndpointSummaries,
 } = publicCatalogs;
-const { epochBenchmarks, epochRuns, epochModels } = epochEvidence;
+const { epochBenchmarks, epochRuns, epochModels } = catalog.benchmarks;
 const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs, catalog.bindings);
 const publicPoliBenchSnapshot = await getPublicPoliBenchSnapshot();
 const dailyUsage = await getOpenRouterUsageSnapshot();
@@ -81,10 +83,10 @@ const workbenchModels = currentMeasuredModels.map((model) => ({
 
 const dataFreshness = await getDataFreshness();
 
-const epochBenchmarksWithRuns = getEpochBenchmarksWithRuns(
+const epochBenchmarksWithRuns = preferPublisherBenchmarks(getEpochBenchmarksWithRuns(
   epochBenchmarks,
   epochRuns,
-);
+));
 const preferredEpochBenchmarkSlugs = [...VALUABLE_FREE_BENCHMARK_SLUGS];
 
 // Get benchmark name mapping
@@ -102,6 +104,7 @@ const benchmarkAttributions: Record<string, any> = {
   livecodebench: AA_BENCHMARK_ATTRIBUTION,
   aa_math_index: AA_BENCHMARK_ATTRIBUTION,
   aa_coding_index: AA_BENCHMARK_ATTRIBUTION,
+  aa_agentic_index: AA_BENCHMARK_ATTRIBUTION,
   aa_intelligence_index: AA_BENCHMARK_ATTRIBUTION,
 };
 epochBenchmarksWithRuns.forEach((benchmark) => {
@@ -141,7 +144,7 @@ const definitionFacts = [
     ? `${totalModels.toLocaleString("en-US")} current measured models with input, output, and blended token prices`
     : null,
   epochRuns.length > 0
-    ? `${epochModels.length.toLocaleString("en-US")} models scored across ${epochBenchmarksWithRuns.length} Epoch AI benchmarks in ${epochRuns.length.toLocaleString("en-US")} recorded runs`
+    ? `${catalog.epoch.epochModels.length.toLocaleString("en-US")} models scored across ${catalog.epoch.epochBenchmarks.length} Epoch AI benchmarks in ${catalog.epoch.epochRuns.length.toLocaleString("en-US")} recorded runs`
     : null,
   openRouterTotal > 0
     ? `${openRouterTotal.toLocaleString("en-US")} OpenRouter models routed through ${openRouterProviders.length} providers`
@@ -160,17 +163,21 @@ const benchmarkConfigs = [
   { key: "livecodebench", label: "LiveCodeBench", source: "aa" },
   { key: "aa_math_index", label: "AA Math Index", source: "aa" },
   { key: "aa_coding_index", label: "AA Coding Index", source: "aa" },
+  { key: "aa_agentic_index", label: "AA Agentic Index", source: "aa" },
   {
     key: "aa_intelligence_index",
     label: "AA Intelligence Index",
     source: "aa",
   },
-  ...epochBenchmarksWithRuns.map((benchmark) => ({
-    key: `epoch_${benchmark.slug}`,
-    label: `${getEpochBenchmarkLabel(benchmark)} (Epoch)`,
-    source: "epoch" as const,
-  })),
+  ...epochBenchmarksWithRuns.flatMap(benchmark=>buildBenchmarkCohorts(benchmark,epochRuns).map(cohort=>({
+    key:cohort.key,label:cohort.label,source:"epoch" as const,
+  }))),
 ];
+
+const benchmarkModelNames = new Map([
+ ...epochModels.map(model=>[model.model_version,model.display_name??model.model_name??model.model_version] as const),
+ ...catalog.publishers.snapshots.flatMap(snapshot=>snapshot.records.map(row=>[row.systemId,row.label] as const)),
+]);
 
 // Build top models for AA benchmarks
 const topByBenchmark: Record<string, any[]> = {};
@@ -179,7 +186,7 @@ const topByBenchmark: Record<string, any[]> = {};
 benchmarkConfigs
   .filter((c) => c.source === "aa")
   .forEach(({ key }) => {
-    const list = [...validModels]
+    const list = [...currentMeasuredModels]
       .filter((m: any) => hasFiniteMetricValue(m[key]))
       .sort((a: any, b: any) => Number(b[key]) - Number(a[key]))
       .slice(0, 5);
@@ -188,18 +195,26 @@ benchmarkConfigs
 
 epochBenchmarksWithRuns.forEach((benchmark) => {
   const slug = benchmark.slug;
-  const runs = epochRuns
-    .filter((r) => r.benchmark_slug === slug && hasFiniteMetricValue(r.score))
-    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-    .slice(0, 5)
+  buildBenchmarkCohorts(benchmark,epochRuns).forEach(cohort=>{
+  benchmarkAttributions[cohort.key]=benchmarkAttributions[`epoch_${slug}`];
+  const runs = cohort.runs.slice(0,5)
     .map((r) => ({
-      name: r.model_version.replace(/_/g, " ").replace(/-/g, " "),
+      name: benchmarkModelNames.get(r.model_version) ?? r.model_version.replace(/_/g, " ").replace(/-/g, " "),
       company_name: r.organization,
       score: r.score,
       score_metric: r.score_metric,
+      source_key: r.source_key,
+      score_unit: r.score_unit ?? 'native',
+      model_version: r.model_version,
+      run_id: r.id,
+      benchmark_version: r.benchmark_version ?? null,
+      conditions: r.conditions ?? null,
       isEpoch: true,
+      metric_key:cohort.metricKey,
+      higher_is_better:cohort.higherIsBetter,
     }));
-  topByBenchmark[`epoch_${slug}`] = runs;
+  topByBenchmark[cohort.key] = runs;
+  });
 });
 
 
@@ -208,13 +223,13 @@ const availableBenchmarkConfigs = benchmarkConfigs.filter(
 );
 const defaultBenchmarkKey = availableBenchmarkConfigs.some(({key}) => key === "aa_intelligence_index")
   ? "aa_intelligence_index" : availableBenchmarkConfigs[0]?.key ?? "";
-const formatEpochLeaderboardScore = (score: number, scoreMetric: string | null | undefined) => {
-  const metric = String(scoreMetric ?? "").toLowerCase();
-  if (score <= 1 || metric.includes("%") || metric.includes("percent") || metric.includes("accuracy")) {
-    return `${(score <= 1 ? score * 100 : score).toFixed(1)}%`;
-  }
-  return score >= 100 ? score.toLocaleString("en-US", {maximumFractionDigits: 1}) : score.toFixed(2);
+const formatEpochLeaderboardScore = (score: number, unit: string | undefined) => {
+  if (unit === 'fraction') return `${(score * 100).toFixed(1)}%`;
+  if (unit === 'percent') return `${score.toFixed(1)}%`;
+  return score.toLocaleString('en-US', {maximumFractionDigits: 3});
 };
+const epochRunHref = (model:any,metric:string)=>benchmarkRecordHref(model,model.metric_key??metric);
+const epochRunSettings = benchmarkRunSettings;
 
 const openRouterToolModels = openRouterModels.filter((model) =>
   model.supported_parameters.includes("tools"),
@@ -365,7 +380,7 @@ function getScoreClass(score: number | null | undefined): string {
       <a href="#stats-sources">Sources</a>
     </nav>
     <section id="stats-overview" class="stats-section" aria-label="Overview">
-      <IntelligenceOverview models={currentMeasuredModels} epochModels={epochModels} epochBenchmarks={epochBenchmarks} epochRuns={epochRuns} polibench={publicPoliBenchSnapshot} freshness={dataFreshness} />
+      <IntelligenceOverview models={currentMeasuredModels} epochModels={catalog.epoch.epochModels} epochBenchmarks={catalog.epoch.epochBenchmarks} epochRuns={catalog.epoch.epochRuns} polibench={publicPoliBenchSnapshot} freshness={dataFreshness} />
       <LatestModelsStrip models={benchmarkSnapshotModels} />
     </section>
     <section id="stats-benchmarks" class="stats-section" aria-label="Benchmarks">
@@ -437,7 +452,6 @@ function getScoreClass(score: number | null | undefined): string {
               // For epoch benchmarks, score is stored in model.score; for AA, it's model[key]
               const getScore = (m: any) =>
                 parseFiniteMetricValue(isEpoch ? m.score : m[key]) ?? 0;
-              const maxScore = Math.max(...list.map(getScore));
 
               return (
                 <div
@@ -448,8 +462,7 @@ function getScoreClass(score: number | null | undefined): string {
                   <ul class="divide-y divide-highlight-low/40">
                     {list.map((model: any, index: number) => {
                       const score = getScore(model);
-                      const barWidth =
-                        maxScore > 0 ? (score / maxScore) * 100 : 0;
+                      const barWidth = leaderboardBarWidth(score,list.map(getScore),model.higher_is_better!==false);
                       const rankColors = [
                         "lbb1",
                         "lbb2",
@@ -465,6 +478,7 @@ function getScoreClass(score: number | null | undefined): string {
                             class="lr"
                             data-lr
                             data-model-id={isEpoch ? undefined : model.id}
+                            data-compare-href={isEpoch ? epochRunHref(model, key) : undefined}
                           >
                             {/* Background bar */}
                             <div
@@ -499,12 +513,13 @@ function getScoreClass(score: number | null | undefined): string {
                                 <div class="lbml">
                                   <span
                                     class={`lbn ${index === 0 ? "lbnt" : "lbnx"}`}
+                                    title={model.name}
                                   >
                                     {model.name}
                                   </span>
                                 </div>
                                 <div class="lbc">
-                                  {model.company_name ?? "Unknown provider"}
+                                  {isEpoch && epochRunSettings(model) ? epochRunSettings(model) : model.company_name ?? "Unknown provider"}
                                 </div>
                               </div>
 
@@ -513,7 +528,7 @@ function getScoreClass(score: number | null | undefined): string {
                                 class={`lbs ${index === 0 ? "score-high" : index < 3 ? "lbsp" : "lbsx"}`}
                               >
                                 {isEpoch
-                                  ? formatEpochLeaderboardScore(score, model.score_metric)
+                                  ? formatEpochLeaderboardScore(score, model.score_unit)
                                   : key.startsWith("aa_") ? formatIndex(model[key]) : formatScore(model[key])}
                               </div>
                             </div>
@@ -2040,6 +2055,8 @@ function getScoreClass(score: number | null | undefined): string {
 
 <script>
   // @ts-nocheck
+import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboardBarWidth} from '../lib/benchmark-leaderboard';
+  import {preferPublisherBenchmarks} from '../lib/benchmark-catalog';
   import { findAaComparableCoverageLeader } from "../lib/data-integrity";
   import {
     hasFiniteMetricValue,
@@ -2058,6 +2075,7 @@ function getScoreClass(score: number | null | undefined): string {
       { key: "livecodebench", label: "LiveCodeBench", source: "aa" },
       { key: "aa_math_index", label: "AA Math Index", source: "aa" },
       { key: "aa_coding_index", label: "AA Coding Index", source: "aa" },
+      { key: "aa_agentic_index", label: "AA Agentic Index", source: "aa" },
       {
         key: "aa_intelligence_index",
         label: "AA Intelligence Index",
@@ -2839,32 +2857,33 @@ function getScoreClass(score: number | null | undefined): string {
         aaConfigs.push(config);
       });
 
-      sortEpochBenchmarksByValue(epochBenchmarks).forEach((benchmark) => {
-        const key = `epoch_${benchmark.slug}`;
-        const list = epochRuns
-          .filter(
-            (run) =>
-              run.benchmark_slug === benchmark.slug &&
-              hasFiniteMetricValue(run.score),
-          )
-          .sort((a, b) => Number(b.score) - Number(a.score))
-          .slice(0, 5)
-          .map((run) => ({
+      sortEpochBenchmarksByValue(preferPublisherBenchmarks(epochBenchmarks)).forEach((benchmark) => {
+        buildBenchmarkCohorts(benchmark,epochRuns).forEach(cohort=>{
+        const key=cohort.key;
+        const list=cohort.runs.slice(0,5)          .map((run) => ({
             name: String(run.model_version || "")
               .replace(/_/g, " ")
               .replace(/-/g, " "),
             company_name: run.organization ?? "Unknown provider",
             score: parseFiniteMetricValue(run.score) ?? 0,
             score_metric: run.score_metric,
+            source_key: run.source_key,
+            metric_key:cohort.metricKey,
+            higher_is_better:cohort.higherIsBetter,
+            score_unit: run.score_unit ?? 'native',
+            model_version: run.model_version,
+            benchmark_version: run.benchmark_version ?? null,
+            conditions: run.conditions ?? null,
         }));
         if (!list.length) return;
         ensureEpochAttribution(key, benchmark, epochRuns);
         topByBenchmark[key] = list;
         epochConfigs.push({
           key,
-          label: `${EPOCH_BENCHMARK_LABELS[benchmark.slug] || benchmark.name} (Epoch)`,
+          label: cohort.label,
           source: "epoch",
           scoreMetric: list[0]?.score_metric ?? null,
+        });
         });
       });
 
@@ -2932,24 +2951,13 @@ function getScoreClass(score: number | null | undefined): string {
             parseFiniteMetricValue(
               isEpoch ? model.score : model[config.key],
             ) ?? 0;
-          const formatBenchmarkScore = (score) => {
+          const formatBenchmarkScore = (score, model) => {
             if (!Number.isFinite(score)) return "N/A";
             if (!isEpoch) return config.key.startsWith("aa_") ? formatIndex(score) : formatScore(score);
-            const metric = String(config.scoreMetric || "").toLowerCase();
-            const isPercentMetric =
-              score <= 1 ||
-              metric.includes("%") ||
-              metric.includes("percent") ||
-              metric.includes("accuracy");
-            if (isPercentMetric) {
-              const pct = score <= 1 ? score * 100 : score;
-              return `${pct.toFixed(1)}%`;
-            }
-            return score >= 100
-              ? score.toLocaleString(undefined, { maximumFractionDigits: 1 })
-              : score.toFixed(2);
+            if (model.score_unit === 'fraction') return `${(score * 100).toFixed(1)}%`;
+            if (model.score_unit === 'percent') return `${score.toFixed(1)}%`;
+            return score.toLocaleString('en-US',{maximumFractionDigits:3});
           };
-          const maxScore = Math.max(...list.map(getScore), 0);
           const rankColors = [
             "lbb1",
             "lbb2",
@@ -2961,14 +2969,14 @@ function getScoreClass(score: number | null | undefined): string {
           const rows = list
             .map((model, index) => {
               const score = getScore(model);
-              const barWidth = maxScore > 0 ? (score / maxScore) * 100 : 0;
-              const scoreText = formatBenchmarkScore(score);
+              const barWidth = leaderboardBarWidth(score,list.map(getScore),model.higher_is_better!==false);
+              const scoreText = formatBenchmarkScore(score, model);
               const name = escapeHtml(toDisplayName(model.name));
               const company = escapeHtml(
-                toDisplayName(model.company_name, "Unknown provider"),
+                benchmarkRunSettings(model)||toDisplayName(model.company_name, "Unknown provider"),
               );
               const rowAction = isEpoch
-                ? ""
+                ? `data-compare-href="${escapeHtml(benchmarkRecordHref(model,model.metric_key??config.key))}"`
                 : `data-model-id="${escapeHtml(model.id)}"`;
               const rankBadge =
                 index === 0
@@ -3313,6 +3321,7 @@ function getScoreClass(score: number | null | undefined): string {
     };
 
     const openLeaderboardRow = (row) => {
+      if (row.dataset.compareHref?.startsWith("/compare?")) {window.location.href=row.dataset.compareHref;return;}
       if (row.dataset.modelId || row.dataset.modelJson) {
         void openModelDrawerFromElement(row);
         return;
@@ -3721,7 +3730,7 @@ function getScoreClass(score: number | null | undefined): string {
         epochRuns,
       );
       renderOpenRouterProviderLeaderboard();
-      renderLeaderboard(liveModels, epochBenchmarks, epochRuns);
+      renderLeaderboard((snapshot.aaModels??[]).filter(model=>model.current_source_member!==false), epochBenchmarks, epochRuns);
       renderModels(liveModels);
     });
   }

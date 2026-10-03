@@ -9,6 +9,8 @@ export function validateBenchmarkAsset(payload:unknown,slug:string):EpochObserva
  const ids=new Set<string>();
  for(const row of payload.observations){
  if(!plain(row)||!text(row.id)||ids.has(row.id as string)||!text(row.modelVersion)||row.benchmarkSlug!==slug||
+ (row.benchmarkVersion!==undefined&&!nullableText(row.benchmarkVersion))||
+ (row.sourceName!==undefined&&!nullableText(row.sourceName))||(row.sourceKey!==undefined&&!nullableText(row.sourceKey))||
  !nullableText(row.metricKey)||!['native','percent','fraction'].includes(row.unit as string)||
  !(row.value===null||typeof row.value==='number'&&Number.isFinite(row.value))||
  !(row.conditions===null||plain(row.conditions)&&Object.entries(row.conditions).every(([key,value])=>key.length>0&&(typeof value==='string'||typeof value==='boolean'||typeof value==='number'&&Number.isFinite(value))))||

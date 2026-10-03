@@ -34,9 +34,10 @@ test("the model snapshot explains its evidence filter and links into comparison"
   expect(latestModelsSource).not.toContain("<h1");
   expect(latestModelsSource).toContain("Leading models");
   expect(latestModelsSource).toContain("One recent model per provider");
-  expect(latestModelsSource).toContain("ordered by AA Index");
-  expect(latestModelsSource).toContain("number of available measurements");
-  expect(latestModelsSource).toContain("does not recommend a model");
+  expect(latestModelsSource).toContain("ordered by AA Intelligence Index");
+  expect(latestModelsSource).toContain("hasFiniteMetricValue(model.aa_coding_index)");
+  expect(latestModelsSource).not.toContain("does not recommend a model");
+  expect(latestModelsSource).not.toContain("pricing, and speed available");
   expect(latestModelsSource).toContain('href={compareRecordHref(model.id)}');
   expect(latestModelsSource).not.toContain("latest-model-order");
   expect(latestModelsSource).not.toContain("overflow-x-auto");
@@ -193,4 +194,9 @@ test("compact model styles do not leave a media block open",()=>{
  let depth=0;
  for(const char of style){if(char==='{')depth++;if(char==='}')depth--;expect(depth).toBeGreaterThanOrEqual(0);}
  expect(depth).toBe(0);
+});
+
+test("benchmark eligibility is independent of pricing and includes the available Agentic Index",()=>{
+ expect(dashboardSource).toContain('const list = [...currentMeasuredModels]');
+ expect(dashboardSource).toContain('key: "aa_agentic_index"');
 });

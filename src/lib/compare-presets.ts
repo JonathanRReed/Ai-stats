@@ -11,8 +11,8 @@ export function availableCompareCharts(models:ExplorerModel[]){
  return COMPARE_VIEW_LABELS.filter(view=>view.id!=='task-cost'&&view.id!=='total-cost'||models.some(model=>
  model.source==='aa'&&finite(model.intelligence)&&nonnegative(view.id==='task-cost'?model.aaTaskCost:model.aaEvaluationCost)));
 }
-export function availableAaMetrics(models:ExplorerModel[]){
- return Object.entries(AA_METRIC_LABELS).filter(([key])=>models.some(model=>model.source==='aa'&&finite(
+export function availableAaMetrics(models:ExplorerModel[],includeHistory=false){
+ return Object.entries(AA_METRIC_LABELS).filter(([key])=>models.some(model=>model.source==='aa'&&(includeHistory||model.current!==false)&&finite(
  key==='aa_intelligence_index'?model.intelligence:key==='aa_coding_index'?model.coding:model.metrics?.[key])));
 }
 export function nextCatalogSource(models:ExplorerModel[],source:string,includeHistory:boolean):string{
@@ -48,4 +48,13 @@ export function buildComparePresets(models:ExplorerModel[]):ComparePreset[]{
  chart:'price',metricId:'aa_intelligence_index',modelIds:diverse(models.filter(model=>model.source==='openrouter'&&model.current===true&&
  model.sourceModelId.endsWith(':free')&&model.priceInput===0&&model.priceOutput===0&&model.inputModalities?.includes('text')&&model.outputModalities?.includes('text')).sort(byId))},
  ];return presets.filter(preset=>preset.modelIds.length);
+}
+
+export function selectAaBenchmarkModels(models:ExplorerModel[],metricId:string,limit=8,includeHistory=false):string[]{
+ const value=(model:ExplorerModel)=>metricId==='aa_intelligence_index'?model.intelligence:metricId==='aa_coding_index'?model.coding:model.metrics?.[metricId];
+ return models.filter(model=>model.source==='aa'&&(includeHistory||model.current!==false)&&finite(value(model))).sort((a,b)=>Number(value(b))-Number(value(a))||a.id.localeCompare(b.id)).slice(0,limit).map(model=>model.id);
+}
+
+export function buildAaBenchmarkSelections(models:ExplorerModel[]){
+ return Object.fromEntries(Object.keys(AA_METRIC_LABELS).map(key=>[key,{current:selectAaBenchmarkModels(models,key),historical:selectAaBenchmarkModels(models,key,8,true)}] as const).filter(([,value])=>value.historical.length));
 }

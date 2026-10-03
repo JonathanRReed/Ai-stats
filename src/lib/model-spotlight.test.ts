@@ -39,36 +39,18 @@ const model = (
   median_time_to_first_token_seconds: 0.2,
   median_time_to_first_answer_token: 0.4,
   first_seen: firstSeen,
-  last_seen: firstSeen,
+  last_seen: new Date().toISOString(),
   ...overrides,
 });
 
-test("isCurrentMeasuredModel excludes incomplete zero operational telemetry", () => {
-  expect(
-    isCurrentMeasuredModel(
-      model("placeholder", "Amazon", "2026-08-30", {
-        price_1m_blended_3_to_1: 0,
-        median_output_tokens_per_second: 0,
-      }),
-    ),
-  ).toBe(false);
+test("a recorded benchmark does not require token pricing, speed or provider popularity",()=>{
+ expect(isCurrentMeasuredModel(model("new","Small Lab","2026-08-30",{price_1m_blended_3_to_1:null,median_output_tokens_per_second:null,aa_coding_index:null,gpqa:null}))).toBe(true);
+ expect(isCurrentMeasuredModel(model("free","OpenAI","2026-08-30",{price_1m_blended_3_to_1:0,median_output_tokens_per_second:0}))).toBe(true);
+ expect(isCurrentMeasuredModel(model("zero","Small Lab","2026-08-30",{aa_intelligence_index:0,aa_coding_index:null,gpqa:null}))).toBe(true);
 });
-
-test("isCurrentMeasuredModel excludes obscure providers without adoption evidence", () => {
-  expect(isCurrentMeasuredModel(model("obscure", "Unknown Lab", "2026-08-30"))).toBe(false);
-  expect(
-    isCurrentMeasuredModel(
-      model("adopted", "Unknown Lab", "2026-08-30", {
-        openrouter_usage_tokens: 2_000_000,
-      }),
-    ),
-  ).toBe(true);
-});
-
-test("isCurrentMeasuredModel does not accept a provider that only contains a famous name", () => {
-  expect(
-    isCurrentMeasuredModel(model("spoofed", "Not OpenAI Research", "2026-08-30")),
-  ).toBe(false);
+test("missing quality evidence and explicitly historical rows remain excluded",()=>{
+ expect(isCurrentMeasuredModel(model("missing","OpenAI","2026-08-30",{aa_intelligence_index:null,aa_coding_index:null,gpqa:null}))).toBe(false);
+ expect(isCurrentMeasuredModel(model("old","OpenAI","2026-08-30",{current_source_member:false}))).toBe(false);
 });
 
 test("isCurrentMeasuredModel requires a recent observation receipt", () => {
@@ -133,4 +115,15 @@ test("selectBenchmarkSnapshotModels caps the splash at six providers", () => {
   ]);
 
   expect(selected).toHaveLength(6);
+});
+
+test("a new top-scoring model is not replaced by an older model with more telemetry",()=>{
+ const selected=selectBenchmarkSnapshotModels([
+ model("new","Anthropic","2026-09-23",{aa_intelligence_index:57.6,aa_coding_index:null,gpqa:null,median_output_tokens_per_second:null}),
+ model("old","Anthropic","2026-09-02",{aa_intelligence_index:53.4}),
+ ]);expect(selected.map(row=>row.id)).toEqual(["new"]);
+});
+
+test("the intelligence-ranked leading strip excludes records without an Intelligence Index",()=>{
+ const codingOnly=model("coding-only","Lab","2026-08-30",{aa_intelligence_index:null});expect(isCurrentMeasuredModel(codingOnly)).toBe(true);expect(selectBenchmarkSnapshotModels([codingOnly])).toEqual([]);
 });
