@@ -81,6 +81,7 @@ const normalizeRun = (
 };
 
 export async function getPublicEpochSnapshot(providedSnapshot?: PublicEpochSnapshot): Promise<{
+  sourceContract?: number;
   fetchedAt: string | null;
   epochBenchmarks: EpochBenchmark[];
   epochModels: EpochModel[];
@@ -106,7 +107,8 @@ export async function getPublicEpochSnapshot(providedSnapshot?: PublicEpochSnaps
 
     if (!epochBenchmarks.length || !epochRuns.length) return null;
     const fetchedAt = snapshot.fetched_at && Number.isFinite(Date.parse(snapshot.fetched_at)) ? snapshot.fetched_at : null;
-    return { fetchedAt, epochBenchmarks, epochModels, epochRuns };
+    const sourceContract = (snapshot.runs ?? []).every(row => Object.hasOwn(row,'benchmark_version')) && epochBenchmarks.some(row => typeof row.metadata?.score_column === 'string') ? 2 : 1;
+    return { sourceContract, fetchedAt, epochBenchmarks, epochModels, epochRuns };
   } catch {
     return null;
   }
