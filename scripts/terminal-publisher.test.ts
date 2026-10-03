@@ -16,3 +16,7 @@ test('a newer Terminal benchmark release requires review before collection',asyn
  let calls=0;const results=await collectDirectBenchmarks({sources:['terminal-bench'],fetchImpl:async()=>{calls++;return new Response(html(true));}});
  expect(results[0].status).toBe('unavailable');expect(calls).toBe(1);
 });
+
+test('hidden Terminal rows cannot advance the published observation date',()=>{
+ const result=normalizeTerminalBench({...payload,rows:[...payload.rows,{...payload.rows[0],id:'hidden',status:'hide',updated_at:'2026-10-03T16:00:00Z'}]},'2026-10-03T17:00:00Z');expect(result.records).toHaveLength(1);expect(result.observedAt).toBe('2026-09-10T21:58:00.000Z');
+});

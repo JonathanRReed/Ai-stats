@@ -123,3 +123,7 @@ test("a new top-scoring model is not replaced by an older model with more teleme
  model("old","Anthropic","2026-09-02",{aa_intelligence_index:53.4}),
  ]);expect(selected.map(row=>row.id)).toEqual(["new"]);
 });
+
+test("the intelligence-ranked leading strip excludes records without an Intelligence Index",()=>{
+ const codingOnly=model("coding-only","Lab","2026-08-30",{aa_intelligence_index:null});expect(isCurrentMeasuredModel(codingOnly)).toBe(true);expect(selectBenchmarkSnapshotModels([codingOnly])).toEqual([]);
+});

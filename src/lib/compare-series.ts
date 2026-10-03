@@ -89,6 +89,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
         model.id+':'+row.id,row.conditions===null||!row.benchmarkVersion?null:slug+':'+row.benchmarkVersion+':'+epochScoreKey(row)+':'+epochConditionKey(row.conditions));
     });
     result.yLabel=rows[0]?.unit==='fraction'||rows[0]?.unit==='percent'?'Score (%)':rows[0]?.metricKey??'Source-native score';
+    if(slug==='btf3_external')result.yLabel+=' (lower is better)';
     for(const model of models)if(!result.points.some(point=>point.modelId===model.id)){
       result.excluded.push({modelId:model.id,reason:'No matching benchmark observation'});
     }

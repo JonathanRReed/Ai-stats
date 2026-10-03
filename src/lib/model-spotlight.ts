@@ -89,7 +89,7 @@ export const selectBenchmarkSnapshotModels = (
   const selectedProviders = new Set<string>();
 
   return models
-    .filter((model) => isCurrentMeasuredModel(model))
+    .filter((model) => isCurrentMeasuredModel(model) && hasRecordedMetric(model.aa_intelligence_index))
     .sort((a, b) => {
       const qualityDifference =
         Number(b.aa_intelligence_index ?? 0) -

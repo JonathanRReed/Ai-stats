@@ -1,5 +1,5 @@
 import {expect,test} from 'bun:test';
-import {buildBenchmarkCohorts,benchmarkRecordHref} from './benchmark-leaderboard';
+import {buildBenchmarkCohorts,benchmarkRecordHref,leaderboardBarWidth} from './benchmark-leaderboard';
 import type {EpochBenchmark,EpochBenchmarkRun} from './supabase';
 const benchmark:EpochBenchmark={id:'b',slug:'btf3_external',name:'BTF-3',description:null,source:'Epoch'};
 const row=(id:string,score:number,extra:Partial<EpochBenchmarkRun>={}):EpochBenchmarkRun=>({id,score,model_version:id,benchmark_id:'b',benchmark_slug:benchmark.slug,organization:null,country:null,stderr:null,release_date:null,score_metric:'Brier',score_unit:'native',...extra});
@@ -16,4 +16,10 @@ test('direct publisher attribution and exact record deep links survive',()=>{
  const r=row('astra-codex',58.2,{benchmark_slug:b.slug,benchmark_version:'4.0.0',source_key:'terminal-bench',score_metric:'accuracy',score_unit:'percent',higher_is_better:true,conditions:{agent:'Codex',reasoningEffort:'max'}});
  const [g]=buildBenchmarkCohorts(b,[r]);expect(g.label).not.toContain('Epoch');
  const url=new URL(benchmarkRecordHref(r,g.metricKey),'https://example.com');expect(url.searchParams.get('source')).toBe('publisher');expect(url.searchParams.get('record')).toBe('astra-codex');expect(JSON.parse(url.searchParams.get('score_metric')!)).toEqual(['accuracy','percent','4.0.0']);expect(url.searchParams.get('condition')).toContain('Codex');
+});
+
+test('lower-is-better decorative bars keep the winning score longest without changing data',()=>{
+ expect(leaderboardBarWidth(.12,[.12,.135],false)).toBe(100);expect(leaderboardBarWidth(.135,[.12,.135],false)).toBeCloseTo(88.8889,3);
+ expect(leaderboardBarWidth(0,[0,.1],false)).toBe(100);expect(leaderboardBarWidth(.1,[0,.1],false)).toBe(0);
+ expect(leaderboardBarWidth(2,[2,4],true)).toBe(50);
 });

@@ -94,3 +94,9 @@ test('original publisher observations reach the chart without an Epoch source fi
  const result=series.buildCompareSeries({models:[model],observations:[row]},state);
  expect(result.points).toHaveLength(1);expect(result.points[0].y).toBe(58.2);expect(result.points[0].receipt.source).toBe('Terminal-Bench');
 });
+
+test('BTF-3 chart labels its lower-is-better scale while retaining raw scores',()=>{
+ const model:ExplorerModel={id:'epoch:m',source:'epoch',sourceModelId:'m',name:'M',family:'M',current:true};
+ const row:EpochObservation={id:'r',modelVersion:'m',benchmarkSlug:'btf3_external',metricKey:'Pooled score',unit:'native',value:.12,conditions:null,evaluationDate:null,sourceUrl:null,fetchedAt:null,snapshotId:null};
+ const state=parseCompareState(new URLSearchParams('chart=benchmark&metric=epoch_btf3_external&m=epoch%3Am'),[model]);const result=series.buildCompareSeries({models:[model],observations:[row]},state);expect(result.yLabel).toContain('lower is better');expect(result.points[0].y).toBe(.12);
+});

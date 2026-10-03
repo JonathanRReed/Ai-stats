@@ -1,5 +1,5 @@
 ---
-import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings} from '../lib/benchmark-leaderboard';
+import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboardBarWidth} from '../lib/benchmark-leaderboard';
 import OpenRouterUsage from './OpenRouterUsage';
 import {getOpenRouterUsageSnapshot} from '../lib/openrouter-usage-server';
 import '../styles/openrouter-usage.css';
@@ -211,6 +211,7 @@ epochBenchmarksWithRuns.forEach((benchmark) => {
       conditions: r.conditions ?? null,
       isEpoch: true,
       metric_key:cohort.metricKey,
+      higher_is_better:cohort.higherIsBetter,
     }));
   topByBenchmark[cohort.key] = runs;
   });
@@ -451,7 +452,6 @@ function getScoreClass(score: number | null | undefined): string {
               // For epoch benchmarks, score is stored in model.score; for AA, it's model[key]
               const getScore = (m: any) =>
                 parseFiniteMetricValue(isEpoch ? m.score : m[key]) ?? 0;
-              const maxScore = Math.max(...list.map(getScore));
 
               return (
                 <div
@@ -462,8 +462,7 @@ function getScoreClass(score: number | null | undefined): string {
                   <ul class="divide-y divide-highlight-low/40">
                     {list.map((model: any, index: number) => {
                       const score = getScore(model);
-                      const barWidth =
-                        maxScore > 0 ? (score / maxScore) * 100 : 0;
+                      const barWidth = leaderboardBarWidth(score,list.map(getScore),model.higher_is_better!==false);
                       const rankColors = [
                         "lbb1",
                         "lbb2",
@@ -2056,7 +2055,7 @@ function getScoreClass(score: number | null | undefined): string {
 
 <script>
   // @ts-nocheck
-import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings} from '../lib/benchmark-leaderboard';
+import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboardBarWidth} from '../lib/benchmark-leaderboard';
   import {preferPublisherBenchmarks} from '../lib/benchmark-catalog';
   import { findAaComparableCoverageLeader } from "../lib/data-integrity";
   import {
@@ -2870,6 +2869,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings} from '..
             score_metric: run.score_metric,
             source_key: run.source_key,
             metric_key:cohort.metricKey,
+            higher_is_better:cohort.higherIsBetter,
             score_unit: run.score_unit ?? 'native',
             model_version: run.model_version,
             benchmark_version: run.benchmark_version ?? null,
@@ -2958,7 +2958,6 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings} from '..
             if (model.score_unit === 'percent') return `${score.toFixed(1)}%`;
             return score.toLocaleString('en-US',{maximumFractionDigits:3});
           };
-          const maxScore = Math.max(...list.map(getScore), 0);
           const rankColors = [
             "lbb1",
             "lbb2",
@@ -2970,7 +2969,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings} from '..
           const rows = list
             .map((model, index) => {
               const score = getScore(model);
-              const barWidth = maxScore > 0 ? (score / maxScore) * 100 : 0;
+              const barWidth = leaderboardBarWidth(score,list.map(getScore),model.higher_is_better!==false);
               const scoreText = formatBenchmarkScore(score, model);
               const name = escapeHtml(toDisplayName(model.name));
               const company = escapeHtml(

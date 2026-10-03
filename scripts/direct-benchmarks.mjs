@@ -207,7 +207,7 @@ export function normalizeTerminalBench(payload,fetchedAt){
    totalTokens:finite(metrics.total_tokens)?metrics.total_tokens:null,totalCostUsd:finite(metrics.total_cost_usd)?metrics.total_cost_usd:null,
    publisherRowId:row.id,evaluatedAt:null,sourceUrl:'https://hub.harborframework.com/datasets/terminal-bench/terminal-bench/latest?leaderboard=4-0-0&tab=leaderboard'};
  });
- const dates=payload.rows.map(row=>row.updated_at).filter(value=>typeof value==='string'&&Number.isFinite(Date.parse(value)));
+ const dates=payload.rows.filter(row=>row.status==='display').map(row=>row.updated_at).filter(value=>typeof value==='string'&&Number.isFinite(Date.parse(value)));
  return {schemaVersion:1,sourceKey:'terminal-bench',fetchedAt:timestamp(fetchedAt),observedAt:dates.length?new Date(Math.max(...dates.map(Date.parse))).toISOString():null,benchmarkVersion:'4.0.0',refreshMode:'automatic',
   sourceUrl:'https://hub.harborframework.com/datasets/terminal-bench/terminal-bench/latest?leaderboard=4-0-0&tab=leaderboard',records:nonempty(records)};
 }

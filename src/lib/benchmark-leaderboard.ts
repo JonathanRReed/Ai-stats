@@ -28,3 +28,12 @@ export function benchmarkRecordHref(model:{source_key?:string;model_version:stri
 export function benchmarkRunSettings(model:{conditions?:Record<string,unknown>|null}){
  return Object.entries(model.conditions??{}).filter(([key])=>/^(agent|agent version|harness|harness version|reasoning effort|reasoningEffort|livebench version|metr version)$/i.test(key)).map(([,value])=>String(value)).join(' · ');
 }
+
+/** Decorative rank bars are relative to the best displayed score in the correct direction. */
+export function leaderboardBarWidth(score:number,scores:number[],higherIsBetter=true):number{
+ const finite=scores.filter(Number.isFinite);if(!Number.isFinite(score)||!finite.length)return 0;
+ if(higherIsBetter){const best=Math.max(...finite);return best>0?Math.max(0,Math.min(100,score/best*100)):0;}
+ const best=Math.min(...finite);
+ if(score===best)return 100;
+ return best>=0&&score>0?Math.max(0,Math.min(100,best/score*100)):0;
+}
