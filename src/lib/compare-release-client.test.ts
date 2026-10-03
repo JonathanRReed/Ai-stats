@@ -23,3 +23,9 @@ test('background updates never interrupt an active inspection',()=>{
  expect(shouldApplyRelease(true,true)).toBe(false);
  expect(shouldApplyRelease(false,false)).toBe(false);
 });
+
+test('a newer legacy release cannot downgrade publisher-capable pages',async()=>{
+ const manifest={...fixture(),schemaVersion:'ai-stats-compare-release.v1'};let calls=0;
+ const result=await fetchNewCompareRelease('old',async()=>Response.json(++calls===1?{schemaVersion:1,revision:'a'.repeat(64),datasetRevision:manifest.datasetRevision}:manifest));
+ expect(result).toBeNull();
+});

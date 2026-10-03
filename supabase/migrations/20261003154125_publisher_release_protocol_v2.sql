@@ -1,5 +1,5 @@
 create or replace function public.publish_app_release(p_revision text,p_manifest jsonb,p_assets jsonb,p_source_receipts jsonb)
-returns text language plpgsql security invoker set search_path='' set statement_timeout='30s' as $
+returns text language plpgsql security invoker set search_path='' set statement_timeout='30s' as $$
 declare
  v_current public.app_release_cache%rowtype;
  v_existing public.app_release_cache%rowtype;
