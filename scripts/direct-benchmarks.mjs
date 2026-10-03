@@ -174,8 +174,9 @@ function divContents(html,start){
 export function normalizeGdpPdf(html,fetchedAt){
  if(typeof html!=='string'||!html.includes('GDP.pdf'))throw new Error('Unsupported GDP.pdf page');
  const tableMatches=[...html.matchAll(/<div\b[^>]*\bdata-leaderboard-table=["'][^"']*["'][^>]*>/gi)];
- if(tableMatches.length!==1)throw new Error('GDP.pdf scoreboard changed');
- const table=divContents(html,tableMatches[0].index),rowTags=[...table.matchAll(/<div\b[^>]*\bdata-leaderboard-row=["'][^"']*["'][^>]*>/gi)];
+ const overall=tableMatches.filter(match=>/class=["'][^"']*\blead-rank-table-list-body\b[^"']*["']/.test(match[0]));
+ if(overall.length!==1)throw new Error('GDP.pdf scoreboard changed');
+ const table=divContents(html,overall[0].index),rowTags=[...table.matchAll(/<div\b[^>]*\bdata-leaderboard-row=["'][^"']*["'][^>]*>/gi)];
  const field=(row,className)=>{
   const opening=[...row.matchAll(/<div\b[^>]*\bclass=["']([^"']*)["'][^>]*>/gi)].find(match=>match[1].split(/\s+/).includes(className));
   if(!opening)throw new Error('Missing GDP.pdf model label');
