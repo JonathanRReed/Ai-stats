@@ -1,0 +1,57 @@
+--- a/index.js
++++ b/index.js
+@@ -395,7 +395,7 @@
+         this._assertRequestHasHeaders(req);
+ 
+         // In all circumstances, a cache MUST NOT ignore the must-revalidate directive
+-        if (this._rescc['must-revalidate']) {
++        if (this._rescc['must-revalidate'] || this._requiresRevalidation()) {
+             return this._evaluateRequestMissResult(req);
+         }
+ 
+@@ -596,6 +596,19 @@
+      * Returns the maximum age (freshness lifetime) of the response in seconds.
+      * @returns {number} The max-age value in seconds.
+      */
++    // Security restrictions cannot be overridden by stale request directives.
++    _requiresRevalidation() {
++        return !!(
++            !this.storable() ||
++            this._rescc['no-cache'] ||
++            this._resHeaders.vary === '*' ||
++            (this._isShared &&
++                (this._rescc['proxy-revalidate'] ||
++                    (this._resHeaders['set-cookie'] &&
++                        !this._rescc.public && !this._rescc.immutable)))
++        );
++    }
++
+     maxAge() {
+         if (!this.storable() || this._rescc['no-cache']) {
+             return 0;
+@@ -664,7 +677,9 @@
+      * @returns {number} Time-to-live in milliseconds.
+      */
+     timeToLive() {
++        if (this._requiresRevalidation()) return 0;
+         const age = this.maxAge() - this.age();
++        if (this._rescc['must-revalidate']) return Math.round(Math.max(0, age) * 1000);
+         const staleIfErrorAge = age + toNumberOrZero(this._rescc['stale-if-error']);
+         const staleWhileRevalidateAge = age + toNumberOrZero(this._rescc['stale-while-revalidate']);
+         return Math.round(Math.max(0, age, staleIfErrorAge, staleWhileRevalidateAge) * 1000);
+@@ -683,6 +698,7 @@
+      * @returns {boolean} `true` if `stale-if-error` condition allows use of a stale response.
+      */
+     _useStaleIfError() {
++        if (this._rescc['must-revalidate'] || this._requiresRevalidation()) return false;
+         return this.maxAge() + toNumberOrZero(this._rescc['stale-if-error']) > this.age();
+     }
+ 
+@@ -690,6 +706,7 @@
+      * @returns {boolean} `true` if `stale-while-revalidate` is currently allowed.
+      */
+     useStaleWhileRevalidate() {
++        if (this._rescc['must-revalidate'] || this._requiresRevalidation()) return false;
+         const swr = toNumberOrZero(this._rescc['stale-while-revalidate']);
+         return swr > 0 && this.maxAge() + swr > this.age();
+     }

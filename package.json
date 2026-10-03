@@ -64,5 +64,8 @@
     "globals": "17.12.0",
     "tailwindcss": "4.3.3",
     "typescript-eslint": "8.69.0"
+  },
+  "patchedDependencies": {
+    "http-cache-semantics@4.2.0": "patches/http-cache-semantics@4.2.0.patch"
   }
 }
