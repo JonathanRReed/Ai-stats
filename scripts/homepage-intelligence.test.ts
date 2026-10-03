@@ -134,7 +134,7 @@ test("the measurements overview keeps the AA-price plot, coverage bars, and rece
   expect(overviewSource).toContain("AA Index vs. price");
   expect(overviewSource).toContain("Benchmark coverage");
   expect(overviewSource).toContain("Recent source updates");
-  expect(overviewSource).toContain("View all model comparisons");
+  expect(dashboardSource).toContain('href="/compare" class="eco-btn eco-btn-primary">Compare models</a>');
   expect(overviewSource).toContain("Not dominated on price and AA Index");
   expect(overviewSource).toContain("Other models");
   expect(overviewSource).not.toContain("Top pick");
