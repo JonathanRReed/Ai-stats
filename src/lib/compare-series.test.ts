@@ -66,7 +66,7 @@ test('selections from another source explain why they are not plotted',()=>{
   const epochModel:ExplorerModel={id:'epoch:v',name:'V',family:'V',source:'epoch',sourceModelId:'v',current:true};
   const state=selection('chart=benchmark&metric=epoch_b');
   const result=series.buildCompareSeries({models:[...models,epochModel],observations:[]},state);
-  expect(result.excluded).toEqual([{modelId:'a',reason:'Choose an Epoch record for this benchmark'},{modelId:'b',reason:'Choose an Epoch record for this benchmark'}]);
+  expect(result.excluded).toEqual([{modelId:'a',reason:'Choose a measured source record for this benchmark'},{modelId:'b',reason:'Choose a measured source record for this benchmark'}]);
 });
 
 test('AA reasoning filters do not suppress Epoch measurements',()=>{
