@@ -104,6 +104,7 @@ const benchmarkAttributions: Record<string, any> = {
   livecodebench: AA_BENCHMARK_ATTRIBUTION,
   aa_math_index: AA_BENCHMARK_ATTRIBUTION,
   aa_coding_index: AA_BENCHMARK_ATTRIBUTION,
+  aa_agentic_index: AA_BENCHMARK_ATTRIBUTION,
   aa_intelligence_index: AA_BENCHMARK_ATTRIBUTION,
 };
 epochBenchmarksWithRuns.forEach((benchmark) => {
@@ -162,6 +163,7 @@ const benchmarkConfigs = [
   { key: "livecodebench", label: "LiveCodeBench", source: "aa" },
   { key: "aa_math_index", label: "AA Math Index", source: "aa" },
   { key: "aa_coding_index", label: "AA Coding Index", source: "aa" },
+  { key: "aa_agentic_index", label: "AA Agentic Index", source: "aa" },
   {
     key: "aa_intelligence_index",
     label: "AA Intelligence Index",
@@ -174,7 +176,7 @@ const benchmarkConfigs = [
 
 const benchmarkModelNames = new Map([
  ...epochModels.map(model=>[model.model_version,model.display_name??model.model_name??model.model_version] as const),
- ...catalog.publishers.models.map(model=>[model.sourceModelId,model.name] as const),
+ ...catalog.publishers.snapshots.flatMap(snapshot=>snapshot.records.map(row=>[row.systemId,row.label] as const)),
 ]);
 
 // Build top models for AA benchmarks
@@ -184,7 +186,7 @@ const topByBenchmark: Record<string, any[]> = {};
 benchmarkConfigs
   .filter((c) => c.source === "aa")
   .forEach(({ key }) => {
-    const list = [...validModels]
+    const list = [...currentMeasuredModels]
       .filter((m: any) => hasFiniteMetricValue(m[key]))
       .sort((a: any, b: any) => Number(b[key]) - Number(a[key]))
       .slice(0, 5);
@@ -2074,6 +2076,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings} from '..
       { key: "livecodebench", label: "LiveCodeBench", source: "aa" },
       { key: "aa_math_index", label: "AA Math Index", source: "aa" },
       { key: "aa_coding_index", label: "AA Coding Index", source: "aa" },
+      { key: "aa_agentic_index", label: "AA Agentic Index", source: "aa" },
       {
         key: "aa_intelligence_index",
         label: "AA Intelligence Index",
@@ -3728,7 +3731,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings} from '..
         epochRuns,
       );
       renderOpenRouterProviderLeaderboard();
-      renderLeaderboard(liveModels, epochBenchmarks, epochRuns);
+      renderLeaderboard((snapshot.aaModels??[]).filter(model=>model.current_source_member!==false), epochBenchmarks, epochRuns);
       renderModels(liveModels);
     });
   }

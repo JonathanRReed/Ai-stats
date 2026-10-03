@@ -79,8 +79,8 @@ const simpleBenchRuns = epochRuns.filter((run) =>
   String(run.benchmark_slug ?? run.benchmark_name ?? "").toLowerCase().includes("simplebench"),
 );
 const coverageRows = [
-  { label: "AA Index available", value: aaIntelligenceCount, max: Math.max(models.length, 1), detail: `${aaIntelligenceCount} / ${models.length} priced models`, showProgress: true },
-  { label: "Coding metrics available", value: aaCodingCount, max: Math.max(models.length, 1), detail: `${aaCodingCount} / ${models.length} priced models`, showProgress: true },
+  { label: "AA Index available", value: aaIntelligenceCount, max: Math.max(models.length, 1), detail: `${aaIntelligenceCount} / ${models.length} models`, showProgress: true },
+  { label: "Coding metrics available", value: aaCodingCount, max: Math.max(models.length, 1), detail: `${aaCodingCount} / ${models.length} models`, showProgress: true },
   { label: "Epoch models with runs", value: epochModelVersions.size, max: Math.max(epochModels.length, 1), detail: `${epochModelVersions.size} / ${epochModels.length} models`, showProgress: true },
   { label: "SimpleBench via Epoch snapshot", value: simpleBenchRuns.length, max: 0, detail: `${simpleBenchRuns.length.toLocaleString("en-US")} recorded observations`, showProgress: false },
   { label: "PoliBench current snapshot", value: polibench?.counts.models ?? 0, max: 0, detail: polibench ? `${polibench.counts.models} models / ${polibench.counts.runs} runs` : "No checked snapshot", showProgress: false },
