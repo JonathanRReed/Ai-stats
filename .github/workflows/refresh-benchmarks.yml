@@ -67,7 +67,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTERDATAKEY || secrets.OPENROUTER_API_KEY }}
         run: bun scripts/sync-openrouter-usage.mjs --prepare --file .tmp/openrouter-usage-candidate.json
       - name: Refresh Epoch and normalized source evidence
         env:
