@@ -110,3 +110,38 @@ export function normalizeOSWorld(payload,fetchedAt){
  return {schemaVersion:1,sourceKey:'osworld',fetchedAt:timestamp(fetchedAt),observedAt:null,benchmarkVersion:version,sourceUrl:'https://osworld-v2.xlang.ai/static/data/leaderboard/official-results.json',
   publisherUpdatedDate:typeof payload.updatedAt==='string'?payload.updatedAt:null,records:nonempty(records)};
 }
+
+export function normalizeProofBench(payload,fetchedAt){
+ const meta=payload?.metadata;
+ if(meta?.slug!=='proof_bench'||meta.version!=='1.1'||meta.archived!==false||!payload.tasks?.overall||!Array.isArray(meta.models))throw new Error('Unsupported ProofBench release');
+ const records=Object.entries(payload.tasks.overall).map(([modelId,row])=>{
+  if(!meta.models.includes(modelId)||!finite(row.accuracy)||row.accuracy<0||row.accuracy>100)throw new Error('Invalid ProofBench result');
+  return {systemId:'proofbench:v1.1:'+modelId,modelId,label:modelId,provider:text(row.provider)??modelId.split('/')[0],benchmarkSlug:'proofbench',benchmarkVersion:'v1.1',metric:'Accuracy',unit:'percent',score:row.accuracy,higherIsBetter:true,
+   conditions:{reasoningEffort:text(row.reasoning_effort)??text(row.compute_effort),harness:text(row.harness),temperature:finite(row.temperature)?row.temperature:null,maxOutputTokens:Number.isSafeInteger(row.max_output_tokens)?row.max_output_tokens:null},
+   stderr:finite(row.stderr)?row.stderr:null,evaluatedAt:null,sourceUrl:'https://www.vals.ai/benchmarks/proof_bench'};
+ });
+ if(records.length!==meta.total_models||records.length!==meta.models.length)throw new Error('Incomplete ProofBench result set');
+ return {schemaVersion:1,sourceKey:'proofbench',fetchedAt:timestamp(fetchedAt),observedAt:null,benchmarkVersion:'v1.1',sourceUrl:'https://www.vals.ai/benchmarks/proof_bench',publisherUpdatedDate:meta.updated,records:nonempty(records)};
+}
+
+const htmlText=value=>value.replace(/<!--[\s\S]*?-->/g,'').replace(/<[^>]*>/g,' ').replace(/&(?:amp|quot|apos|lt|gt|nbsp);|&#(?:\d+|x[a-f0-9]+);/gi,entity=>{
+ const named={'&amp;':'&','&quot;':'"','&apos;':"'",'&lt;':'<','&gt;':'>','&nbsp;':' '};
+ if(named[entity])return named[entity];
+ const numeric=entity.slice(2,-1),point=numeric[0].toLowerCase()==='x'?parseInt(numeric.slice(1),16):Number(numeric);
+ return point<=0x10ffff?String.fromCodePoint(point):'';
+}).replace(/\s+/g,' ').trim();
+/** Only the publisher's explicitly headed scoreboard, not charts or narrative figures. */
+export function normalizeBlueprintBench(html,fetchedAt){
+ if(typeof html!=='string'||!html.includes('Blueprint-Bench 2'))throw new Error('Unsupported Blueprint-Bench page');
+ const tables=[...html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)];
+ const parsed=tables.map(table=>[...table[1].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map(row=>[...row[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(cell=>htmlText(cell[1]))));
+ const boards=parsed.filter(rows=>JSON.stringify(rows[0])===JSON.stringify(['','Model','Score']));
+ if(boards.length!==1)throw new Error('Blueprint-Bench scoreboard changed');
+ const records=boards[0].slice(1).filter(row=>row[1]!=='Human*').map(row=>{
+  if(row.length!==3||!/^\d+$/.test(row[0])||!text(row[1])||!/^\d+\.\d+(\*\*)?$/.test(row[2]))throw new Error('Invalid Blueprint-Bench row');
+  const score=Number(row[2].replace('**',''));if(!finite(score)||score<0||score>1)throw new Error('Invalid Blueprint-Bench score');
+  return {systemId:'blueprint-bench:2:'+row[1],modelId:row[1],label:row[1],benchmarkSlug:'blueprint-bench',benchmarkVersion:'2',metric:'Normalized connectivity score',unit:'points',score,higherIsBetter:true,
+   conditions:{apartments:50,notepad:'persistent',...(row[2].endsWith('**')?{scoreDisclosure:'at or below random baseline'}:{})},evaluatedAt:null,sourceUrl:'https://andonlabs.com/evals/blueprint-bench-2'};
+ });
+ return {schemaVersion:1,sourceKey:'blueprint-bench',fetchedAt:timestamp(fetchedAt),observedAt:null,benchmarkVersion:'2',sourceUrl:'https://andonlabs.com/evals/blueprint-bench-2',records:nonempty(records)};
+}

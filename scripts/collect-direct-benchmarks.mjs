@@ -1,10 +1,10 @@
 import {mkdir,writeFile,rename} from 'node:fs/promises';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {normalizeLiveBench,normalizeWeirdML,normalizePostTrainBench,normalizeOSWorld,publisherContentHash} from './direct-benchmarks.mjs';
+import {normalizeLiveBench,normalizeWeirdML,normalizePostTrainBench,normalizeOSWorld,normalizeProofBench,normalizeBlueprintBench,publisherContentHash} from './direct-benchmarks.mjs';
 
 const LIVEBENCH_AVERAGING_SHA='8048d175739ea66e8069711ff6e572c684cfc75b';
-const SOURCE_KEYS=['livebench','weirdml','posttrainbench','osworld'];
+const SOURCE_KEYS=['livebench','weirdml','posttrainbench','osworld','proofbench','blueprint-bench'];
 /** Public, unauthenticated reads only; each failed source retains its prior artifact. */
 export async function collectDirectBenchmarks({fetchImpl=(input,init)=>globalThis.fetch(input,init),now=()=>new Date().toISOString(),sources=SOURCE_KEYS}={}){
  if(!Array.isArray(sources)||!sources.length||sources.some(source=>!SOURCE_KEYS.includes(source)))throw new Error('Unknown direct benchmark source');
@@ -36,6 +36,13 @@ export async function collectDirectBenchmarks({fetchImpl=(input,init)=>globalThi
    const [csv,categories]=await Promise.all([read(repo.raw('public/'+latest),false),read(repo.raw('public/'+latest.replace('table_','categories_').replace('.csv','.json')))]);
    return normalizeLiveBench({version,categories,csv,commit:repo.sha,fetchedAt});
   },
+  proofbench:async()=>{
+   const html=await read('https://www.vals.ai/benchmarks/proof_bench',false);
+   const paths=[...new Set(html.match(/\/_astro\/benchmark_view_proof_bench\.[a-zA-Z0-9_-]+\.json/g)??[])];
+   if(paths.length!==1)throw new Error('ProofBench published data link changed');
+   return normalizeProofBench(await read('https://www.vals.ai'+paths[0]),fetchedAt);
+  },
+  'blueprint-bench':async()=>normalizeBlueprintBench(await read('https://andonlabs.com/evals/blueprint-bench-2',false),fetchedAt),
   osworld:async()=>normalizeOSWorld(await read('https://osworld-v2.xlang.ai/static/data/leaderboard/official-results.json'),fetchedAt),
   weirdml:async()=>normalizeWeirdML(await read('https://htihle.github.io/assets/data/weirdml_v3.json'),fetchedAt),
   posttrainbench:async()=>{
