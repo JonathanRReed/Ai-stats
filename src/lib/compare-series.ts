@@ -53,7 +53,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
   const models=evidence.models.filter(model=>{
     if(!selected.has(model.id))return false;
     const source=state.chart==='benchmark'&&state.metricId.startsWith('epoch_')?'epoch':'aa';
-    if(state.chart!=='price'&&model.source!==source){result.excluded.push({modelId:model.id,reason:source==='epoch'?'Choose an Epoch record for this benchmark':'No AA measurements for this source record'});return false;}
+    if(state.chart!=='price'&&model.source!==source&&!(source==='epoch'&&model.source==='publisher')){result.excluded.push({modelId:model.id,reason:source==='epoch'?'Choose a measured source record for this benchmark':'No AA measurements for this source record'});return false;}
     let reason:string|null=null;
     if(model.current===false&&!state.includeHistory)reason='Historical observation';
     else if(model.source==='aa'&&state.reasoningEfforts.length&&!state.reasoningEfforts.includes(model.reasoning??'unknown'))reason='Reasoning filter';
@@ -90,7 +90,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
     });
     result.yLabel=rows[0]?.unit==='fraction'||rows[0]?.unit==='percent'?'Score (%)':rows[0]?.metricKey??'Source-native score';
     for(const model of models)if(!result.points.some(point=>point.modelId===model.id)){
-      result.excluded.push({modelId:model.id,reason:'No matching Epoch observation'});
+      result.excluded.push({modelId:model.id,reason:'No matching benchmark observation'});
     }
   } else {
     result.xLabel=state.chart==='cost-intelligence'?'USD / 1M tokens (3:1 input/output)':state.chart==='speed-intelligence'?'Output tokens / second':state.chart==='task-cost'?'USD / evaluation task':state.chart==='total-cost'?'USD / complete evaluation':'Model';

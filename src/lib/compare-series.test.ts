@@ -86,3 +86,11 @@ test('mixed Epoch metrics become accessible through an explicit score selection'
  const result=series.buildCompareSeries({models:[model],observations:[row,{...row,id:'rating',metricKey:'Rating',unit:'native',value:1400}]},state);
  expect(result.points).toHaveLength(1);expect(result.points[0].y).toBe(8);
 });
+
+test('original publisher observations reach the chart without an Epoch source filter',()=>{
+ const model:ExplorerModel={id:'publisher:system',source:'publisher',sourceModelId:'system',name:'System',family:'System',current:true};
+ const row:EpochObservation={id:'run',modelVersion:'system',benchmarkSlug:'publisher_terminal_bench_4_0_0',metricKey:'accuracy',unit:'percent',value:58.2,conditions:{agent:'Codex'},evaluationDate:null,sourceUrl:'https://hub.harborframework.com/',fetchedAt:'2026-10-03T04:45:31Z',snapshotId:null,sourceKey:'terminal-bench',sourceName:'Terminal-Bench',benchmarkVersion:'4.0.0'};
+ const state=parseCompareState(new URLSearchParams('chart=benchmark&m=publisher%3Asystem&metric=epoch_publisher_terminal_bench_4_0_0'),[model]);
+ const result=series.buildCompareSeries({models:[model],observations:[row]},state);
+ expect(result.points).toHaveLength(1);expect(result.points[0].y).toBe(58.2);expect(result.points[0].receipt.source).toBe('Terminal-Bench');
+});

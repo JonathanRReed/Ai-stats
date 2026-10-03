@@ -113,3 +113,9 @@ export const changeScoreMetric=(value:string):Pick<CompareState,'scoreMetricKey'
 export function selectVisibleRecords(selected:string[],visibleIds:string[],checked:boolean):string[]{
  const ids=new Set(visibleIds);return checked?unique([...selected,...visibleIds]):selected.filter(id=>!ids.has(id));
 }
+
+/** Select only identities with real observations; source-native records are not interchangeable. */
+export function selectBenchmarkModels(catalog:CompareCatalogEntry[],observations:Array<{modelVersion:string;sourceKey?:string;value:number|null}>,limit=8):string[]{
+ const matches=new Set(observations.filter(row=>typeof row.value==='number'&&Number.isFinite(row.value)).map(row=>(row.sourceKey?'publisher':'epoch')+':'+row.modelVersion));
+ return catalog.filter(model=>model.current!==false&&matches.has(model.source+':'+model.sourceModelId)).slice(0,limit).map(model=>model.id);
+}
