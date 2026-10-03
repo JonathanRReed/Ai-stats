@@ -1,5 +1,6 @@
-import {mkdir,writeFile,rename} from 'node:fs/promises';
+import {mkdir,readFile,writeFile,rename} from 'node:fs/promises';
 import path from 'node:path';
+import {validatePublisherSnapshot} from '../src/lib/publisher-evidence.ts';
 import {pathToFileURL} from 'node:url';
 import {normalizeLiveBench,normalizeWeirdML,normalizePostTrainBench,normalizeOSWorld,normalizeProofBench,normalizeBlueprintBench,normalizeApexAgents,normalizeGdpPdf,publisherContentHash} from './direct-benchmarks.mjs';
 
@@ -69,12 +70,27 @@ export async function writeDirectArtifacts(results,directory){
   await writeFile(temporary,JSON.stringify(result.snapshot)+'\n');await rename(temporary,target);
  }
 }
+
+/** Healthy feeds may advance only when every failed feed has a validated last-good artifact. */
+export async function retainFailedArtifacts(results,directory,attemptedAt=new Date().toISOString()){
+ return Promise.all(results.map(async result=>{
+  if(result.status==='ready')return result;
+  if(!SOURCE_KEYS.includes(result.source))throw new Error('Unknown retained source');
+  const target=path.join(directory,result.source+'.json');
+  const previous=validatePublisherSnapshot(JSON.parse(await readFile(target,'utf8')),result.source);
+  const snapshot={...previous,refreshStatus:'failed',lastAttemptAt:attemptedAt};
+  await writeFile(target+'.tmp',JSON.stringify(snapshot)+'\n');await rename(target+'.tmp',target);
+  return {...result,status:'retained',snapshot};
+ }));
+}
+
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
  const args=process.argv.slice(2);
  if(args.length!==2||args[0]!=='--output-directory')throw new Error('Usage: collect-direct-benchmarks --output-directory <directory>');
- const results=await collectDirectBenchmarks();
+ let results=await collectDirectBenchmarks();
  await writeDirectArtifacts(results,args[1]);
+ results=await retainFailedArtifacts(results,args[1]);
  console.log(JSON.stringify(results.map(result=>({source:result.source,status:result.status,
   records:result.snapshot?.records.length,version:result.snapshot?.benchmarkVersion,error:result.error,contentHash:result.contentHash})),null,2));
- if(results.some(result=>result.status!=='ready'))process.exitCode=1;
+ if(results.some(result=>result.status==='retained'))console.warn('One or more publisher refreshes failed; validated dated evidence was retained.');
 }

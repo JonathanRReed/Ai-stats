@@ -17,7 +17,7 @@ export async function getCompareReleaseManifest():Promise<CompareReleaseManifest
  const sources:ReleaseSource[]=[
  extra('artificial-analysis',latest(data.aaModels.filter(model=>model.current_source_member===true).map(model=>model.last_seen)),initialModels.length>0),
  extra('epoch-ai',data.epoch.fetchedAt,Boolean(data.epoch.fetchedAt)&&data.epoch.epochModels.length>0),
- ...data.publishers.snapshots.map(snapshot=>({...extra(snapshot.sourceKey,snapshot.fetchedAt,true),observedAt:snapshot.observedAt})),
+ ...data.publishers.snapshots.map(snapshot=>({...extra(snapshot.sourceKey,snapshot.fetchedAt,true),observedAt:snapshot.observedAt,...(snapshot.refreshStatus==='failed'?{status:'partial'}:{})})),
  ...data.catalogs.availability.map(receipt=>({sourceKey:receipt.sourceKey,fetchedAt:receipt.fetchedAt,publishedAt:receipt.publishedAt,
  observedAt:null,contentHash:receipt.contentHash,snapshotId:receipt.snapshotId,status:receipt.status,available:receipt.available}))
  ];

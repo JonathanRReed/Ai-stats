@@ -5,14 +5,14 @@ import type {EpochBenchmark,EpochBenchmarkRun} from './supabase';
 
 export const PUBLISHER_NAMES:Record<string,string>={livebench:'LiveBench',weirdml:'WeirdML',posttrainbench:'PostTrainBench','terminal-bench':'Terminal-Bench',osworld:'OSWorld',proofbench:'ProofBench','blueprint-bench':'Blueprint-Bench','apex-agents':'APEX-Agents','gdp-pdf':'GDP.pdf'};
 export type PublisherRecord={systemId:string;modelId:string;label:string;provider?:string;benchmarkSlug:string;benchmarkVersion:string;metric:string;unit:'percent'|'fraction'|'points';score:number;higherIsBetter:boolean;conditions:Record<string,unknown>;evaluatedAt:string|null;sourceUrl:string};
-export type PublisherSnapshot={schemaVersion:1;sourceKey:string;fetchedAt:string;observedAt:string|null;benchmarkVersion:string;sourceUrl:string;refreshMode?:string;records:PublisherRecord[]};
+export type PublisherSnapshot={schemaVersion:1;sourceKey:string;fetchedAt:string;observedAt:string|null;benchmarkVersion:string;sourceUrl:string;refreshMode?:string;refreshStatus?:'failed';lastAttemptAt?:string;records:PublisherRecord[]};
 const object=(value:unknown):value is Record<string,unknown>=>Boolean(value)&&typeof value==='object'&&!Array.isArray(value);
 const text=(value:unknown):value is string=>typeof value==='string'&&value.trim().length>0&&value.length<4096;
 const date=(value:unknown)=>typeof value==='string'&&Number.isFinite(Date.parse(value));
 const url=(value:unknown)=>{if(!text(value))return false;try{const parsed=new URL(value);return parsed.protocol==='https:'&&!parsed.username&&!parsed.password;}catch{return false;}};
 export function validatePublisherSnapshot(value:unknown,sourceKey:string):PublisherSnapshot{
  if(!object(value)||!Object.hasOwn(PUBLISHER_NAMES,sourceKey)||value.schemaVersion!==1||value.sourceKey!==sourceKey||
- !date(value.fetchedAt)||!(value.observedAt===null||date(value.observedAt))||!text(value.benchmarkVersion)||!url(value.sourceUrl)||
+ !date(value.fetchedAt)||(value.refreshStatus!==undefined&&value.refreshStatus!=='failed')||(value.lastAttemptAt!==undefined&&!date(value.lastAttemptAt))||!(value.observedAt===null||date(value.observedAt))||!text(value.benchmarkVersion)||!url(value.sourceUrl)||
  !Array.isArray(value.records)||!value.records.length||value.records.length>5000)throw new Error('Invalid publisher snapshot');
  const ids=new Set<string>();
  for(const row of value.records){
