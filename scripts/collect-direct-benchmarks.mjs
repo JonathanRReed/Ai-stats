@@ -6,7 +6,7 @@ import {normalizeLiveBench,normalizeWeirdML,normalizePostTrainBench,publisherCon
 const LIVEBENCH_AVERAGING_SHA='8048d175739ea66e8069711ff6e572c684cfc75b';
 const SOURCE_KEYS=['livebench','weirdml','posttrainbench'];
 /** Public, unauthenticated reads only; each failed source retains its prior artifact. */
-export async function collectDirectBenchmarks({fetchImpl=globalThis.fetch,now=()=>new Date().toISOString(),sources=SOURCE_KEYS}={}){
+export async function collectDirectBenchmarks({fetchImpl=(input,init)=>globalThis.fetch(input,init),now=()=>new Date().toISOString(),sources=SOURCE_KEYS}={}){
  if(!Array.isArray(sources)||!sources.length||sources.some(source=>!SOURCE_KEYS.includes(source)))throw new Error('Unknown direct benchmark source');
  const fetchedAt=now();
  const read=async(url,json=true)=>{

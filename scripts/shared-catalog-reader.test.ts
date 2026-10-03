@@ -32,7 +32,7 @@ test('shared catalog retries a failed load and coalesces successful concurrent r
  supabase:{},getModels:async()=>{if(++calls===1)throw new Error('temporary');return [];},
  getCompareCatalogSources:async()=>({openrouter:[],huggingface:[],litellm:[],availability:[]}),
  getCanonicalModels:async()=>[],getModelAliases:async()=>[],getIntelligenceSources:async()=>[],
- normalizeAaModelsForDisplay:(rows:unknown[])=>rows,getEpochEvidence:async()=>({epochModels:[]}),
+ normalizeAaModelsForDisplay:(rows:unknown[])=>rows,getEpochEvidence:async()=>({epochModels:[],epochBenchmarks:[],epochRuns:[]}),getPublisherEvidence:async()=>({models:[],benchmarks:[],runs:[],snapshots:[]}),
  buildExplorerCatalog:()=>[],buildVerifiedBindings:()=>({}),EXPLORER_SOURCE_LABELS:{}
  });
  await expect(get()).rejects.toThrow('temporary');
