@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const POLIBENCH_REPOSITORY = "https://github.com/JonathanRReed/Poli-bench";
-export const POLIBENCH_COMMIT = "f49763cdbca9387d823ba19578992434b5ac04b0";
+export const POLIBENCH_COMMIT = "7faa5014a9942501831e50ac6588e9f519924823";
 export const POLIBENCH_ARTIFACT_PATH = "src/data/liveBenchmark.generated.json";
 
 const DEFAULT_SOURCE_PATH = path.resolve(process.cwd(), "../Poli-bench", POLIBENCH_ARTIFACT_PATH);
