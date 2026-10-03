@@ -29,22 +29,9 @@ const providerFor = (model: AaModel): string =>
 ---
 
 <section class="latest-models" aria-label="Current benchmark snapshot">
-  <div class="latest-models-opening">
-    <div class="latest-models-intro">
-      <h1>Compare AI models</h1>
-      <p class="latest-models-lede">
-        Benchmarks, pricing and speed, with sources you can check.
-      </p>
-    </div>
-    <div class="latest-models-actions">
-      <a href="/compare" class="eco-btn eco-btn-primary">Compare models</a>
-      <a href="/about" class="eco-btn eco-btn-secondary">How the data is gathered</a>
-    </div>
-  </div>
-
   <header class="latest-models-header">
     <div>
-      <h2>AI model benchmark snapshot</h2>
+      <h3>Leading models</h3>
       <details><summary>Selection and measurement details</summary>
       <p>
         One recent model per provider with AA Index, pricing, and speed available.
@@ -57,7 +44,7 @@ const providerFor = (model: AaModel): string =>
     </div>
     {latestObserved ? (
       <p class="latest-models-observed">
-        <span class="eco-label">Latest observation in this cohort</span>
+        <span class="eco-label">Updated</span>
         <time datetime={latestObserved.toISOString()}>{formatTrackedDate(latestObserved.toISOString())}</time>
       </p>
     ) : null}
@@ -89,10 +76,6 @@ const providerFor = (model: AaModel): string =>
                   <dd>{formatPrice(model.price_1m_blended_3_to_1, 2)}<small> /1M</small></dd>
                 </div>
               </dl>
-              <span class="latest-model-date">
-                First tracked <time datetime={model.first_seen}>{formatTrackedDate(model.first_seen)}</time>,
-                last observed <time datetime={model.last_seen}>{formatTrackedDate(model.last_seen)}</time>
-              </span>
               <span class="latest-model-action">Compare model</span>
             </a>
           </li>
@@ -112,30 +95,13 @@ const providerFor = (model: AaModel): string =>
     gap: var(--space-6);
   }
 
-  .latest-models-opening {
-    display: grid;
-    gap: var(--space-5);
-    align-items: end;
-    padding-block: var(--space-6) var(--space-4);
-  }
 
-  .latest-models-intro h1 {
-    max-width: 14ch;
-  }
 
-  .latest-models-lede {
-    max-width: 58ch;
-    margin-top: var(--space-4);
-    color: var(--ink-1);
-    font-size: var(--text-lg);
-    line-height: var(--leading-normal);
-  }
 
-  .latest-models-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-  }
+
+
+
+
 
   .latest-models-header {
     display: grid;
@@ -293,27 +259,24 @@ const providerFor = (model: AaModel): string =>
   }
 
   @media (min-width: 720px) {
-    .latest-models-opening {
-      grid-template-columns: minmax(0, 1fr) auto;
-    }
-
-    .latest-models-header {
-      grid-template-columns: minmax(0, 1fr) auto;
-    }
-
-    .latest-models-observed {
-      justify-items: end;
-      text-align: right;
-    }
-
-    .latest-model-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
+  
 
   @media (min-width: 1080px) {
     .latest-model-grid {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
+
+ .latest-models{gap:.75rem}
+ .latest-models-header{padding-top:0;border-top:0}
+ .latest-models-header h3{font-size:var(--text-lg);margin:0}
+ .latest-model-grid{display:block}
+ .latest-model-grid a{grid-template-columns:minmax(0,1fr) minmax(0,1.45fr) auto;align-items:center;padding:.85rem 1rem;gap:.3rem 1rem}
+ .latest-model-provider{grid-column:1;grid-row:1}
+ .latest-model-grid strong{grid-column:1;grid-row:2;font-size:var(--text-sm)}
+ .latest-model-grid dl{grid-column:2;grid-row:1 / 3;grid-template-columns:repeat(4,minmax(0,1fr));margin:0;gap:.75rem}
+ .latest-model-lead{grid-column:auto;border:0;padding:0}
+ .latest-model-lead dd{font-size:var(--text-base);line-height:var(--leading-normal)}
+ .latest-model-action{grid-column:3;grid-row:1 / 3;font-size:var(--text-xs)}
+ @media(max-width:720px){.latest-model-grid a{grid-template-columns:minmax(0,1fr) auto;padding:.85rem}.latest-model-grid dl{grid-column:1 / -1;grid-row:3;margin-top:.4rem;gap:.5rem}.latest-model-action{grid-column:2}.latest-model-grid dd{font-size:.875rem}}
 </style>

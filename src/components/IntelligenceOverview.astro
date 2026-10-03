@@ -103,8 +103,8 @@ const money = (value: number | null | undefined): string =>
 <section class="intelligence-overview" aria-label="Compare the measurements">
   <header class="overview-header">
     <div>
-      <span>Compare the measurements</span>
-      <h2>Price and performance</h2>
+      <span>Price and performance</span>
+      <h2>Overview</h2>
     </div>
     <a href="/compare">View all model comparisons</a>
   </header>
@@ -243,6 +243,7 @@ const money = (value: number | null | undefined): string =>
       </details>
     </figure>
 
+    <details class="overview-details"><summary>Coverage and recent updates</summary><div class="overview-extra">
     <section class="coverage-panel" aria-labelledby="coverage-title">
       <header><h3 id="coverage-title">Benchmark coverage</h3></header>
       <div class="coverage-list">
@@ -275,6 +276,7 @@ const money = (value: number | null | undefined): string =>
       )}
       <a href="/about">Read source methodology</a>
     </section>
+    </div></details>
   </div>
 </section>
 
@@ -417,6 +419,13 @@ const money = (value: number | null | undefined): string =>
   @media (prefers-reduced-motion: reduce) {
     .quality-price summary { scroll-behavior: auto; }
   }
+
+ .overview-grid{display:block}
+ .overview-details{border-top:1px solid var(--line-0)}
+ .overview-details>summary{min-height:44px;display:list-item;cursor:pointer;color:var(--ink-1);font-size:var(--text-sm);padding:.5rem 0}
+ .overview-extra{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;padding-top:1rem}
+ .quality-price svg{max-height:440px}
+ @media(max-width:660px){.overview-extra{grid-template-columns:1fr}.overview-facts{grid-template-columns:1fr 1fr}.overview-facts article{padding:1rem}.overview-facts strong{font-size:1.25rem}}
 </style>
 
 <script>

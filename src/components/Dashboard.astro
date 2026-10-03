@@ -339,157 +339,23 @@ function getScoreClass(score: number | null | undefined): string {
 
   <main
     id="main-content"
-    class="telemetry-main eco-container flex flex-col gap-12 pb-20 pt-2 md:gap-14"
+    class="telemetry-main eco-container flex flex-col gap-8 pb-20 pt-2"
   >
-    <div class="intelligence-stack">
+    <header class="stats-page-heading">
+      <div><h1>AI model stats</h1><p>Benchmarks, prices and usage.</p></div>
+      <a href="/compare" class="eco-btn eco-btn-primary">Compare models</a>
+    </header>
+    <nav class="stats-nav" aria-label="Stats sections">
+      <a href="#stats-overview">Overview</a>
+      <a href="#stats-benchmarks">Benchmarks</a>
+      <a href="#stats-usage">Usage</a>
+      <a href="#stats-sources">Sources</a>
+    </nav>
+    <section id="stats-overview" class="stats-section" aria-label="Overview">
+      <IntelligenceOverview models={currentMeasuredModels} epochModels={epochModels} epochBenchmarks={epochBenchmarks} epochRuns={epochRuns} polibench={publicPoliBenchSnapshot} freshness={dataFreshness} />
       <LatestModelsStrip models={benchmarkSnapshotModels} />
-      <TaskWorkbench models={workbenchModels} reasoningHighlights={buildReasoningHighlights(epochRuns, epochModels)} />
-      <SourceHealthStrip freshness={dataFreshness} />
-      <IntelligenceOverview
-        models={currentMeasuredModels}
-        epochModels={epochModels}
-        epochBenchmarks={epochBenchmarks}
-        epochRuns={epochRuns}
-        polibench={publicPoliBenchSnapshot}
-        freshness={dataFreshness}
-      />
-      <OpenRouterUsage snapshot={dailyUsage?.snapshot ?? null} receipt={dailyUsage?.receipt ?? null} client:visible />
-      <PoliBenchLab snapshot={publicPoliBenchSnapshot} />
-    </div>
-    <CatalogCoverage />
-    <details class="dashboard-definition">
-      <summary>Data in this build</summary>
-      <p>{definitionFacts.join("; ")}. Charts update when a new source snapshot is published and the site rebuilds.</p>
-    </details>
-    {
-      openRouterModels.length ||
-      huggingFaceModels.length ||
-      liteLlmModels.length ||
-      openRouterUsageRankings.length ? (
-        <section
-          aria-label="Public catalog collections"
-          class="openrouter-panel fade-in-section"
-        >
-          <header class="openrouter-header">
-            <div>
-              <p class="console-label">Public catalog sources</p>
-              <h2>Public catalog data</h2>
-            </div>
-            <div class="openrouter-actions">
-              <label for="openrouter-rank-metric">Order by</label>
-              <div class="openrouter-select-wrap">
-                <select id="openrouter-rank-metric" class="openrouter-rank-select">
-                  {openRouterRankOptions.map((option) => (
-                    <option value={option.key}>{option.label}</option>
-                  ))}
-                </select>
-              </div>
-              <a
-                href="https://huggingface.co/models"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="toolbar-control px-3 py-2 text-xs text-text"
-              >
-                Hugging Face
-              </a>
-            </div>
-          </header>
-          <p class="openrouter-notice" id="openrouter-catalog-notice" role="status" hidden>
-            <span>Live public catalog data could not be loaded. The figures below are the ones stored when this page was built.</span>
-            <button type="button" id="openrouter-catalog-retry" class="toolbar-control px-3 py-1 text-xs text-text">Retry</button>
-          </p>
-          <div class="openrouter-grid">
-            <section class="openrouter-stats" aria-label="Public catalog totals">
-              <dl>
-                <div>
-                  <dt>OR models</dt>
-                  <dd>{openRouterModelCount?.count ?? openRouterModels.length}</dd>
-                </div>
-                <div>
-                  <dt>OR routes</dt>
-                  <dd>{openRouterModels.length}</dd>
-                </div>
-                <div>
-                  <dt>Providers</dt>
-                  <dd>{openRouterProviders.length}</dd>
-                </div>
-                <div>
-                  <dt>Embeddings</dt>
-                  <dd>{openRouterEmbeddingModels.length}</dd>
-                </div>
-                <div>
-                  <dt>HF matched</dt>
-                  <dd>{matchedHuggingFaceModels.length}</dd>
-                </div>
-                <div>
-                  <dt>LiteLLM matched</dt>
-                  <dd>{matchedLiteLlmModels.length}</dd>
-                </div>
-                <div>
-                  <dt>OR matched</dt>
-                  <dd>{matchedOpenRouterModels.length}</dd>
-                </div>
-                <div>
-                  <dt>Route detail</dt>
-                  <dd>{matchedOpenRouterEndpointModels.length}</dd>
-                </div>
-              </dl>
-              <p>
-                Routing and availability signals. Benchmark scores stay AA and Epoch.
-              </p>
-            </section>
-            <section class="openrouter-table" aria-label="Public catalog provider coverage">
-              <div class="openrouter-table-meta">
-                <span id="openrouter-board-title">Provider coverage</span>
-                <small id="openrouter-board-note">OpenRouter route catalog</small>
-              </div>
-              <div class="openrouter-table-head">
-                <span>Provider</span>
-                <span id="openrouter-col-detail">Tool-ready routes</span>
-                <span id="openrouter-col-value">Catalog models</span>
-                <span>Models</span>
-                <span>Max ctx</span>
-              </div>
-              <ul id="openrouter-provider-board">
-                {openRouterProviderSummary.map((provider) => (
-                  <li>
-                    <button
-                      type="button"
-                      class="openrouter-provider-row"
-                      aria-label={`Provider ${provider.provider}. Tool-ready routes ${provider.tools}. Models ${provider.total}. Max context ${formatContextLength(provider.maxContext)}.`}
-                      data-openrouter-provider={provider.provider}
-                      data-openrouter-provider-query={provider.provider}
-                    >
-                      <span class="openrouter-model" title={provider.provider}>
-                        {provider.provider}
-                      </span>
-                      <span class="openrouter-leader">{provider.tools} tool-ready</span>
-                      <span class="openrouter-score">{provider.total}</span>
-                      <span>{provider.total}</span>
-                      <span>{formatContextLength(provider.maxContext)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-            <aside class="openrouter-long-context">
-              <span class="console-label">Useful catalog signals</span>
-              <strong>{topHuggingFaceMatch?.name ?? topLiteLlmContextMatch?.name ?? "-"}</strong>
-              <span>
-                {topHuggingFaceMatch
-                  ? `${Number(topHuggingFaceMatch.hf_downloads ?? 0).toLocaleString()} HF downloads`
-                  : `${formatContextLength(topLiteLlmContextMatch?.litellm_max_input_tokens)} LiteLLM context`}
-              </span>
-              <small>
-                {`${openRouterToolModels.length} OpenRouter tool-ready routes, ${openRouterVisionModels.length} vision routes, ${openRouterEndpointSummaries.length} endpoint checks`}
-              </small>
-            </aside>
-          </div>
-        </section>
-      ) : null
-    }
-
-    <!-- Models by metric -->
+    </section>
+    <section id="stats-benchmarks" class="stats-section" aria-label="Benchmarks">
     <section id="leaderboard" aria-label="Models by metric" class="space-y-4 fade-in-section scroll-mt-28">
       <article class="brutalist-card">
         <header
@@ -497,7 +363,7 @@ function getScoreClass(score: number | null | undefined): string {
         >
           <div>
             <h2 class="text-lg font-semibold text-text">
-              Models by metric
+              Benchmarks
             </h2>
             <p class="text-[length:var(--text-xs)] text-subtle md:text-xs">
               Switch metrics to reorder the table.
@@ -652,6 +518,22 @@ function getScoreClass(score: number | null | undefined): string {
     </section>
 
     <!-- All models -->
+
+      <details class="stats-disclosure" id="stats-tasks">
+        <summary>Compare by task</summary>
+        <div class="stats-disclosure-content"><TaskWorkbench models={workbenchModels} reasoningHighlights={buildReasoningHighlights(epochRuns, epochModels)} /></div>
+      </details>
+    </section>
+    <section id="stats-usage" class="stats-section" aria-label="Usage">
+      <OpenRouterUsage snapshot={dailyUsage?.snapshot ?? null} receipt={dailyUsage?.receipt ?? null} client:visible />
+    </section>
+    <details class="stats-disclosure" id="stats-profiles">
+      <summary>Political profiles · PoliBench</summary>
+      <div class="stats-disclosure-content"><PoliBenchLab snapshot={publicPoliBenchSnapshot} /></div>
+    </details>
+    <details class="stats-disclosure" id="stats-models">
+      <summary>Browse all models</summary>
+      <div class="stats-disclosure-content">
     <section id="model-browser" aria-label="All models" class="space-y-4 fade-in-section">
       <header
         class="flex flex-col gap-2 md:flex-row md:items-baseline md:justify-between"
@@ -903,6 +785,150 @@ function getScoreClass(score: number | null | undefined): string {
         </button>
       </div>
     </section>
+
+      </div>
+    </details>
+    <details class="stats-disclosure" id="stats-sources">
+      <summary>Sources and coverage</summary>
+      <div class="stats-disclosure-content">
+        <SourceHealthStrip freshness={dataFreshness} />
+        <CatalogCoverage />
+        <details class="dashboard-definition">
+          <summary>Data in this build</summary>
+          <p>{definitionFacts.join("; ")}. Charts update when a new source snapshot is published and the site rebuilds.</p>
+        </details>
+    {
+      openRouterModels.length ||
+      huggingFaceModels.length ||
+      liteLlmModels.length ||
+      openRouterUsageRankings.length ? (
+        <section
+          aria-label="Public catalog collections"
+          class="openrouter-panel fade-in-section"
+        >
+          <header class="openrouter-header">
+            <div>
+              <p class="console-label">Public catalog sources</p>
+              <h2>Public catalog data</h2>
+            </div>
+            <div class="openrouter-actions">
+              <label for="openrouter-rank-metric">Order by</label>
+              <div class="openrouter-select-wrap">
+                <select id="openrouter-rank-metric" class="openrouter-rank-select">
+                  {openRouterRankOptions.map((option) => (
+                    <option value={option.key}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+              <a
+                href="https://huggingface.co/models"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="toolbar-control px-3 py-2 text-xs text-text"
+              >
+                Hugging Face
+              </a>
+            </div>
+          </header>
+          <p class="openrouter-notice" id="openrouter-catalog-notice" role="status" hidden>
+            <span>Live public catalog data could not be loaded. The figures below are the ones stored when this page was built.</span>
+            <button type="button" id="openrouter-catalog-retry" class="toolbar-control px-3 py-1 text-xs text-text">Retry</button>
+          </p>
+          <div class="openrouter-grid">
+            <section class="openrouter-stats" aria-label="Public catalog totals">
+              <dl>
+                <div>
+                  <dt>OR models</dt>
+                  <dd>{openRouterModelCount?.count ?? openRouterModels.length}</dd>
+                </div>
+                <div>
+                  <dt>OR routes</dt>
+                  <dd>{openRouterModels.length}</dd>
+                </div>
+                <div>
+                  <dt>Providers</dt>
+                  <dd>{openRouterProviders.length}</dd>
+                </div>
+                <div>
+                  <dt>Embeddings</dt>
+                  <dd>{openRouterEmbeddingModels.length}</dd>
+                </div>
+                <div>
+                  <dt>HF matched</dt>
+                  <dd>{matchedHuggingFaceModels.length}</dd>
+                </div>
+                <div>
+                  <dt>LiteLLM matched</dt>
+                  <dd>{matchedLiteLlmModels.length}</dd>
+                </div>
+                <div>
+                  <dt>OR matched</dt>
+                  <dd>{matchedOpenRouterModels.length}</dd>
+                </div>
+                <div>
+                  <dt>Route detail</dt>
+                  <dd>{matchedOpenRouterEndpointModels.length}</dd>
+                </div>
+              </dl>
+              <p>
+                Routing and availability signals. Benchmark scores stay AA and Epoch.
+              </p>
+            </section>
+            <section class="openrouter-table" aria-label="Public catalog provider coverage">
+              <div class="openrouter-table-meta">
+                <span id="openrouter-board-title">Provider coverage</span>
+                <small id="openrouter-board-note">OpenRouter route catalog</small>
+              </div>
+              <div class="openrouter-table-head">
+                <span>Provider</span>
+                <span id="openrouter-col-detail">Tool-ready routes</span>
+                <span id="openrouter-col-value">Catalog models</span>
+                <span>Models</span>
+                <span>Max ctx</span>
+              </div>
+              <ul id="openrouter-provider-board">
+                {openRouterProviderSummary.map((provider) => (
+                  <li>
+                    <button
+                      type="button"
+                      class="openrouter-provider-row"
+                      aria-label={`Provider ${provider.provider}. Tool-ready routes ${provider.tools}. Models ${provider.total}. Max context ${formatContextLength(provider.maxContext)}.`}
+                      data-openrouter-provider={provider.provider}
+                      data-openrouter-provider-query={provider.provider}
+                    >
+                      <span class="openrouter-model" title={provider.provider}>
+                        {provider.provider}
+                      </span>
+                      <span class="openrouter-leader">{provider.tools} tool-ready</span>
+                      <span class="openrouter-score">{provider.total}</span>
+                      <span>{provider.total}</span>
+                      <span>{formatContextLength(provider.maxContext)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+            <aside class="openrouter-long-context">
+              <span class="console-label">Useful catalog signals</span>
+              <strong>{topHuggingFaceMatch?.name ?? topLiteLlmContextMatch?.name ?? "-"}</strong>
+              <span>
+                {topHuggingFaceMatch
+                  ? `${Number(topHuggingFaceMatch.hf_downloads ?? 0).toLocaleString()} HF downloads`
+                  : `${formatContextLength(topLiteLlmContextMatch?.litellm_max_input_tokens)} LiteLLM context`}
+              </span>
+              <small>
+                {`${openRouterToolModels.length} OpenRouter tool-ready routes, ${openRouterVisionModels.length} vision routes, ${openRouterEndpointSummaries.length} endpoint checks`}
+              </small>
+            </aside>
+          </div>
+        </section>
+      ) : null
+    }
+
+    <!-- Models by metric -->
+
+      </div>
+    </details>
   </main>
 
   <Footer />
@@ -910,6 +936,20 @@ function getScoreClass(score: number | null | undefined): string {
 </div>
 
 <style is:global>
+  .stats-page-heading{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding-top:1.5rem}
+  .stats-page-heading h1{font-size:clamp(1.9rem,4vw,2.75rem);line-height:1.12;letter-spacing:-.035em;margin:0}
+  .stats-page-heading p{margin:.5rem 0 0;color:var(--ink-2);font-size:var(--text-base)}
+  .stats-nav{display:flex;gap:.35rem;border-bottom:1px solid var(--line-1);padding-bottom:.6rem;flex-wrap:wrap}
+  .stats-nav a{display:flex;align-items:center;min-height:44px;padding:.45rem 1rem;color:var(--ink-1);border-radius:var(--radius-sm);text-decoration:none;font-weight:600}
+  .stats-nav a:hover,.stats-nav a:focus-visible{background:var(--surface-2);color:var(--signal-text)}
+  .stats-section{display:grid;gap:1.5rem;min-width:0;scroll-margin-top:6rem}
+  .stats-disclosure{min-width:0;border:1px solid var(--line-1);border-radius:var(--radius-md);background:var(--surface-1);scroll-margin-top:6rem}
+  .stats-disclosure>summary{padding:1rem 1.2rem;cursor:pointer;font-size:var(--text-base);font-weight:600;color:var(--ink-0);min-height:54px}
+  .stats-disclosure[open]>summary{border-bottom:1px solid var(--line-1)}
+  .stats-disclosure-content{padding:1rem;display:grid;gap:1.25rem;min-width:0}
+  #stats-sources .openrouter-panel,#stats-models #model-browser{margin:0}
+  @media(max-width:600px){.stats-page-heading{align-items:flex-start;flex-direction:column}.stats-page-heading .eco-btn{min-height:44px}.stats-nav{gap:0}.stats-nav a{padding:.4rem .7rem;font-size:.875rem}.stats-disclosure-content{padding:.75rem}.stats-section{gap:1rem}}
+
   .site-shell {
     position: relative;
     width: 100%;
@@ -3670,4 +3710,22 @@ function getScoreClass(score: number | null | undefined): string {
       renderModels(liveModels);
     });
   }
+</script>
+
+<script>
+ const revealStatsTarget=(id:string)=>{
+  const target=document.getElementById(id);
+  if(!target)return;
+  let node:HTMLElement|null=target;
+  while(node){if(node instanceof HTMLDetailsElement)node.open=true;node=node.parentElement;}
+ };
+ document.addEventListener('click',(event)=>{
+  if(!(event.target instanceof Element))return;
+  if(event.target.closest('[data-openrouter-provider]'))revealStatsTarget('model-browser');
+  const link=event.target.closest<HTMLAnchorElement>('a[href^="#"]');
+  if(link){try{revealStatsTarget(decodeURIComponent(link.hash.slice(1)));}catch{/* Invalid fragment leaves native navigation unchanged. */}}
+ },true);
+ const revealCurrentStatsHash=()=>{try{revealStatsTarget(decodeURIComponent(location.hash.slice(1)));}catch{/* Ignore malformed fragments. */}};
+ window.addEventListener('hashchange',revealCurrentStatsHash);
+ revealCurrentStatsHash();
 </script>
