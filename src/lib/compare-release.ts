@@ -28,6 +28,14 @@ export function readCompareRelease(value:unknown):CompareReleaseManifest{
  value.defaultModelIds.length!==value.models.length||new Set(value.defaultModelIds).size!==value.defaultModelIds.length||
  !value.defaultModelIds.every(id=>text(id)&&ids.has(id))||!value.models.every(row=>object(row)&&text(row.id)&&(value.defaultModelIds as unknown[]).includes(row.id))||
  new Set(value.models.map(row=>row.id)).size!==value.models.length)throw new Error('Invalid release seed');
+ if(delivery.aaBenchmarkSelections!==undefined){
+  if(!object(delivery.aaBenchmarkSelections))throw new Error('Invalid AA benchmark selections');
+  const catalogRows=catalog.rows as unknown[][];
+  for(const [key,groups] of Object.entries(delivery.aaBenchmarkSelections)){
+   if(!Object.hasOwn(AA_METRIC_LABELS,key)||!object(groups))throw new Error('Invalid AA benchmark selections');
+   for(const mode of ['current','historical']){const list=groups[mode];if(!Array.isArray(list)||list.length>8||new Set(list).size!==list.length||!list.every(id=>typeof id==='string'&&catalogRows.some(row=>row[0]===id&&row[3]===0&&(mode==='historical'||row[4]!==false))))throw new Error('Invalid AA benchmark selection identity');}
+  }
+ }
  const typed=value as unknown as CompareReleaseManifest,expanded=expandCatalog(typed.delivery.catalog);
  for(const bucket of new Set(typed.models.map(model=>measurementBucket(model.id)))){
  const rows=typed.models.filter(model=>measurementBucket(model.id)===bucket);

@@ -1,5 +1,5 @@
 import {expect,test} from 'bun:test';
-import {buildComparePresets,selectAaBenchmarkModels,availableCompareCharts,availableAaMetrics,nextCatalogSource} from './compare-presets';
+import {buildComparePresets,buildAaBenchmarkSelections,selectAaBenchmarkModels,availableCompareCharts,availableAaMetrics,nextCatalogSource} from './compare-presets';
 import type {ExplorerModel} from './compare-series';
 const aa=(id:string,extra:Partial<ExplorerModel>={}):ExplorerModel=>({id,name:id,family:id,provider:id,source:'aa',sourceModelId:id,current:true,indexVersion:'4.3',intelligence:50,coding:60,priceBlended:0.5,...extra});
 test('presets use current same-version measured rows with explicit criteria',()=>{
@@ -32,4 +32,9 @@ test('switching from a publisher benchmark selects measured current AA records',
  expect(selectAaBenchmarkModels(rows,'aa_intelligence_index')).toEqual(['a']);
  expect(selectAaBenchmarkModels(rows,'aa_coding_index')).toEqual(['a']);
  expect(selectAaBenchmarkModels(rows,'aime')).toEqual([]);
+});
+
+test('measurement indexes cover AA models outside the seed and retain historical-only metrics',()=>{
+ const rows:ExplorerModel[]=[{id:'seed',name:'Seed',family:'Seed',source:'aa',sourceModelId:'seed',current:true,intelligence:50},{id:'other',name:'Other',family:'Other',source:'aa',sourceModelId:'other',current:true,metrics:{gpqa:.8}},{id:'old',name:'Old',family:'Old',source:'aa',sourceModelId:'old',current:false,metrics:{aime:90}}];
+ const index=buildAaBenchmarkSelections(rows);expect(index.gpqa.current).toEqual(['other']);expect(index.aime.current).toEqual([]);expect(index.aime.historical).toEqual(['old']);expect(availableAaMetrics(rows,true).some(([key])=>key==='aime')).toBe(true);
 });

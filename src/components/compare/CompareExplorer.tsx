@@ -19,17 +19,17 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const loader=useMemo(()=>delivery?createMeasurementLoader(delivery.revision,models,fetch,delivery.assetBase):null,[delivery,models]);
   const [failedMeasurementIds,setFailedMeasurementIds]=useState<string[]>([]);
   const charts=useMemo(()=>delivery?.charts??availableCompareCharts(models),[delivery,models]);
-  const aaMetrics=useMemo(()=>delivery?.aaMetrics??availableAaMetrics(models),[delivery,models]);
   const presets=useMemo(()=>delivery?.presets??buildComparePresets(models),[delivery,models]);
   const [presetDescription,setPresetDescription]=useState('');
   const [state,setState]=useState(()=>parseCompareState(new URLSearchParams(),models,defaultModelIds));
   const pendingBenchmarkChoice=useRef<string|null>(null);
+  const aaMetrics=useMemo(()=>delivery?.aaBenchmarkSelections?Object.entries(delivery.aaBenchmarkSelections).filter(([,groups])=>(state.includeHistory?groups.historical:groups.current).length).map(([key])=>[key,AA_METRIC_LABELS[key]] as [string,string]):delivery?.aaMetrics??availableAaMetrics(models,state.includeHistory),[delivery,models,state.includeHistory]);
   const [benchmarkCache,setBenchmarkCache]=useState<Record<string,EpochObservation[]>>({});
   const [loadState,setLoadState]=useState('');const [loadFailed,setLoadFailed]=useState(false);const [retryAttempt,setRetryAttempt]=useState(0);const [notice,setNotice]=useState('');
   const [hovered,setHovered]=useState<string|null>(null);const [pinned,setPinned]=useState<string|null>(null);
   const [filtersOpen,setFiltersOpen]=useState(false);const dialog=useRef<HTMLDialogElement>(null);
   const filterButton=useRef<HTMLButtonElement>(null);const svg=useRef<SVGSVGElement>(null);
-  useEffect(()=>{const read=()=>{setPresetDescription('');setState(parseCompareState(new URLSearchParams(window.location.search),models,defaultModelIds));};
+  useEffect(()=>{const read=()=>{pendingBenchmarkChoice.current=null;setPresetDescription('');setState(parseCompareState(new URLSearchParams(window.location.search),models,defaultModelIds));};
     read();window.addEventListener('popstate',read);return()=>window.removeEventListener('popstate',read);},[models,defaultModelIds]);
   const epochSlug=state.chart==='benchmark'&&state.metricId.startsWith('epoch_')?state.metricId.slice(6):null;
   const observations=epochSlug?readBenchmarkCache(benchmarkCache,epochSlug)??EMPTY_OBSERVATIONS:EMPTY_OBSERVATIONS;
@@ -71,7 +71,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const scoreMetrics=useMemo(()=>[...new Set(observations.map(epochScoreKey))].sort(),[observations]);
   const scoreOptions=scoreMetricOptions(scoreMetrics,state.scoreMetricKey);
   const unverifiedMembership=visibleModels.some(model=>model.source==='aa'&&model.current===null);
-  const update=(patch:Partial<CompareState>)=>{setPresetDescription('');const next={...state,...patch};setState(next);setPinned(null);setHovered(null);
+  const update=(patch:Partial<CompareState>)=>{if(['modelIds','metricId','scoreMetricKey','conditionKey','chart','includeHistory'].some(key=>Object.hasOwn(patch,key)))pendingBenchmarkChoice.current=null;setPresetDescription('');const next={...state,...patch};setState(next);setPinned(null);setHovered(null);
     const url=new URL(window.location.href);url.search=serializeCompareState(next).toString();window.history.pushState(null,'',url);};
   const toggle=(id:string)=>update({modelIds:state.modelIds.includes(id)?state.modelIds.filter(value=>value!==id):[...state.modelIds,id].slice(0,100)});
   const reset=()=>update(parseCompareState(new URLSearchParams(),models,defaultModelIds));
@@ -82,7 +82,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
     onReasoning:(value:string)=>update({reasoningEfforts:value==='all'?[]:state.reasoningEfforts.includes(value)
       ?state.reasoningEfforts.filter(reason=>reason!==value):[...state.reasoningEfforts,value]}),onClear:()=>update({modelIds:[]}),onReset:reset};
   const chooseMeasured=()=>update(benchmarkStartingSelection(visibleModels,observations.filter(row=>!state.conditionKey||epochConditionKey(row.conditions)===state.conditionKey),state.scoreMetricKey));
-  const chooseBenchmark=(metricId:string)=>{const slug=metricId.startsWith('epoch_')?metricId.slice(6):null;const rows=slug?readBenchmarkCache(benchmarkCache,slug):null;pendingBenchmarkChoice.current=rows?null:slug;if(!slug){update({metricId,conditionKey:null,scoreMetricKey:null,modelIds:selectAaBenchmarkModels(measuredModels,metricId),missingModelIds:[]});return;}update({metricId,conditionKey:null,scoreMetricKey:null,...(rows?{...benchmarkStartingSelection(models,rows),missingModelIds:[]}: {})});};
+  const chooseBenchmark=(metricId:string)=>{const slug=metricId.startsWith('epoch_')?metricId.slice(6):null;const rows=slug?readBenchmarkCache(benchmarkCache,slug):null;if(!slug){update({metricId,conditionKey:null,scoreMetricKey:null,modelIds:delivery?.aaBenchmarkSelections?.[metricId]?.[state.includeHistory?'historical':'current']??selectAaBenchmarkModels(measuredModels,metricId,8,state.includeHistory),missingModelIds:[]});return;}update({metricId,conditionKey:null,scoreMetricKey:null,...(rows?{...benchmarkStartingSelection(models,rows),missingModelIds:[]}: {})});pendingBenchmarkChoice.current=rows?null:slug;};
   const share=async()=>{try{const url=new URL(window.location.href);url.search=serializeCompareState(state).toString();
     await navigator.clipboard.writeText(url.href);setNotice('Comparison link copied.');}catch{setNotice('Copy the address bar to share this comparison.');}};
   const metricName=state.chart==='benchmark'?(epochSlug?benchmarks.find(item=>item.slug===epochSlug)?.name??state.metricId:
@@ -105,7 +105,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
         {state.chart==='benchmark'?<label>Benchmark<select value={epochSlug||aaMetrics.some(([key])=>key===state.metricId)?state.metricId:''} onChange={event=>chooseBenchmark(event.target.value)}>
           {!epochSlug&&!aaMetrics.some(([key])=>key===state.metricId)?<option value="">Choose a benchmark</option>:null}<optgroup label="Artificial Analysis">{aaMetrics.map(([key,label])=><option key={key} value={key}>{label}</option>)}</optgroup>
           <optgroup label="Benchmark publishers">{benchmarks.map(benchmark=><option key={benchmark.slug} value={'epoch_'+benchmark.slug}>{benchmark.name}</option>)}</optgroup></select></label>:null}
-        {epochSlug&&scoreOptions.visible?<label>Score metric<select value={state.scoreMetricKey??''} onChange={event=>update({...changeScoreMetric(event.target.value),...benchmarkStartingSelection(models,observations,event.target.value||null)})}>
+        {epochSlug&&scoreOptions.visible?<label>Score metric<select value={state.scoreMetricKey??''} onChange={event=>update(event.target.value?{...changeScoreMetric(event.target.value),...benchmarkStartingSelection(models,observations,event.target.value)}:changeScoreMetric(''))}>
           <option value="">Choose a score metric</option>{scoreOptions.missing?<option value={state.scoreMetricKey!}>Unavailable saved metric</option>:null}{scoreMetrics.map(key=><option key={key} value={key}>{JSON.parse(key).join(' · ')}</option>)}</select></label>:null}
         {epochSlug&&conditions.length?<label>Conditions<select value={state.conditionKey??''} onChange={event=>update({conditionKey:event.target.value||null})}>
           <option value="">All recorded runs</option>{conditions.map(key=><option value={key} key={key}>{key==='unknown'?'Not recorded':JSON.parse(key).map(([name,value]:[string,unknown])=>name+': '+value).join(' · ')}</option>)}</select></label>:null}

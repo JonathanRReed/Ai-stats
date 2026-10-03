@@ -190,7 +190,7 @@ export function normalizeGdpPdf(html,fetchedAt){
   if(!name||!brand||score<0||score>100)throw new Error('Invalid GDP.pdf result');
   const provider=/alt=["']([^"']+) logo["']/i.exec(row)?.[1];
   return {systemId:'gdp-pdf:'+label,modelId:label,label,provider,benchmarkSlug:'gdp-pdf',benchmarkVersion:'unversioned',metric:'GDP.pdf score',unit:'percent',score,higherIsBetter:true,
-   conditions:{configuration:name.match(/\(([^)]+)\)/)?.[1]??null},evaluatedAt:null,sourceUrl:'https://surgehq.ai/benchmarks/gdp-pdf'};
+   conditions:{configuration:name.match(/\(([^()]*)\)\s*$/)?.[1]??null},evaluatedAt:null,sourceUrl:'https://surgehq.ai/benchmarks/gdp-pdf'};
  });
  return {schemaVersion:1,sourceKey:'gdp-pdf',fetchedAt:timestamp(fetchedAt),observedAt:null,benchmarkVersion:'unversioned',sourceUrl:'https://surgehq.ai/benchmarks/gdp-pdf',records:nonempty(records)};
 }
