@@ -36,7 +36,7 @@ export async function verifyPatchedDependency(root=process.cwd()){
   const canonical=await realpath(dir);if(seen.has(canonical))return;seen.add(canonical);
   if(seen.size>100000)throw Error('Dependency scan limit exceeded');
   const entries=await readdir(dir,{withFileTypes:true});
-  const manifest=entries.find(entry=>entry.name==='package.json'&&entry.isFile());
+  const manifest=entries.find(entry=>entry.name==='package.json'&&(entry.isFile()||entry.isSymbolicLink()));
   if(manifest){
    const metadata=JSON.parse(await readFile(join(dir,'package.json'),'utf8'));
    if(metadata.name==='http-cache-semantics'){
