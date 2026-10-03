@@ -187,3 +187,10 @@ test("the shortlist head is exposed to assistive technology", () => {
   expect(workbenchSource).toContain('<div class="shortlist-head">');
   expect(workbenchSource).not.toContain('class="shortlist-head" aria-hidden');
 });
+
+test("compact model styles do not leave a media block open",()=>{
+ const style=latestModelsSource.split('<style>')[1].split('</style>')[0];
+ let depth=0;
+ for(const char of style){if(char==='{')depth++;if(char==='}')depth--;expect(depth).toBeGreaterThanOrEqual(0);}
+ expect(depth).toBe(0);
+});
