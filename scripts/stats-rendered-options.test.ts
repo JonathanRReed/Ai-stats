@@ -18,3 +18,7 @@ test('provider disclosure reserves an inset chevron column and wraps metadata on
  expect(models).toContain('overflow-wrap: anywhere');
  expect(models).toContain('padding: var(--space-3)');
 });
+test('expanded tables scroll inside the provider without widening the page',()=>{
+ expect(models).toContain('.models-group { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0;');
+ expect(models).toContain('.models-table-wrap { min-width: 0; max-width: 100%; overflow-x: auto; }');
+});
