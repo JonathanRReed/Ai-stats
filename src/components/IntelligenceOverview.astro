@@ -106,29 +106,24 @@ const money = (value: number | null | undefined): string =>
       <span>Price and performance</span>
       <h2>Overview</h2>
     </div>
-    <a href="/compare">View all model comparisons</a>
   </header>
 
   <div class="overview-facts">
     <article>
-      <span>Tracked models</span>
+      <span>Priced AA models</span>
       <strong>{models.length}</strong>
-      <p>Priced Artificial Analysis models in this build.</p>
     </article>
     <article>
       <span>AA Index range</span>
       <strong>{qualityValues.length ? `${Math.min(...qualityValues).toFixed(1)}–${Math.max(...qualityValues).toFixed(1)}` : "No observations"}</strong>
-      <p>{qualityValues.length} current index observations.</p>
     </article>
     <article>
-      <span>Blended price span</span>
+      <span title="USD per 1M tokens">Blended price / 1M</span>
       <strong>{priceValues.length ? `${money(priceMin)}–${money(priceMax)}` : "No prices"}</strong>
-      <p>USD per 1M tokens on current measured rows.</p>
     </article>
     <article>
-      <span>Epoch corpus</span>
+      <span>Epoch · {epochBenchmarks.length} benchmarks</span>
       <strong>{epochRuns.length.toLocaleString("en-US")} runs</strong>
-      <p>{epochModels.length} models across {epochBenchmarks.length} benchmarks.</p>
     </article>
   </div>
 
