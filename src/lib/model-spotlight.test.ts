@@ -116,3 +116,10 @@ test("selectBenchmarkSnapshotModels caps the splash at six providers", () => {
 
   expect(selected).toHaveLength(6);
 });
+
+test("a new top-scoring model is not replaced by an older model with more telemetry",()=>{
+ const selected=selectBenchmarkSnapshotModels([
+ model("new","Anthropic","2026-09-23",{aa_intelligence_index:57.6,aa_coding_index:null,gpqa:null,median_output_tokens_per_second:null}),
+ model("old","Anthropic","2026-09-02",{aa_intelligence_index:53.4}),
+ ]);expect(selected.map(row=>row.id)).toEqual(["new"]);
+});
