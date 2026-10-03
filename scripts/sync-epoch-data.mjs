@@ -2,7 +2,7 @@
 import { selectEpochArtifact, assertEpochArchiveCoverage } from './source-snapshots.mjs';
 
 import { createHash } from 'node:crypto';
-import { getEpochScoreMetric as getPrimaryScoreColumn, normalizeEpochRecord, buildPublicEpochRun } from './epoch-records.mjs';
+import { getEpochScoreMetric as getPrimaryScoreColumn, normalizeEpochRecord, buildPublicEpochRun, normalizeEpochModelMetadata } from './epoch-records.mjs';
 
 import { createClient } from '@supabase/supabase-js';
 import { execFile } from 'node:child_process';
@@ -246,6 +246,15 @@ const main = async () => {
       });
     }
 
+    const modelMetadata = await readCsv(path.join(workDir,'model_metadata.csv')).catch(error=>{
+      if(error.code==='ENOENT')return [];throw error;
+    });
+    for(const row of modelMetadata){
+      const model=normalizeEpochModelMetadata(row);if(!model)continue;
+      const existing=modelByVersion.get(model.model_version)??{};
+      modelByVersion.set(model.model_version,{...model,...existing,
+        ...Object.fromEntries(Object.entries(model).filter(([,value])=>value!==null)),updated_at:new Date().toISOString()});
+    }
     const benchmarkRows = [];
     const runRows = [];
     const dataFileRows = [];

@@ -172,6 +172,11 @@ const benchmarkConfigs = [
   })),
 ];
 
+const benchmarkModelNames = new Map([
+ ...epochModels.map(model=>[model.model_version,model.display_name??model.model_name??model.model_version] as const),
+ ...catalog.publishers.models.map(model=>[model.sourceModelId,model.name] as const),
+]);
+
 // Build top models for AA benchmarks
 const topByBenchmark: Record<string, any[]> = {};
 
@@ -193,7 +198,7 @@ epochBenchmarksWithRuns.forEach((benchmark) => {
     .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
     .slice(0, 5)
     .map((r) => ({
-      name: r.model_version.replace(/_/g, " ").replace(/-/g, " "),
+      name: benchmarkModelNames.get(r.model_version) ?? r.model_version.replace(/_/g, " ").replace(/-/g, " "),
       company_name: r.organization,
       score: r.score,
       score_metric: r.score_metric,
@@ -512,6 +517,7 @@ function getScoreClass(score: number | null | undefined): string {
                                 <div class="lbml">
                                   <span
                                     class={`lbn ${index === 0 ? "lbnt" : "lbnx"}`}
+                                    title={model.name}
                                   >
                                     {model.name}
                                   </span>

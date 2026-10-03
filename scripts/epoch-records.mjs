@@ -130,3 +130,13 @@ export function getEpochBenchmarkVersion(row, slug, sourceUrl = null) {
   if (slug === 'metr_time_horizons_external') return text(row['METR version']) ?? text(row.version) ?? text(row.Version);
   return text(row['Benchmark version']) ?? text(row['Dataset version']);
 }
+
+/** Source-provided display names are keyed only by the exact native version. */
+export function normalizeEpochModelMetadata(row) {
+ const version=text(row?.model_version);if(!version)return null;
+ return {model_version:version,model_name:text(row.model_group)??version,
+  display_name:text(row.display_name)??text(row.model_group)??version,
+  organization:text(row.organization),country:text(row.country),model_accessibility:text(row.accessibility),
+  release_date:text(row.date),training_compute_flop:number(row.training_compute_flop),
+  eci_score:null,training_compute_confidence:null,description:null};
+}
