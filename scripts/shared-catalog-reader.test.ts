@@ -44,7 +44,7 @@ test('successful empty database reads remain empty rather than unavailable',asyn
  const get=runInNewContext(transpiler.transformSync(loader)+';getModelCatalogData;',{
  supabase:{},getModels:async()=>[],getCompareCatalogSources:async()=>({openrouter:[],huggingface:[],litellm:[],availability:[]}),
  getCanonicalModels:async()=>[],getModelAliases:async()=>[],getIntelligenceSources:async()=>[],
- normalizeAaModelsForDisplay:(rows:unknown[])=>rows,getEpochEvidence:async()=>({epochModels:[],fetchedAt:'2026-10-02T00:00:00Z'}),
+ normalizeAaModelsForDisplay:(rows:unknown[])=>rows,getEpochEvidence:async()=>({epochModels:[],epochBenchmarks:[],epochRuns:[],fetchedAt:'2026-10-02T00:00:00Z'}),getPublisherEvidence:async()=>({models:[],benchmarks:[],runs:[],snapshots:[]}),
  buildExplorerCatalog:()=>[],buildVerifiedBindings:()=>({}),EXPLORER_SOURCE_LABELS:{}
  });
  expect((await get()).unavailableSources).toEqual([]);
