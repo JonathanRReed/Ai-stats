@@ -3,6 +3,7 @@ const POLICIES = Object.freeze({
   'epoch-ai': { intervalHours: 6, staleAfterHours: 12 },
   livebench: { intervalHours: 6, staleAfterHours: 12 },
   weirdml: { intervalHours: 6, staleAfterHours: 12 },
+  'gdp-pdf': { intervalHours: 6, staleAfterHours: 12 },
   proofbench: { intervalHours: 6, staleAfterHours: 12 },
   'blueprint-bench': { intervalHours: 6, staleAfterHours: 12 },
   'apex-agents': { intervalHours: 6, staleAfterHours: 12 },
