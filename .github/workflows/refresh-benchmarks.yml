@@ -1,6 +1,9 @@
 name: Refresh benchmark evidence
 
 on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/refresh-benchmarks.yml']
   workflow_dispatch: {}
   schedule:
     - cron: '37 1,7,13,19 * * *'
@@ -80,7 +83,7 @@ jobs:
           bun run sync:intelligence --input .tmp/intelligence-input.json
       - name: Verify the release candidate
         run: |
-          bun audit
+          bun run audit
           bun run lint
           bun run typecheck
           bun run test
