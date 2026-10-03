@@ -3543,6 +3543,8 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
         panels.find((el) => el !== incoming && !el.hidden) || null;
 
       const showIncoming = () => {
+        // A newer selection or data refresh can supersede this delayed fade.
+        if (metricSelect?.value !== metric || !incoming?.isConnected) return;
         panels.forEach((el) => {
           if (el === incoming) return;
           el.hidden = true;
