@@ -95,3 +95,18 @@ export function normalizePostTrainBench(payload,revision,fetchedAt){
   sourceUrl:'https://github.com/aisa-group/posttrainbench-website/blob/'+revision+'/scores-v1.2.json',records:nonempty(records)};
 }
 export const publisherContentHash=snapshot=>createHash('sha256').update(JSON.stringify({sourceKey:snapshot.sourceKey,benchmarkVersion:snapshot.benchmarkVersion,records:snapshot.records})).digest('hex');
+
+/** The current OSWorld release is explicit on each result, not inferred from model dates. */
+export function normalizeOSWorld(payload,fetchedAt){
+ if(payload?.benchmarkVersion!=='OSWorld 2.0'||!Array.isArray(payload.releaseVersions)||!Array.isArray(payload.results)||payload.defaultMetric!=='binaryAccuracy')throw new Error('Unsupported OSWorld source schema');
+ const versions=payload.releaseVersions;
+ if(versions.at(-1)!=='v2.1')throw new Error('OSWorld release changed; review before updating');
+ const version='v2.1',records=payload.results.filter(row=>row.releaseVersion===version&&row.official===true&&row.datasetScope==='full').map(row=>{
+  if(!text(row.model)||!text(row.reasoning)||!text(row.toolSetting)||!Number.isSafeInteger(row.stepBudget)||row.stepBudget<=0||!finite(row.binaryAccuracy)||row.binaryAccuracy<0||row.binaryAccuracy>100)throw new Error('Invalid OSWorld result');
+  const systemId='osworld:'+JSON.stringify([version,row.model,row.reasoning,row.toolSetting,row.stepBudget,row.datasetScope]);
+  return {systemId,modelId:row.model,label:row.model,benchmarkSlug:'osworld',benchmarkVersion:version,metric:'Binary Accuracy',unit:'percent',score:row.binaryAccuracy,higherIsBetter:true,
+   conditions:{reasoningEffort:row.reasoning,toolSetting:row.toolSetting,stepBudget:row.stepBudget,datasetScope:row.datasetScope},evaluatedAt:null,sourceUrl:'https://osworld-v2.xlang.ai/'};
+ });
+ return {schemaVersion:1,sourceKey:'osworld',fetchedAt:timestamp(fetchedAt),observedAt:null,benchmarkVersion:version,sourceUrl:'https://osworld-v2.xlang.ai/static/data/leaderboard/official-results.json',
+  publisherUpdatedDate:typeof payload.updatedAt==='string'?payload.updatedAt:null,records:nonempty(records)};
+}

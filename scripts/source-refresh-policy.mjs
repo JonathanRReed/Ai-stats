@@ -3,6 +3,7 @@ const POLICIES = Object.freeze({
   'epoch-ai': { intervalHours: 6, staleAfterHours: 12 },
   livebench: { intervalHours: 6, staleAfterHours: 12 },
   weirdml: { intervalHours: 6, staleAfterHours: 12 },
+  osworld: { intervalHours: 6, staleAfterHours: 12 },
   posttrainbench: { intervalHours: 6, staleAfterHours: 12 },
   'terminal-bench': { intervalHours: 24, staleAfterHours: 48 },
   simplebench: { intervalHours: 6, staleAfterHours: 12 },
