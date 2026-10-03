@@ -57,3 +57,17 @@ test('ordinary public stale extensions and fresh TTL remain supported',()=>{
  const fresh=policy({'cache-control':'public, max-age=120'});
  expect(fresh.storable()).toBe(true);expect(fresh.timeToLive()).toBeGreaterThan(0);
 });
+
+test('shared s-maxage cannot disclose an expired authenticated response',()=>{
+ const p=policy({'cache-control':'s-maxage=0, stale-if-error=100, stale-while-revalidate=100'},{authorization:'Bearer test-only'});
+ expect(p.satisfiesWithoutRevalidation(request())).toBe(false);
+ expect(p.useStaleWhileRevalidate()).toBe(false);
+ expect(p.revalidatedPolicy(request(),{status:500,headers:{}}).matches).toBe(false);
+ expect(p.timeToLive()).toBe(0);
+ const fresh=policy({'cache-control':'s-maxage=120, stale-if-error=100, stale-while-revalidate=100'},{authorization:'Bearer test-only'});
+ expect(fresh.satisfiesWithoutRevalidation(request())).toBe(true);
+ expect(fresh.timeToLive()).toBeGreaterThan(100000);
+ expect(fresh.timeToLive()).toBeLessThanOrEqual(110000);
+ const privateCache=policy({'cache-control':'s-maxage=0, max-age=120'}, {},false);
+ expect(privateCache.satisfiesWithoutRevalidation(request())).toBe(true);
+});

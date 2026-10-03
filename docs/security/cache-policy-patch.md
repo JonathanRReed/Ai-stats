@@ -6,4 +6,4 @@ GHSA-ch52-4w7c-c8xp affects http-cache-semantics 4.2.0. There is no upstream pat
 
 Upstream reference: https://github.com/kornelski/http-cache-semantics/pull/58
 
-The patch also closes stale-if-error and direct stale-while-revalidate sibling paths. It intentionally leaves unrelated shared s-maxage expiry semantics unchanged. Replace the patch with a trusted upstream fixed release and remove this exception when available.
+The patch also closes stale-if-error and direct stale-while-revalidate sibling paths. Expired shared s-maxage responses also require revalidation; their ordinary fresh lifetime remains usable. Replace the patch with a trusted upstream fixed release and remove this exception when available.
