@@ -145,3 +145,19 @@ export function normalizeBlueprintBench(html,fetchedAt){
  });
  return {schemaVersion:1,sourceKey:'blueprint-bench',fetchedAt:timestamp(fetchedAt),observedAt:null,benchmarkVersion:'2',sourceUrl:'https://andonlabs.com/evals/blueprint-bench-2',records:nonempty(records)};
 }
+
+export function normalizeApexAgents(html,fetchedAt){
+ const scripts=[...html.matchAll(/<script\b[^>]*id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/gi)];
+ if(scripts.length!==1)throw new Error('APEX published page data changed');
+ const payload=JSON.parse(scripts[0][1]),page=payload?.props?.pageProps,benchmark=page?.benchmark;
+ if(benchmark?.benchmarkId!=='apex-agents'||benchmark.dataLink!=='https://huggingface.co/datasets/mercor/apex-agents-v1.1'||!Array.isArray(page.leaderboardData))throw new Error('Unsupported APEX-Agents release');
+ const records=page.leaderboardData.map(row=>{
+  const score=row.score?.['pass-1']?.loop_truncated_tools_agent,error=row.error?.['pass-1']?.loop_truncated_tools_agent;
+  if(!text(row.model_id)||!text(row.model_name)||!finite(score)||score<0||score>100||!Number.isSafeInteger(row.n_samples)||row.n_samples<=0)throw new Error('Invalid APEX-Agents result');
+  return {systemId:'apex-agents:v1.1:'+row.model_id+':'+(text(row.effort)??'unknown'),modelId:row.model_id,label:row.model_name,provider:text(row.providerName)??undefined,
+   benchmarkSlug:'apex-agents',benchmarkVersion:'v1.1',metric:'Pass@1',unit:'percent',score,higherIsBetter:true,
+   conditions:{harness:'loop_truncated_tools_agent',reasoningEffort:text(row.effort),samples:row.n_samples,descriptors:Array.isArray(row.descriptors)?row.descriptors.join(' · '):null},
+   reportedError:finite(error)?error:null,evaluatedAt:null,sourceUrl:'https://www.mercor.com/apex/apex-agents-leaderboard/?pass=pass-1'};
+ });
+ return {schemaVersion:1,sourceKey:'apex-agents',fetchedAt:timestamp(fetchedAt),observedAt:null,benchmarkVersion:'v1.1',sourceUrl:'https://www.mercor.com/apex/apex-agents-leaderboard/?pass=pass-1',records:nonempty(records)};
+}
