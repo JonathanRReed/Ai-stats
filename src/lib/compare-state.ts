@@ -28,7 +28,7 @@ const condition = (value:string|null):string|null => {
 };
 const scoreMetric=(value:string|null):string|null=>{
   if(!value||value.length>1024)return null;
-  try{const parsed=JSON.parse(value);return Array.isArray(parsed)&&parsed.length===2&&parsed.every(item=>typeof item==='string'&&item.length<=512)?JSON.stringify(parsed):null;}catch{return null;}
+  try{const parsed=JSON.parse(value);return Array.isArray(parsed)&&(parsed.length===2||parsed.length===3)&&parsed.every(item=>typeof item==='string'&&item.length<=512)?JSON.stringify(parsed):null;}catch{return null;}
 };
 export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogEntry[],defaults:string[]=[]):CompareState {
   const metric=params.get('metric')??'aa_intelligence_index';
