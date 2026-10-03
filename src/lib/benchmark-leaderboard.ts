@@ -13,7 +13,7 @@ export function buildBenchmarkCohorts(benchmark:EpochBenchmark, runs:EpochBenchm
   const baseKey='epoch_'+benchmark.slug;
   const key=groups.size===1?baseKey:baseKey+'__'+encodeURIComponent(identity);
   const publisher=Boolean(benchmark.metadata?.source_key);
-  const label=[getEpochBenchmarkLabel(benchmark),version&&!getEpochBenchmarkLabel(benchmark).includes(version)?version:null,metric??'Metric unspecified',higherIsBetter?null:'lower is better',publisher?null:'Epoch'].filter(Boolean).join(' · ');
+  const label=[getEpochBenchmarkLabel(benchmark),version&&!getEpochBenchmarkLabel(benchmark).includes(version)?version:!version&&groups.size>1?'Version not recorded':null,metric??'Metric unspecified',higherIsBetter?null:'lower is better',publisher?null:'Epoch'].filter(Boolean).join(' · ');
   return {key,metricKey:baseKey,label,version,metric,unit,higherIsBetter,runs:[...group].sort((a,b)=>(higherIsBetter?-1:1)*((a.score??0)-(b.score??0))||a.id.localeCompare(b.id))};
  });
 }

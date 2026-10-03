@@ -17,6 +17,7 @@ import {
   getEpochBenchmarkAttribution,
   getEpochBenchmarksWithRuns,
   getEpochBenchmarkLabel,
+  preferPublisherBenchmarks,
 } from "../lib/benchmark-catalog";
 import {getModelCatalogData} from "../lib/model-catalog-data";
 import CatalogCoverage from "./CatalogCoverage.astro";
@@ -82,10 +83,10 @@ const workbenchModels = currentMeasuredModels.map((model) => ({
 
 const dataFreshness = await getDataFreshness();
 
-const epochBenchmarksWithRuns = getEpochBenchmarksWithRuns(
+const epochBenchmarksWithRuns = preferPublisherBenchmarks(getEpochBenchmarksWithRuns(
   epochBenchmarks,
   epochRuns,
-);
+));
 const preferredEpochBenchmarkSlugs = [...VALUABLE_FREE_BENCHMARK_SLUGS];
 
 // Get benchmark name mapping
@@ -2054,6 +2055,7 @@ function getScoreClass(score: number | null | undefined): string {
 <script>
   // @ts-nocheck
 import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings} from '../lib/benchmark-leaderboard';
+  import {preferPublisherBenchmarks} from '../lib/benchmark-catalog';
   import { findAaComparableCoverageLeader } from "../lib/data-integrity";
   import {
     hasFiniteMetricValue,
@@ -2853,7 +2855,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings} from '..
         aaConfigs.push(config);
       });
 
-      sortEpochBenchmarksByValue(epochBenchmarks).forEach((benchmark) => {
+      sortEpochBenchmarksByValue(preferPublisherBenchmarks(epochBenchmarks)).forEach((benchmark) => {
         buildBenchmarkCohorts(benchmark,epochRuns).forEach(cohort=>{
         const key=cohort.key;
         const list=cohort.runs.slice(0,5)          .map((run) => ({

@@ -9,7 +9,7 @@ const POLICIES = Object.freeze({
   'apex-agents': { intervalHours: 6, staleAfterHours: 12 },
   osworld: { intervalHours: 6, staleAfterHours: 12 },
   posttrainbench: { intervalHours: 6, staleAfterHours: 12 },
-  'terminal-bench': { intervalHours: 24, staleAfterHours: 48 },
+  'terminal-bench': { intervalHours: 6, staleAfterHours: 12 },
   simplebench: { intervalHours: 6, staleAfterHours: 12 },
   openrouter: { intervalHours: 6, staleAfterHours: 12 },
   'openrouter-usage': { intervalHours: 6, staleAfterHours: 12 },
