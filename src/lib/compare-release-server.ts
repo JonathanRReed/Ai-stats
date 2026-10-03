@@ -17,11 +17,12 @@ export async function getCompareReleaseManifest():Promise<CompareReleaseManifest
  const sources:ReleaseSource[]=[
  extra('artificial-analysis',latest(data.aaModels.filter(model=>model.current_source_member===true).map(model=>model.last_seen)),initialModels.length>0),
  extra('epoch-ai',data.epoch.fetchedAt,Boolean(data.epoch.fetchedAt)&&data.epoch.epochModels.length>0),
+ ...data.publishers.snapshots.map(snapshot=>({...extra(snapshot.sourceKey,snapshot.fetchedAt,true),observedAt:snapshot.observedAt})),
  ...data.catalogs.availability.map(receipt=>({sourceKey:receipt.sourceKey,fetchedAt:receipt.fetchedAt,publishedAt:receipt.publishedAt,
  observedAt:null,contentHash:receipt.contentHash,snapshotId:receipt.snapshotId,status:receipt.status,available:receipt.available}))
  ];
  const manifest:Omit<CompareReleaseManifest,'datasetRevision'>={schemaVersion:RELEASE_SCHEMA,generatedAt:latest(sources.map(source=>source.fetchedAt))??new Date(0).toISOString(),
- models:initialModels,defaultModelIds,delivery,sources,benchmarks:getEpochBenchmarksWithRuns(data.epoch.epochBenchmarks,data.epoch.epochRuns)
+ models:initialModels,defaultModelIds,delivery,sources,benchmarks:getEpochBenchmarksWithRuns(data.benchmarks.epochBenchmarks,data.benchmarks.epochRuns)
  .filter(benchmark=>/^[a-z0-9_-]{1,120}$/.test(benchmark.slug)).map(benchmark=>({slug:benchmark.slug,name:getEpochBenchmarkLabel(benchmark)}))};
- return {...manifest,datasetRevision:releaseDatasetRevision(manifest,fromEpochRuns(data.epoch.epochRuns.filter(run=>manifest.benchmarks.some(benchmark=>benchmark.slug===run.benchmark_slug)),data.epoch.fetchedAt))};
+ return {...manifest,datasetRevision:releaseDatasetRevision(manifest,fromEpochRuns(data.benchmarks.epochRuns.filter(run=>manifest.benchmarks.some(benchmark=>benchmark.slug===run.benchmark_slug)),data.epoch.fetchedAt))};
 }

@@ -1,6 +1,10 @@
 const POLICIES = Object.freeze({
   'artificial-analysis': { intervalHours: 4, staleAfterHours: 8 },
   'epoch-ai': { intervalHours: 6, staleAfterHours: 12 },
+  livebench: { intervalHours: 6, staleAfterHours: 12 },
+  weirdml: { intervalHours: 6, staleAfterHours: 12 },
+  posttrainbench: { intervalHours: 6, staleAfterHours: 12 },
+  'terminal-bench': { intervalHours: 24, staleAfterHours: 48 },
   simplebench: { intervalHours: 6, staleAfterHours: 12 },
   openrouter: { intervalHours: 6, staleAfterHours: 12 },
   'openrouter-usage': { intervalHours: 6, staleAfterHours: 12 },

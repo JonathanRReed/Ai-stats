@@ -219,6 +219,9 @@ export const getEpochBenchmarkAttribution = (
   benchmark: EpochBenchmark,
   runs: EpochBenchmarkRun[],
 ): BenchmarkAttribution => {
+  if(benchmark.metadata?.source_key&&benchmark.metadata.source_url){
+    return {sourceName:benchmark.source??benchmark.name,sourceUrl:benchmark.metadata.source_url};
+  }
   const fallback = EPOCH_SOURCE_FALLBACKS[benchmark.slug];
   const sourceCounts = new Map<
     string,

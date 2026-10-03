@@ -109,7 +109,9 @@ export function fromEpochRuns(runs: EpochBenchmarkRun[], fetchedAt: string | nul
     unit: run.score_unit ?? 'native',
     value: parseFiniteMetricValue(run.score), conditions: run.conditions ?? null,
     evaluationDate: run.evaluation_date ?? null, sourceUrl: run.source_link ?? null,
-    fetchedAt, snapshotId: null,
+    fetchedAt: run.source_fetched_at ?? fetchedAt, snapshotId: null,
+    sourceName: run.source_key ? run.source_name ?? run.source_key : 'Epoch AI',
+    sourceKey: run.source_key ?? 'epoch-ai',
   }));
 }
 

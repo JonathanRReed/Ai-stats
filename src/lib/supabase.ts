@@ -78,6 +78,9 @@ export type EpochBenchmark = {
 };
 
 export type EpochBenchmarkRun = {
+  source_key?: string;
+  source_fetched_at?: string;
+  higher_is_better?: boolean;
   benchmark_version?: string | null;
   conditions?: Record<string, string | number | boolean> | null;
   evaluation_date?: string | null;

@@ -3,14 +3,14 @@ import {epochConditionKey,type EpochObservation} from './epoch-observations';
 
 export type ExplorerModel = {
   id:string; name:string; slug?:string; family:string; provider?:string; reasoning?:string;
-  source:'aa'|'epoch'|'openrouter'|'huggingface'|'litellm'|'catalog'; sourceModelId:string; current:boolean|null;
+  source:'aa'|'epoch'|'openrouter'|'huggingface'|'litellm'|'catalog'|'publisher'; sourceModelId:string; current:boolean|null;
   intelligence?:number|null; coding?:number|null; priceInput?:number|null; priceOutput?:number|null;
   aaTaskCost?:number|null; aaEvaluationCost?:number|null; inputModalities?:string[]; outputModalities?:string[];
   priceBlended?:number|null; outputSpeed?:number|null; latency?:number|null;
   indexVersion?:string|null; performancePrompt?:string|null; observedAt?:string|null; fetchedAt?:string|null; sourceUrl?:string|null;
   metrics?:Record<string,number|null>; hasTokenPrices?:boolean; detailAvailable?:boolean;
 };
-export const EXPLORER_SOURCE_LABELS:Record<ExplorerModel['source'],string>={aa:'Artificial Analysis',epoch:'Epoch AI',openrouter:'OpenRouter',huggingface:'Hugging Face',litellm:'LiteLLM',catalog:'Database inventory'};
+export const EXPLORER_SOURCE_LABELS:Record<ExplorerModel['source'],string>={aa:'Artificial Analysis',epoch:'Epoch AI',openrouter:'OpenRouter',huggingface:'Hugging Face',litellm:'LiteLLM',catalog:'Database inventory',publisher:'Original publishers'};
 export type ExplorerEvidence = {models:ExplorerModel[]; observations:EpochObservation[]};
 export type EvidenceReceipt = {
   source:string; sourceUrl:string|null; observedAt:string|null; fetchedAt:string|null;
@@ -69,7 +69,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
   };
   if(state.chart==='benchmark'&&state.metricId.startsWith('epoch_')){
     const slug=state.metricId.slice(6);
-    const versions=new Map(models.filter(model=>model.source==='epoch').map(model=>[model.sourceModelId,model]));
+    const versions=new Map(models.filter(model=>(model.source==='epoch'||model.source==='publisher')).map(model=>[model.sourceModelId,model]));
     const rows=evidence.observations.filter(row=>versions.has(row.modelVersion)&&row.benchmarkSlug===slug&&finite(row.value)&&
       (!state.conditionKey||epochConditionKey(row.conditions)===state.conditionKey)&&
       (!state.scoreMetricKey||epochScoreKey(row)===state.scoreMetricKey));
@@ -84,7 +84,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
       const model=versions.get(row.modelVersion)!;
       const unit=row.unit==='fraction'||row.unit==='percent'?'percent':row.metricKey??'Source-native score';
       add(model,index,row.value!*(row.unit==='fraction'?100:1),'observation',unit,
-        {source:'Epoch AI',sourceUrl:sourceUrl(row.sourceUrl),observedAt:row.evaluationDate,fetchedAt:row.fetchedAt,
+        {source:row.sourceName??'Epoch AI',sourceUrl:sourceUrl(row.sourceUrl),observedAt:row.evaluationDate,fetchedAt:row.fetchedAt,
           indexVersion:row.benchmarkVersion??null,conditions:row.conditions,snapshotId:row.snapshotId},
         model.id+':'+row.id,row.conditions===null||!row.benchmarkVersion?null:slug+':'+row.benchmarkVersion+':'+epochScoreKey(row)+':'+epochConditionKey(row.conditions));
     });

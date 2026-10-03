@@ -1,16 +1,17 @@
 import {COMPARE_CHARTS,AA_METRIC_LABELS} from './compare-state';
 import {expandCatalog,measurementBucket,validateMeasurementChunk,type CompareDelivery} from './compare-delivery';
 import type {ExplorerModel} from './compare-series';
-export const RELEASE_SCHEMA='ai-stats-compare-release.v1';
+export const RELEASE_SCHEMA='ai-stats-compare-release.v2';
+export const LEGACY_RELEASE_SCHEMA='ai-stats-compare-release.v1';
 export type ReleaseSource={sourceKey:string;fetchedAt:string|null;publishedAt:string|null;observedAt:string|null;contentHash:string|null;snapshotId:string|null;status:string;available:boolean};
-export type CompareReleaseManifest={schemaVersion:typeof RELEASE_SCHEMA;generatedAt:string;datasetRevision:string;models:ExplorerModel[];defaultModelIds:string[];benchmarks:Array<{slug:string;name:string}>;sources:ReleaseSource[];delivery:CompareDelivery};
+export type CompareReleaseManifest={schemaVersion:typeof RELEASE_SCHEMA|typeof LEGACY_RELEASE_SCHEMA;generatedAt:string;datasetRevision:string;models:ExplorerModel[];defaultModelIds:string[];benchmarks:Array<{slug:string;name:string}>;sources:ReleaseSource[];delivery:CompareDelivery};
 const object=(value:unknown):value is Record<string,unknown>=>Boolean(value)&&typeof value==='object'&&!Array.isArray(value);
 const text=(value:unknown):value is string=>typeof value==='string'&&value.length>0&&value.length<=2048;
 const date=(value:unknown)=>value===null||typeof value==='string'&&Number.isFinite(Date.parse(value));
 const nullableText=(value:unknown)=>value===null||text(value);
-const sources=new Set(['artificial-analysis','epoch-ai','openrouter','huggingface','litellm','polibench','openrouter-usage']);
+const sources=new Set(['artificial-analysis','epoch-ai','openrouter','huggingface','litellm','polibench','openrouter-usage','livebench','weirdml','posttrainbench','terminal-bench']);
 export function readCompareRelease(value:unknown):CompareReleaseManifest{
- if(!object(value)||value.schemaVersion!==RELEASE_SCHEMA||typeof value.datasetRevision!=='string'||!/^[a-f0-9]{64}$/.test(value.datasetRevision)||!text(value.generatedAt)||!date(value.generatedAt)||!object(value.delivery))throw new Error('Invalid release manifest');
+ if(!object(value)||![RELEASE_SCHEMA,LEGACY_RELEASE_SCHEMA].includes(value.schemaVersion as typeof RELEASE_SCHEMA)||typeof value.datasetRevision!=='string'||!/^[a-f0-9]{64}$/.test(value.datasetRevision)||!text(value.generatedAt)||!date(value.generatedAt)||!object(value.delivery))throw new Error('Invalid release manifest');
  const delivery=value.delivery,catalog=delivery.catalog;
  if('assetBase' in delivery||'benchmarkBase' in delivery)throw new Error('Release paths must be derived by the client');
  if(!text(delivery.revision)||!/^[a-f0-9]{64}$/.test(delivery.revision)||!object(catalog)||!Array.isArray(catalog.providers)||!catalog.providers.every(text)||
@@ -19,7 +20,7 @@ export function readCompareRelease(value:unknown):CompareReleaseManifest{
  for(const row of catalog.rows){
  if(!Array.isArray(row)||row.length!==10||!text(row[0])||ids.has(row[0])||!text(row[1])||
  !Number.isInteger(row[2])||row[2]<0||row[2]>=catalog.providers.length||
- !Number.isInteger(row[3])||row[3]<0||row[3]>5||!(row[4]===null||typeof row[4]==='boolean')||
+ !Number.isInteger(row[3])||row[3]<0||row[3]>(value.schemaVersion===LEGACY_RELEASE_SCHEMA?5:6)||!(row[4]===null||typeof row[4]==='boolean')||
  ![row[5],row[6],row[7],row[8]].every(nullableText)||!Number.isInteger(row[9])||row[9]<0||row[9]>3)throw new Error('Invalid compact model identity');
  ids.add(row[0]);
  }

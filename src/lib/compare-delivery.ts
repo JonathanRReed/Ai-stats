@@ -1,7 +1,7 @@
 import type {ExplorerModel} from './compare-series';
 import type {CompareChart} from './compare-state';
 import type {ComparePreset} from './compare-presets';
-const SOURCES:ExplorerModel['source'][]=['aa','epoch','openrouter','huggingface','litellm','catalog'];
+const SOURCES:ExplorerModel['source'][]=['aa','epoch','openrouter','huggingface','litellm','catalog','publisher'];
 type CompactRow=[string,string,number,number,boolean|null,string|null,string|null,string|null,string|null,number];
 export type CompactCatalog={providers:string[];rows:CompactRow[]};
 export type CompareDelivery={assetBase?:string;benchmarkBase?:string;catalog:CompactCatalog;revision:string;presets:ComparePreset[];charts:Array<{id:CompareChart;label:string}>;aaMetrics:Array<[string,string]>};
