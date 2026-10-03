@@ -42,7 +42,9 @@ const number = value => {
   const result = Number(cleaned);
   return Number.isFinite(result) ? result : null;
 };
-export function getEpochScoreMetric(row) {
+export function getEpochScoreMetric(row, metadata = null) {
+  const primary = text(metadata?.score_column);
+  if (primary) return number(row[primary]) !== null ? primary : null;
   return SCORE_COLUMNS.find(key => number(row[key]) !== null) ?? null;
 }
 const CONDITION_KEYS = new Set([
@@ -52,7 +54,7 @@ const CONDITION_KEYS = new Set([
   'prompt', 'prompting', 'prompt version', 'system prompt', 'seed', 'dataset',
   'dataset version', 'sampling', 'top p', 'top k', 'reasoning', 'reasoning effort',
   'reasoning level', 'thinking', 'tools', 'tool setting', 'tool use', 'agent',
-  'agent org', 'scaffold', 'settings', 'evaluation settings', 'run number',
+  'agent org', 'agent version', 'version', 'livebench version', 'benchmark version', 'scaffold', 'settings', 'evaluation settings', 'run number',
 ]);
 
 /** Normalize a single source row without selecting a winner among observations. */
@@ -61,7 +63,7 @@ export function normalizeEpochRecord(row, benchmarkSlug, context = {}) {
   const modelVersion = text(row['Model version']);
   const slug = text(benchmarkSlug);
   if (!modelVersion || !slug) return null;
-  const metricKey = getEpochScoreMetric(row);
+  const metricKey = getEpochScoreMetric(row, context.metadata);
   const settings = Object.fromEntries(Object.entries(row).filter(([key]) =>
     key !== metricKey && !SCORE_COLUMNS.includes(key) && CONDITION_KEYS.has(key.trim().toLowerCase()) &&
     !key.startsWith('Training ') && !key.includes('Source')));
@@ -69,7 +71,7 @@ export function normalizeEpochRecord(row, benchmarkSlug, context = {}) {
   const canonicalRow = Object.fromEntries(Object.entries(row)
     .filter(([,value]) => value !== undefined)
     .sort(([a], [b]) => a.localeCompare(b)));
-  const source = text(row['Source link']) ?? text(row['Source Link']) ?? text(row['Source link (site from table)']);
+  const source = text(row['Source link']) ?? text(row['Source Link']) ?? text(row['Source link (site from table)']) ?? text(row.Source);
   let sourceUrl = null;
   if (source) {
     try { const url = new URL(source); if (url.protocol === 'https:' && !url.username && !url.password) sourceUrl = url.href; } catch { /* Unknown source stays absent. */ }
@@ -78,7 +80,8 @@ export function normalizeEpochRecord(row, benchmarkSlug, context = {}) {
     id: text(row.id) ?? `source:${slug}:${JSON.stringify(canonicalRow)}`,
     modelVersion, benchmarkSlug: slug, metricKey,
     value: metricKey ? number(row[metricKey]) : null,
-    unit: metricKey && (metricKey.includes('%') || metricKey === 'Percent correct') ? 'percent' : 'native',
+    unit: getEpochStoredUnit(slug, metricKey, context.metadata),
+    benchmarkVersion: getEpochBenchmarkVersion(row, slug, sourceUrl),
     conditions,
     evaluationDate: normalizeEpochEvaluationDate(row['Date of evaluation']),
     sourceUrl,
@@ -88,8 +91,8 @@ export function normalizeEpochRecord(row, benchmarkSlug, context = {}) {
 }
 
 /** The public artifact contains selected evidence, never the raw source payload. */
-export function buildPublicEpochRun(run, benchmarkSlug) {
-  const observation = normalizeEpochRecord(run.raw, benchmarkSlug);
+export function buildPublicEpochRun(run, benchmarkSlug, context = {}) {
+  const observation = normalizeEpochRecord(run.raw, benchmarkSlug, context);
   return {
     id: run.epoch_run_id, model_version: run.model_version,
     benchmark_id: benchmarkSlug, benchmark_slug: benchmarkSlug,
@@ -100,5 +103,29 @@ export function buildPublicEpochRun(run, benchmarkSlug) {
     conditions: observation?.conditions ?? null,
     evaluation_date: observation?.evaluationDate ?? null,
     score_unit: observation?.unit ?? 'native',
+    benchmark_version: observation?.benchmarkVersion ?? null,
   };
+}
+
+/** Units come from the exact source schema, never the observed value's magnitude. */
+export function getEpochStoredUnit(slug, metric, metadata = null) {
+  if (metric && metric === text(metadata?.score_column)) {
+    const scale = number(metadata.scale), ceiling = number(metadata.score_ceiling);
+    if (ceiling === 1 && scale === 1) return 'fraction';
+    if (ceiling === 1 && scale === 0.01) return 'percent';
+    return 'native';
+  }
+  // Verified legacy contracts, for callers without the archive metadata.
+  if (slug === 'aider_polyglot_external' && metric === 'Percent correct') return 'percent';
+  if (slug === 'forecastbench_external' && metric === 'Overall score') return 'percent';
+  return 'native';
+}
+export function getEpochBenchmarkVersion(row, slug, sourceUrl = null) {
+  if (slug === 'terminalbench_external' && sourceUrl) {
+    const match = new URL(sourceUrl).pathname.match(/\/leaderboard\/terminal-bench\/(\d+(?:\.\d+)+)/);
+    if (match) return match[1];
+  }
+  if (slug === 'live_bench_external') return text(row['LiveBench Version']);
+  if (slug === 'metr_time_horizons_external') return text(row.version) ?? text(row.Version);
+  return text(row['Benchmark version']) ?? text(row['Dataset version']);
 }

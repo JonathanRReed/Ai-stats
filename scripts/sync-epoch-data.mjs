@@ -250,6 +250,12 @@ const main = async () => {
     const runRows = [];
     const dataFileRows = [];
     const csvFiles = await findCsvFiles(workDir);
+    const metadataFile = csvFiles.find(file => file.filePath === 'benchmark_metadata.csv');
+    const metadataRows = metadataFile ? await readCsv(metadataFile.fullPath) : [];
+    const metadataBySlug = new Map(metadataRows.filter(row => row.source_file && row.score_column)
+      .map(row => [path.basename(row.source_file).replace(/\.csv$/u, ''), Object.fromEntries(
+        ['source_file','benchmark','score_column','scale','score_ceiling','random_baseline','release_date','superseded_by']
+          .map(key => [key, toTextOrNull(row[key])]))]));
 
     for (const { fullPath, filePath } of csvFiles) {
       const rows = await readCsv(fullPath);
@@ -266,7 +272,7 @@ const main = async () => {
       if (
         filePath.includes(path.sep) ||
         !filename.endsWith('.csv') ||
-        filename === 'epoch_capabilities_index.csv'
+        ['epoch_capabilities_index.csv', 'benchmark_metadata.csv', 'model_metadata.csv'].includes(filename)
       ) {
         continue;
       }
@@ -284,7 +290,7 @@ const main = async () => {
         const modelVersion = toTextOrNull(row['Model version']);
         if (!modelVersion) continue;
 
-        const scoreMetric = getPrimaryScoreColumn(row);
+        const scoreMetric = getPrimaryScoreColumn(row, metadataBySlug.get(slug));
         const score = scoreMetric ? toNumberOrNull(row[scoreMetric]) : null;
         const releaseDate = toTextOrNull(row['Release date']);
         const organization = toTextOrNull(row.Organization);
@@ -342,10 +348,10 @@ const main = async () => {
         archive_manifest: { source: DATA_URL, sha256: createHash('sha256').update(await readFile(zipPath)).digest('hex'),
           parsed: true, files: dataFileRows.map(file => ({ path: file.file_path, row_count: file.row_count })) },
         fetched_at: new Date().toISOString(),
-        benchmarks: benchmarkRows,
+        benchmarks: benchmarkRows.map(row => ({...row, metadata: metadataBySlug.get(row.slug) ?? null})),
         models: [...modelByVersion.values()],
         runs: dedupedRunRows.map(({ benchmark_slug: benchmarkSlug, ...run }) =>
-          buildPublicEpochRun(run, benchmarkSlug)),
+          buildPublicEpochRun(run, benchmarkSlug, {metadata: metadataBySlug.get(benchmarkSlug)})),
       };
       if (cachePath) {
         await mkdir(path.dirname(cachePath), { recursive: true });

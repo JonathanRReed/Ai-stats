@@ -134,12 +134,12 @@ export function buildEpochCacheInput(snapshot) {
     })),
     ...snapshot.benchmarks.map(row => ({
       id: 'benchmark:' + row.slug, kind: 'benchmark',
-      data: pick(row, ['slug', 'name', 'description', 'source']),
+      data: pick(row, ['slug', 'name', 'description', 'source', 'metadata']),
     })),
     ...snapshot.runs.map(row => ({
       id: 'run:' + row.id, kind: 'run',
       data: pick(row, ['id', 'model_version', 'benchmark_slug', 'score', 'score_metric',
-        'score_unit', 'conditions', 'evaluation_date', 'release_date', 'organization',
+        'score_unit', 'benchmark_version', 'conditions', 'evaluation_date', 'release_date', 'organization',
         'country', 'stderr', 'source_name', 'source_link']),
     })),
   ];
@@ -172,7 +172,7 @@ export function buildAaMembershipCacheInput(aa) {
 export function assertEpochArchiveCoverage(previous, candidate) {
   if (!previous?.benchmarks?.length || !previous?.runs?.length) return;
   const slugs=new Set(candidate.benchmarks.map(row=>row.slug));
-  if(previous.benchmarks.some(row=>!slugs.has(row.slug))) {
+  if(previous.benchmarks.some(row=>!['benchmark_metadata','model_metadata'].includes(row.slug)&&!slugs.has(row.slug))) {
     throw new Error('Epoch archive omitted a published benchmark; retain the previous snapshot pending source review');
   }
   for(const collection of ['models','runs']) {

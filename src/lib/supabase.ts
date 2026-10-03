@@ -69,6 +69,7 @@ export type EpochModel = {
 };
 
 export type EpochBenchmark = {
+  metadata?: Record<string, string | null> | null;
   id: string;
   slug: string;
   name: string;
@@ -77,6 +78,7 @@ export type EpochBenchmark = {
 };
 
 export type EpochBenchmarkRun = {
+  benchmark_version?: string | null;
   conditions?: Record<string, string | number | boolean> | null;
   evaluation_date?: string | null;
   score_unit?: 'native' | 'percent' | 'fraction';

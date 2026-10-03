@@ -34,6 +34,7 @@ const normalizeBenchmark = (row: Record<string, unknown>): EpochBenchmark => ({
   name: toStringOrEmpty(row.name || row.slug),
   description: toStringOrNull(row.description),
   source: toStringOrNull(row.source),
+  metadata: row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata) ? row.metadata as Record<string, string | null> : null,
 });
 
 const normalizeModel = (row: Record<string, unknown>): EpochModel => ({
@@ -73,6 +74,7 @@ const normalizeRun = (
     conditions: normalizeEpochConditions(row.conditions),
     evaluation_date: normalizeEpochEvaluationDate(row.evaluation_date),
     score_unit: normalizeEpochScoreUnit(row.score_unit),
+    benchmark_version: toStringOrNull(row.benchmark_version),
     benchmark_name: benchmark?.name ?? toStringOrNull(row.benchmark_name) ?? undefined,
     benchmark_slug: benchmark?.slug ?? benchmarkSlug,
   };
