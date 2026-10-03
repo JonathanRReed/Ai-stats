@@ -110,9 +110,7 @@ epochBenchmarksWithRuns.forEach((benchmark) => {
     epochRuns,
   );
 });
-const clientBenchmarkAttributions = Object.fromEntries(
-  Object.entries(benchmarkAttributions).filter(([key]) => !key.startsWith("epoch_")),
-);
+const clientBenchmarkAttributions = benchmarkAttributions;
 
 const validModels = currentMeasuredModels.filter((model: any) => {
   const inputPrice = Number(model.price_1m_input_tokens);
@@ -191,17 +189,32 @@ benchmarkConfigs
 epochBenchmarksWithRuns.forEach((benchmark) => {
   const slug = benchmark.slug;
   const runs = epochRuns
-    .filter((r) => r.benchmark_slug === slug && r.score !== null)
+    .filter((r) => r.benchmark_slug === slug && hasFiniteMetricValue(r.score))
     .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
     .slice(0, 5)
     .map((r) => ({
       name: r.model_version.replace(/_/g, " ").replace(/-/g, " "),
       company_name: r.organization,
       score: r.score,
+      score_metric: r.score_metric,
       isEpoch: true,
     }));
   topByBenchmark[`epoch_${slug}`] = runs;
 });
+
+
+const availableBenchmarkConfigs = benchmarkConfigs.filter(
+  ({key}) => (topByBenchmark[key]?.length ?? 0) > 0,
+);
+const defaultBenchmarkKey = availableBenchmarkConfigs.some(({key}) => key === "aa_intelligence_index")
+  ? "aa_intelligence_index" : availableBenchmarkConfigs[0]?.key ?? "";
+const formatEpochLeaderboardScore = (score: number, scoreMetric: string | null | undefined) => {
+  const metric = String(scoreMetric ?? "").toLowerCase();
+  if (score <= 1 || metric.includes("%") || metric.includes("percent") || metric.includes("accuracy")) {
+    return `${(score <= 1 ? score * 100 : score).toFixed(1)}%`;
+  }
+  return score >= 100 ? score.toLocaleString("en-US", {maximumFractionDigits: 1}) : score.toFixed(2);
+};
 
 const openRouterToolModels = openRouterModels.filter((model) =>
   model.supported_parameters.includes("tools"),
@@ -388,8 +401,8 @@ function getScoreClass(score: number | null | undefined): string {
               class="toolbar-control relative z-30 pointer-events-auto px-3 py-1 text-xs text-text"
             >
               {
-                benchmarkConfigs.map(({ key, label }) => (
-                  <option value={key} selected={key === "aa_intelligence_index"}>
+                availableBenchmarkConfigs.map(({ key, label }) => (
+                  <option value={key} selected={key === defaultBenchmarkKey}>
                     {label}
                   </option>
                 ))
@@ -403,12 +416,12 @@ function getScoreClass(score: number | null | undefined): string {
         >
           Source:
           <a
-            href={benchmarkAttributions.mmlu_pro.sourceUrl}
+            href={benchmarkAttributions[defaultBenchmarkKey]?.sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
             class="text-text underline decoration-highlight-med/70 underline-offset-4"
           >
-            {benchmarkAttributions.mmlu_pro.sourceName}
+            {benchmarkAttributions[defaultBenchmarkKey]?.sourceName}
           </a>
         </p>
 
@@ -417,7 +430,7 @@ function getScoreClass(score: number | null | undefined): string {
           id="leaderboard-panels"
         >
           {
-            benchmarkConfigs.filter(({ key }) => key === "aa_intelligence_index").map(({ key, source }) => {
+            availableBenchmarkConfigs.map(({ key, source }) => {
               const list = topByBenchmark[key] ?? [];
               if (!list.length) return null;
               const isEpoch = source === "epoch";
@@ -430,7 +443,7 @@ function getScoreClass(score: number | null | undefined): string {
                 <div
                   data-metric={key}
                   class="overflow-hidden border border-highlight-low/60"
-                  hidden={key !== "aa_intelligence_index"}
+                  hidden={key !== defaultBenchmarkKey}
                 >
                   <ul class="divide-y divide-highlight-low/40">
                     {list.map((model: any, index: number) => {
@@ -500,7 +513,7 @@ function getScoreClass(score: number | null | undefined): string {
                                 class={`lbs ${index === 0 ? "score-high" : index < 3 ? "lbsp" : "lbsx"}`}
                               >
                                 {isEpoch
-                                  ? `${(score * 100).toFixed(1)}%`
+                                  ? formatEpochLeaderboardScore(score, model.score_metric)
                                   : key.startsWith("aa_") ? formatIndex(model[key]) : formatScore(model[key])}
                               </div>
                             </div>
