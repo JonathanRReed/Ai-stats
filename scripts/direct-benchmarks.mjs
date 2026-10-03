@@ -161,3 +161,35 @@ export function normalizeApexAgents(html,fetchedAt){
  });
  return {schemaVersion:1,sourceKey:'apex-agents',fetchedAt:timestamp(fetchedAt),observedAt:null,benchmarkVersion:'v1.1',sourceUrl:'https://www.mercor.com/apex/apex-agents-leaderboard/?pass=pass-1',records:nonempty(records)};
 }
+
+function divContents(html,start){
+ const tags=/<\/?div\b[^>]*>/gi;tags.lastIndex=start;let depth=0,begin=-1,match;
+ while((match=tags.exec(html))){
+  if(begin<0){if(match.index!==start)throw new Error('Invalid scoreboard element');begin=tags.lastIndex;}
+  depth+=match[0].startsWith('</')?-1:1;
+  if(depth===0)return html.slice(begin,match.index);
+ }
+ throw new Error('Unclosed scoreboard element');
+}
+export function normalizeGdpPdf(html,fetchedAt){
+ if(typeof html!=='string'||!html.includes('GDP.pdf'))throw new Error('Unsupported GDP.pdf page');
+ const tableMatches=[...html.matchAll(/<div\b[^>]*\bdata-leaderboard-table=["'][^"']*["'][^>]*>/gi)];
+ if(tableMatches.length!==1)throw new Error('GDP.pdf scoreboard changed');
+ const table=divContents(html,tableMatches[0].index),rowTags=[...table.matchAll(/<div\b[^>]*\bdata-leaderboard-row=["'][^"']*["'][^>]*>/gi)];
+ const field=(row,className)=>{
+  const opening=[...row.matchAll(/<div\b[^>]*\bclass=["']([^"']*)["'][^>]*>/gi)].find(match=>match[1].split(/\s+/).includes(className));
+  if(!opening)throw new Error('Missing GDP.pdf model label');
+  return htmlText(divContents(row,opening.index));
+ };
+ const records=rowTags.map(tag=>{
+  const row=divContents(table,tag.index),brand=field(row,'head-rank-table-brand'),name=field(row,'head-rank-table-name');
+  const scoreTags=[...row.matchAll(/<div\b(?=[^>]*\bfs-list-field=["']foundational-score["'])(?=[^>]*\bdata-score=["']([^"']+)["'])[^>]*>/gi)];
+  if(scoreTags.length!==1||!/^\d+(\.\d+)?$/.test(scoreTags[0][1]))throw new Error('Invalid GDP.pdf overall score');
+  const score=Number(scoreTags[0][1]),label=brand+' '+name;
+  if(!name||!brand||score<0||score>100)throw new Error('Invalid GDP.pdf result');
+  const provider=/alt=["']([^"']+) logo["']/i.exec(row)?.[1];
+  return {systemId:'gdp-pdf:'+label,modelId:label,label,provider,benchmarkSlug:'gdp-pdf',benchmarkVersion:'unversioned',metric:'GDP.pdf score',unit:'percent',score,higherIsBetter:true,
+   conditions:{configuration:name.match(/\(([^)]+)\)/)?.[1]??null},evaluatedAt:null,sourceUrl:'https://surgehq.ai/benchmarks/gdp-pdf'};
+ });
+ return {schemaVersion:1,sourceKey:'gdp-pdf',fetchedAt:timestamp(fetchedAt),observedAt:null,benchmarkVersion:'unversioned',sourceUrl:'https://surgehq.ai/benchmarks/gdp-pdf',records:nonempty(records)};
+}

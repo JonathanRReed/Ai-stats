@@ -1,10 +1,10 @@
 import {mkdir,writeFile,rename} from 'node:fs/promises';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {normalizeLiveBench,normalizeWeirdML,normalizePostTrainBench,normalizeOSWorld,normalizeProofBench,normalizeBlueprintBench,normalizeApexAgents,publisherContentHash} from './direct-benchmarks.mjs';
+import {normalizeLiveBench,normalizeWeirdML,normalizePostTrainBench,normalizeOSWorld,normalizeProofBench,normalizeBlueprintBench,normalizeApexAgents,normalizeGdpPdf,publisherContentHash} from './direct-benchmarks.mjs';
 
 const LIVEBENCH_AVERAGING_SHA='8048d175739ea66e8069711ff6e572c684cfc75b';
-const SOURCE_KEYS=['livebench','weirdml','posttrainbench','osworld','proofbench','blueprint-bench','apex-agents'];
+const SOURCE_KEYS=['livebench','weirdml','posttrainbench','osworld','proofbench','blueprint-bench','apex-agents','gdp-pdf'];
 /** Public, unauthenticated reads only; each failed source retains its prior artifact. */
 export async function collectDirectBenchmarks({fetchImpl=(input,init)=>globalThis.fetch(input,init),now=()=>new Date().toISOString(),sources=SOURCE_KEYS}={}){
  if(!Array.isArray(sources)||!sources.length||sources.some(source=>!SOURCE_KEYS.includes(source)))throw new Error('Unknown direct benchmark source');
@@ -36,6 +36,7 @@ export async function collectDirectBenchmarks({fetchImpl=(input,init)=>globalThi
    const [csv,categories]=await Promise.all([read(repo.raw('public/'+latest),false),read(repo.raw('public/'+latest.replace('table_','categories_').replace('.csv','.json')))]);
    return normalizeLiveBench({version,categories,csv,commit:repo.sha,fetchedAt});
   },
+  'gdp-pdf':async()=>normalizeGdpPdf(await read('https://surgehq.ai/benchmarks/gdp-pdf',false),fetchedAt),
   'apex-agents':async()=>normalizeApexAgents(await read('https://www.mercor.com/apex/apex-agents-leaderboard/?pass=pass-1',false),fetchedAt),
   proofbench:async()=>{
    const html=await read('https://www.vals.ai/benchmarks/proof_bench',false);
