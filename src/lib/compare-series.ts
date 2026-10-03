@@ -44,7 +44,7 @@ export function paretoFrontiers<T extends {id:string;x:number;y:number;cohortKey
     !group.some(other=>other.id!==point.id&&(direction==='min'?other.x<=point.x:other.x>=point.x)&&other.y>=point.y&&
       (other.x!==point.x||other.y!==point.y))).sort((a,b)=>a.x-b.x||a.id.localeCompare(b.id)).map(point=>point.id)]));
 }
-export const epochScoreKey=(row:Pick<EpochObservation,'metricKey'|'unit'>)=>JSON.stringify([row.metricKey??'Unknown metric',row.unit==='fraction'?'percent':row.unit]);
+export const epochScoreKey=(row:Pick<EpochObservation,'metricKey'|'unit'|'benchmarkVersion'>)=>JSON.stringify([row.metricKey??'Unknown metric',row.unit==='fraction'?'percent':row.unit,row.benchmarkVersion??null]);
 export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState):CompareSeries {
   const result:CompareSeries={available:true,unavailableReason:null,kind:['cost-intelligence','speed-intelligence','task-cost','total-cost'].includes(state.chart)?'scatter':'bars',
     points:[],excluded:[],xLabel:'Model',yLabel:'Value',scale:state.scale,scaleNotice:null,mixedConditions:false,
@@ -85,8 +85,8 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
       const unit=row.unit==='fraction'||row.unit==='percent'?'percent':row.metricKey??'Source-native score';
       add(model,index,row.value!*(row.unit==='fraction'?100:1),'observation',unit,
         {source:'Epoch AI',sourceUrl:sourceUrl(row.sourceUrl),observedAt:row.evaluationDate,fetchedAt:row.fetchedAt,
-          indexVersion:null,conditions:row.conditions,snapshotId:row.snapshotId},
-        model.id+':'+row.id,row.conditions===null?null:slug+':'+epochConditionKey(row.conditions));
+          indexVersion:row.benchmarkVersion??null,conditions:row.conditions,snapshotId:row.snapshotId},
+        model.id+':'+row.id,row.conditions===null||!row.benchmarkVersion?null:slug+':'+row.benchmarkVersion+':'+epochScoreKey(row)+':'+epochConditionKey(row.conditions));
     });
     result.yLabel=rows[0]?.unit==='fraction'||rows[0]?.unit==='percent'?'Score (%)':rows[0]?.metricKey??'Source-native score';
     for(const model of models)if(!result.points.some(point=>point.modelId===model.id)){

@@ -104,8 +104,9 @@ export function fromEpochRuns(runs: EpochBenchmarkRun[], fetchedAt: string | nul
   return runs.map(run => ({
     id: run.id, modelVersion: run.model_version,
     benchmarkSlug: run.benchmark_slug ?? run.benchmark_id,
+    benchmarkVersion: run.benchmark_version ?? null,
     metricKey: run.score_metric ?? null,
-    unit: run.score_unit ?? (/percent|%/i.test(run.score_metric ?? '') ? 'percent' : 'native'),
+    unit: run.score_unit ?? 'native',
     value: parseFiniteMetricValue(run.score), conditions: run.conditions ?? null,
     evaluationDate: run.evaluation_date ?? null, sourceUrl: run.source_link ?? null,
     fetchedAt, snapshotId: null,

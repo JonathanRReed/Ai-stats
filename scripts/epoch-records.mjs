@@ -42,6 +42,7 @@ const number = value => {
   const result = Number(cleaned);
   return Number.isFinite(result) ? result : null;
 };
+/** @param {Record<string, unknown>} row @param {Record<string, unknown> | null} [metadata] */
 export function getEpochScoreMetric(row, metadata = null) {
   const primary = text(metadata?.score_column);
   if (primary) return number(row[primary]) !== null ? primary : null;
@@ -54,7 +55,7 @@ const CONDITION_KEYS = new Set([
   'prompt', 'prompting', 'prompt version', 'system prompt', 'seed', 'dataset',
   'dataset version', 'sampling', 'top p', 'top k', 'reasoning', 'reasoning effort',
   'reasoning level', 'thinking', 'tools', 'tool setting', 'tool use', 'agent',
-  'agent org', 'agent version', 'version', 'livebench version', 'benchmark version', 'scaffold', 'settings', 'evaluation settings', 'run number',
+  'agent org', 'agent version', 'version', 'livebench version', 'metr version', 'benchmark version', 'scaffold', 'settings', 'evaluation settings', 'run number',
 ]);
 
 /** Normalize a single source row without selecting a winner among observations. */
@@ -126,6 +127,6 @@ export function getEpochBenchmarkVersion(row, slug, sourceUrl = null) {
     if (match) return match[1];
   }
   if (slug === 'live_bench_external') return text(row['LiveBench Version']);
-  if (slug === 'metr_time_horizons_external') return text(row.version) ?? text(row.Version);
+  if (slug === 'metr_time_horizons_external') return text(row['METR version']) ?? text(row.version) ?? text(row.Version);
   return text(row['Benchmark version']) ?? text(row['Dataset version']);
 }

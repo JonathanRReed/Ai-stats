@@ -637,16 +637,15 @@ export function buildIntelligencePayloads(value) {
       unit: "source_native_score",
       higher_is_better: true,
       description: asOptionalText(benchmark.description),
-      metadata: {},
+      metadata: {sourceSchema: benchmark.metadata ?? null, directionVerified: false},
       updated_at: input.epoch.fetchedAt,
     });
-    benchmarkVersions.push({
-      source_key: "epoch-ai",
-      benchmark_key: benchmark.slug,
-      version_key: "source-native-current",
-      methodology_url: null,
-      published_at: null,
-      metadata: {},
+    const versions = new Set(input.epoch.runs.filter(run => run.benchmark_slug === benchmark.slug)
+      .map(run => asOptionalText(run.benchmark_version) ?? "source-native-unversioned"));
+    for (const version of versions) benchmarkVersions.push({
+      source_key: "epoch-ai", benchmark_key: benchmark.slug, version_key: version,
+      methodology_url: null, published_at: null,
+      metadata: {sourceSchema: benchmark.metadata ?? null, versionVerified: version !== "source-native-unversioned"},
       updated_at: input.epoch.fetchedAt,
     });
   }
@@ -659,7 +658,7 @@ export function buildIntelligencePayloads(value) {
       source_key: "epoch-ai",
       canonical_key: canonicalKeyBySourceIdentity.get(`epoch-ai:${run.model_version}`),
       benchmark_key: run.benchmark_slug,
-      version_key: "source-native-current",
+      version_key: asOptionalText(run.benchmark_version) ?? "source-native-unversioned",
       observation_key: `epoch-ai:${run.id}`,
       source_model_key: run.model_version,
       value: run.score,
@@ -667,6 +666,7 @@ export function buildIntelligencePayloads(value) {
       source_url: httpsUrlOrNull(run.source_link),
       metadata: {
         scoreMetric: asOptionalText(run.score_metric),
+        benchmarkVersion: asOptionalText(run.benchmark_version),
         conditions: normalizeEpochConditions(run.conditions),
         evaluationDate: normalizeEpochEvaluationDate(run.evaluation_date),
         scoreUnit: normalizeEpochScoreUnit(run.score_unit),
