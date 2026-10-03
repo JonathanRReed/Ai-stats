@@ -80,7 +80,7 @@ jobs:
           bun run sync:intelligence --input .tmp/intelligence-input.json
       - name: Verify the release candidate
         run: |
-          bun audit
+          bun run audit
           bun run lint
           bun run typecheck
           bun run test

@@ -59,4 +59,4 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
       - name: Audit dependencies
-        run: bun audit
+        run: bun run audit

@@ -39,6 +39,9 @@
       },
     },
   },
+  "patchedDependencies": {
+    "http-cache-semantics@4.2.0": "patches/http-cache-semantics@4.2.0.patch",
+  },
   "overrides": {
     "@isaacs/brace-expansion": ">=5.0.9",
     "flatted": ">=3.4.0",
