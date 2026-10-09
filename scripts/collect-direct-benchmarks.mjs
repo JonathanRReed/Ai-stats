@@ -43,9 +43,16 @@ export async function collectDirectBenchmarks({fetchImpl=(input,init)=>globalThi
    for(const match of html.matchAll(/<script>self\.__next_f\.push\((\[[\s\S]*?\])\)<\/script>/g)){
     try{const block=JSON.parse(match[1]);if(block[0]===1&&typeof block[1]==='string')flights.push(block[1]);}catch{/* Other bootstrap records are not leaderboard data. */}
    }
-   const lines=flights.join('\n').split('\n');let leaderboards,paths;
+   // Flight transport chunks may split records. Resolve only plain string
+   // references used by the module name and asset paths; never evaluate Flight.
+   const lines=flights.join('').split('\n'),strings=new Map();let leaderboards,paths;
    for(const line of lines){
-    const module=line.match(/^[a-f0-9]+:I(\[.*\])$/);if(module){const value=JSON.parse(module[1]);if(value[2]==='DatasetLeaderboardPanel')paths=value[1];}
+    const record=line.match(/^([a-f0-9]+):(".*")$/);
+    if(record){try{const value=JSON.parse(record[2]);if(typeof value==='string')strings.set(record[1],value);}catch{/* Unrelated or incomplete record. */}}
+   }
+   const resolveString=value=>typeof value==='string'&&/^\$[a-f0-9]+$/.test(value)?strings.get(value.slice(1)):value;
+   for(const line of lines){
+    const module=line.match(/^[a-f0-9]+:I(\[.*\])$/);if(module){const value=JSON.parse(module[1]);if(resolveString(value[2])==='DatasetLeaderboardPanel')paths=Array.isArray(value[1])?value[1].map(resolveString):value[1];}
     const element=line.match(/^[a-f0-9]+:(\[.*\])$/);if(element){try{const value=JSON.parse(element[1]);if(Array.isArray(value?.[3]?.leaderboards))leaderboards=value[3].leaderboards;}catch{/* Unrelated flight record. */}}
    }
    if(!Array.isArray(leaderboards)||!Array.isArray(paths)||paths.length>30)throw new Error('Terminal-Bench public page schema changed');
