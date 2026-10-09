@@ -7,8 +7,8 @@ import {spawnSync} from 'node:child_process';
 const require=createRequire(import.meta.url);
 const {parse}=require('jsonc-parser');
 const PATCH='patches/http-cache-semantics@4.2.0.patch';
-const PATCH_HASH='5b588b255ab2c197eb25cc29f8f620bd089bb4700089da3f369ac7fba97f0b72';
-const MODULE_HASH='85d0d7889636fa11e9d39870c196ffea169784c017446056273278b3a860943d';
+const PATCH_HASH='70985232a0613af55dd455ec31c02789caad64e3e9c1a2d9c37ab0d9aec8e967';
+const MODULE_HASH='79fda54482c2b97fb7ce44f3d5cae5853160171cac555503d332c8c2718a802f';
 const ADVISORY='https://github.com/advisories/GHSA-ch52-4w7c-c8xp';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 export function classifyAudit(report,exitCode){
