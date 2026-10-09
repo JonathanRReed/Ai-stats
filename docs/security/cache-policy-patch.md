@@ -28,3 +28,19 @@ The maintainer closed and disputed the original proposed CVE fix in
 Do not describe the 4.3.0 release as implementing this patch or silently remove
 the integrity-verified exception. These are dependency-level hardening tests,
 not proof that the static visitor-facing site exposes a shared response cache.
+
+The October 9 lockfile update also pins the smallest qualified upstream fixes:
+`postcss-selector-parser` 7.1.6, `sharp` 0.35.5 (prebuilt librsvg 2.63.2),
+`smol-toml` 1.9.1, and `source-map-js` 1.2.2. Registry repositories and
+maintainers, published package contents, and install hooks were inspected before
+installation with lifecycle scripts disabled. The lockfile changes are limited
+to those four packages and Sharp's matching platform libraries.
+
+`smol-toml` 1.9.0 repairs the reported complexity issue but accepts malformed
+extra exponent signs such as `1e++2`; the signed
+[1.9.1 release](https://github.com/squirrelchat/smol-toml/releases/tag/v1.9.1)
+repairs that regression. `scripts/dependency-security-compatibility.test.ts`
+checks the version floors, malformed source-map offsets, normal selector/TOML
+behavior, invalid exponent rejection, the loaded librsvg version, and a small
+trusted SVG-to-PNG render. The dependency audit still permits only the existing,
+integrity-verified cache-policy exception and rejects other findings.
