@@ -23,10 +23,10 @@ test('browser catalog price formatter agrees with server formatting',()=>{
  values.forEach((value,index)=>expect(format(value,3)).toBe(expected[index]));
 });
 
-function recordedEntries(variable:string,model:Record<string,unknown>){
- const start=card.indexOf('const '+variable+' =');
- const end=card.indexOf(';',start);
- return new Function('model','hasFiniteMetricValue',card.slice(start,end+1)+'return '+variable)(model,hasFiniteMetricValue) as Array<[string,unknown]>;
+function recordedEntries(variable:string,model:Record<string,unknown>,source=card){
+ const start=source.indexOf('const '+variable+' =');
+ const end=source.indexOf(';',start);
+ return new Function('model','hasFiniteMetricValue',source.slice(start,end+1)+'return '+variable)(model,hasFiniteMetricValue) as Array<[string,unknown]>;
 }
 test('catalog benchmark entries hide absent evidence while preserving real zero',()=>{
  const model={mmlu_pro:null,gpqa:undefined,hle:0,aime:Number.NaN,livecodebench:'',scicode:Infinity,math_500:0.8};
@@ -41,4 +41,12 @@ test('catalog renders an honest empty state and labels MMLU Pro consistently',()
  expect(card).toContain('No benchmark measurements available.');
  expect(dashboard).toContain('No benchmark measurements available.');
  expect(dashboard).not.toContain('>MMLU</');
+});
+
+test('browser catalog entries use the same missing-evidence policy as server cards',()=>{
+ const model={mmlu_pro:null,gpqa:undefined,hle:0,aime:Number.NaN,livecodebench:'',scicode:Infinity,math_500:0.8,aa_intelligence_index:0,aa_coding_index:null};
+ for(const variable of ['allBenchmarks','aaIndexes']){
+  expect(recordedEntries(variable,model,dashboard)).toEqual(recordedEntries(variable,model));
+  expect(recordedEntries(variable,{},dashboard)).toEqual([]);
+ }
 });
