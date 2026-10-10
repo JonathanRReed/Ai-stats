@@ -3122,22 +3122,22 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
           </section>
         `
         : "";
-const allBenchmarks = [
-  ["MMLU Pro", model.mmlu_pro],
-  ["GPQA", model.gpqa],
-  ["HLE", model.hle],
-  ["AIME", model.aime],
-  ["LiveCodeBench", model.livecodebench],
-  ["SciCode", model.scicode],
-  ["Math 500", model.math_500],
-].filter(([, value]) => hasFiniteMetricValue(value));
+      const allBenchmarks = [
+        ["MMLU Pro", model.mmlu_pro],
+        ["GPQA", model.gpqa],
+        ["HLE", model.hle],
+        ["AIME", model.aime],
+        ["LiveCodeBench", model.livecodebench],
+        ["SciCode", model.scicode],
+        ["Math 500", model.math_500],
+      ].filter(([, value]) => hasFiniteMetricValue(value));
 
-// AA Indexes
-const aaIndexes = [
-  ["AA Index", model.aa_intelligence_index],
-  ["Coding", model.aa_coding_index],
-  ["Math", model.aa_math_index],
-].filter(([, value]) => hasFiniteMetricValue(value));
+      // AA Indexes
+      const aaIndexes = [
+        ["AA Index", model.aa_intelligence_index],
+        ["Coding", model.aa_coding_index],
+        ["Math", model.aa_math_index],
+      ].filter(([, value]) => hasFiniteMetricValue(value));
 
 
       return `
