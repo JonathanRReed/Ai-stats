@@ -745,7 +745,7 @@ function getScoreClass(score: number | null | undefined): string {
               <th scope="col" class="px-4 py-3 font-semibold text-right">Context</th>
               <th scope="col" class="px-4 py-3 font-semibold text-right">Input</th>
               <th scope="col" class="px-4 py-3 font-semibold text-right">Output</th>
-              <th scope="col" class="px-4 py-3 font-semibold text-right">MMLU</th>
+              <th scope="col" class="px-4 py-3 font-semibold text-right">MMLU Pro</th>
               <th scope="col" class="px-4 py-3 font-semibold text-right">GPQA</th>
               <th scope="col" class="px-4 py-3 font-semibold text-right">TPS</th>
             </tr>
@@ -780,10 +780,10 @@ function getScoreClass(score: number | null | undefined): string {
                     {formatContextLength(model.openrouter_context_length)}
                   </td>
                   <td class="px-4 py-3 text-right font-mono text-text">
-                    {formatPrice(Number(model.price_1m_input_tokens) || 0, 3)}
+                    {formatPrice(model.price_1m_input_tokens, 3)}
                   </td>
                   <td class="px-4 py-3 text-right font-mono text-text">
-                    {formatPrice(Number(model.price_1m_output_tokens) || 0, 3)}
+                    {formatPrice(model.price_1m_output_tokens, 3)}
                   </td>
                   <td
                     class={`px-4 py-3 text-right font-semibold ${getScoreClass(model.mmlu_pro)}`}
@@ -2055,6 +2055,7 @@ function getScoreClass(score: number | null | undefined): string {
 
 <script>
   // @ts-nocheck
+  import {formatPrice as formatCatalogPrice} from "../lib/format-utils";
 import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboardBarWidth} from '../lib/benchmark-leaderboard';
   import {preferPublisherBenchmarks} from '../lib/benchmark-catalog';
   import { findAaComparableCoverageLeader } from "../lib/data-integrity";
@@ -2292,13 +2293,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       return `${pct.toFixed(1)}%`;
     };
 
-    const formatPrice = (price, decimals = 3) => {
-      const num = Number(price);
-      if (!Number.isFinite(num) || num <= 0) return "-";
-      const factor = Math.pow(10, decimals);
-      const truncated = Math.trunc(num * factor) / factor;
-      return `$${truncated.toFixed(decimals)}`;
-    };
+    const formatPrice = formatCatalogPrice;
 
     const formatCompactNumber = (value) => {
       const num = Number(value);
@@ -3127,6 +3122,24 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
           </section>
         `
         : "";
+const allBenchmarks = [
+  ["MMLU Pro", model.mmlu_pro],
+  ["GPQA", model.gpqa],
+  ["HLE", model.hle],
+  ["AIME", model.aime],
+  ["LiveCodeBench", model.livecodebench],
+  ["SciCode", model.scicode],
+  ["Math 500", model.math_500],
+].filter(([, value]) => hasFiniteMetricValue(value));
+
+// AA Indexes
+const aaIndexes = [
+  ["AA Index", model.aa_intelligence_index],
+  ["Coding", model.aa_coding_index],
+  ["Math", model.aa_math_index],
+].filter(([, value]) => hasFiniteMetricValue(value));
+
+
       return `
         <div
           data-model-card
@@ -3178,26 +3191,20 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
               </dl>
             </section>
           </div>
+${allBenchmarks.length ? `
           <section class="card-metric-panel mt-2 px-3 py-2">
             <div class="text-[length:var(--text-xs)] text-muted">Benchmarks</div>
             <div class="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-[length:var(--text-xs)]">
-              <div class="flex items-center justify-between"><span class="text-subtle">MMLU</span><span class="font-semibold ${getScoreClass(model.mmlu_pro)}">${formatScore(model.mmlu_pro)}</span></div>
-              <div class="flex items-center justify-between"><span class="text-subtle">GPQA</span><span class="font-semibold ${getScoreClass(model.gpqa)}">${formatScore(model.gpqa)}</span></div>
-              <div class="flex items-center justify-between"><span class="text-subtle">HLE</span><span class="font-semibold ${getScoreClass(model.hle)}">${formatScore(model.hle)}</span></div>
-              <div class="flex items-center justify-between"><span class="text-subtle">AIME</span><span class="font-semibold ${getScoreClass(model.aime)}">${formatScore(model.aime)}</span></div>
-              <div class="flex items-center justify-between"><span class="text-subtle">LiveCodeBench</span><span class="font-semibold ${getScoreClass(model.livecodebench)}">${formatScore(model.livecodebench)}</span></div>
-              <div class="flex items-center justify-between"><span class="text-subtle">SciCode</span><span class="font-semibold ${getScoreClass(model.scicode)}">${formatScore(model.scicode)}</span></div>
-              <div class="flex items-center justify-between"><span class="text-subtle">Math 500</span><span class="font-semibold ${getScoreClass(model.math_500)}">${formatScore(model.math_500)}</span></div>
+              ${allBenchmarks.map(([label,value]) => `<div class="flex items-center justify-between"><span class="text-subtle">${label}</span><span class="font-semibold ${getScoreClass(value)}">${formatScore(value)}</span></div>`).join("")}
             </div>
-          </section>
+          </section>` : `<p class="card-metric-panel mt-2 px-3 py-2 text-subtle">No benchmark measurements available.</p>`}
+          ${aaIndexes.length ? `
           <section class="card-metric-panel mt-2 px-3 py-2">
             <div class="text-[length:var(--text-xs)] text-muted">Artificial Analysis indexes (points)</div>
             <div class="mt-1.5 grid grid-cols-3 gap-1.5 text-center text-[length:var(--text-xs)]">
-              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[length:var(--text-xs)] text-muted">AA Index</div><div class="font-bold ${getScoreClass(model.aa_intelligence_index)}">${formatIndex(model.aa_intelligence_index)}</div></div>
-              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[length:var(--text-xs)] text-muted">Coding</div><div class="font-bold ${getScoreClass(model.aa_coding_index)}">${formatIndex(model.aa_coding_index)}</div></div>
-              <div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[length:var(--text-xs)] text-muted">Math</div><div class="font-bold ${getScoreClass(model.aa_math_index)}">${formatIndex(model.aa_math_index)}</div></div>
+              ${aaIndexes.map(([label,value]) => `<div class="border border-highlight-med bg-overlay px-1.5 py-1.5"><div class="text-[length:var(--text-xs)] text-muted">${label}</div><div class="font-bold ${getScoreClass(value)}">${formatIndex(value)}</div></div>`).join("")}
             </div>
-          </section>
+          </section>` : ""}
           ${catalogMarkup}
         </div>
       `;
