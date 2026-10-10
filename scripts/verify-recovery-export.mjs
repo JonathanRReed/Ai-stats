@@ -53,6 +53,7 @@ export async function verifyRecovery(directory, modulePath) {
       table.table === table.schema + '.' + table.name, 'Recovery destination differs from manifest identity');
   }
   const schema = await json(path.join(directory, 'schema-metadata.json'));
+  assert.ok(Array.isArray(schema.indexes), 'Recovery schema indexes must be an array');
   const {PGlite} = await import(modulePath);
   const {pgcrypto} = await import(path.join(path.dirname(modulePath), 'contrib/pgcrypto.js'));
   const db = new PGlite({extensions:{pgcrypto}});

@@ -170,3 +170,14 @@ it('shows recovery limitations in the actual CLI success output',async()=>{
   expect(summary.indexCoverage).toEqual({expected:0,created:0,skippedUnverified:[]});
  }finally{await rm(dir,{recursive:true,force:true});}
 },20000);
+
+it('rejects missing index metadata before initializing the database',async()=>{
+ const {dir,put}=await recoveryFixture();
+ try {
+  const schema=JSON.parse(await readFile(path.join(dir,'schema-metadata.json'),'utf8'));
+  delete schema.indexes;
+  await put('schema-metadata.json',schema);
+  await expect(verifyRecovery(dir,'unused-module')).rejects.toThrow('Recovery schema indexes must be an array');
+  expect(existsSync(path.join(dir,'restore-verification.json'))).toBe(false);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
