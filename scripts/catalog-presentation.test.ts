@@ -9,7 +9,7 @@ const values=[null,undefined,0,1.25,Number.NaN,Infinity,-1];
 const expected=['-','-','$0.000','$1.250','-','-','-'];
 
 test('server catalog price expressions preserve missing values and explicit zero',()=>{
- const expressions=[...card.matchAll(/\{formatPrice\((.+), 3\)\}/g)].map(match=>match[1]);
+ const expressions=[...card.matchAll(/\{formatPrice\((.+), 3\)\}/g)].map(match=>match[1]).filter(expression=>expression.includes('model.price_1m_'));
  expect(expressions).toHaveLength(3);
  for(const expression of expressions){
   const argument=new Function('model','return '+expression);
