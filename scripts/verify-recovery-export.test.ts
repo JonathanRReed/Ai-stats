@@ -110,3 +110,63 @@ it('rejects a mismatched destination schema before loading the database',async()
   await expect(verifyRecovery(dir,'unused-module')).rejects.toThrow('Recovery destination differs from manifest identity');
  }finally{await rm(dir,{recursive:true,force:true});}
 });
+
+it('reports row verification without certifying omitted schema semantics',async()=>{
+ const {dir}=await recoveryFixture();
+ try {
+  const report=await verifyRecovery(dir,databaseModule);
+  expect(report.complete).toBe(true);
+  expect(report.verificationScope).toBe('application-row-content');
+  expect(report.productionRecoveryVerified).toBe(false);
+  expect(report.unverifiedSchemaSemantics).toEqual(expect.arrayContaining([
+   'column defaults','identity columns and sequence state','generated column expressions',
+   'column collations','view options including security_invoker'
+  ]));
+  const saved=JSON.parse(await readFile(path.join(dir,'restore-verification.json'),'utf8'));
+  expect(saved.verificationScope).toBe(report.verificationScope);
+  expect(saved.productionRecoveryVerified).toBe(false);
+ }finally{await rm(dir,{recursive:true,force:true});}
+},20000);
+
+it('counts executed index creation and exposes skipped metadata as unverified',async()=>{
+ const {dir,put}=await recoveryFixture();
+ try {
+  const schema=JSON.parse(await readFile(path.join(dir,'schema-metadata.json'),'utf8'));
+  schema.constraints=[
+   {schema_name:'public',table_name:'alpha',constraint_name:'alpha_pkey',kind:'p',definition:'PRIMARY KEY (id)'},
+   {schema_name:'public',table_name:'beta',constraint_name:'same_name',kind:'c',definition:'CHECK (id > 0)'}
+  ];
+  schema.indexes=[
+   {schemaname:'public',tablename:'alpha',indexname:'alpha_pkey',indexdef:'CREATE UNIQUE INDEX alpha_pkey ON public.alpha (id)'},
+   {schemaname:'public',tablename:'alpha',indexname:'same_name',indexdef:'CREATE INDEX same_name ON public.alpha (text)'},
+   {schemaname:'public',tablename:'beta',indexname:'beta_text',indexdef:'CREATE INDEX beta_text ON public.beta (text)'}
+  ];
+  await put('schema-metadata.json',schema);
+  const report=await verifyRecovery(dir,databaseModule);
+  expect(report.complete).toBe(true);
+  expect(report.indexes).toBe(1);
+  expect(report.indexCoverage).toEqual({expected:3,created:1,skippedUnverified:[
+   {schema:'public',name:'alpha_pkey'}, {schema:'public',name:'same_name'}
+  ]});
+  const saved=JSON.parse(await readFile(path.join(dir,'restore-verification.json'),'utf8'));
+  expect(saved.indexCoverage).toEqual(report.indexCoverage);
+ }finally{await rm(dir,{recursive:true,force:true});}
+},20000);
+
+it('shows recovery limitations in the actual CLI success output',async()=>{
+ const {dir}=await recoveryFixture();
+ try {
+  const child=Bun.spawn([process.execPath,'scripts/verify-recovery-export.mjs',dir],{
+   env:{...process.env,PGLITE_TEST_MODULE:databaseModule},stdout:'pipe',stderr:'pipe'
+  });
+  const [code,out,err]=await Promise.all([child.exited,new Response(child.stdout).text(),new Response(child.stderr).text()]);
+  expect(code,err).toBe(0);
+  const summary=JSON.parse(out.trim().split('\n').at(-1)!);
+  expect(summary.complete).toBe(true);
+  expect(summary.verificationScope).toBe('application-row-content');
+  expect(summary.productionRecoveryVerified).toBe(false);
+  expect(summary.unverifiedSchemaSemantics).toContain('view options including security_invoker');
+  expect(summary.limitations).toContain('Isolated PGlite engine is not the production Supabase engine');
+  expect(summary.indexCoverage).toEqual({expected:0,created:0,skippedUnverified:[]});
+ }finally{await rm(dir,{recursive:true,force:true});}
+},20000);
