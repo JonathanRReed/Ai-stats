@@ -53,10 +53,19 @@ export async function verifyRecovery(directory, modulePath) {
       table.table === table.schema + '.' + table.name, 'Recovery destination differs from manifest identity');
   }
   const schema = await json(path.join(directory, 'schema-metadata.json'));
+  assert.ok(Array.isArray(schema.indexes), 'Recovery schema indexes must be an array');
   const {PGlite} = await import(modulePath);
   const {pgcrypto} = await import(path.join(path.dirname(modulePath), 'contrib/pgcrypto.js'));
   const db = new PGlite({extensions:{pgcrypto}});
-  const report = {kind: 'application-data-restore-test', complete: false, tables: [], limitations: [
+  const report = {kind: 'application-data-restore-test', verificationScope: 'application-row-content',
+    productionRecoveryVerified: false, complete: false, tables: [], indexes: 0,
+    indexCoverage: {expected: schema.indexes.length, created: 0,
+      skippedUnverified: /** @type {{schema: string, name: string}[]} */ ([])},
+    unverifiedSchemaSemantics: [
+      'column defaults', 'identity columns and sequence state', 'generated column expressions',
+      'column collations', 'view options including security_invoker',
+      'function execution behavior', 'grants and row-level security policies'
+    ], limitations: [
     'Isolated PGlite engine is not the production Supabase engine',
     'Credentials, managed auth configuration and cron commands are deliberately excluded',
     'External-service function bodies cannot be exercised offline; grants and policies are archived for recovery'
@@ -134,11 +143,19 @@ export async function verifyRecovery(directory, modulePath) {
         await db.exec('alter table ' + qualified(c.schema_name,c.table_name) + ' add constraint ' + ident(c.constraint_name) + ' ' + c.definition);
       }
     }
+    const indexCoverage = report.indexCoverage;
     for (const index of schema.indexes) {
-      if (!schema.constraints.some(c => c.schema_name === index.schemaname && c.constraint_name === index.indexname)) await db.exec(index.indexdef);
+      if (schema.constraints.some(c => c.schema_name === index.schemaname && c.constraint_name === index.indexname)) {
+        // The legacy name match does not establish backing-index equivalence.
+        indexCoverage.skippedUnverified.push({schema: index.schemaname, name: index.indexname});
+      } else {
+        await db.exec(index.indexdef);
+        indexCoverage.created++;
+      }
     }
     report.constraints = schema.constraints.length;
-    report.indexes = schema.indexes.length;
+    // Count only explicit CREATE INDEX operations, not all archived metadata.
+    report.indexes = indexCoverage.created;
     report.complete = true;
     report.verifiedAt = new Date().toISOString();
     await writeFile(path.join(directory,'restore-verification.json'), JSON.stringify(report,null,2));
@@ -149,5 +166,7 @@ if (import.meta.main) {
   const directory = process.argv[2];
   assert.ok(directory, 'Pass the private recovery directory');
   const report = await verifyRecovery(directory, process.env.PGLITE_TEST_MODULE);
-  console.log(JSON.stringify({complete:report.complete,tables:report.tables.length,engine:report.engine}));
+  console.log(JSON.stringify({complete:report.complete,verificationScope:report.verificationScope,
+    productionRecoveryVerified:report.productionRecoveryVerified,tables:report.tables.length,engine:report.engine,
+    unverifiedSchemaSemantics:report.unverifiedSchemaSemantics,indexCoverage:report.indexCoverage,limitations:report.limitations}));
 }
