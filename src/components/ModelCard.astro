@@ -7,6 +7,8 @@ import {
   formatTTFT,
 } from "../lib/format-utils";
 
+import {hasFiniteMetricValue} from "../lib/metric-values";
+
 interface Props {
   model: any;
 }
@@ -104,14 +106,14 @@ const allBenchmarks = [
   ["LiveCodeBench", model.livecodebench],
   ["SciCode", model.scicode],
   ["Math 500", model.math_500],
-];
+].filter(([, value]) => hasFiniteMetricValue(value));
 
 // AA Indexes
 const aaIndexes = [
   ["AA Index", model.aa_intelligence_index],
   ["Coding", model.aa_coding_index],
   ["Math", model.aa_math_index],
-];
+].filter(([, value]) => hasFiniteMetricValue(value));
 
 const formatContextLength = (value: number | null | undefined): string => {
   const num = Number(value);
@@ -258,19 +260,19 @@ const formatCompactNumber = (value: number | null | undefined): string => {
         <div class="mj">
           <dt>Input (1M)</dt>
           <dd class="fb">
-            {formatPrice(Number(model.price_1m_input_tokens) || 0, 3)}
+            {formatPrice(model.price_1m_input_tokens, 3)}
           </dd>
         </div>
         <div class="mj">
           <dt>Output (1M)</dt>
           <dd class="fb">
-            {formatPrice(Number(model.price_1m_output_tokens) || 0, 3)}
+            {formatPrice(model.price_1m_output_tokens, 3)}
           </dd>
         </div>
         <div class="mj">
           <dt>Blended (3:1)</dt>
           <dd class="fb">
-            {formatPrice(Number(model.price_1m_blended_3_to_1) || 0, 3)}
+            {formatPrice(model.price_1m_blended_3_to_1, 3)}
           </dd>
         </div>
       </dl>
@@ -399,8 +401,8 @@ const formatCompactNumber = (value: number | null | undefined): string => {
     ) : null
   }
 
-  <!-- All Benchmarks -->
-  <section
+  <!-- Only recorded benchmark measurements are shown. -->
+  {allBenchmarks.length ? <section
     class="mcp2"
   >
     <div class="mcap">
@@ -418,10 +420,10 @@ const formatCompactNumber = (value: number | null | undefined): string => {
         ))
       }
     </div>
-  </section>
+  </section> : <p class="mcp2 tsub">No benchmark measurements available.</p>}
 
   <!-- AA Indexes -->
-  <section
+  {aaIndexes.length > 0 && <section
     class="mcp2"
   >
     <div class="mcap">
@@ -443,7 +445,7 @@ const formatCompactNumber = (value: number | null | undefined): string => {
         ))
       }
     </div>
-  </section>
+  </section>}
 </div>
 
 <style is:global>
