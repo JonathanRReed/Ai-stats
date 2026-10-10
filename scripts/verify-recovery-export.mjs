@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {readFile, readdir, writeFile} from 'node:fs/promises';
+import {readFile, readdir, writeFile, rm} from 'node:fs/promises';
 import path from 'node:path';
 
 export const digest = value => createHash('md5').update(value).digest('hex');
@@ -39,6 +39,8 @@ const qualified = (schema, table) => ident(schema) + '.' + ident(table);
 async function json(file) { return JSON.parse(await readFile(file, 'utf8')); }
 
 export async function verifyRecovery(directory, modulePath) {
+  // A failed rerun must never leave an old success receipt certifying this export.
+  await rm(path.join(directory, 'restore-verification.json'), {force: true});
   assert.ok(modulePath, 'Set PGLITE_TEST_MODULE to an installed isolated database module');
   const manifest = await json(path.join(directory, 'start-manifest.json'));
   const progress = await json(path.join(directory, 'export-progress.json'));
@@ -46,6 +48,10 @@ export async function verifyRecovery(directory, modulePath) {
   assert.equal(progress.length, manifest.tables.length, 'Recovery table set is incomplete');
   assert.equal(new Set(progress.map(t => t.table)).size, progress.length, 'Duplicate recovery table');
   assert.ok(manifest.tables.every(t => progress.some(p => p.table === t.table_name)), 'Recovery table set differs from manifest');
+  for (const table of progress) {
+    assert.ok(typeof table.schema === 'string' && typeof table.name === 'string' &&
+      table.table === table.schema + '.' + table.name, 'Recovery destination differs from manifest identity');
+  }
   const schema = await json(path.join(directory, 'schema-metadata.json'));
   const {PGlite} = await import(modulePath);
   const {pgcrypto} = await import(path.join(path.dirname(modulePath), 'contrib/pgcrypto.js'));
