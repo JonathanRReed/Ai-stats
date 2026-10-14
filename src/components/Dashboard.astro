@@ -1,6 +1,7 @@
 ---
 import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboardBarWidth} from '../lib/benchmark-leaderboard';
 import {buildInitialEpochLeaderboardData} from '../lib/epoch-leaderboard-initial';
+import {resolveEpochLeaderboardRunNames} from '../lib/epoch-model-display-name';
 import {leaderboardComparisonHref} from '../lib/leaderboard-comparison';
 import {rankModelFamilies} from '../lib/model-family-ranking';
 import {modelDisplayFacets} from '../lib/compare-catalog';
@@ -101,15 +102,23 @@ const epochBenchmarksWithRuns = preferPublisherBenchmarks(getEpochBenchmarksWith
 ));
 const preferredEpochBenchmarkSlugs = [...VALUABLE_FREE_BENCHMARK_SLUGS];
 
+const benchmarkModelNames = new Map([
+ ...epochModels.flatMap(model=>{const name=model.display_name?.trim()||model.model_name?.trim();return name?[[model.model_version,name] as const]:[];}),
+ ...catalog.publishers.snapshots.flatMap(snapshot=>snapshot.records.map(row=>[row.systemId,row.label] as const)),
+]);
+
+
 // Get benchmark name mapping
 const epochBenchmarkNames: Record<string, string> = {};
 epochBenchmarks.forEach((b) => {
   epochBenchmarkNames[b.slug] = getEpochBenchmarkLabel(b);
 });
+const benchmarkModelNameRecord = Object.fromEntries(benchmarkModelNames);
 const initialEpochLeaderboard = buildInitialEpochLeaderboardData(
   epochBenchmarksWithRuns,
   epochRuns,
   epochBenchmarkNames,
+  benchmarkModelNameRecord,
 );
 const benchmarkAttributions: Record<string, any> = {
   mmlu_pro: AA_BENCHMARK_ATTRIBUTION,
@@ -191,11 +200,6 @@ const benchmarkConfigs = [
   }))),
 ];
 
-const benchmarkModelNames = new Map([
- ...epochModels.map(model=>[model.model_version,model.display_name??model.model_name??model.model_version] as const),
- ...catalog.publishers.snapshots.flatMap(snapshot=>snapshot.records.map(row=>[row.systemId,row.label] as const)),
-]);
-
 // Build top models for AA benchmarks
 const topByBenchmark: Record<string, any[]> = {};
 const modelFamiliesByBenchmark: Record<string, any[]> = {};
@@ -217,9 +221,9 @@ epochBenchmarksWithRuns.forEach((benchmark) => {
   const slug = benchmark.slug;
   buildBenchmarkCohorts(benchmark,epochRuns).forEach(cohort=>{
   benchmarkAttributions[cohort.key]=benchmarkAttributions[`epoch_${slug}`];
-  const allRuns = cohort.runs
+  const allRuns = resolveEpochLeaderboardRunNames(cohort.runs, benchmarkModelNameRecord)
     .map((r) => ({
-      name: benchmarkModelNames.get(r.model_version) ?? r.model_version.replace(/_/g, " ").replace(/-/g, " "),
+      name: r.name,
       company_name: r.organization,
       score: r.score,
       score_metric: r.score_metric,
@@ -2085,6 +2089,7 @@ function getScoreClass(score: number | null | undefined): string {
   window.__leaderboardInitialModels = initialLeaderboardModels;
   window.__epochInitialBenchmarks = initialEpochLeaderboard.benchmarks;
   window.__epochInitialRuns = initialEpochLeaderboard.runs;
+  window.__epochModelNames = initialEpochLeaderboard.modelNames;
 </script>
 
 <script>
@@ -2092,6 +2097,7 @@ function getScoreClass(score: number | null | undefined): string {
   import {formatPrice as formatCatalogPrice} from "../lib/format-utils";
   import {bindDashboardLifecycle} from "../lib/dashboard-lifecycle";
   import {nextLeaderboardLimit,visibleLeaderboardRows} from "../lib/leaderboard-pagination";
+  import {resolveEpochLeaderboardRunNames} from "../lib/epoch-model-display-name";
 import {rankModelFamilies} from "../lib/model-family-ranking";
 import {setLeaderboardCompareAction,setLeaderboardFamilyControlsDisabled,setLeaderboardPanel} from "../lib/leaderboard-panels";
 import {leaderboardComparisonHref} from "../lib/leaderboard-comparison";
@@ -2227,6 +2233,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
     let latestLeaderboardModels = window.__leaderboardInitialModels || [];
     let latestEpochBenchmarks = window.__epochInitialBenchmarks || [];
     let latestEpochRuns = window.__epochInitialRuns || [];
+    let latestEpochModelNames = window.__epochModelNames || {};
 
     const loadPublicCatalogData = () => {
       if (window.__aistatsPublicCatalogLoaded) return Promise.resolve();
@@ -2899,7 +2906,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       reasoning: reasoningFilters.filter((input) => input.checked).map((input) => input.value),
       mode: familyModeSelect?.value === "variants" ? "variants" : "families",
     });
-    const buildTopByBenchmark = (models, epochBenchmarks, epochRuns) => {
+    const buildTopByBenchmark = (models, epochBenchmarks, epochRuns, epochModelNames = latestEpochModelNames) => {
       const topByBenchmark = {};
       const familiesByBenchmark = {};
       const aaConfigs = [];
@@ -2917,10 +2924,8 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       sortEpochBenchmarksByValue(preferPublisherBenchmarks(epochBenchmarks)).forEach((benchmark) => {
         buildBenchmarkCohorts(benchmark,epochRuns).forEach(cohort=>{
         const key=cohort.key;
-        const list=cohort.runs.map((run) => ({
-            name: String(run.model_version || "")
-              .replace(/_/g, " ")
-              .replace(/-/g, " "),
+        const list=resolveEpochLeaderboardRunNames(cohort.runs, epochModelNames).map((run) => ({
+            name: run.name,
             company_name: run.organization ?? "Unknown provider",
             score: parseFiniteMetricValue(run.score) ?? 0,
             score_metric: run.score_metric,
@@ -3021,6 +3026,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
         models,
         epochBenchmarks ?? [],
         epochRuns ?? [],
+        latestEpochModelNames,
       );
 
       metricSelect.innerHTML = benchmarkConfigs
@@ -3813,6 +3819,13 @@ ${allBenchmarks.length ? `
       latestLeaderboardModels = (snapshot.aaModels ?? []).filter((model) => model.current_source_member !== false);
       const epochBenchmarks = snapshot.epochBenchmarks ?? [];
       const epochRuns = snapshot.epochRuns ?? [];
+      latestEpochModelNames = {
+        ...latestEpochModelNames,
+        ...Object.fromEntries((snapshot.epochModels ?? []).flatMap(model => {
+          const name = model.display_name?.trim() || model.model_name?.trim();
+          return name ? [[model.model_version, name]] : [];
+        })),
+      };
 
       updateModelCounts(liveModels);
       updateDataFreshness(liveModels);

@@ -255,3 +255,5 @@
 
 .release-refresh{display:flex;justify-content:flex-end;margin:.5rem 0}
 .release-refresh button{min-height:44px;padding:.5rem .8rem;border:1px solid var(--line-1);border-radius:4px;background:var(--surface-1);color:var(--ink-0);cursor:pointer}
+
+@media (max-width: 900px) and (max-height: 480px){.model-filter-dialog{height:calc(100dvh - 16px);max-height:calc(100dvh - 16px);overflow-y:auto;overscroll-behavior:contain}.picker-dialog-heading{position:sticky;top:-12px;z-index:10;padding:6px 0;background:var(--surface-0)}.model-filter-dialog>.model-selector{height:auto;min-height:0;overflow:visible}.model-filter-dialog .family-search-label{position:sticky;top:38px;z-index:9;padding:4px 0;background:var(--surface-0)}.model-filter-dialog .family-rail{height:auto;min-height:0;overflow:visible}.model-filter-dialog .family-results-scroll{flex:0 1 auto;min-height:64px;max-height:32dvh;overflow-y:auto}.model-filter-dialog .family-rail-footer{position:sticky;bottom:-12px;z-index:5;padding:8px 0;background:var(--surface-0)}}

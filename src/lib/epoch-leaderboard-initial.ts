@@ -25,6 +25,7 @@ export function buildInitialEpochLeaderboardData(
   benchmarks: EpochBenchmark[],
   runs: EpochBenchmarkRun[],
   labels: Record<string, string>,
+  modelNames: Record<string, string>,
 ) {
   const compactBenchmarks: InitialBenchmark[] = benchmarks.map(benchmark => ({
     id: benchmark.id,
@@ -51,5 +52,5 @@ export function buildInitialEpochLeaderboardData(
     source_link: run.source_link,
     benchmark_slug: run.benchmark_slug,
   }));
-  return { benchmarks: compactBenchmarks, runs: compactRuns, labels };
+  return { benchmarks: compactBenchmarks, runs: compactRuns, labels, modelNames };
 }
