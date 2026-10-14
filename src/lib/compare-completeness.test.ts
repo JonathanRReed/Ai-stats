@@ -36,7 +36,7 @@ test('unavailable chart links recover and controls follow delivered chart availa
 test('picker shows a bounded, searchable page with source and identity labels',()=>{
  const models=buildExplorerCatalog(Array.from({length:100},(_,i)=>({id:'a'+i,name:'Model '+i,current_source_member:true})),[]);
  const html=renderModelSelector(models);
- expect(html).toContain('Search families'); expect(html).toContain('Model families'); expect(html).toContain('More families');
+ expect(html).toContain('Search models'); expect(html).toContain('Browse families'); expect(html).toContain('family-pagination');
  expect(html).toContain('100'); expect(html).toContain('Artificial Analysis'); expect(html).not.toContain('a0</small>');
 });
 test('picker makes same-provider identical variant names distinguishable to assistive tech and on hover',()=>{
@@ -86,8 +86,8 @@ test('selection helper only changes rendered records, never hidden same-name sou
  expect(selectVisibleRecords(['aa:a','openrouter:a'],['openrouter:a'],false)).toEqual(['aa:a']);
  const selector=readFileSync('src/components/compare/ModelSelector.tsx','utf8');
  expect(selector).toContain('key={model.id}');
- expect(selector).toContain('onChange={()=>onToggle(model.id)}');
- expect(selector).toContain('Search families');
+ expect(selector).toContain('onChange={() => onToggle(model.id)}');
+ expect(selector).toContain('Search models');
 });
 
 test('AA registry slugs represent all exact UUID variants without duplicate inventory rows',()=>{

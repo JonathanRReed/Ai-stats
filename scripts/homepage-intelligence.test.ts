@@ -216,3 +216,27 @@ test("empty filtered leaderboards disable Open compare and Epoch mode disables A
  expect(dashboardSource).toContain("const epochCatalog=visibleList.map(model=>({id:'epoch:'+model.model_version,source:'epoch',sourceModelId:model.model_version}))");
  expect(dashboardSource).toContain('data-compare-href="${escapeHtml(compareHref)}"');
 });
+
+test("AA and Epoch leaderboards both use the progressive 5/20/50/all row windows",()=>{
+ expect(dashboardSource).toContain('visibleLeaderboardRows(allList, leaderboardVisibleCounts.get(config.key) ?? 5)');
+ expect(dashboardSource).toContain('const visibleList = visibleLeaderboardRows(allList, leaderboardVisibleCounts.get(config.key) ?? 5)');
+ expect(dashboardSource).toContain('nextLeaderboardLimit(leaderboardVisibleCounts.get(key) ?? 5)');
+ expect(dashboardSource).toContain('if (key.startsWith("aa_")) renderAaLeaderboardPanels(latestLeaderboardModels)');
+ expect(dashboardSource).toContain('else renderLeaderboard(latestLeaderboardModels, latestEpochBenchmarks, latestEpochRuns)');
+ expect(readFileSync('src/lib/leaderboard-pagination.ts','utf8')).toContain('20');
+ expect(readFileSync('src/lib/leaderboard-pagination.ts','utf8')).toContain('50');
+ expect(readFileSync('src/lib/leaderboard-pagination.ts','utf8')).toContain('Number.POSITIVE_INFINITY');
+ expect(dashboardSource).toContain('shown > 5 ? `<button type="button" class="underline underline-offset-2" data-leaderboard-less=');
+ expect(dashboardSource).toContain('shown < total ? `<button type="button" class="underline underline-offset-2" data-leaderboard-more=');
+});
+
+test("model picker puts bounded query results first without losing selected exact records",()=>{
+ const selector=readFileSync('src/components/compare/ModelSelector.tsx','utf8');
+ expect(selector).toContain('const matches = hasQuery ? groups : more');
+ expect(selector).toContain('compareFamilyPage(matches, page, 12)');
+ expect(selector).toContain('aria-label="Search results"');
+ expect(selector).toContain('onChange={() => onToggle(model.id)}');
+ expect(selector).toContain('aria-label="Selected families"');
+ expect(selector).toContain('setPage(0)');
+ expect(selector).toContain('setPage(currentPage + 1)');
+});

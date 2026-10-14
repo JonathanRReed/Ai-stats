@@ -1,5 +1,6 @@
 ---
 import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboardBarWidth} from '../lib/benchmark-leaderboard';
+import {buildInitialEpochLeaderboardData} from '../lib/epoch-leaderboard-initial';
 import {leaderboardComparisonHref} from '../lib/leaderboard-comparison';
 import {rankModelFamilies} from '../lib/model-family-ranking';
 import {modelDisplayFacets} from '../lib/compare-catalog';
@@ -105,6 +106,11 @@ const epochBenchmarkNames: Record<string, string> = {};
 epochBenchmarks.forEach((b) => {
   epochBenchmarkNames[b.slug] = getEpochBenchmarkLabel(b);
 });
+const initialEpochLeaderboard = buildInitialEpochLeaderboardData(
+  epochBenchmarksWithRuns,
+  epochRuns,
+  epochBenchmarkNames,
+);
 const benchmarkAttributions: Record<string, any> = {
   mmlu_pro: AA_BENCHMARK_ATTRIBUTION,
   gpqa: AA_BENCHMARK_ATTRIBUTION,
@@ -2065,7 +2071,7 @@ function getScoreClass(score: number | null | undefined): string {
   }
 </style>
 
-<script is:inline define:vars={{ preferredEpochBenchmarkSlugs, benchmarkAttributions: clientBenchmarkAttributions, initialLeaderboardModels }}>
+<script is:inline define:vars={{ preferredEpochBenchmarkSlugs, benchmarkAttributions: clientBenchmarkAttributions, initialLeaderboardModels, initialEpochLeaderboard }}>
   window.__aistatsCatalogDataUrl = "/api/public-catalogs.json";
   window.__aistatsOpenRouterModels = [];
   window.__aistatsHuggingFaceModels = [];
@@ -2074,11 +2080,11 @@ function getScoreClass(score: number | null | undefined): string {
   window.__aistatsOpenRouterEndpointSummaries = [];
   window.__aistatsPublicCatalogLoaded = false;
   window.__preferredEpochBenchmarkSlugs = preferredEpochBenchmarkSlugs;
-  window.__epochBenchmarkLabels = {};
+  window.__epochBenchmarkLabels = initialEpochLeaderboard.labels;
   window.__benchmarkAttributions = benchmarkAttributions;
   window.__leaderboardInitialModels = initialLeaderboardModels;
-  window.__epochInitialBenchmarks = epochBenchmarksWithRuns;
-  window.__epochInitialRuns = epochRuns;
+  window.__epochInitialBenchmarks = initialEpochLeaderboard.benchmarks;
+  window.__epochInitialRuns = initialEpochLeaderboard.runs;
 </script>
 
 <script>
@@ -2173,7 +2179,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
     const familyModeSelect = document.getElementById("leaderboard-family-mode");
     const reasoningFilters = Array.from(document.querySelectorAll("[data-leaderboard-reasoning]"));
     const leaderboardVisibleCounts = new Map();
-    const leaderboardFooter = (key, shown, total) => `<div class="flex items-center justify-between gap-3 px-3 py-2 text-xs text-muted"><span>Showing ${shown} of ${total} ranked results${shown>100?" · Compare opens the first 100": ""}</span>${shown < total ? `<button type="button" class="underline underline-offset-2" data-leaderboard-more="${escapeHtml(key)}">Show more</button>` : shown > 5 ? `<button type="button" class="underline underline-offset-2" data-leaderboard-less="${escapeHtml(key)}">Show fewer</button>` : ""}</div>`;
+    const leaderboardFooter = (key, shown, total) => `<div class="flex items-center justify-between gap-3 px-3 py-2 text-xs text-muted"><span>Showing ${shown} of ${total} ranked results${shown>100?" · Compare opens the first 100": ""}</span><span class="flex items-center gap-3">${shown < total ? `<button type="button" class="underline underline-offset-2" data-leaderboard-more="${escapeHtml(key)}">Show more</button>` : ""}${shown > 5 ? `<button type="button" class="underline underline-offset-2" data-leaderboard-less="${escapeHtml(key)}">Show fewer</button>` : ""}</span></div>`;
     const openRouterRankSelect = document.getElementById(
       "openrouter-rank-metric",
     );

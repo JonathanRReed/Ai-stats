@@ -227,6 +227,26 @@
 
 .model-advanced{margin-top:8px;flex-shrink:0}.model-advanced>summary{cursor:pointer;color:var(--ink-2);padding:8px 0}.model-advanced .reasoning-filters{margin-top:4px}
 
+.desktop-family-rail{position:sticky;top:76px;height:min(680px,calc(100dvh - 96px));min-height:360px}
+.desktop-family-rail .family-rail{height:100%;overflow:hidden}
+.family-rail{gap:9px}
+.family-rail>header,.family-rail>.family-search-label,.family-browser-toolbar,.family-pagination,.family-rail-footer{flex-shrink:0}
+.family-results-scroll{min-height:0;flex:1;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:2px 4px 8px 0;display:flex;flex-direction:column;gap:16px}
+.family-browser-toolbar,.family-pagination{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.family-pagination{border-top:1px solid var(--line-1);padding-top:8px}
+.family-pagination span{font:11px var(--font-mono);color:var(--ink-2)}
+.family-pagination button{min-height:36px;padding:5px 8px}
+.family-filter-options{position:relative}
+.family-filter-options>summary{cursor:pointer;padding:6px 0;color:var(--ink-1);font-size:12px}
+.family-filter-options>div{position:absolute;top:100%;left:0;z-index:8;width:245px;max-height:320px;overflow:auto;padding:12px;background:var(--surface-1);border:1px solid var(--line-1);box-shadow:var(--shadow-1);display:grid;gap:12px}
+.family-search-label input{min-height:42px;font-size:14px}
+.family-row-copy strong{font-size:13px}
+.family-row-copy small,.family-variants>summary,.family-variant small{font-size:11px}
+.family-variant{font-size:12px}
+.family-empty{font-size:12px}
+@media(min-width:901px){.explorer-workspace{grid-template-columns:minmax(0,1fr)300px}}
+@media(max-width:900px){.model-filter-dialog{overflow:hidden}.model-filter-dialog>.model-selector{height:calc(100% - 52px);overflow:hidden}.family-pagination button{min-height:44px}.family-filter-options>div{max-height:40dvh}.family-search-label input{font-size:16px}}
+
 .compare-presets{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;margin:.75rem 0}
 .compare-presets>span{font-size:.8rem;opacity:.7;margin-right:.25rem}
 .compare-presets button{min-height:44px;padding:.5rem .8rem;border:1px solid var(--border-color, #39424c);border-radius:6px;background:transparent;color:inherit;cursor:pointer}

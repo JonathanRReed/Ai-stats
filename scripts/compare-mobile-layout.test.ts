@@ -12,7 +12,8 @@ test('mobile explorer uses a native modal filter drawer and returns focus',()=>{
   expect(component).toContain('onClose={()=>{setFiltersOpen(false);filterButton.current?.focus();}}');
   const selector=readFileSync('src/components/compare/ModelSelector.tsx','utf8');
   expect(selector).toContain('role="checkbox"');
-  expect(selector).toContain('Search families');
+  expect(selector).toContain('Search models');
+  expect(selector).toContain('family-pagination');
   expect(selector).toContain('Reasoning levels');
   expect(component).toContain('className="desktop-family-rail"');
   expect(component).toContain('aria-labelledby="model-picker-title"');

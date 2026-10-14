@@ -4,6 +4,7 @@ import {barCategoryLabels,compatibleVariantLines,type CompareSeries,type SeriesP
 import {familyColor} from '../../lib/family-color';
 import {EXPLORER_SOURCE_LABELS} from '../../lib/compare-series';
 import {endpointLabels} from '../../lib/endpoint-labels';
+import {compactLegendStartY} from '../../lib/chart-legend-layout';
 export {familyColor};
 type Props={series:CompareSeries;referenceFrontier?:CompareSeries;scale?:'linear'|'log';labels:boolean;endpointLane?:boolean;showFamilyLegend?:boolean;activeId:string|null;onPreview:(id:string|null)=>void;onPin:(id:string)=>void;svgRef:RefObject<SVGSVGElement|null>};
 export default function ComparisonChart({series,referenceFrontier,scale,labels,endpointLane=false,showFamilyLegend=false,activeId,onPreview,onPin,svgRef}:Props){
@@ -19,7 +20,9 @@ export default function ComparisonChart({series,referenceFrontier,scale,labels,e
   const compactLegend=showFamilyLegend||endpointLane&&width<600?groups.slice(0,6):[];
   const mobileLegendRows=Math.ceil(compactLegend.length/3);
   const legendOverflow=compactLegend.length?Math.max(0,groups.length-compactLegend.length):0;
-  const topPadding=(tokenPrices?34:22)+(displayReference?16:0)+(endpointLane&&width<600?mobileLegendRows*14+4:0);
+  const currentFrontierIds=new Set(Object.values(displayReference?.frontierGroups??{}).flat());
+  const legendStartY=compactLegendStartY(tokenPrices,currentFrontierIds.size>0);
+  const topPadding=(tokenPrices?34:22)+(currentFrontierIds.size?16:0)+(endpointLane&&width<600?mobileLegendRows*14+4:0);
   const laneWidth=showLane?184:24;
   const plot=plotGeometry(geometryInput,series.kind,scale??series.scale,width,height,topPadding,laneWidth);
   const byId=new Map(plot.points.map(point=>[point.id,point]));
@@ -32,7 +35,6 @@ export default function ComparisonChart({series,referenceFrontier,scale,labels,e
   const familyLabels=showLane&&labels?endpointLabels(endpointCandidates,{top:plot.top+8,bottom:plot.bottom-5,gap:19,activeId}):[];
   const hiddenEndpointLabels=showLane&&labels?Math.max(0,new Set(endpointCandidates.map(point=>point.group)).size-familyLabels.length):0;
   const inspect=(point:SeriesPoint)=>point.label+(point.series==='input'?' · Input tokens':point.series==='output'?' · Output tokens':'')+': '+(series.kind==='scatter'?formatChartNumber(point.x)+' '+series.xLabel+' · ':'')+formatChartNumber(point.y)+' '+point.unit;
-  const currentFrontierIds=new Set(Object.values(displayReference?.frontierGroups??{}).flat());
   return <div className="comparison-plot" ref={frame}>
     {!series.available?<div className="plot-empty"><h2>Awaiting data access</h2><p>{series.unavailableReason}</p></div>:
     !series.points.length&&!currentFrontierIds.size?<div className="plot-empty"><h2>No comparable measurements selected</h2><p>Choose models with measurements for this view.</p></div>:
@@ -40,12 +42,12 @@ export default function ComparisonChart({series,referenceFrontier,scale,labels,e
       <title>{series.yLabel+' versus '+series.xLabel}</title>
       {tokenPrices?<g aria-label="Token price series"><rect x="70" y="4" width="9" height="9" fill="var(--ink-0)" opacity=".55"/><text className="plot-legend" x="84" y="13">Input tokens</text><rect x="177" y="4" width="9" height="9" fill="var(--ink-0)"/><text className="plot-legend" x="191" y="13">Output tokens</text></g>:null}
       {displayReference&&currentFrontierIds.size?<g aria-label="Current frontier reference"><line className="current-frontier-line" x1="70" x2="94" y1="18" y2="18"/><text className="plot-legend" x="100" y="22">Current frontier</text></g>:null}
-      {compactLegend.map((point,index)=>{const x=70+(index%3)*Math.max(90,(width-94)/3),y=(tokenPrices?30:15)+Math.floor(index/3)*14;
+      {compactLegend.map((point,index)=>{const x=70+(index%3)*Math.max(90,(width-94)/3),y=legendStartY+Math.floor(index/3)*14;
         const label=point.family.length>15?point.family.slice(0,14)+'…':point.family;
         return <g key={JSON.stringify([point.source,point.provider,point.family])}>
          <circle cx={x+3} cy={y-3} r="3" fill={familyColor(point.family)}/><text className="plot-legend" x={x+10} y={y}><title>{`${point.source} · ${point.provider} · ${point.family}`}</title>{label}</text>
         </g>;})}
-      {legendOverflow?<text className="plot-legend" x={width-24} y={tokenPrices?30:15} textAnchor="end">+{legendOverflow} in family rail</text>:null}
+      {legendOverflow?<text className="plot-legend" x={width-24} y={legendStartY} textAnchor="end">+{legendOverflow} in family rail</text>:null}
       {plot.yTicks.map(tick=><g key={tick.value}><line className="plot-grid" x1={plot.left} x2={plot.right} y1={tick.position} y2={tick.position}/>
         <text className="plot-tick" x={plot.left-12} y={tick.position+4} textAnchor="end">{tick.label}</text></g>)}
       {series.kind==='scatter'?plot.xTicks.map(tick=><g key={tick.value}><line className="plot-grid" x1={tick.position} x2={tick.position} y1={plot.top} y2={plot.bottom}/>
