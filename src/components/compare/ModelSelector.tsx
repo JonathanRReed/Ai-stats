@@ -12,11 +12,15 @@ const reasoningLevels=['none','low','medium','high','xhigh','minimal','max','unk
 export default function ModelSelector({models,selected,suggestedIds,includeHistory,chart,metricId,onHistory,reasoningEfforts,onReasoning,onToggle,onToggleFamily,onReset,onSuggested,presets,onPreset,query,onQuery,selectionNotice}:Props){
  const [showAll,setShowAll]=useState(false);
  const [allCatalog,setAllCatalog]=useState(false);
- const selectedSet=useMemo(()=>new Set(selected),[selected]);
- const searchable=useMemo(()=>compareCatalogScope(models,chart,metricId,selected,allCatalog)
-  .filter(model=>includeHistory||model.current!==false||selectedSet.has(model.id)),[models,chart,metricId,selected,allCatalog,includeHistory,selectedSet]);
- const groups=useMemo(()=>groupCompareFamilies(searchable,selected,query,suggestedIds),[searchable,selected,query,suggestedIds]);
- const allGroups=useMemo(()=>groupCompareFamilies(searchable,selected,'',suggestedIds),[searchable,selected,suggestedIds]);
+ const selectedKey=JSON.stringify(selected);
+ const suggestedKey=JSON.stringify(suggestedIds);
+ const stableSelected=useMemo(()=>selected,[selectedKey]);
+ const stableSuggestedIds=useMemo(()=>suggestedIds,[suggestedKey]);
+ const selectedSet=useMemo(()=>new Set(stableSelected),[stableSelected]);
+ const searchable=useMemo(()=>compareCatalogScope(models,chart,metricId,stableSelected,allCatalog)
+  .filter(model=>includeHistory||model.current!==false||selectedSet.has(model.id)),[models,chart,metricId,stableSelected,allCatalog,includeHistory,selectedSet]);
+ const groups=useMemo(()=>groupCompareFamilies(searchable,stableSelected,query,stableSuggestedIds),[searchable,stableSelected,query,stableSuggestedIds]);
+ const allGroups=useMemo(()=>groupCompareFamilies(searchable,stableSelected,'',stableSuggestedIds),[searchable,stableSelected,stableSuggestedIds]);
  const hasQuery=query.trim().length>0;
  const chosen=allGroups.filter(group=>group.selectedIds.length>0);
  const suggested=groups.filter(group=>group.selectedIds.length===0&&group.suggested);
@@ -28,6 +32,8 @@ export default function ModelSelector({models,selected,suggestedIds,includeHisto
  const groupRow=(group:CompareFamily)=>{
   const addingCount=group.records.filter(model=>!selectedSet.has(model.id)).length;
   const wouldExceedLimit=familySelectionState(group)!==true&&selected.length+addingCount>100;
+  const nameCounts=new Map<string,number>();
+  group.records.forEach(model=>nameCounts.set(model.name,(nameCounts.get(model.name)??0)+1));
   return <div className="family-entry" key={group.key}>
   <button type="button" role="checkbox" aria-checked={familySelectionState(group)} className="family-row"
    disabled={familySelectionState(group)!==true&&wouldExceedLimit} title={wouldExceedLimit?'This family would exceed the 100-record selection limit':undefined} data-selected={group.selectedIds.length>0} onClick={()=>onToggleFamily(group.records.map(model=>model.id),familySelectionState(group)!==true)}>
@@ -37,8 +43,10 @@ export default function ModelSelector({models,selected,suggestedIds,includeHisto
   </button>
   {group.records.length>1?<details className="family-variants"><summary aria-label={`Choose exact ${group.family} variants`}>Variants · {group.records.length}</summary>
    <div className="family-variant-list">{group.records.map(model=><label key={model.id} className="family-variant">
-    <input type="checkbox" checked={selectedSet.has(model.id)} disabled={!selectedSet.has(model.id)&&atLimit} onChange={()=>onToggle(model.id)}/>
-    <span>{model.name}</span><small>{model.reasoning==='unknown'?'Reasoning not recorded':model.reasoning}{model.current===false?' · Historical':''}</small>
+    <input type="checkbox" checked={selectedSet.has(model.id)} disabled={!selectedSet.has(model.id)&&atLimit}
+     aria-label={nameCounts.get(model.name)!>1?`Select ${model.name}, ${group.provider}, ${EXPLORER_SOURCE_LABELS[group.source]}, record ${model.sourceModelId??model.id}`:undefined}
+     onChange={()=>onToggle(model.id)}/>
+    <span title={nameCounts.get(model.name)!>1?`${model.name} · ${model.sourceModelId??model.id}`:undefined}>{model.name}</span><small>{model.reasoning==='unknown'?'Reasoning not recorded':model.reasoning}{model.current===false?' · Historical':''}</small>
    </label>)}</div>
   </details>:null}
  </div>;

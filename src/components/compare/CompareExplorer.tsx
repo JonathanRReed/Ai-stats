@@ -14,6 +14,7 @@ import ObservationDetails from './ObservationDetails';
 export type ExplorerBenchmark={slug:string;name:string};
 type Props={models:ExplorerModel[];benchmarks:ExplorerBenchmark[];defaultModelIds:string[];delivery?:CompareDelivery};
 const EMPTY_OBSERVATIONS:EpochObservation[]=[];
+const EMPTY_SUGGESTED_IDS:string[]=[];
 export default function CompareExplorer({models:initialModels,benchmarks,defaultModelIds,delivery}:Props){
   const models=useMemo(()=>delivery?expandCatalog(delivery.catalog):initialModels,[delivery,initialModels]);
   const [loaded,setLoaded]=useState(()=>new Map(initialModels.map(model=>[model.id,model])));
@@ -84,7 +85,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const chooseSuggested=(chart:CompareChart)=>{const ids=delivery?.suggestedModelIds?.[chart];if(ids?.length){setPresetDescription('Measured suggestions for this view.');update({chart,modelIds:ids,missingModelIds:[]},true);}};
   const changeChart=(chart:CompareChart)=>{if(customSelection.current){update({chart});return;}if(chart==='benchmark'){const metric='aa_intelligence_index';const ids=delivery?.aaBenchmarkSelections?.[metric]?.[state.includeHistory?'historical':'current']??selectAaBenchmarkModels(measuredModels,metric,8,state.includeHistory);update({chart,metricId:metric,modelIds:ids,missingModelIds:[]},true);return;}if(delivery?.suggestedModelIds?.[chart]?.length)chooseSuggested(chart);else update({chart});};
   const [familyQuery,setFamilyQuery]=useState('');
-  const selectorProps={models:visibleModels,selected:state.modelIds,suggestedIds:delivery?.suggestedModelIds?.[state.chart]??[],includeHistory:state.includeHistory,chart:state.chart,metricId:state.metricId,
+  const selectorProps={models:visibleModels,selected:state.modelIds,suggestedIds:delivery?.suggestedModelIds?.[state.chart]??EMPTY_SUGGESTED_IDS,includeHistory:state.includeHistory,chart:state.chart,metricId:state.metricId,
     onHistory:(includeHistory:boolean)=>update({includeHistory}),reasoningEfforts:state.reasoningEfforts,query:familyQuery,onQuery:setFamilyQuery,
     presets,onReset:()=>update({modelIds:[],missingModelIds:[]}),onSuggested:()=>chooseSuggested(state.chart),selectionNotice:presetDescription,
     onPreset:(preset:typeof presets[number])=>{update({modelIds:preset.modelIds,missingModelIds:[],chart:preset.chart,metricId:preset.metricId,includeHistory:false,reasoningEfforts:[],conditionKey:null,scoreMetricKey:null});setPresetDescription(preset.description);},
