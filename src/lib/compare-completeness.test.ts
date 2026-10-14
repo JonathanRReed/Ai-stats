@@ -7,7 +7,7 @@ import {parseCompareState} from './compare-state';
 import CompareExplorer from '../components/compare/CompareExplorer';
 import ModelSelector from '../components/compare/ModelSelector';
 import {readFileSync} from 'node:fs';
-const renderModelSelector=(models:ReturnType<typeof buildExplorerCatalog>,selected:string[]=[])=>renderToStaticMarkup(createElement(ModelSelector,{models,selected,suggestedIds:[],includeHistory:false,
+const renderModelSelector=(models:ReturnType<typeof buildExplorerCatalog>,selected:string[]=[])=>renderToStaticMarkup(createElement(ModelSelector,{models,selected,suggestedIds:[],includeHistory:false,chart:'cost-intelligence',metricId:'aa_intelligence_index',
  onHistory:()=>{},reasoningEfforts:[],onReasoning:()=>{},onToggle:()=>{},onToggleFamily:()=>{},onReset:()=>{},onSuggested:()=>{},presets:[],onPreset:()=>{},query:'',onQuery:()=>{}}));
 test('all cached records survive, including free routes and LiteLLM records past 2500',()=>{
  const models=buildExplorerCatalog([],[],{openrouter:[{id:'lab/free',name:'Free',is_free:true,prompt_price_1m:0,completion_price_1m:0}],

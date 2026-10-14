@@ -12,6 +12,14 @@ test('safe state round-trips selections, controls and missing shared identities'
     metricId:'epoch_gpqa',conditionKey:'[["Shots","0"]]',scale:'log',labels:true,frontier:false,reasoningEfforts:['high']});
   expect(state.parseCompareState?.(state.serializeCompareState?.(parsed),catalog,['b'])).toEqual(parsed);
 });
+test('fresh comparisons show labels by default and an explicit off value survives share URLs',()=>{
+ const fresh=state.parseCompareState(new URLSearchParams(),catalog);
+ expect(fresh.labels).toBe(true);
+ const off={...fresh,labels:false};
+ const url=state.serializeCompareState(off);
+ expect(url.get('labels')).toBe('0');
+ expect(state.parseCompareState(url,catalog).labels).toBe(false);
+});
 test('saved legacy model links stay explicit after a chart change and popstate restores their selection',()=>{
  const saved=new URLSearchParams('models=a-high%2Cb&chart=cost-intelligence');
  expect(state.hasExplicitCompareSelection(saved)).toBe(true);

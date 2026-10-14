@@ -52,6 +52,15 @@
 .observation-details dt{color:var(--ink-2)}
 .observation-details dd{margin:0;overflow-wrap:anywhere;font-family:var(--font-mono)}
 .observation-details a{color:var(--signal-text);text-underline-offset:3px}
+.observation-values{margin:8px 0!important}
+.observation-source-link{font-size:11px;margin:6px 0}
+.observation-receipt>summary{cursor:pointer;color:var(--ink-2);font-size:11px;padding:5px 0}
+.observation-receipt dl{margin-top:8px!important}
+.chart-panel>.observation-floating{position:absolute;z-index:3;width:min(290px,calc(100% - 40px));max-height:calc(100% - 110px);overflow:auto;margin:0;padding:12px;background:var(--surface-1);border:1px solid var(--line-1);box-shadow:var(--shadow-1)}
+.chart-panel>.observation-floating[data-anchor-x=left]{left:22px;right:auto}
+.chart-panel>.observation-floating[data-anchor-x=right]{right:22px;left:auto}
+.chart-panel>.observation-floating[data-anchor-y=top]{top:70px;bottom:auto}
+.chart-panel>.observation-floating[data-anchor-y=bottom]{bottom:58px;top:auto}
 .family-rail{display:flex;flex-direction:column;gap:12px;min-width:0}
 .family-rail-heading{display:flex;align-items:baseline;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line-1);padding-bottom:8px}
 .family-rail-heading h2{font-size:15px;font-weight:600;margin:0;color:var(--ink-0)}
@@ -156,6 +165,8 @@
   .chart-toolbar button,.chart-toolbar summary{font-size:11px;padding:7px 8px}
   .toolbar-check{font-size:11px}
   .observation-details{right:12px;bottom:69px;width:260px}
+  .chart-panel>.observation-floating[data-anchor-x][data-anchor-y]{position:relative;left:auto;right:auto;top:auto;bottom:auto;width:auto;max-height:none;margin:10px 12px;box-shadow:none}
+  .observation-receipt>summary{min-height:44px;display:flex;align-items:center}
   .source-strip{font-size:10px;justify-content:flex-start}
   .source-strip ul{left:0;right:auto;max-width:calc(100vw - 35px)}
   .inspect-hint{font-size:10px;padding-left:14px}

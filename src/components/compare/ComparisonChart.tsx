@@ -16,15 +16,15 @@ export default function ComparisonChart({series,labels,endpointLane=false,showFa
   const groups=[...new Map(series.points.map(point=>[JSON.stringify([point.source,point.provider??point.family,point.family]),point])).values()];
   const compactLegend=showFamilyLegend||endpointLane&&width<600?groups.slice(0,6):[];
   const mobileLegendRows=Math.ceil(compactLegend.length/3);
-  const legendOverflow=Math.max(0,groups.length-compactLegend.length);
+  const legendOverflow=compactLegend.length?Math.max(0,groups.length-compactLegend.length):0;
   const topPadding=tokenPrices?34+(endpointLane&&width<600?mobileLegendRows*14+4:0):22+(endpointLane&&width<600?mobileLegendRows*14+4:0);
   const laneWidth=showLane?184:24;
   const plot=plotGeometry(series.points,series.kind,series.scale,width,height,topPadding,laneWidth);
   const byId=new Map(plot.points.map(point=>[point.id,point]));
   const linked=compatibleVariantLines(series.points);
   const endpointCandidates=plot.points.map(point=>({id:point.id,group:JSON.stringify([point.source,point.provider??point.family,point.family,point.cohortKey??point.id]),label:point.family,cx:point.cx,cy:point.cy}));
-  const familyLabels=showLane?endpointLabels(endpointCandidates,{top:plot.top+8,bottom:plot.bottom-5,gap:19,activeId}):[];
-  const hiddenEndpointLabels=Math.max(0,new Set(endpointCandidates.map(point=>point.group)).size-familyLabels.length);
+  const familyLabels=showLane&&labels?endpointLabels(endpointCandidates,{top:plot.top+8,bottom:plot.bottom-5,gap:19,activeId}):[];
+  const hiddenEndpointLabels=showLane&&labels?Math.max(0,new Set(endpointCandidates.map(point=>point.group)).size-familyLabels.length):0;
   const inspect=(point:SeriesPoint)=>point.label+(point.series==='input'?' · Input tokens':point.series==='output'?' · Output tokens':'')+': '+(series.kind==='scatter'?formatChartNumber(point.x)+' '+series.xLabel+' · ':'')+formatChartNumber(point.y)+' '+point.unit;
   return <div className="comparison-plot" ref={frame}>
     {!series.available?<div className="plot-empty"><h2>Awaiting data access</h2><p>{series.unavailableReason}</p></div>:

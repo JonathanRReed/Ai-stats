@@ -189,6 +189,16 @@ test("compact model styles do not leave a media block open",()=>{
 });
 
 test("benchmark eligibility is independent of pricing and includes the available Agentic Index",()=>{
- expect(dashboardSource).toContain('const list = [...currentMeasuredModels]');
+ expect(dashboardSource).toContain('rankModelFamilies(currentMeasuredModels, key, {limit:5})');
  expect(dashboardSource).toContain('key: "aa_agentic_index"');
+});
+
+test("homepage benchmark families filter measured reasoning variants before top-five and refresh identically",()=>{
+ expect(dashboardSource).toContain('id="leaderboard-family-search"');
+ expect(dashboardSource).toContain('id="leaderboard-family-mode"');
+ expect(dashboardSource).toContain('data-leaderboard-reasoning');
+ expect(dashboardSource).toContain('window.__leaderboardInitialModels = initialLeaderboardModels');
+ expect(dashboardSource).toContain('rankModelFamilies(models, config.key, {limit:5,...getLeaderboardFilters()})');
+ expect(dashboardSource).toContain('renderLeaderboard((snapshot.aaModels??[]).filter(model=>model.current_source_member!==false)');
+ expect(dashboardSource).not.toContain('FAILSAFE_METRIC_SWAP_MS');
 });

@@ -1,6 +1,8 @@
 ---
 import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboardBarWidth} from '../lib/benchmark-leaderboard';
 import {leaderboardComparisonHref} from '../lib/leaderboard-comparison';
+import {rankModelFamilies} from '../lib/model-family-ranking';
+import {modelDisplayFacets} from '../lib/compare-catalog';
 import OpenRouterUsage from './OpenRouterUsage';
 import {getOpenRouterUsageSnapshot} from '../lib/openrouter-usage-server';
 import '../styles/openrouter-usage.css';
@@ -32,7 +34,6 @@ import IntelligenceOverview from "./IntelligenceOverview.astro";
 import PoliBenchLab from "./PoliBenchLab.astro";
 import { getPublicPoliBenchSnapshot } from "../lib/polibench-snapshot";
 import {
-  hasFiniteMetricValue,
   parseFiniteMetricValue,
 } from "../lib/metric-values";
 import {
@@ -64,6 +65,15 @@ const dailyUsage = await getOpenRouterUsageSnapshot();
 const currentMeasuredModels = models.filter((model) =>
   isCurrentMeasuredModel(model),
 );
+const initialLeaderboardModels = currentMeasuredModels.map((model) => ({
+  id:model.id,name:model.name,company_name:model.company_name,creator_name:model.creator_name,
+  source:'aa',current_source_member:model.current_source_member,
+  mmlu_pro:model.mmlu_pro,gpqa:model.gpqa,hle:model.hle,aime:model.aime,scicode:model.scicode,
+  math_500:model.math_500,livecodebench:model.livecodebench,aa_math_index:model.aa_math_index,
+  aa_coding_index:model.aa_coding_index,aa_agentic_index:model.aa_agentic_index,
+  aa_intelligence_index:model.aa_intelligence_index,
+  reasoning:model.name?modelDisplayFacets(model.name).reasoning:'unknown',
+}));
 const benchmarkSnapshotModels = selectBenchmarkSnapshotModels(currentMeasuredModels);
 const workbenchModels = currentMeasuredModels.map((model) => ({
   id: model.id,
@@ -182,15 +192,15 @@ const benchmarkModelNames = new Map([
 
 // Build top models for AA benchmarks
 const topByBenchmark: Record<string, any[]> = {};
+const modelFamiliesByBenchmark: Record<string, any[]> = {};
 
 // AA benchmarks - from validModels
 benchmarkConfigs
   .filter((c) => c.source === "aa")
   .forEach(({ key }) => {
-    const list = [...currentMeasuredModels]
-      .filter((m: any) => hasFiniteMetricValue(m[key]))
-      .sort((a: any, b: any) => Number(b[key]) - Number(a[key]))
-      .slice(0, 5);
+    const families = rankModelFamilies(currentMeasuredModels, key, {limit:5});
+    const list = families.map((family) => family.best);
+    modelFamiliesByBenchmark[key] = families;
     topByBenchmark[key] = list;
   });
 
@@ -423,6 +433,19 @@ function getScoreClass(score: number | null | undefined): string {
                 ))
               }
             </select>
+            <div id="leaderboard-family-controls" class="leaderboard-family-controls">
+            <label for="leaderboard-family-search" class="leaderboard-filter-label">Find family</label>
+            <input id="leaderboard-family-search" class="toolbar-control leaderboard-family-search" type="search" placeholder="Search models or providers" autocomplete="off" />
+            <label for="leaderboard-family-mode" class="leaderboard-filter-label">Show</label>
+            <select id="leaderboard-family-mode" class="toolbar-control">
+              <option value="families" selected>Families</option>
+              <option value="variants">All variants</option>
+            </select>
+            <fieldset class="leaderboard-reasoning" aria-label="Reasoning effort">
+              <legend>Reasoning</legend>
+              {['low','medium','high','xhigh','max','minimal','none'].map((effort) => <label><input type="checkbox" data-leaderboard-reasoning value={effort} /> {effort === 'none' ? 'None' : effort}</label>)}
+            </fieldset>
+            </div>
           </div>
         </header>
         <p
@@ -472,6 +495,7 @@ function getScoreClass(score: number | null | undefined): string {
                         "lbbx",
                       ];
 
+                      const family = !isEpoch ? modelFamiliesByBenchmark[key]?.find((item:any)=>item.best.id===model.id) : null;
                       return (
                         <li class="lbi">
                           <button
@@ -534,6 +558,7 @@ function getScoreClass(score: number | null | undefined): string {
                               </div>
                             </div>
                           </button>
+                          {family && family.variants.length > 1 && <details class="leaderboard-variants"><summary>{family.variants.length - 1} other measured variants</summary><ul>{family.variants.filter((variant:any)=>variant.id!==model.id).map((variant:any)=><li><a href={'/compare?'+new URLSearchParams({chart:'benchmark',metric:key,m:variant.id}).toString()}>{variant.name} <span>{formatIndex(variant[key])}</span></a></li>)}</ul></details>}
                         </li>
                       );
                     })}
@@ -1692,6 +1717,18 @@ function getScoreClass(score: number | null | undefined): string {
     width: 100%;
   }
 
+  .leaderboard-family-controls{grid-column:1/-1;display:grid;grid-template-columns:max-content minmax(10rem,1fr) max-content minmax(8rem,10rem);gap:.45rem .65rem;align-items:center}
+  .leaderboard-family-search{width:100%;min-width:0}
+  .leaderboard-filter-label{font-size:var(--text-xs);font-weight:600;color:var(--ink-2)}
+  .leaderboard-reasoning{grid-column:1/-1;border:0;padding:0;margin:0;display:flex;gap:.65rem;flex-wrap:wrap;align-items:center;font-size:var(--text-xs)}
+  .leaderboard-reasoning legend{float:left;margin-right:.4rem;color:var(--ink-2);font-weight:600}
+  .leaderboard-reasoning label{display:inline-flex;align-items:center;gap:.25rem;text-transform:capitalize}
+  .leaderboard-variants{position:relative;z-index:2;padding:.15rem 1rem .55rem 3.25rem;font-size:var(--text-xs);color:var(--ink-2)}
+  .leaderboard-variants summary{cursor:pointer;width:max-content;max-width:100%;text-decoration:underline;text-underline-offset:3px}
+  .leaderboard-variants ul{margin:.4rem 0 0;display:grid;gap:.2rem}
+  .leaderboard-variants a{display:flex;justify-content:space-between;gap:1rem;color:var(--text)}
+  .leaderboard-empty{padding:1.25rem;color:var(--ink-2);font-size:var(--text-sm)}
+
   .toolbar-control:hover {
     border-color: var(--love);
   }
@@ -1751,34 +1788,10 @@ function getScoreClass(score: number | null | undefined): string {
       filter var(--dur-fast) var(--ease-smooth);
   }
 
-  /* Metric crossfade between leaderboard panels. */
-  html.motion-ready #leaderboard [data-metric] {
-    transition:
-      opacity var(--dur-base) var(--ease-smooth),
-      transform var(--dur-base) var(--ease-smooth);
-  }
-
-  html.motion-ready #leaderboard [data-metric].metric-leaving {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-
-  html.motion-ready #leaderboard [data-metric].metric-entering {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-
   @media (prefers-reduced-motion: reduce) {
     .lbi:hover .lbb,
     .lbi:hover .lrn {
       filter: none;
-      transform: none;
-    }
-    html.motion-ready #leaderboard [data-metric],
-    html.motion-ready #leaderboard [data-metric].metric-leaving,
-    html.motion-ready #leaderboard [data-metric].metric-entering {
-      transition: none;
-      opacity: 1;
       transform: none;
     }
   }
@@ -1993,6 +2006,8 @@ function getScoreClass(score: number | null | undefined): string {
       grid-template-columns: 1fr;
       align-items: stretch;
     }
+    .leaderboard-family-controls{grid-template-columns:1fr}
+    .leaderboard-reasoning{grid-column:auto}
 
     .leaderboard-controls label {
       margin-top: 0.25rem;
@@ -2040,7 +2055,7 @@ function getScoreClass(score: number | null | undefined): string {
   }
 </style>
 
-<script is:inline define:vars={{ preferredEpochBenchmarkSlugs, benchmarkAttributions: clientBenchmarkAttributions }}>
+<script is:inline define:vars={{ preferredEpochBenchmarkSlugs, benchmarkAttributions: clientBenchmarkAttributions, initialLeaderboardModels }}>
   window.__aistatsCatalogDataUrl = "/api/public-catalogs.json";
   window.__aistatsOpenRouterModels = [];
   window.__aistatsHuggingFaceModels = [];
@@ -2051,11 +2066,14 @@ function getScoreClass(score: number | null | undefined): string {
   window.__preferredEpochBenchmarkSlugs = preferredEpochBenchmarkSlugs;
   window.__epochBenchmarkLabels = {};
   window.__benchmarkAttributions = benchmarkAttributions;
+  window.__leaderboardInitialModels = initialLeaderboardModels;
 </script>
 
 <script>
   // @ts-nocheck
   import {formatPrice as formatCatalogPrice} from "../lib/format-utils";
+import {rankModelFamilies} from "../lib/model-family-ranking";
+import {setLeaderboardPanel} from "../lib/leaderboard-panels";
 import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboardBarWidth} from '../lib/benchmark-leaderboard';
   import {preferPublisherBenchmarks} from '../lib/benchmark-catalog';
   import { findAaComparableCoverageLeader } from "../lib/data-integrity";
@@ -2129,6 +2147,9 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
     const leaderboardCompareLink = document.getElementById(
       "leaderboard-compare-link",
     );
+    const familySearchInput = document.getElementById("leaderboard-family-search");
+    const familyModeSelect = document.getElementById("leaderboard-family-mode");
+    const reasoningFilters = Array.from(document.querySelectorAll("[data-leaderboard-reasoning]"));
     const openRouterRankSelect = document.getElementById(
       "openrouter-rank-metric",
     );
@@ -2173,6 +2194,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
     let currentView = "cards";
     let focusedCardIndex = -1;
     let publicCatalogLoadPromise = null;
+    let latestLeaderboardModels = window.__leaderboardInitialModels || [];
 
     const loadPublicCatalogData = () => {
       if (window.__aistatsPublicCatalogLoaded) return Promise.resolve();
@@ -2839,18 +2861,23 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       }
     };
 
+    const getLeaderboardFilters = () => ({
+      query: familySearchInput?.value ?? "",
+      reasoning: reasoningFilters.filter((input) => input.checked).map((input) => input.value),
+      mode: familyModeSelect?.value === "variants" ? "variants" : "families",
+    });
     const buildTopByBenchmark = (models, epochBenchmarks, epochRuns) => {
       const topByBenchmark = {};
+      const familiesByBenchmark = {};
       const aaConfigs = [];
       const epochConfigs = [];
 
       AA_BENCHMARKS.forEach((config) => {
-        const list = [...models]
-          .filter((model) => hasFiniteMetricValue(model[config.key]))
-          .sort((a, b) => Number(b[config.key]) - Number(a[config.key]))
-          .slice(0, 5);
-        if (!list.length) return;
+        const groups = rankModelFamilies(models, config.key, {limit:5,...getLeaderboardFilters()});
+        const list = groups.map((group) => group.best);
+        if (!rankModelFamilies(models, config.key, {limit:1}).length) return;
         topByBenchmark[config.key] = list;
+        familiesByBenchmark[config.key] = groups;
         aaConfigs.push(config);
       });
 
@@ -2887,7 +2914,43 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       return {
         benchmarkConfigs: [...aaConfigs, ...epochConfigs],
         topByBenchmark,
+        familiesByBenchmark,
       };
+    };
+
+    const leaderboardPanelMarkup = (list, config, groups = []) => {
+      const rankColors = ["lbb1", "lbb2", "lbb3", "lbbx", "lbbx"];
+      const getScore = (model) => parseFiniteMetricValue(model[config.key]) ?? 0;
+      const scoreText = (score) => config.key.startsWith("aa_") ? formatIndex(score) : formatScore(score);
+      const rows = list.map((model, index) => {
+        const score = getScore(model);
+        const group = groups.find((candidate) => candidate.best.id === model.id);
+        const extra = group?.variants.filter((variant) => variant.id !== model.id) ?? [];
+        const name = escapeHtml(toDisplayName(model.name));
+        const company = escapeHtml(toDisplayName(model.company_name ?? model.creator_name, "Unknown provider"));
+        const details = extra.length ? `<details class="leaderboard-variants"><summary>+${extra.length} measured variants</summary><ul>${extra.map((variant) => `<li><a href="/compare?${new URLSearchParams({chart:"benchmark",metric:config.key,m:variant.id})}">${escapeHtml(toDisplayName(variant.name))}<span>${scoreText(getScore(variant))}</span></a></li>`).join("")}</ul></details>` : "";
+        return `<li class="lbi"><button type="button" class="lr" data-lr data-model-id="${escapeHtml(model.id)}"><div class="lbb ${rankColors[index]}" style="--w:${leaderboardBarWidth(score,list.map(getScore),true)}%;--row-index:${index}"></div><div class="lbr"><div class="lrw"><div class="lrn ${index<3?`lrn${index+1}`:"lrnx"}">${index+1}</div></div><div class="lbm"><div class="lbml"><span class="lbn ${index===0?"lbnt":"lbnx"}">${name}</span></div><div class="lbc">${company}</div></div><div class="lbs ${index===0?"score-high":index<3?"lbsp":"lbsx"}">${scoreText(score)}</div></div></button>${details}</li>`;
+      }).join("");
+      const params = new URLSearchParams({chart:"benchmark",metric:config.key});
+      list.forEach((model) => params.append("m", model.id));
+      return {rows, compareHref:`/compare?${params.toString()}`};
+    };
+
+    const renderAaLeaderboardPanels = (models) => {
+      if (!leaderboardPanels) return;
+      const filters = getLeaderboardFilters();
+      AA_BENCHMARKS.forEach((config) => {
+        const panel = Array.from(leaderboardPanels.querySelectorAll('[data-metric]')).find((candidate) => candidate.dataset.metric === config.key);
+        if (!panel) return;
+        const groups = rankModelFamilies(models, config.key, {limit:5,...filters});
+        const list = groups.map((group) => group.best);
+        const {rows,compareHref} = leaderboardPanelMarkup(list,config,groups);
+        panel.dataset.compareHref = compareHref;
+        panel.innerHTML = list.length ? `<ul class="divide-y divide-highlight-low/40">${rows}</ul>` : `<p class="leaderboard-empty">No measured models match these filters.</p>`;
+      });
+      bindLeaderboardRows();
+      updateLeaderboardCompareLink();
+      playBarFill(getActiveLeaderboardPanel());
     };
 
     const reducedMotionQuery =
@@ -2918,7 +2981,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       if (!metricSelect || !leaderboardPanels) return;
 
       const selectedMetric = metricSelect.value || "mmlu_pro";
-      const { benchmarkConfigs, topByBenchmark } = buildTopByBenchmark(
+      const { benchmarkConfigs, topByBenchmark, familiesByBenchmark } = buildTopByBenchmark(
         models,
         epochBenchmarks ?? [],
         epochRuns ?? [],
@@ -2941,9 +3004,14 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       leaderboardPanels.innerHTML = benchmarkConfigs
         .map((config) => {
           const list = topByBenchmark[config.key] ?? [];
+          const isEpoch = config.source === "epoch";
+          if (!isEpoch) {
+            const {rows,compareHref}=leaderboardPanelMarkup(list,config,familiesByBenchmark[config.key]??[]);
+            const hiddenAttr = config.key === metricSelect.value ? "" : " hidden";
+            return `<div data-metric="${escapeHtml(config.key)}" data-compare-href="${escapeHtml(compareHref)}" class="overflow-hidden border border-highlight-low/60"${hiddenAttr}>${list.length?`<ul class="divide-y divide-highlight-low/40">${rows}</ul>`:`<p class="leaderboard-empty">No measured models match these filters.</p>`}</div>`;
+          }
           if (!list.length) return "";
 
-          const isEpoch = config.source === "epoch";
           const getScore = (model) =>
             parseFiniteMetricValue(
               isEpoch ? model.score : model[config.key],
@@ -3028,12 +3096,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       updateLeaderboardCompareLink();
       renderAttributionText(metricSelect.value);
 
-      Array.from(document.querySelectorAll("[data-metric]")).forEach((el) => {
-        if (!(el instanceof HTMLElement)) return;
-        const shouldHide = el.dataset.metric !== metricSelect.value;
-        el.hidden = shouldHide;
-        el.classList.toggle("hidden", shouldHide);
-      });
+      setLeaderboardPanel(Array.from(leaderboardPanels.querySelectorAll("[data-metric]")),metricSelect.value);
       bindLeaderboardRows();
       // Replay the fill on the freshly rendered active panel.
       playBarFill(getActiveLeaderboardPanel());
@@ -3439,7 +3502,6 @@ ${allBenchmarks.length ? `
     // timeout if it never fires (interrupted/canceled). Shared by the view and
     // leaderboard-metric crossfades below.
     const FAILSAFE_VIEW_SWAP_MS = 260;
-    const FAILSAFE_METRIC_SWAP_MS = 320;
     const onceAfterFade = (el, timeoutMs, cb) => {
       let done = false;
       const finish = () => {
@@ -3543,53 +3605,21 @@ ${allBenchmarks.length ? `
       setView(currentView);
     };
 
-    const swapLeaderboardMetric = (metric) => {
-      const panels = Array.from(document.querySelectorAll("[data-metric]")).filter(
-        (el) => el instanceof HTMLElement,
-      );
-      const incoming = panels.find((el) => el.dataset.metric === metric) || null;
-      const outgoing =
-        panels.find((el) => el !== incoming && !el.hidden) || null;
-
-      const showIncoming = () => {
-        // A newer selection or data refresh can supersede this delayed fade.
-        if (metricSelect?.value !== metric || !incoming?.isConnected) return;
-        panels.forEach((el) => {
-          if (el === incoming) return;
-          el.hidden = true;
-          el.classList.add("hidden");
-          el.classList.remove("metric-leaving", "metric-entering");
-        });
-        if (!incoming) return;
-        incoming.hidden = false;
-        incoming.classList.remove("hidden", "metric-leaving");
-        if (prefersReducedMotion()) {
-          incoming.classList.remove("metric-entering");
-          playBarFill(incoming);
-          return;
-        }
-        incoming.classList.add("metric-entering");
-        // Force reflow so the entering transition plays from its hidden state.
-        void incoming.offsetWidth;
-        incoming.classList.remove("metric-entering");
-        playBarFill(incoming);
-      };
-
-      if (prefersReducedMotion() || !outgoing || outgoing === incoming) {
-        showIncoming();
-        return;
-      }
-
-      outgoing.classList.add("metric-leaving");
-      onceAfterFade(outgoing, FAILSAFE_METRIC_SWAP_MS, showIncoming);
-    };
-
     metricSelect?.addEventListener("change", () => {
       const metric = metricSelect.value;
+      setLeaderboardPanel(Array.from(leaderboardPanels?.querySelectorAll("[data-metric]") ?? []),metric);
+      const familyControls = document.getElementById("leaderboard-family-controls");
+      if (familyControls) familyControls.toggleAttribute("data-disabled", metric.startsWith("epoch_"));
+      if (familyControls) familyControls.querySelectorAll("input,select").forEach((control) => { control.disabled = metric.startsWith("epoch_"); });
+      if (!metric.startsWith("epoch_")) renderAaLeaderboardPanels(latestLeaderboardModels);
       updateLeaderboardCompareLink();
       renderAttributionText(metric);
-      swapLeaderboardMetric(metric);
+      playBarFill(getActiveLeaderboardPanel());
     });
+
+    familySearchInput?.addEventListener("input", () => renderAaLeaderboardPanels(latestLeaderboardModels));
+    familyModeSelect?.addEventListener("change", () => renderAaLeaderboardPanels(latestLeaderboardModels));
+    reasoningFilters.forEach((input) => input.addEventListener("change", () => renderAaLeaderboardPanels(latestLeaderboardModels)));
 
     openRouterRankSelect?.addEventListener("change", () => {
       void loadPublicCatalogData().then(() => renderOpenRouterProviderLeaderboard());
@@ -3728,6 +3758,7 @@ ${allBenchmarks.length ? `
       await loadPublicCatalogData();
 
       const liveModels = getValidModels(snapshot.aaModels ?? []);
+      latestLeaderboardModels = (snapshot.aaModels ?? []).filter((model) => model.current_source_member !== false);
       const epochBenchmarks = snapshot.epochBenchmarks ?? [];
       const epochRuns = snapshot.epochRuns ?? [];
 

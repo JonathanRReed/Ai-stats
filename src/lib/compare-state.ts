@@ -82,7 +82,7 @@ export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogE
     modelIds:unique([...(unresolvedSource?[]:selected.filter(id=>ids.has(id)&&!stillMissing.includes(id))),...recovered]), missingModelIds:unique([...stillMissing,...(unresolvedSource?selected:selected.filter(id=>!ids.has(id)))]),
     reasoningEfforts:unique(params.getAll('reason').filter(value=>REASONING.has(value))).sort(),
     metricId,scoreMetricKey:scoreMetric(params.get('score_metric')),conditionKey:condition(params.get('condition')),
-    scale:params.has('scale')?(params.get('scale')==='log'?'log':'linear'):(normalizedChart==='cost-intelligence'?'log':'linear'),labels:params.get('labels')==='1',
+    scale:params.has('scale')?(params.get('scale')==='log'?'log':'linear'):(normalizedChart==='cost-intelligence'?'log':'linear'),labels:params.has('labels')?params.get('labels')==='1':true,
     frontier:params.get('frontier')!=='0',includeHistory:params.get('history')==='1',
   };
 }
@@ -96,7 +96,7 @@ export function serializeCompareState(state:CompareState):URLSearchParams {
   if(state.scoreMetricKey) params.set('score_metric',state.scoreMetricKey);
   if(state.conditionKey) params.set('condition',state.conditionKey);
   params.set('scale',state.scale);
-  if(state.labels) params.set('labels','1');
+  params.set('labels',state.labels?'1':'0');
   if(!state.frontier) params.set('frontier','0');
   if(state.includeHistory) params.set('history','1');
   for(const reason of state.reasoningEfforts) params.append('reason',reason);
