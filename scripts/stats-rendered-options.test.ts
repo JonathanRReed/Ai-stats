@@ -8,7 +8,7 @@ test('every offered server benchmark has a rendered panel with finite scores',()
  expect(dashboard).toContain('availableBenchmarkConfigs.map(({ key, source })');
  expect(dashboard).not.toContain('benchmarkConfigs.filter(({ key }) => key === "aa_intelligence_index")');
  expect(dashboard).toContain('buildBenchmarkCohorts(benchmark,epochRuns)');
- expect(dashboard).toContain('cohort.runs.slice(0,5)');
+ expect(dashboard).toContain('const runs = allRuns.slice(0,5)');
  expect(dashboard).toContain('selected={key === defaultBenchmarkKey}');
  expect(dashboard).toContain('hidden={key !== defaultBenchmarkKey}');
 });

@@ -30,6 +30,7 @@ export default function OpenRouterUsage({snapshot,receipt}:Props){
   if(a.tokens===null||b.tokens===null)return a.tokens===b.tokens?a.key.localeCompare(b.key):a.tokens===null?1:-1;
   const left=BigInt(a.tokens),right=BigInt(b.tokens);return left===right?a.key.localeCompare(b.key):left>right?-1:1;
  });
+ const inspectorParts=active?.available?rankedParts:keys.map(key=>({key,tokens:null,value:null}));
  const ceiling=mode==='share'?100:Math.max(1,...series.days.map(day=>Number(day.totalTokens??0)));
  const left=72,right=chartWidth-26,top=24,bottom=314,width=(right-left)/Math.max(1,series.days.length);
  const filtered=models.filter(key=>key.toLowerCase().includes(search.toLowerCase())).slice(0,30);
@@ -77,9 +78,9 @@ export default function OpenRouterUsage({snapshot,receipt}:Props){
   </div>
   <aside className="usage-inspector" aria-label="Usage on selected day" aria-live="polite">
    <header><time dateTime={active?.date}>{active?.date}</time><span title={active?.totalTokens??undefined}>{active?.available?compact(BigInt(active.totalTokens!))+' total tokens':'No data for this UTC day'}</span></header>
-   {active?.available?<dl>{rankedParts.map(part=><div key={part.key} className={part.key==='unselected'||part.key==='other'?'usage-aggregate':''}>
+   {active?<dl>{inspectorParts.map(part=><div key={part.key} className={part.key==='unselected'||part.key==='other'?'usage-aggregate':''}>
     <dt><i aria-hidden="true" style={{background:color(part.key)}}/><span title={label(part.key)}>{label(part.key)}</span></dt>
-    <dd title={part.tokens===null?'Individual traffic is unknown':part.tokens+' tokens'}>{part.tokens===null?'Not ranked':mode==='share'?(part.value===null?'No traffic':part.value.toFixed(2)+'%'):compact(BigInt(part.tokens))}</dd>
+    <dd title={!active.available?'No daily snapshot was reported':part.tokens===null?'Individual traffic is unknown':part.tokens+' tokens'}>{!active.available?'No data':part.tokens===null?'Not ranked':mode==='share'?(part.value===null?'No traffic':part.value.toFixed(2)+'%'):compact(BigInt(part.tokens))}</dd>
    </div>)}</dl>:null}
   </aside>
   </div>

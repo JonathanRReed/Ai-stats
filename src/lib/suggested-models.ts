@@ -40,25 +40,14 @@ function isValidPoint(point: SuggestionPoint): boolean {
     && /^\d+(?:\.\d+)*$/.test(point.indexVersion);
 }
 
-function distance(
-  left: SuggestionPoint,
-  right: SuggestionPoint,
-  scale: { unit: number; maxX: number; minY: number; maxY: number },
-): number {
-  const transformX = (value: number) => Math.log1p(value / scale.unit);
-  const normalizedXDistance = (transformX(left.x) - transformX(right.x)) / scale.maxX;
-  const normalizedYDistance = (left.y - right.y) / (scale.maxY - scale.minY);
-  return normalizedXDistance ** 2 + normalizedYDistance ** 2;
-}
-
 /** Return deterministic, measured-only suggestions from one latest compatible cohort. */
-export function suggestedModels(
+export function suggestedModelFrontier(
   points: SuggestionPoint[],
   direction: 'min' | 'max' = 'min',
-  limit = 8,
-): string[] {
-  const size = Math.max(0, Math.min(10, Math.floor(limit)));
-  if (size === 0) return [];
+  limit = 100,
+): { modelIds: string[]; totalFrontierModels: number; truncated: boolean } {
+  const size = Math.max(0, Math.min(100, Math.floor(limit)));
+  if (size === 0) return { modelIds: [], totalFrontierModels: 0, truncated: false };
 
   const validPoints = points.filter(isValidPoint);
   const latestVersion = validPoints
@@ -89,55 +78,13 @@ export function suggestedModels(
       && other.y >= point.y
       && (other.x !== point.x || other.y !== point.y)))
     .sort((left, right) => qualityOrder(left, right, direction));
-  const chosen: SuggestionPoint[] = [];
-  const add = (point: SuggestionPoint | undefined) => {
-    if (point && chosen.length < size && !chosen.some(row => row.modelId === point.modelId)) {
-      chosen.push(point);
-    }
+  return {
+    modelIds: frontier.slice(0, size).map(point => point.modelId),
+    totalFrontierModels: frontier.length,
+    truncated: frontier.length > size,
   };
+}
 
-  add(frontier[0]);
-  add([...frontier].sort((left, right) =>
-    (direction === 'min' ? left.x - right.x : right.x - left.x)
-    || qualityOrder(left, right, direction))[0]);
-
-  const positiveX = rows.filter(point => point.x > 0).map(point => point.x);
-  const unit = positiveX.length ? Math.min(...positiveX) : 1;
-  const transformX = (value: number) => Math.log1p(value / unit);
-  const scale = {
-    unit,
-    maxX: Math.max(1, ...rows.map(point => transformX(point.x))),
-    minY: Math.min(0, ...rows.map(point => point.y)),
-    maxY: Math.max(1, ...rows.map(point => point.y)),
-  };
-
-  while (chosen.length < size) {
-    const remaining = frontier.filter(point =>
-      !chosen.some(row => row.modelId === point.modelId));
-    if (remaining.length === 0) break;
-
-    remaining.sort((left, right) => {
-      const leftDistance = Math.min(...chosen.map(row => distance(left, row, scale)));
-      const rightDistance = Math.min(...chosen.map(row => distance(right, row, scale)));
-      return rightDistance - leftDistance || qualityOrder(left, right, direction);
-    });
-    add(remaining[0]);
-  }
-
-  while (chosen.length < size) {
-    const remaining = rows.filter(point =>
-      !chosen.some(row => row.modelId === point.modelId));
-    if (remaining.length === 0) break;
-
-    const providers = new Set(chosen.map(point => point.provider ?? point.family));
-    const families = new Set(chosen.map(point => point.family));
-    remaining.sort((left, right) =>
-      Number(providers.has(left.provider ?? left.family))
-        - Number(providers.has(right.provider ?? right.family))
-      || Number(families.has(left.family)) - Number(families.has(right.family))
-      || qualityOrder(left, right, direction));
-    add(remaining[0]);
-  }
-
-  return chosen.map(point => point.modelId);
+export function suggestedModels(points: SuggestionPoint[], direction: 'min' | 'max' = 'min', limit = 100): string[] {
+  return suggestedModelFrontier(points, direction, limit).modelIds;
 }

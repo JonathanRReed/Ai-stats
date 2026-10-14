@@ -26,3 +26,13 @@ test('picker defaults to chart-compatible sources, keeps explicit selections, an
  expect(compareCatalogScope(rows,'benchmark','epoch_gpqa',[]).map(row=>row.id)).toEqual(['epoch']);
  expect(compareCatalogScope(rows,'cost-intelligence','aa_intelligence_index',[],true)).toHaveLength(4);
 });
+
+test('price and Epoch scopes use compact capability flags and preserve publisher records',()=>{
+ const rows=[
+  model('price-only',{source:'aa',priceInput:undefined,priceOutput:undefined,hasTokenPrices:true}),
+  model('publisher',{source:'publisher',sourceModelId:'bench-id'}),
+  model('epoch',{source:'epoch',sourceModelId:'epoch-id'}),
+ ];
+ expect(compareCatalogScope(rows,'price','aa_intelligence_index',[]).map(row=>row.id)).toEqual(['price-only']);
+ expect(compareCatalogScope(rows,'benchmark','epoch_aider',[]).map(row=>row.id)).toEqual(['publisher','epoch']);
+});

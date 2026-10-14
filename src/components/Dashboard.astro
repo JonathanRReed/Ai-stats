@@ -1,5 +1,7 @@
 ---
 import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboardBarWidth} from '../lib/benchmark-leaderboard';
+import {buildInitialEpochLeaderboardData} from '../lib/epoch-leaderboard-initial';
+import {resolveEpochLeaderboardRunNames} from '../lib/epoch-model-display-name';
 import {leaderboardComparisonHref} from '../lib/leaderboard-comparison';
 import {rankModelFamilies} from '../lib/model-family-ranking';
 import {modelDisplayFacets} from '../lib/compare-catalog';
@@ -100,11 +102,24 @@ const epochBenchmarksWithRuns = preferPublisherBenchmarks(getEpochBenchmarksWith
 ));
 const preferredEpochBenchmarkSlugs = [...VALUABLE_FREE_BENCHMARK_SLUGS];
 
+const benchmarkModelNames = new Map([
+ ...epochModels.flatMap(model=>{const name=model.display_name?.trim()||model.model_name?.trim();return name?[[model.model_version,name] as const]:[];}),
+ ...catalog.publishers.snapshots.flatMap(snapshot=>snapshot.records.map(row=>[row.systemId,row.label] as const)),
+]);
+
+
 // Get benchmark name mapping
 const epochBenchmarkNames: Record<string, string> = {};
 epochBenchmarks.forEach((b) => {
   epochBenchmarkNames[b.slug] = getEpochBenchmarkLabel(b);
 });
+const benchmarkModelNameRecord = Object.fromEntries(benchmarkModelNames);
+const initialEpochLeaderboard = buildInitialEpochLeaderboardData(
+  epochBenchmarksWithRuns,
+  epochRuns,
+  epochBenchmarkNames,
+  benchmarkModelNameRecord,
+);
 const benchmarkAttributions: Record<string, any> = {
   mmlu_pro: AA_BENCHMARK_ATTRIBUTION,
   gpqa: AA_BENCHMARK_ATTRIBUTION,
@@ -185,22 +200,20 @@ const benchmarkConfigs = [
   }))),
 ];
 
-const benchmarkModelNames = new Map([
- ...epochModels.map(model=>[model.model_version,model.display_name??model.model_name??model.model_version] as const),
- ...catalog.publishers.snapshots.flatMap(snapshot=>snapshot.records.map(row=>[row.systemId,row.label] as const)),
-]);
-
 // Build top models for AA benchmarks
 const topByBenchmark: Record<string, any[]> = {};
 const modelFamiliesByBenchmark: Record<string, any[]> = {};
+const topBenchmarkTotals: Record<string, number> = {};
 
 // AA benchmarks - from validModels
 benchmarkConfigs
   .filter((c) => c.source === "aa")
   .forEach(({ key }) => {
-    const families = rankModelFamilies(currentMeasuredModels, key, {limit:5});
-    const list = families.map((family) => family.best);
+    const families = rankModelFamilies(currentMeasuredModels, key);
+    const allList = families.map((family) => family.best);
+    const list = allList.slice(0,5);
     modelFamiliesByBenchmark[key] = families;
+    topBenchmarkTotals[key] = allList.length;
     topByBenchmark[key] = list;
   });
 
@@ -208,9 +221,9 @@ epochBenchmarksWithRuns.forEach((benchmark) => {
   const slug = benchmark.slug;
   buildBenchmarkCohorts(benchmark,epochRuns).forEach(cohort=>{
   benchmarkAttributions[cohort.key]=benchmarkAttributions[`epoch_${slug}`];
-  const runs = cohort.runs.slice(0,5)
+  const allRuns = resolveEpochLeaderboardRunNames(cohort.runs, benchmarkModelNameRecord)
     .map((r) => ({
-      name: benchmarkModelNames.get(r.model_version) ?? r.model_version.replace(/_/g, " ").replace(/-/g, " "),
+      name: r.name,
       company_name: r.organization,
       score: r.score,
       score_metric: r.score_metric,
@@ -224,6 +237,8 @@ epochBenchmarksWithRuns.forEach((benchmark) => {
       metric_key:cohort.metricKey,
       higher_is_better:cohort.higherIsBetter,
     }));
+  const runs = allRuns.slice(0,5);
+  topBenchmarkTotals[cohort.key] = allRuns.length;
   topByBenchmark[cohort.key] = runs;
   });
 });
@@ -470,6 +485,7 @@ function getScoreClass(score: number | null | undefined): string {
           {
             availableBenchmarkConfigs.map(({ key, source }) => {
               const list = topByBenchmark[key] ?? [];
+              const totalCount = topBenchmarkTotals[key] ?? list.length;
               if (!list.length) return null;
               const isEpoch = source === "epoch";
               // For epoch benchmarks, score is stored in model.score; for AA, it's model[key]
@@ -507,7 +523,7 @@ function getScoreClass(score: number | null | undefined): string {
                           >
                             {/* Background bar */}
                             <div
-                              class={`lbb ${rankColors[index]}`}
+                              class={`lbb ${rankColors[index] ?? "lbbx"}`}
                               style={`--w:${barWidth}%;--row-index:${index}`}
                             />
 
@@ -558,11 +574,15 @@ function getScoreClass(score: number | null | undefined): string {
                               </div>
                             </div>
                           </button>
-                          {family && family.variants.length > 1 && <details class="leaderboard-variants"><summary>{family.variants.length - 1} other measured variants</summary><ul>{family.variants.filter((variant:any)=>variant.id!==model.id).map((variant:any)=><li><a href={'/compare?'+new URLSearchParams({chart:'benchmark',metric:key,m:variant.id}).toString()}>{variant.name} <span>{formatIndex(variant[key])}</span></a></li>)}</ul></details>}
+                          {family && family.variants.length > 1 && <details class="leaderboard-variants"><summary>{family.variants.length - 1} other measured variants</summary><ul>{family.variants.filter((variant:any)=>variant.id!==model.id).map((variant:any)=><li><a href={'/compare?'+new URLSearchParams({chart:'benchmark',metric:key,m:variant.id}).toString()}>{variant.name} <span>{key.endsWith('_index')?formatIndex(variant[key]):formatScore(variant[key])}</span></a></li>)}</ul></details>}
                         </li>
                       );
                     })}
                   </ul>
+                  <div class="flex items-center justify-between gap-3 px-3 py-2 text-xs text-muted">
+                    <span>Showing {list.length} of {totalCount} ranked results</span>
+                    {list.length < totalCount && <button type="button" class="underline underline-offset-2" data-leaderboard-more={key}>Show more</button>}
+                  </div>
                 </div>
               );
             })
@@ -2055,7 +2075,7 @@ function getScoreClass(score: number | null | undefined): string {
   }
 </style>
 
-<script is:inline define:vars={{ preferredEpochBenchmarkSlugs, benchmarkAttributions: clientBenchmarkAttributions, initialLeaderboardModels }}>
+<script is:inline define:vars={{ preferredEpochBenchmarkSlugs, benchmarkAttributions: clientBenchmarkAttributions, initialLeaderboardModels, initialEpochLeaderboard }}>
   window.__aistatsCatalogDataUrl = "/api/public-catalogs.json";
   window.__aistatsOpenRouterModels = [];
   window.__aistatsHuggingFaceModels = [];
@@ -2064,14 +2084,20 @@ function getScoreClass(score: number | null | undefined): string {
   window.__aistatsOpenRouterEndpointSummaries = [];
   window.__aistatsPublicCatalogLoaded = false;
   window.__preferredEpochBenchmarkSlugs = preferredEpochBenchmarkSlugs;
-  window.__epochBenchmarkLabels = {};
+  window.__epochBenchmarkLabels = initialEpochLeaderboard.labels;
   window.__benchmarkAttributions = benchmarkAttributions;
   window.__leaderboardInitialModels = initialLeaderboardModels;
+  window.__epochInitialBenchmarks = initialEpochLeaderboard.benchmarks;
+  window.__epochInitialRuns = initialEpochLeaderboard.runs;
+  window.__epochModelNames = initialEpochLeaderboard.modelNames;
 </script>
 
 <script>
   // @ts-nocheck
   import {formatPrice as formatCatalogPrice} from "../lib/format-utils";
+  import {bindDashboardLifecycle} from "../lib/dashboard-lifecycle";
+  import {nextLeaderboardLimit,visibleLeaderboardRows} from "../lib/leaderboard-pagination";
+  import {resolveEpochLeaderboardRunNames} from "../lib/epoch-model-display-name";
 import {rankModelFamilies} from "../lib/model-family-ranking";
 import {setLeaderboardCompareAction,setLeaderboardFamilyControlsDisabled,setLeaderboardPanel} from "../lib/leaderboard-panels";
 import {leaderboardComparisonHref} from "../lib/leaderboard-comparison";
@@ -2083,7 +2109,14 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
     parseFiniteMetricValue,
   } from "../lib/metric-values";
 
-  if (typeof window !== "undefined") {
+  const initializeDashboard = (currentRoot, signal, isCurrentDashboard) => {
+    if (typeof window === "undefined" || !currentRoot) return;
+    const lifecycle = { signal };
+    const observers = new Set();
+    lifecycle.signal.addEventListener("abort", () => {
+      observers.forEach((observer) => observer.disconnect());
+      observers.clear();
+    }, { once: true });
     const PAGE_SIZE = 12;
     const AA_BENCHMARKS = [
       { key: "mmlu_pro", label: "MMLU Pro", source: "aa" },
@@ -2151,6 +2184,8 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
     const familySearchInput = document.getElementById("leaderboard-family-search");
     const familyModeSelect = document.getElementById("leaderboard-family-mode");
     const reasoningFilters = Array.from(document.querySelectorAll("[data-leaderboard-reasoning]"));
+    const leaderboardVisibleCounts = new Map();
+    const leaderboardFooter = (key, shown, total) => `<div class="flex items-center justify-between gap-3 px-3 py-2 text-xs text-muted"><span>Showing ${shown} of ${total} ranked results${shown>100?" · Compare opens the first 100": ""}</span><span class="flex items-center gap-3">${shown < total ? `<button type="button" class="underline underline-offset-2" data-leaderboard-more="${escapeHtml(key)}">Show more</button>` : ""}${shown > 5 ? `<button type="button" class="underline underline-offset-2" data-leaderboard-less="${escapeHtml(key)}">Show fewer</button>` : ""}</span></div>`;
     const openRouterRankSelect = document.getElementById(
       "openrouter-rank-metric",
     );
@@ -2178,11 +2213,11 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       publicCatalogRetry.disabled = true;
       setPublicCatalogNotice(false);
       void loadPublicCatalogData()
-        .then(() => renderOpenRouterProviderLeaderboard())
+        .then(() => { if (isCurrentDashboard()) renderOpenRouterProviderLeaderboard(); })
         .finally(() => {
-          publicCatalogRetry.disabled = false;
+          if (isCurrentDashboard()) publicCatalogRetry.disabled = false;
         });
-    });
+    }, lifecycle);
     const emptyState = document.getElementById("empty-state");
     const viewCardsBtn = document.getElementById("view-cards");
     const viewTableBtn = document.getElementById("view-table");
@@ -2196,6 +2231,9 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
     let focusedCardIndex = -1;
     let publicCatalogLoadPromise = null;
     let latestLeaderboardModels = window.__leaderboardInitialModels || [];
+    let latestEpochBenchmarks = window.__epochInitialBenchmarks || [];
+    let latestEpochRuns = window.__epochInitialRuns || [];
+    let latestEpochModelNames = window.__epochModelNames || {};
 
     const loadPublicCatalogData = () => {
       if (window.__aistatsPublicCatalogLoaded) return Promise.resolve();
@@ -2204,7 +2242,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       const url = window.__aistatsCatalogDataUrl;
       if (!url) return Promise.resolve();
 
-      publicCatalogLoadPromise = fetch(url, { cache: "force-cache" })
+      publicCatalogLoadPromise = fetch(url, { cache: "force-cache", signal: lifecycle.signal })
         .then((response) => {
           if (!response.ok) {
             throw new Error(`Public catalog request failed with ${response.status}`);
@@ -2212,6 +2250,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
           return response.json();
         })
         .then((catalogs) => {
+          if (!isCurrentDashboard()) return;
           setPublicCatalogNotice(false);
           window.__aistatsOpenRouterModels = catalogs.openRouterModels || [];
           window.__aistatsHuggingFaceModels = catalogs.huggingFaceModels || [];
@@ -2225,7 +2264,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
         .catch((error) => {
           // Drop the cached promise so the retry control can refetch.
           publicCatalogLoadPromise = null;
-          setPublicCatalogNotice(true);
+          if (isCurrentDashboard()) setPublicCatalogNotice(true);
           console.warn("Failed to load public catalog data", error);
         });
 
@@ -2377,7 +2416,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       const existingRequest = drawerModelRequests.get(id);
       if (existingRequest) return existingRequest;
 
-      const request = fetch(`/api/models/${encodeURIComponent(id)}.json`)
+      const request = fetch(`/api/models/${encodeURIComponent(id)}.json`, { signal: lifecycle.signal })
         .then((response) => {
           if (!response.ok) {
             throw new Error(`Model detail request failed with ${response.status}`);
@@ -2867,14 +2906,14 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       reasoning: reasoningFilters.filter((input) => input.checked).map((input) => input.value),
       mode: familyModeSelect?.value === "variants" ? "variants" : "families",
     });
-    const buildTopByBenchmark = (models, epochBenchmarks, epochRuns) => {
+    const buildTopByBenchmark = (models, epochBenchmarks, epochRuns, epochModelNames = latestEpochModelNames) => {
       const topByBenchmark = {};
       const familiesByBenchmark = {};
       const aaConfigs = [];
       const epochConfigs = [];
 
       AA_BENCHMARKS.forEach((config) => {
-        const groups = rankModelFamilies(models, config.key, {limit:5,...getLeaderboardFilters()});
+        const groups = rankModelFamilies(models, config.key, {...getLeaderboardFilters()});
         const list = groups.map((group) => group.best);
         if (!rankModelFamilies(models, config.key, {limit:1}).length) return;
         topByBenchmark[config.key] = list;
@@ -2885,10 +2924,8 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       sortEpochBenchmarksByValue(preferPublisherBenchmarks(epochBenchmarks)).forEach((benchmark) => {
         buildBenchmarkCohorts(benchmark,epochRuns).forEach(cohort=>{
         const key=cohort.key;
-        const list=cohort.runs.slice(0,5)          .map((run) => ({
-            name: String(run.model_version || "")
-              .replace(/_/g, " ")
-              .replace(/-/g, " "),
+        const list=resolveEpochLeaderboardRunNames(cohort.runs, epochModelNames).map((run) => ({
+            name: run.name,
             company_name: run.organization ?? "Unknown provider",
             score: parseFiniteMetricValue(run.score) ?? 0,
             score_metric: run.score_metric,
@@ -2930,10 +2967,10 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
         const name = escapeHtml(toDisplayName(model.name));
         const company = escapeHtml(toDisplayName(model.company_name ?? model.creator_name, "Unknown provider"));
         const details = extra.length ? `<details class="leaderboard-variants"><summary>+${extra.length} measured variants</summary><ul>${extra.map((variant) => `<li><a href="/compare?${new URLSearchParams({chart:"benchmark",metric:config.key,m:variant.id})}">${escapeHtml(toDisplayName(variant.name))}<span>${scoreText(getScore(variant))}</span></a></li>`).join("")}</ul></details>` : "";
-        return `<li class="lbi"><button type="button" class="lr" data-lr data-model-id="${escapeHtml(model.id)}"><div class="lbb ${rankColors[index]}" style="--w:${leaderboardBarWidth(score,list.map(getScore),true)}%;--row-index:${index}"></div><div class="lbr"><div class="lrw"><div class="lrn ${index<3?`lrn${index+1}`:"lrnx"}">${index+1}</div></div><div class="lbm"><div class="lbml"><span class="lbn ${index===0?"lbnt":"lbnx"}">${name}</span></div><div class="lbc">${company}</div></div><div class="lbs ${index===0?"score-high":index<3?"lbsp":"lbsx"}">${scoreText(score)}</div></div></button>${details}</li>`;
+        return `<li class="lbi"><button type="button" class="lr" data-lr data-model-id="${escapeHtml(model.id)}"><div class="lbb ${rankColors[index] ?? "lbbx"}" style="--w:${leaderboardBarWidth(score,list.map(getScore),true)}%;--row-index:${index}"></div><div class="lbr"><div class="lrw"><div class="lrn ${index<3?`lrn${index+1}`:"lrnx"}">${index+1}</div></div><div class="lbm"><div class="lbml"><span class="lbn ${index===0?"lbnt":"lbnx"}">${name}</span></div><div class="lbc">${company}</div></div><div class="lbs ${index===0?"score-high":index<3?"lbsp":"lbsx"}">${scoreText(score)}</div></div></button>${details}</li>`;
       }).join("");
       const params = new URLSearchParams({chart:"benchmark",metric:config.key});
-      list.forEach((model) => params.append("m", model.id));
+      list.slice(0, 100).forEach((model) => params.append("m", model.id));
       return {rows, compareHref:list.length?`/compare?${params.toString()}`:""};
     };
 
@@ -2943,11 +2980,12 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       AA_BENCHMARKS.forEach((config) => {
         const panel = Array.from(leaderboardPanels.querySelectorAll('[data-metric]')).find((candidate) => candidate.dataset.metric === config.key);
         if (!panel) return;
-        const groups = rankModelFamilies(models, config.key, {limit:5,...filters});
-        const list = groups.map((group) => group.best);
+        const groups = rankModelFamilies(models, config.key, {...filters});
+        const allList = groups.map((group) => group.best);
+        const list = visibleLeaderboardRows(allList, leaderboardVisibleCounts.get(config.key) ?? 5);
         const {rows,compareHref} = leaderboardPanelMarkup(list,config,groups);
         panel.dataset.compareHref = compareHref;
-        panel.innerHTML = list.length ? `<ul class="divide-y divide-highlight-low/40">${rows}</ul>` : `<p class="leaderboard-empty">No measured models match these filters.</p>`;
+        panel.innerHTML = list.length ? `<ul class="divide-y divide-highlight-low/40">${rows}</ul>${leaderboardFooter(config.key,list.length,allList.length)}` : `<p class="leaderboard-empty">No measured models match these filters.</p>`;
       });
       bindLeaderboardRows();
       updateLeaderboardCompareLink();
@@ -2980,12 +3018,15 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
 
     const renderLeaderboard = (models, epochBenchmarks, epochRuns) => {
       if (!metricSelect || !leaderboardPanels) return;
+      latestEpochBenchmarks = epochBenchmarks ?? [];
+      latestEpochRuns = epochRuns ?? [];
 
       const selectedMetric = metricSelect.value || "mmlu_pro";
       const { benchmarkConfigs, topByBenchmark, familiesByBenchmark } = buildTopByBenchmark(
         models,
         epochBenchmarks ?? [],
         epochRuns ?? [],
+        latestEpochModelNames,
       );
 
       metricSelect.innerHTML = benchmarkConfigs
@@ -3004,12 +3045,13 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
 
       leaderboardPanels.innerHTML = benchmarkConfigs
         .map((config) => {
-          const list = topByBenchmark[config.key] ?? [];
+          const allList = topByBenchmark[config.key] ?? [];
+          const list = visibleLeaderboardRows(allList, leaderboardVisibleCounts.get(config.key) ?? 5);
           const isEpoch = config.source === "epoch";
           if (!isEpoch) {
             const {rows,compareHref}=leaderboardPanelMarkup(list,config,familiesByBenchmark[config.key]??[]);
             const hiddenAttr = config.key === metricSelect.value ? "" : " hidden";
-            return `<div data-metric="${escapeHtml(config.key)}" data-compare-href="${escapeHtml(compareHref)}" class="overflow-hidden border border-highlight-low/60"${hiddenAttr}>${list.length?`<ul class="divide-y divide-highlight-low/40">${rows}</ul>`:`<p class="leaderboard-empty">No measured models match these filters.</p>`}</div>`;
+            return `<div data-metric="${escapeHtml(config.key)}" data-compare-href="${escapeHtml(compareHref)}" class="overflow-hidden border border-highlight-low/60"${hiddenAttr}>${list.length?`<ul class="divide-y divide-highlight-low/40">${rows}</ul>${leaderboardFooter(config.key,list.length,allList.length)}`:`<p class="leaderboard-empty">No measured models match these filters.</p>`}</div>`;
           }
           if (!list.length) return "";
 
@@ -3032,7 +3074,8 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
             "lbbx",
           ];
 
-          const rows = list
+          const visibleList = visibleLeaderboardRows(allList, leaderboardVisibleCounts.get(config.key) ?? 5);
+          const rows = visibleList
             .map((model, index) => {
               const score = getScore(model);
               const barWidth = leaderboardBarWidth(score,list.map(getScore),model.higher_is_better!==false);
@@ -3056,7 +3099,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
               return `
                 <li class="lbi">
                   <button type="button" class="lr" data-lr ${rowAction}>
-                    <div class="lbb ${rankColors[index]}" style="--w:${barWidth}%;--row-index:${index}"></div>
+                    <div class="lbb ${rankColors[index] ?? "lbbx"}" style="--w:${barWidth}%;--row-index:${index}"></div>
                     <div class="lbr">
                       <div class="lrw">${rankBadge}</div>
                       <div class="lbm">
@@ -3074,11 +3117,11 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
             .join("");
 
           const hiddenAttr = config.key === metricSelect.value ? "" : " hidden";
-          const epochCatalog=list.map(model=>({id:'epoch:'+model.model_version,source:'epoch',sourceModelId:model.model_version}));
-          const compareHref=leaderboardComparisonHref(list.map(model=>benchmarkRecordHref(model,model.metric_key??config.key)),epochCatalog);
+          const epochCatalog=visibleList.map(model=>({id:'epoch:'+model.model_version,source:'epoch',sourceModelId:model.model_version}));
+          const compareHref=leaderboardComparisonHref(visibleList.slice(0,100).map(model=>benchmarkRecordHref(model,model.metric_key??config.key)),epochCatalog);
           return `
             <div data-metric="${escapeHtml(config.key)}" data-compare-href="${escapeHtml(compareHref)}" class="overflow-hidden border border-highlight-low/60"${hiddenAttr}>
-              <ul class="divide-y divide-highlight-low/40">${rows}</ul>
+              <ul class="divide-y divide-highlight-low/40">${rows}</ul>${leaderboardFooter(config.key,visibleList.length,allList.length)}
             </div>
           `;
         })
@@ -3309,6 +3352,7 @@ ${allBenchmarks.length ? `
 
     const openModelDrawerFromElement = async (element) => {
       const model = await resolveDrawerModel(element);
+      if (!isCurrentDashboard()) return;
       if (model) {
         window.dispatchEvent(new CustomEvent("open-model-drawer", { detail: model }));
         return;
@@ -3335,7 +3379,7 @@ ${allBenchmarks.length ? `
       if (!element) return;
       void openModelDrawerFromElement(element);
     };
-    window.addEventListener("retry-model-drawer", handleDrawerRetry);
+    window.addEventListener("retry-model-drawer", handleDrawerRetry, lifecycle);
 
     let lastDrawerTrigger = null;
 
@@ -3508,17 +3552,21 @@ ${allBenchmarks.length ? `
     const FAILSAFE_VIEW_SWAP_MS = 260;
     const onceAfterFade = (el, timeoutMs, cb) => {
       let done = false;
+      let timer;
       const finish = () => {
         if (done) return;
         done = true;
+        window.clearTimeout(timer);
         el.removeEventListener("transitionend", onEnd);
-        cb();
+        lifecycle.signal.removeEventListener("abort", finish);
+        if (isCurrentDashboard()) cb();
       };
       const onEnd = (event) => {
         if (event.propertyName === "opacity") finish();
       };
       el.addEventListener("transitionend", onEnd);
-      window.setTimeout(finish, timeoutMs);
+      timer = window.setTimeout(finish, timeoutMs);
+      lifecycle.signal.addEventListener("abort", finish, { once: true });
     };
 
     // Crossfade between two view containers. updateVisibility/setView still own
@@ -3622,9 +3670,19 @@ ${allBenchmarks.length ? `
     familySearchInput?.addEventListener("input", () => renderAaLeaderboardPanels(latestLeaderboardModels));
     familyModeSelect?.addEventListener("change", () => renderAaLeaderboardPanels(latestLeaderboardModels));
     reasoningFilters.forEach((input) => input.addEventListener("change", () => renderAaLeaderboardPanels(latestLeaderboardModels)));
+    leaderboardPanels?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-leaderboard-more],[data-leaderboard-less]");
+      if (!button) return;
+      const key = button.dataset.leaderboardMore ?? button.dataset.leaderboardLess;
+      if (!key) return;
+      if (button.hasAttribute("data-leaderboard-less")) leaderboardVisibleCounts.delete(key);
+      else leaderboardVisibleCounts.set(key, nextLeaderboardLimit(leaderboardVisibleCounts.get(key) ?? 5));
+      if (key.startsWith("aa_")) renderAaLeaderboardPanels(latestLeaderboardModels);
+      else renderLeaderboard(latestLeaderboardModels, latestEpochBenchmarks, latestEpochRuns);
+    }, lifecycle);
 
     openRouterRankSelect?.addEventListener("change", () => {
-      void loadPublicCatalogData().then(() => renderOpenRouterProviderLeaderboard());
+      void loadPublicCatalogData().then(() => { if (isCurrentDashboard()) renderOpenRouterProviderLeaderboard(); });
     });
 
     loadMoreBtn?.addEventListener("click", () => {
@@ -3663,7 +3721,7 @@ ${allBenchmarks.length ? `
         Math.min(visibleCards.length - 1, focusedCardIndex + delta),
       );
       visibleCards[focusedCardIndex]?.focus();
-    });
+    }, lifecycle);
 
     // Deferred to first scroll-in so bars don't animate during hydration; idempotent via dataset flag.
     const setupLeaderboardReveal = () => {
@@ -3689,6 +3747,7 @@ ${allBenchmarks.length ? `
         },
         { threshold: 0.15 },
       );
+      observers.add(observer);
       observer.observe(leaderboardSection);
     };
 
@@ -3710,6 +3769,7 @@ ${allBenchmarks.length ? `
         },
         { threshold: [1] },
       );
+      observers.add(observer);
       observer.observe(toolbarSentinel);
     };
 
@@ -3720,7 +3780,7 @@ ${allBenchmarks.length ? `
       catalogSection.dataset.catalogHydrationBound = "true";
 
       const hydrate = () =>
-        loadPublicCatalogData().then(() => renderOpenRouterProviderLeaderboard());
+        loadPublicCatalogData().then(() => { if (isCurrentDashboard()) renderOpenRouterProviderLeaderboard(); });
 
       if (!("IntersectionObserver" in window)) {
         void hydrate();
@@ -3735,14 +3795,9 @@ ${allBenchmarks.length ? `
         },
         { rootMargin: "400px 0px" },
       );
+      observers.add(catalogObserver);
       catalogObserver.observe(catalogSection);
     };
-
-    document.addEventListener("astro:page-load", () => {
-      setupLeaderboardReveal();
-      setupStickyToolbar();
-      setupPublicCatalogHydration();
-    });
 
     bindCardFocus();
     bindTableRows();
@@ -3758,11 +3813,19 @@ ${allBenchmarks.length ? `
       const snapshot = event.detail;
       if (!snapshot) return;
       await loadPublicCatalogData();
+      if (!isCurrentDashboard()) return;
 
       const liveModels = getValidModels(snapshot.aaModels ?? []);
       latestLeaderboardModels = (snapshot.aaModels ?? []).filter((model) => model.current_source_member !== false);
       const epochBenchmarks = snapshot.epochBenchmarks ?? [];
       const epochRuns = snapshot.epochRuns ?? [];
+      latestEpochModelNames = {
+        ...latestEpochModelNames,
+        ...Object.fromEntries((snapshot.epochModels ?? []).flatMap(model => {
+          const name = model.display_name?.trim() || model.model_name?.trim();
+          return name ? [[model.model_version, name]] : [];
+        })),
+      };
 
       updateModelCounts(liveModels);
       updateDataFreshness(liveModels);
@@ -3776,8 +3839,9 @@ ${allBenchmarks.length ? `
       renderOpenRouterProviderLeaderboard();
       renderLeaderboard((snapshot.aaModels??[]).filter(model=>model.current_source_member!==false), epochBenchmarks, epochRuns);
       renderModels(liveModels);
-    });
-  }
+    }, lifecycle);
+  };
+  bindDashboardLifecycle(document, "#leaderboard-panels", initializeDashboard);
 </script>
 
 <script>

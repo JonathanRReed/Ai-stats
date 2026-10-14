@@ -12,7 +12,8 @@ test('mobile explorer uses a native modal filter drawer and returns focus',()=>{
   expect(component).toContain('onClose={()=>{setFiltersOpen(false);filterButton.current?.focus();}}');
   const selector=readFileSync('src/components/compare/ModelSelector.tsx','utf8');
   expect(selector).toContain('role="checkbox"');
-  expect(selector).toContain('Search families');
+  expect(selector).toContain('Search models');
+  expect(selector).toContain('family-pagination');
   expect(selector).toContain('Reasoning levels');
   expect(component).toContain('className="desktop-family-rail"');
   expect(component).toContain('aria-labelledby="model-picker-title"');
@@ -21,6 +22,9 @@ test('mobile explorer uses a native modal filter drawer and returns focus',()=>{
   expect(css).toContain('.add-models-button');
   expect(css).toContain('height:calc(100dvh - 16px)');
   expect(css).toContain('270px');
+  expect(css).toContain('@media (max-width: 900px) and (max-height: 480px)');
+  expect(css).toContain('overflow-y:auto;overscroll-behavior:contain');
+  expect(css).toContain('.model-filter-dialog>.model-selector{height:auto;min-height:0;overflow:visible}');
 });
 test('chart tabs and tables stay scrollable while reduced motion is respected',()=>{
   expect(css).toContain('overflow-x: auto');

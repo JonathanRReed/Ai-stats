@@ -1,10 +1,11 @@
 import {COMPARE_CHARTS,AA_METRIC_LABELS} from './compare-state';
 import {expandCatalog,measurementBucket,validateMeasurementChunk,type CompareDelivery} from './compare-delivery';
 import type {ExplorerModel} from './compare-series';
-export const RELEASE_SCHEMA='ai-stats-compare-release.v3';
+export const RELEASE_SCHEMA='ai-stats-compare-release.v4';
 export const LEGACY_RELEASE_SCHEMA='ai-stats-compare-release.v1';
-const ACCEPTED_SCHEMAS=[RELEASE_SCHEMA,'ai-stats-compare-release.v2',LEGACY_RELEASE_SCHEMA] as const;
+const ACCEPTED_SCHEMAS=[RELEASE_SCHEMA,'ai-stats-compare-release.v3','ai-stats-compare-release.v2',LEGACY_RELEASE_SCHEMA] as const;
 const REQUIRED_SUGGESTION_CHARTS=['task-cost','cost-intelligence','speed-intelligence','price','total-cost'] as const;
+const FRONTIER_CHARTS=['task-cost','cost-intelligence','speed-intelligence','total-cost'] as const;
 export type ReleaseSource={sourceKey:string;fetchedAt:string|null;publishedAt:string|null;observedAt:string|null;contentHash:string|null;snapshotId:string|null;status:string;available:boolean};
 export type CompareReleaseManifest={schemaVersion:typeof ACCEPTED_SCHEMAS[number];generatedAt:string;datasetRevision:string;models:ExplorerModel[];defaultModelIds:string[];benchmarks:Array<{slug:string;name:string}>;sources:ReleaseSource[];delivery:CompareDelivery};
 const object=(value:unknown):value is Record<string,unknown>=>Boolean(value)&&typeof value==='object'&&!Array.isArray(value);
@@ -26,8 +27,9 @@ export function readCompareRelease(value:unknown):CompareReleaseManifest{
  ![row[5],row[6],row[7],row[8]].every(nullableText)||!Number.isInteger(row[9])||row[9]<0||row[9]>3)throw new Error('Invalid compact model identity');
  ids.add(row[0]);
  }
- if(!Array.isArray(value.models)||value.models.length>100||!Array.isArray(value.defaultModelIds)||
- value.defaultModelIds.length!==value.models.length||new Set(value.defaultModelIds).size!==value.defaultModelIds.length||
+ const minSeedSize=value.schemaVersion===RELEASE_SCHEMA?1:2;
+ if(!Array.isArray(value.models)||value.models.length<minSeedSize||value.models.length>100||!Array.isArray(value.defaultModelIds)||
+ value.defaultModelIds.length<minSeedSize||value.defaultModelIds.length!==value.models.length||new Set(value.defaultModelIds).size!==value.defaultModelIds.length||
  !value.defaultModelIds.every(id=>text(id)&&ids.has(id))||!value.models.every(row=>object(row)&&text(row.id)&&(value.defaultModelIds as unknown[]).includes(row.id))||
  new Set(value.models.map(row=>row.id)).size!==value.models.length)throw new Error('Invalid release seed');
  if(delivery.aaBenchmarkSelections!==undefined){
@@ -42,14 +44,23 @@ export function readCompareRelease(value:unknown):CompareReleaseManifest{
   if(!object(delivery.suggestedModelIds))throw new Error('Invalid suggested model selections');
   const compactRows=catalog.rows as unknown[][];
   for(const [chart,list] of Object.entries(delivery.suggestedModelIds)){
-   if(!COMPARE_CHARTS.includes(chart as typeof COMPARE_CHARTS[number])||!Array.isArray(list)||list.length>8||new Set(list).size!==list.length||!list.every(id=>typeof id==='string'&&compactRows.some(row=>row[0]===id&&row[4]===true&&(chart==='price'?Boolean(Number(row[9])&1):row[3]===0&&Boolean(Number(row[9])&2)))))throw new Error('Invalid suggested model selection');
+   if(!COMPARE_CHARTS.includes(chart as typeof COMPARE_CHARTS[number])||!Array.isArray(list)||list.length>(value.schemaVersion===RELEASE_SCHEMA?100:8)||new Set(list).size!==list.length||!list.every(id=>typeof id==='string'&&compactRows.some(row=>row[0]===id&&row[4]===true&&(chart==='price'?Boolean(Number(row[9])&1):row[3]===0&&Boolean(Number(row[9])&2)))))throw new Error('Invalid suggested model selection');
   }
  }
  if(value.schemaVersion===RELEASE_SCHEMA){
+  if(delivery.frontierPolicy!=='compatible-cohort-frontier.v1')throw new Error('Current releases require a compatible frontier policy');
   const suggestions=delivery.suggestedModelIds;
   if(!object(suggestions)||!REQUIRED_SUGGESTION_CHARTS.every(chart=>Array.isArray(suggestions[chart])))throw new Error('Current releases require complete chart suggestion metadata');
+  const coverage=delivery.suggestionFrontierCounts;
+  if(!object(coverage)||!FRONTIER_CHARTS.every(chart=>object(coverage[chart])))throw new Error('Current releases require complete frontier coverage metadata');
+  for(const chart of FRONTIER_CHARTS){const entry=coverage[chart] as Record<string,unknown>;const total=entry.total;const truncated=entry.truncated;const ids=suggestions[chart];
+   if(!Array.isArray(ids)||!Number.isInteger(total)||Number(total)<0||typeof truncated!=='boolean'||truncated!==(Number(total)>100)||ids.length!==Math.min(Number(total),100))throw new Error('Invalid frontier coverage metadata');}
   const seedIds=new Set(value.models.map(model=>model.id));
   if(seedIds.size!==value.defaultModelIds.length||value.defaultModelIds.some(id=>!seedIds.has(id)))throw new Error('Current release seed must match default model identities');
+  if(delivery.suggestionFrontierCounts!==undefined){
+   if(!object(delivery.suggestionFrontierCounts))throw new Error('Invalid frontier coverage metadata');
+   for(const [chart,coverage] of Object.entries(delivery.suggestionFrontierCounts))if(!REQUIRED_SUGGESTION_CHARTS.includes(chart as typeof REQUIRED_SUGGESTION_CHARTS[number])||!object(coverage)||!Number.isInteger(coverage.total)||Number(coverage.total)<0||typeof coverage.truncated!=='boolean'||coverage.truncated!==(Number(coverage.total)>100))throw new Error('Invalid frontier coverage metadata');
+  }
  }
  const typed=value as unknown as CompareReleaseManifest,expanded=expandCatalog(typed.delivery.catalog);
  for(const bucket of new Set(typed.models.map(model=>measurementBucket(model.id)))){
