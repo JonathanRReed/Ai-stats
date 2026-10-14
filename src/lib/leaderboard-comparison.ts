@@ -1,7 +1,13 @@
-type CatalogRecord = {id:string;source:string;sourceModelId:string};
+export type LeaderboardCatalogRecord = {id:string;source:string;sourceModelId:string};
+
+/** Convert a leaderboard run row into the Compare catalog identity used by initial and rebuilt links. */
+export function leaderboardRunCatalogRecord(model:{source_key?:string|null;model_version:string}):LeaderboardCatalogRecord{
+ const source=model.source_key?'publisher':'epoch';
+ return {id:`${source}:${model.model_version}`,source,sourceModelId:model.model_version};
+}
 
 /** Keep the displayed score cohort when opening its ranked records in Compare. */
-export function leaderboardComparisonHref(links:string[],catalog:CatalogRecord[]):string{
+export function leaderboardComparisonHref(links:string[],catalog:LeaderboardCatalogRecord[]):string{
  const parsed=links.filter(link=>link.startsWith('/compare?')).map(link=>new URLSearchParams(link.slice('/compare?'.length)));
  const first=parsed[0];
  if(!first)return '/compare';
