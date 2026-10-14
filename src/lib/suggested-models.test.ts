@@ -21,12 +21,12 @@ function point(
 }
 
 describe('suggestedModels', () => {
-  it('selects stable frontier endpoints and tradeoffs', () => {
+  it('returns the complete frontier without padding or sampling', () => {
     const rows = Array.from({ length: 20 }, (_, index) =>
       point(`m${index}`, index, index));
     const ids = suggestedModels(rows);
 
-    expect(ids).toHaveLength(8);
+    expect(ids).toHaveLength(20);
     expect(ids).toContain('m0');
     expect(ids).toContain('m19');
     expect(suggestedModels([...rows].reverse())).toEqual(ids);
@@ -64,19 +64,28 @@ describe('suggestedModels', () => {
     expect(new Set(suggestedModels(rows))).toEqual(new Set(rows.map(row => row.modelId)));
   });
 
-  it('fills with measured comparisons and handles higher-is-better X', () => {
+  it('does not pad with dominated comparisons and handles higher-is-better X', () => {
     const rows = [
       point('winner', 1, 100),
       ...Array.from({ length: 10 }, (_, index) =>
         point(`other${index}`, index + 2, 90 - index)),
     ];
 
-    expect(suggestedModels(rows)).toHaveLength(8);
+    expect(suggestedModels(rows)).toEqual(['winner']);
     expect(new Set(suggestedModels([
       point('fast', 100, 40),
       point('smart', 10, 100),
       point('slow', 1, 1),
     ], 'max', 2))).toEqual(new Set(['fast', 'smart']));
+  });
+
+  it('caps only beyond the explicit 100-record selection limit and reports truncation', async () => {
+    const { suggestedModelFrontier } = await import('./suggested-models');
+    const rows = Array.from({ length: 115 }, (_, index) => point(`p${index}`, index, index));
+    const full = suggestedModelFrontier(rows);
+    expect(full).toEqual({ modelIds: expect.any(Array), totalFrontierModels: 115, truncated: true });
+    expect(full.modelIds).toHaveLength(100);
+    expect(suggestedModelFrontier(rows, 'min', 1000).modelIds).toHaveLength(100);
   });
 
   it('keeps zero, excludes invalid points, deduplicates identities, and never pads', () => {

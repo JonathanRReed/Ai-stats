@@ -42,7 +42,7 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
   const visibleSeries = useMemo(() => ({...series,points:visiblePoints}), [series,visiblePoints]);
   const visibleFamilies = useMemo(() => [...new Set(visiblePoints.map(point=>point.family))].sort((a,b)=>a.localeCompare(b)), [visiblePoints]);
   const active = series.points.find(point => point.id === (pinned ?? activeId)) ?? null;
-  const costAvailable = cohorts.some(version => version !== UNKNOWN_VERSION && buildOverviewSeries(models,'task-cost',version).points.length>0);
+  const costAvailable = cohort !== UNKNOWN_VERSION && buildOverviewSeries(models,'task-cost',cohort).points.length>0;
   const comparisonUrl = (id:string) => `/compare?${new URLSearchParams({chart:metric,m:id,metric:'aa_intelligence_index',scale:series.scale}).toString()}`;
 
   return <section className="overview-explorer compare-explorer" aria-label="AA Intelligence Index cost comparison">
@@ -87,7 +87,7 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
     {series.scaleNotice?<p className="explorer-warning" role="status">{series.scaleNotice}</p>:null}
     <div className="overview-chart-layout">
       <div className="overview-chart-wrap">
-        <ComparisonChart series={visibleSeries} labels={true} activeId={active?.id??null} onPreview={setActiveId}
+        <ComparisonChart series={visibleSeries} labels={true} endpointLane activeId={active?.id??null} onPreview={setActiveId}
           onPin={id=>setPinned(pinned===id?null:id)} svgRef={svg}/>
         <p className="overview-inspect-hint">Frontier and selected endpoint names appear when labels fit; focus or select any point for its full details. Use arrow keys to inspect nearby records.</p>
         <ObservationDetails series={series} point={active} pinned={Boolean(pinned)} onPin={()=>setPinned(pinned?null:active?.id??null)} onClose={()=>{setPinned(null);setActiveId(null);}}/>

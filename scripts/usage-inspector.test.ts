@@ -23,3 +23,13 @@ test('selected-day inspector ranks measured model traffic and separates aggregat
  expect(html).not.toContain('class="usage-legend"');
  expect(html).toContain('class="usage-visualization"');
 });
+test('selected-day model colors and names stay visible on a missing-data day',()=>{
+ const missingSnapshot={...snapshot,endDate:'2026-10-15'};
+ const html=renderToStaticMarkup(createElement(OpenRouterUsage,{snapshot:missingSnapshot}));
+ const inspector=html.slice(html.indexOf('<aside'),html.indexOf('</aside>'));
+ expect(inspector).toContain('No data for this UTC day');
+ expect(inspector).toContain('title="lab/a"');
+ expect(inspector).toContain('title="lab/b"');
+ expect(inspector).toContain('style="background:');
+ expect(inspector).toContain('No data');
+});

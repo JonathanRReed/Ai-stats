@@ -65,9 +65,7 @@ test("large public catalogs and drawer details load only when the user reaches t
   expect(dashboardSource).toContain('rootMargin: "400px 0px"');
   expect(dashboardSource).toContain("catalogObserver.observe");
   expect(dashboardSource).toContain('fetch(`/api/models/${encodeURIComponent(id)}.json`');
-  expect(dashboardSource).not.toContain(
-    'fetch(`/api/models/${encodeURIComponent(id)}.json`, {',
-  );
+  expect(dashboardSource).toContain('fetch(`/api/models/${encodeURIComponent(id)}.json`, { signal: lifecycle.signal }');
   expect(dashboardSource).toContain("registerDrawerModels(model ? [model] : [])");
   expect(dashboardSource).not.toContain('fetch("/api/models.json", { cache: "force-cache" })');
 });
@@ -189,8 +187,12 @@ test("compact model styles do not leave a media block open",()=>{
 });
 
 test("benchmark eligibility is independent of pricing and includes the available Agentic Index",()=>{
- expect(dashboardSource).toContain('rankModelFamilies(currentMeasuredModels, key, {limit:5})');
+ expect(dashboardSource).toContain('rankModelFamilies(currentMeasuredModels, key)');
  expect(dashboardSource).toContain('key: "aa_agentic_index"');
+});
+
+test("homepage variant values use each metric's native formatting",()=>{
+ expect(dashboardSource).toContain("key.endsWith('_index')?formatIndex(variant[key]):formatScore(variant[key])");
 });
 
 test("homepage benchmark families filter measured reasoning variants before top-five and refresh identically",()=>{
@@ -198,9 +200,11 @@ test("homepage benchmark families filter measured reasoning variants before top-
  expect(dashboardSource).toContain('id="leaderboard-family-mode"');
  expect(dashboardSource).toContain('data-leaderboard-reasoning');
  expect(dashboardSource).toContain('window.__leaderboardInitialModels = initialLeaderboardModels');
- expect(dashboardSource).toContain('rankModelFamilies(models, config.key, {limit:5,...getLeaderboardFilters()})');
+ expect(dashboardSource).toContain('rankModelFamilies(models, config.key, {...getLeaderboardFilters()})');
  expect(dashboardSource).toContain('renderLeaderboard((snapshot.aaModels??[]).filter(model=>model.current_source_member!==false)');
  expect(dashboardSource).not.toContain('FAILSAFE_METRIC_SWAP_MS');
+ expect(dashboardSource).toContain('bindDashboardLifecycle(document, "#leaderboard-panels", initializeDashboard)');
+ expect(dashboardSource).toContain('window.addEventListener("aistats:live-snapshot", async (event) =>');
 });
 
 test("empty filtered leaderboards disable Open compare and Epoch mode disables AA family controls on initial render and refresh",()=>{
@@ -209,6 +213,6 @@ test("empty filtered leaderboards disable Open compare and Epoch mode disables A
  expect(dashboardSource).toContain('disabled={defaultBenchmarkKey.startsWith(\'epoch_\')}');
  expect(dashboardSource).toContain('setLeaderboardFamilyControlsDisabled(document.getElementById("leaderboard-family-controls"),metricSelect.value.startsWith("epoch_"))');
  expect(dashboardSource).toContain('setLeaderboardFamilyControlsDisabled(document.getElementById("leaderboard-family-controls"),metric.startsWith("epoch_"))');
- expect(dashboardSource).toContain("const epochCatalog=list.map(model=>({id:'epoch:'+model.model_version,source:'epoch',sourceModelId:model.model_version}))");
+ expect(dashboardSource).toContain("const epochCatalog=visibleList.map(model=>({id:'epoch:'+model.model_version,source:'epoch',sourceModelId:model.model_version}))");
  expect(dashboardSource).toContain('data-compare-href="${escapeHtml(compareHref)}"');
 });

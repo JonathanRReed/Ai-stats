@@ -10,8 +10,8 @@ export function compareCatalogScope(models:ExplorerModel[],chart:string,metricId
  if(allCatalog)return models;
  const selected=new Set(selectedIds);
  const matches=(model:ExplorerModel)=>{
-  if(chart==='benchmark')return metricId.startsWith('epoch_')?model.source==='epoch':model.source==='aa';
-  if(chart==='price')return ['aa','openrouter','litellm'].includes(model.source)&&[model.priceInput,model.priceOutput].some(value=>typeof value==='number'&&Number.isFinite(value)&&value>=0);
+  if(chart==='benchmark')return metricId.startsWith('epoch_')?['epoch','publisher'].includes(model.source):model.source==='aa';
+  if(chart==='price')return ['aa','openrouter','litellm'].includes(model.source)&&Boolean(model.hasTokenPrices||[model.priceInput,model.priceOutput].some(value=>typeof value==='number'&&Number.isFinite(value)&&value>=0));
   if(['cost-intelligence','speed-intelligence','task-cost','total-cost'].includes(chart))return model.source==='aa';
   return true;
  };

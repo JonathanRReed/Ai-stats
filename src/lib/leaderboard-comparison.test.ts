@@ -38,3 +38,12 @@ test('unresolved native records retain a useful source link as fallback',()=>{
  expect(params.get('record')).toBe('missing');
  expect(params.get('metric')).toBe('epoch_metr');
 });
+
+test('large expanded leaderboards open only the first hundred displayed records',()=>{
+ const many=Array.from({length:120},(_,index)=>`/compare?${new URLSearchParams({chart:'benchmark',metric:'aa_coding_index',m:`aa:${index}`})}`);
+ const expandedCatalog=Array.from({length:120},(_,index)=>({id:`aa:${index}`,source:'aa',sourceModelId:`aa:${index}`}));
+ const params=new URLSearchParams(leaderboardComparisonHref(many,expandedCatalog).split('?')[1]);
+ expect(params.getAll('m')).toHaveLength(100);
+ expect(params.getAll('m')[0]).toBe('aa:0');
+ expect(params.getAll('m').at(-1)).toBe('aa:99');
+});

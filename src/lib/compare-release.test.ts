@@ -14,14 +14,22 @@ test('malformed compact metadata and absent default identities are rejected',()=
  expect(()=>readCompareRelease({...value,models:[{...value.models[0],observedAt:42},value.models[1]]})).toThrow();
  expect(()=>readCompareRelease({...value,benchmarks:[{slug:'../secret',name:'Invalid'}]})).toThrow();
 });
-test('older releases remain readable without suggestions while v3 requires a complete selection map',()=>{
+test('older releases remain readable without suggestions while v4 requires a complete frontier policy and map',()=>{
  const value=fixture();expect(readCompareRelease(value).delivery.suggestedModelIds?.['task-cost']).toEqual(['a','b']);
  const older={...value,schemaVersion:'ai-stats-compare-release.v2',delivery:{...value.delivery,suggestedModelIds:undefined}};
  expect(readCompareRelease(older).delivery.suggestedModelIds).toBeUndefined();
+ const oldV3={...value,schemaVersion:'ai-stats-compare-release.v3',delivery:{...value.delivery,frontierPolicy:undefined,suggestionFrontierCounts:undefined}};
+ expect(readCompareRelease(oldV3).schemaVersion).toBe('ai-stats-compare-release.v3');
+ expect(()=>readCompareRelease({...value,delivery:{...value.delivery,frontierPolicy:undefined}})).toThrow(/compatible frontier policy/);
  expect(()=>readCompareRelease({...value,delivery:{...value.delivery,suggestedModelIds:undefined}})).toThrow(/require complete chart suggestion metadata/);
  expect(()=>readCompareRelease({...value,delivery:{...value.delivery,suggestedModelIds:{...value.delivery.suggestedModelIds,'speed-intelligence':undefined}}})).toThrow();
  expect(()=>readCompareRelease({...value,delivery:{...value.delivery,suggestedModelIds:{...value.delivery.suggestedModelIds,'cost-intelligence':['missing']}}})).toThrow();
  expect(()=>readCompareRelease({...value,models:[value.models[0]]})).toThrow(/Invalid release seed/);
+});
+
+test('v4 accepts a truthful single-record frontier seed',()=>{
+ const value=fixture();
+ expect(readCompareRelease({...value,models:[value.models[0]],defaultModelIds:['a']}).models).toHaveLength(1);
 });
 test('generated token-price suggestions round-trip without a retired cheap model',()=>{
  const value=fixture();

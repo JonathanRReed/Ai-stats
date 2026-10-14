@@ -49,18 +49,23 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
       .then(response=>{if(!response.ok)throw new Error('unavailable');return response.json();})
       .then(payload=>{const verified=validateBenchmarkAsset(payload,epochSlug);
         setBenchmarkCache(previous=>({...previous,[epochSlug]:verified}));setLoadState('');
-        if(pendingBenchmarkChoice.current===epochSlug){pendingBenchmarkChoice.current=null;setState(previous=>{if(previous.metricId!=='epoch_'+epochSlug)return previous;const next={...previous,...benchmarkStartingSelection(models,verified),missingModelIds:[]};const url=new URL(window.location.href);url.search=serializeCompareState(next).toString();window.history.replaceState(null,'',url);return next;});}})
+        if(pendingBenchmarkChoice.current===epochSlug){pendingBenchmarkChoice.current=null;customSelection.current=true;setState(previous=>{if(previous.metricId!=='epoch_'+epochSlug)return previous;const next={...previous,...benchmarkStartingSelection(models,verified),missingModelIds:[]};const url=new URL(window.location.href);url.search=serializeCompareState(next).toString();url.searchParams.delete('auto');window.history.replaceState(null,'',url);return next;});}})
       .catch(error=>{if(error.name!=='AbortError'){setLoadFailed(true);setLoadState('Benchmark data could not load. The other views still work.');}});
     return()=>controller.abort();
   },[epochSlug,benchmarkCache,benchmarks,retryAttempt,delivery?.benchmarkBase]);
   useEffect(()=>{if(filtersOpen&&!dialog.current?.open)dialog.current?.showModal();
     if(filtersOpen)dialog.current?.querySelector<HTMLInputElement>('input[type="search"]')?.focus();
     if(!filtersOpen&&dialog.current?.open){dialog.current.close();filterButton.current?.focus();}},[filtersOpen]);
+  const scatterView=['task-cost','cost-intelligence','speed-intelligence','total-cost'].includes(state.chart);
+  const frontierReferenceIds=customSelection.current&&scatterView?delivery?.suggestedModelIds?.[state.chart]??EMPTY_SUGGESTED_IDS:EMPTY_SUGGESTED_IDS;
+  const frontierCoverage=delivery?.suggestionFrontierCounts?.[state.chart];
   const unresolvedIds=state.modelIds.filter(id=>!loaded.has(id)&&models.find(model=>model.id===id)?.detailAvailable);
-  const pendingIds=unresolvedIds.filter(id=>!failedMeasurementIds.includes(id));
+  const frontierUnresolvedIds=frontierReferenceIds.filter(id=>!state.modelIds.includes(id)&&!loaded.has(id)&&models.find(model=>model.id===id)?.detailAvailable);
+  const pendingIds=[...new Set([...unresolvedIds,...frontierUnresolvedIds])].filter(id=>!failedMeasurementIds.includes(id));
   const failedSelectedIds=unresolvedIds.filter(id=>failedMeasurementIds.includes(id));
   const pendingKey=pendingIds.slice().sort().join('\n');
-  const measurementStatus=pendingIds.length?'Loading selected measurements…':failedSelectedIds.length?'Some measurements could not load. Retry, or reload for the latest data.':'';
+  const failedReferenceIds=frontierUnresolvedIds.filter(id=>failedMeasurementIds.includes(id));
+  const measurementStatus=pendingIds.length?'Loading comparison measurements…':failedSelectedIds.length?'Some selected measurements could not load. Retry, or reload for the latest data.':failedReferenceIds.length?'The current frontier reference could not be fully loaded.':'';
   useEffect(()=>{
     if(!loader||!pendingKey)return;
     let cancelled=false;const ids=pendingKey.split('\n');
@@ -73,6 +78,8 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   },[loader,pendingKey]);
   const measuredModels=useMemo(()=>models.filter(model=>!delivery||!model.detailAvailable||loaded.has(model.id)).map(model=>loaded.get(model.id)??model),[models,loaded,delivery]);
   const series=useMemo(()=>buildCompareSeries({models:measuredModels,observations},state),[measuredModels,observations,state]);
+  const referenceFrontier=useMemo(()=>frontierReferenceIds.length?buildCompareSeries({models:measuredModels,observations},{...state,modelIds:frontierReferenceIds,reasoningEfforts:[],frontier:true}):null,[measuredModels,observations,state,frontierReferenceIds]);
+  const displayedScale=referenceFrontier?.scaleNotice?'linear':series.scale;
   const active=series.points.find(point=>point.id===(pinned??hovered))??null;
   const visibleModels=models;
   const conditions=useMemo(()=>[...new Set(observations.map(row=>epochConditionKey(row.conditions)))].sort(),[observations]);
@@ -108,15 +115,15 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
     {!charts.some(chart=>chart.id===state.chart)?<p className="explorer-warning">This saved view has no recorded data. Choose another chart.</p>:null}
     <div className="explorer-workspace"><div className="chart-panel">
       <div className="chart-toolbar">
-        {state.chart==='benchmark'?<label>Benchmark<select value={epochSlug||aaMetrics.some(([key])=>key===state.metricId)?state.metricId:''} onChange={event=>chooseBenchmark(event.target.value)}>
+        {state.chart==='benchmark'?<label htmlFor="benchmark-selector">Benchmark<select id="benchmark-selector" value={epochSlug||aaMetrics.some(([key])=>key===state.metricId)?state.metricId:''} onChange={event=>chooseBenchmark(event.target.value)}>
           {!epochSlug&&!aaMetrics.some(([key])=>key===state.metricId)?<option value="">Choose a benchmark</option>:null}<optgroup label="Artificial Analysis">{aaMetrics.map(([key,label])=><option key={key} value={key}>{label}</option>)}</optgroup>
           <optgroup label="Benchmark publishers">{benchmarks.map(benchmark=><option key={benchmark.slug} value={'epoch_'+benchmark.slug}>{benchmark.name}</option>)}</optgroup></select></label>:null}
-        {epochSlug&&scoreOptions.visible?<label>Score metric<select value={state.scoreMetricKey??''} onChange={event=>update(event.target.value?{...changeScoreMetric(event.target.value),...benchmarkStartingSelection(models,observations,event.target.value)}:changeScoreMetric(''))}>
+        {epochSlug&&scoreOptions.visible?<label htmlFor="score-metric-selector">Score metric<select id="score-metric-selector" value={state.scoreMetricKey??''} onChange={event=>update(event.target.value?{...changeScoreMetric(event.target.value),...benchmarkStartingSelection(models,observations,event.target.value)}:changeScoreMetric(''))}>
           <option value="">Choose a score metric</option>{scoreOptions.missing?<option value={state.scoreMetricKey!}>Unavailable saved metric</option>:null}{scoreMetrics.map(key=><option key={key} value={key}>{JSON.parse(key).join(' · ')}</option>)}</select></label>:null}
-        {epochSlug&&conditions.length?<label>Conditions<select value={state.conditionKey??''} onChange={event=>update({conditionKey:event.target.value||null})}>
+        {epochSlug&&conditions.length?<label htmlFor="condition-selector">Conditions<select id="condition-selector" value={state.conditionKey??''} onChange={event=>update({conditionKey:event.target.value||null})}>
           <option value="">All recorded runs</option>{conditions.map(key=><option value={key} key={key}>{key==='unknown'?'Not recorded':JSON.parse(key).map(([name,value]:[string,unknown])=>name+': '+value).join(' · ')}</option>)}</select></label>:null}
-        {series.kind==='scatter'?<div className="scale-buttons" role="group" aria-label="Horizontal axis scale"><button type="button" aria-pressed={series.scale==='linear'} onClick={()=>update({scale:'linear'})}>Linear</button>
-          <button type="button" aria-pressed={series.scale==='log'} onClick={()=>update({scale:'log'})}>Log</button></div>:null}
+        {series.kind==='scatter'?<div className="scale-buttons" role="group" aria-label="Horizontal axis scale"><button type="button" aria-pressed={displayedScale==='linear'} onClick={()=>update({scale:'linear'})}>Linear</button>
+          <button type="button" aria-pressed={displayedScale==='log'} onClick={()=>update({scale:'log'})}>Log</button></div>:null}
         <details className="chart-options"><summary>Chart options</summary><div className="chart-options-content">
         <label className="toolbar-check"><input type="checkbox" checked={state.labels} onChange={event=>update({labels:event.target.checked})}/>Labels</label>
         {series.kind==='scatter'?<label className="toolbar-check"><input type="checkbox" checked={state.frontier} onChange={event=>update({frontier:event.target.checked})}/>Frontier</label>:null}
@@ -127,15 +134,17 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
       </div>
       {state.missingModelIds.length?<p className="explorer-warning">Unavailable models in this link: {state.missingModelIds.join(', ')}</p>:null}
       {measurementStatus?<p className="explorer-warning" role="status">{measurementStatus}</p>:null}
-      {failedSelectedIds.length?<button type="button" onClick={()=>setFailedMeasurementIds(previous=>previous.filter(id=>!state.modelIds.includes(id)))}>Retry measurements</button>:null}
+      {failedSelectedIds.length||failedReferenceIds.length?<button type="button" onClick={()=>setFailedMeasurementIds(previous=>previous.filter(id=>!state.modelIds.includes(id)&&!frontierReferenceIds.includes(id)))}>Retry measurements</button>:null}
       {loadState?<p className="explorer-warning" role="status">{loadState}</p>:null}
       {epochSlug&&scoreOptions.missing&&observations.length?<p className="explorer-warning">The saved score metric is no longer available. Choose a recorded score metric above.</p>:null}
       {loadFailed?<button type="button" onClick={()=>setRetryAttempt(value=>value+1)}>Retry benchmark</button>:null}
       {unverifiedMembership?<p className="explorer-warning">Current AA membership could not be verified. Records labelled Membership unverified may include retired models.</p>:null}
-      {series.scaleNotice?<p className="explorer-warning">{series.scaleNotice}</p>:null}
+      {series.scaleNotice||referenceFrontier?.scaleNotice?<p className="explorer-warning">{series.scaleNotice??'The current frontier includes zero, so the shared axis uses a linear scale.'}</p>:null}
       {series.mixedConditions?<p className="explorer-warning">These runs used different test settings. Choose conditions for a like-for-like view.</p>:null}
+      {referenceFrontier?.points.length&&!series.points.length?<p className="explorer-warning">No selected records have measurements for this view. The current frontier is shown for reference.</p>:null}
+      {frontierCoverage?.truncated?<p className="explorer-warning">Current frontier reference is limited to {frontierReferenceIds.length} of {frontierCoverage.total} compatible records by the 100-record selection limit.</p>:null}
       {epochSlug&&!series.points.length&&observations.length?<button className="choose-measured" type="button" onClick={chooseMeasured}>Select measured models</button>:null}
-      <ComparisonChart series={series} labels={state.labels} endpointLane activeId={active?.id??null} onPreview={setHovered}
+      <ComparisonChart series={series} referenceFrontier={referenceFrontier??undefined} scale={displayedScale} labels={state.labels} endpointLane activeId={active?.id??null} onPreview={setHovered}
         onPin={id=>setPinned(pinned===id?null:id)} svgRef={svg}/>
       <ObservationDetails series={series} point={active} pinned={Boolean(pinned)} floating onPin={()=>setPinned(pinned?null:active?.id??null)} onClose={()=>{setPinned(null);setHovered(null);}}/>
       <div className="source-strip"><span>{visibleModels.filter(model=>state.modelIds.includes(model.id)).length} selected · {series.points.length} plotted observations</span>

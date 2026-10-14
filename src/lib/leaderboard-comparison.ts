@@ -18,6 +18,6 @@ export function leaderboardComparisonHref(links:string[],catalog:CatalogRecord[]
  const params=new URLSearchParams(first);
  for(const key of ['m','models','model','source','record','inventory','auto'])params.delete(key);
  if(!sameCohort.every(item=>item.get('condition')===first.get('condition')))params.delete('condition');
- for(const id of ids)params.append('m',id);
+ for(const id of [...ids].slice(0,100))params.append('m',id);
  return '/compare?'+params.toString();
 }

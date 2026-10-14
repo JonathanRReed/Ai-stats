@@ -13,6 +13,20 @@ test('scatter inspection and keyboard labels expose both exact cost and intellig
  const chart=renderToStaticMarkup(createElement(ComparisonChart,{series,labels:false,activeId:null,onPreview:()=>{},onPin:()=>{},svgRef:{current:null}}));
  expect(chart).toContain('USD / AA Index task'); expect(chart).toContain('0.25'); expect(chart).toContain('42');
 });
+test('manual selection can render the complete current frontier as a separate chart reference',()=>{
+ const models=[
+  {id:'a',name:'A',family:'A',provider:'Lab',source:'aa' as const,sourceModelId:'a',current:true,intelligence:40,aaTaskCost:1,indexVersion:'4.3',performancePrompt:'long'},
+  {id:'b',name:'B',family:'B',provider:'Lab',source:'aa' as const,sourceModelId:'b',current:true,intelligence:80,aaTaskCost:2,indexVersion:'4.3',performancePrompt:'long'},
+ ];
+ const state={...parseCompareState(new URLSearchParams('chart=task-cost&m=a'),models),frontier:true};
+ const selected=buildCompareSeries({models,observations:[]},state);
+ const reference=buildCompareSeries({models,observations:[]},{...state,modelIds:['a','b'],frontier:true});
+ const html=renderToStaticMarkup(createElement(ComparisonChart,{series:selected,referenceFrontier:reference,labels:false,activeId:null,onPreview:()=>{},onPin:()=>{},svgRef:{current:null}}));
+ expect(selected.points.map(point=>point.modelId)).toEqual(['a']);
+ expect(Object.values(reference.frontierGroups).flat()).toEqual(['a','b']);
+ expect(html).toContain('Current frontier');
+ expect((html.match(/current-frontier-mark/g)??[]).length).toBe(2);
+});
 test('receipts keep source, current values and exact identity immediate while audit fields are disclosed',()=>{
  const models=[{id:'native:exact-id',name:'Opus',family:'Opus',source:'aa' as const,sourceModelId:'native:exact-id',current:true,intelligence:42,aaTaskCost:.25,indexVersion:'4.3',observedAt:'2026-10-01T00:00:00Z',fetchedAt:'2026-10-02T00:00:00Z'}];
  const series=buildCompareSeries({models,observations:[]},parseCompareState(new URLSearchParams('chart=task-cost&m=native%3Aexact-id'),models));
