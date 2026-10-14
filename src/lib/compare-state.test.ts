@@ -12,6 +12,31 @@ test('safe state round-trips selections, controls and missing shared identities'
     metricId:'epoch_gpqa',conditionKey:'[["Shots","0"]]',scale:'log',labels:true,frontier:false,reasoningEfforts:['high']});
   expect(state.parseCompareState?.(state.serializeCompareState?.(parsed),catalog,['b'])).toEqual(parsed);
 });
+test('saved legacy model links stay explicit after a chart change and popstate restores their selection',()=>{
+ const saved=new URLSearchParams('models=a-high%2Cb&chart=cost-intelligence');
+ expect(state.hasExplicitCompareSelection(saved)).toBe(true);
+ expect(state.usesSuggestedCompareSelection(saved)).toBe(false);
+ const selected=state.parseCompareState(saved,catalog,['retired']);
+ const changed={...selected,chart:'speed-intelligence' as const};
+ const changedUrl=state.serializeCompareState(changed);
+ expect(state.parseCompareState(changedUrl,catalog,['retired']).modelIds).toEqual(['a-high','b']);
+ // popstate restores the earlier legacy URL through the same explicit-selection check.
+ expect(state.usesSuggestedCompareSelection(new URLSearchParams(saved))).toBe(false);
+ expect(state.parseCompareState(saved,catalog,['retired']).modelIds).toEqual(['a-high','b']);
+});
+test('all supported selection URL forms stay explicit instead of switching to suggested defaults',()=>{
+ for(const saved of [
+  'm=a-high',
+  'models=a-high%2Cb',
+  'model=Model%20A%20%28High%29',
+  'source=aa&record=aa-high',
+ ]){
+  const params=new URLSearchParams(saved);
+  expect(state.hasExplicitCompareSelection(params)).toBe(true);
+  expect(state.usesSuggestedCompareSelection(params)).toBe(false);
+ }
+ expect(state.hasExplicitCompareSelection(new URLSearchParams('source=aa'))).toBe(false);
+});
 test('invalid URL controls are bounded and default safely',()=>{
   const parsed=state.parseCompareState?.(new URLSearchParams('chart=script&scale=bad&metric=javascript:bad&reason=nope'),catalog,['b']);
   expect(parsed).toMatchObject({chart:'cost-intelligence',scale:'linear',modelIds:['b'],

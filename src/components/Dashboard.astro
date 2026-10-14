@@ -1,5 +1,6 @@
 ---
 import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboardBarWidth} from '../lib/benchmark-leaderboard';
+import {leaderboardComparisonHref} from '../lib/leaderboard-comparison';
 import OpenRouterUsage from './OpenRouterUsage';
 import {getOpenRouterUsageSnapshot} from '../lib/openrouter-usage-server';
 import '../styles/openrouter-usage.css';
@@ -456,6 +457,7 @@ function getScoreClass(score: number | null | undefined): string {
               return (
                 <div
                   data-metric={key}
+                  data-compare-href={leaderboardComparisonHref(list.map(model=>isEpoch?epochRunHref(model,key):'/compare?'+new URLSearchParams({chart:'benchmark',metric:key,m:model.id}).toString()),catalog.records)}
                   class="overflow-hidden border border-highlight-low/60"
                   hidden={key !== defaultBenchmarkKey}
                 >
@@ -2211,7 +2213,9 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
 
     const updateLeaderboardCompareLink = () => {
       if (!leaderboardCompareLink || !metricSelect) return;
-      leaderboardCompareLink.setAttribute("href", "/compare");
+      const panel = Array.from(leaderboardPanels?.querySelectorAll("[data-metric]") || [])
+        .find((candidate) => candidate.dataset.metric === metricSelect.value);
+      leaderboardCompareLink.setAttribute("href", panel?.dataset.compareHref || "/compare");
     };
 
     const escapeHtml = (value) =>

@@ -1,6 +1,6 @@
 import {validateBenchmarkAsset} from '../../lib/compare-benchmark-asset';
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {parseCompareState,serializeCompareState,benchmarkStartingSelection,selectVisibleRecords,selectFamily,readBenchmarkCache,AA_METRIC_LABELS,scoreMetricOptions,changeScoreMetric,type CompareState,type CompareChart} from '../../lib/compare-state';
+import {parseCompareState,serializeCompareState,hasExplicitCompareSelection,usesSuggestedCompareSelection,benchmarkStartingSelection,selectVisibleRecords,selectFamily,readBenchmarkCache,AA_METRIC_LABELS,scoreMetricOptions,changeScoreMetric,type CompareState,type CompareChart} from '../../lib/compare-state';
 import {buildCompareSeries,epochScoreKey,type ExplorerModel} from '../../lib/compare-series';
 import {epochConditionKey,type EpochObservation} from '../../lib/epoch-observations';
 import {formatChartNumber} from '../../lib/compare-geometry';
@@ -24,7 +24,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const defaultChart=charts.some(chart=>chart.id==='task-cost')?'task-cost':'cost-intelligence';
   const defaultIdsFor=(chart:CompareChart,metric:string,history:boolean)=>chart==='benchmark'?delivery?.aaBenchmarkSelections?.[metric]?.[history?'historical':'current']??defaultModelIds:delivery?.suggestedModelIds?.[chart]??defaultModelIds;
   const initialParams=typeof window==='undefined'?new URLSearchParams():new URLSearchParams(window.location.search);
-  const initialAuto=initialParams.get('auto')==='1'||(!initialParams.has('m')&&!initialParams.has('models'));
+  const initialAuto=usesSuggestedCompareSelection(initialParams);
   const initialDefaults=initialAuto?defaultIdsFor((initialParams.get('chart') as CompareChart|null)??defaultChart,initialParams.get('metric')??'aa_intelligence_index',initialParams.get('history')==='1'):defaultModelIds;
   const [state,setState]=useState(()=>parseCompareState(initialParams,models,initialDefaults,defaultChart));
   const pendingBenchmarkChoice=useRef<string|null>(null);
@@ -34,8 +34,8 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const [hovered,setHovered]=useState<string|null>(null);const [pinned,setPinned]=useState<string|null>(null);
   const [filtersOpen,setFiltersOpen]=useState(false);const dialog=useRef<HTMLDialogElement>(null);
   const filterButton=useRef<HTMLButtonElement>(null);const svg=useRef<SVGSVGElement>(null);
-  const customSelection=useRef(typeof window!=='undefined'&&new URLSearchParams(window.location.search).has('m')&&new URLSearchParams(window.location.search).get('auto')!=='1');
-  useEffect(()=>{const read=()=>{pendingBenchmarkChoice.current=null;setPresetDescription('');const params=new URLSearchParams(window.location.search),auto=params.get('auto')==='1'||(!params.has('m')&&!params.has('models'));if(params.get('auto')==='1'){params.delete('m');params.delete('models');}const defaults=auto?defaultIdsFor((params.get('chart') as CompareChart|null)??defaultChart,params.get('metric')??'aa_intelligence_index',params.get('history')==='1'):defaultModelIds;customSelection.current=!auto&&new URLSearchParams(window.location.search).has('m');setState(parseCompareState(params,models,defaults,defaultChart));};
+  const customSelection=useRef(typeof window!=='undefined'&&hasExplicitCompareSelection(new URLSearchParams(window.location.search))&&!usesSuggestedCompareSelection(new URLSearchParams(window.location.search)));
+  useEffect(()=>{const read=()=>{pendingBenchmarkChoice.current=null;setPresetDescription('');const params=new URLSearchParams(window.location.search),auto=usesSuggestedCompareSelection(params);if(params.get('auto')==='1'){params.delete('m');params.delete('models');}const defaults=auto?defaultIdsFor((params.get('chart') as CompareChart|null)??defaultChart,params.get('metric')??'aa_intelligence_index',params.get('history')==='1'):defaultModelIds;customSelection.current=hasExplicitCompareSelection(new URLSearchParams(window.location.search))&&!auto;setState(parseCompareState(params,models,defaults,defaultChart));};
     read();window.addEventListener('popstate',read);return()=>window.removeEventListener('popstate',read);},[models,defaultModelIds,defaultChart]);
   const epochSlug=state.chart==='benchmark'&&state.metricId.startsWith('epoch_')?state.metricId.slice(6):null;
   const observations=epochSlug?readBenchmarkCache(benchmarkCache,epochSlug)??EMPTY_OBSERVATIONS:EMPTY_OBSERVATIONS;

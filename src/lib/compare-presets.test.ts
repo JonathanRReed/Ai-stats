@@ -1,5 +1,5 @@
 import {expect,test} from 'bun:test';
-import {buildComparePresets,buildAaBenchmarkSelections,selectAaBenchmarkModels,availableCompareCharts,availableAaMetrics,nextCatalogSource,defaultCatalogSource,canonicalChartMenu} from './compare-presets';
+import {buildComparePresets,buildAaBenchmarkSelections,selectAaBenchmarkModels,selectTokenPriceModels,availableCompareCharts,availableAaMetrics,nextCatalogSource,defaultCatalogSource,canonicalChartMenu} from './compare-presets';
 import type {ExplorerModel} from './compare-series';
 const aa=(id:string,extra:Partial<ExplorerModel>={}):ExplorerModel=>({id,name:id,family:id,provider:id,source:'aa',sourceModelId:id,current:true,indexVersion:'4.3',intelligence:50,coding:60,priceBlended:0.5,...extra});
 test('presets use current same-version measured rows with explicit criteria',()=>{
@@ -53,6 +53,18 @@ test('switching from a publisher benchmark selects measured current AA records',
  expect(selectAaBenchmarkModels(rows,'aa_intelligence_index')).toEqual(['a']);
  expect(selectAaBenchmarkModels(rows,'aa_coding_index')).toEqual(['a']);
  expect(selectAaBenchmarkModels(rows,'aime')).toEqual([]);
+});
+
+test('AA benchmark defaults rank scores inside the latest largest compatible cohort',()=>{
+ const models=[...Array.from({length:10},(_,i)=>aa('rank-'+i,{provider:i<8?'Provider A':'Provider B',intelligence:100-i,indexVersion:i===9?'4.9':'4.10'})),
+  aa('old-version',{intelligence:1000,indexVersion:'4.9'})];
+ expect(selectAaBenchmarkModels(models,'aa_intelligence_index')).toEqual(Array.from({length:8},(_,i)=>'rank-'+i));
+});
+
+test('token-price selection excludes retired records and sorts only reported input plus output prices',()=>{
+ const models=[aa('cheap-retired',{current:false,priceInput:0,priceOutput:0}),aa('a',{priceInput:1,priceOutput:3}),aa('b',{priceInput:2,priceOutput:1}),
+  aa('missing',{priceInput:0,priceOutput:null})];
+ expect(selectTokenPriceModels(models)).toEqual(['b','a']);
 });
 
 test('measurement indexes cover AA models outside the seed and retain historical-only metrics',()=>{

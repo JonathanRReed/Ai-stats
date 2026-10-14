@@ -1,19 +1,143 @@
-export type SuggestionPoint={id:string;modelId:string;x:number;y:number;provider?:string;family:string;cohortKey:string|null;indexVersion:string|null};
-const versionOrder=(a:string,b:string)=>{const left=a.split('.').map(Number),right=b.split('.').map(Number);for(let i=0;i<Math.max(left.length,right.length);i++){const d=(left[i]??0)-(right[i]??0);if(d)return d;}return a.localeCompare(b);};
-/** Deterministic, measured-only suggestions from one latest compatible cohort. */
-export function suggestedModels(points:SuggestionPoint[],direction:'min'|'max'='min',limit=8):string[]{
- const size=Math.max(0,Math.min(10,Math.floor(limit)));if(!size)return [];
- const valid=points.filter(p=>Number.isFinite(p.x)&&p.x>=0&&Number.isFinite(p.y)&&p.cohortKey&&typeof p.indexVersion==='string'&&/^\d+(?:\.\d+)*$/.test(p.indexVersion));
- const latest=valid.map(p=>p.indexVersion!).sort(versionOrder).at(-1);const groups=new Map<string,SuggestionPoint[]>();
- for(const p of valid.filter(p=>p.indexVersion===latest)){const g=groups.get(p.cohortKey!)??[];g.push(p);groups.set(p.cohortKey!,g);}
- const rows=[...new Map(([...groups].sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0]))[0]?.[1]??[]).sort((a,b)=>a.id.localeCompare(b.id)).map(p=>[p.modelId,p])).values()];
- const quality=(a:SuggestionPoint,b:SuggestionPoint)=>b.y-a.y||(direction==='min'?a.x-b.x:b.x-a.x)||a.modelId.localeCompare(b.modelId);
- const frontier=rows.filter(p=>!rows.some(q=>q.modelId!==p.modelId&&(direction==='min'?q.x<=p.x:q.x>=p.x)&&q.y>=p.y&&(q.x!==p.x||q.y!==p.y))).sort(quality);
- const chosen:SuggestionPoint[]=[];const add=(p:SuggestionPoint|undefined)=>{if(p&&chosen.length<size&&!chosen.some(q=>q.modelId===p.modelId))chosen.push(p);};
- add(frontier[0]);add([...frontier].sort((a,b)=>(direction==='min'?a.x-b.x:b.x-a.x)||quality(a,b))[0]);
- const positive=rows.filter(p=>p.x>0).map(p=>p.x),unit=positive.length?Math.min(...positive):1,tx=(x:number)=>Math.log1p(x/unit),maxX=Math.max(1,...rows.map(p=>tx(p.x))),minY=Math.min(0,...rows.map(p=>p.y)),maxY=Math.max(1,...rows.map(p=>p.y));
- const distance=(p:SuggestionPoint,q:SuggestionPoint)=>(tx(p.x)/maxX-tx(q.x)/maxX)**2+((p.y-q.y)/(maxY-minY))**2;
- while(chosen.length<size){const remaining=frontier.filter(p=>!chosen.some(q=>p.modelId===q.modelId));if(!remaining.length)break;remaining.sort((a,b)=>Math.min(...chosen.map(p=>distance(b,p)))-Math.min(...chosen.map(p=>distance(a,p)))||quality(a,b));add(remaining[0]);}
- while(chosen.length<size){const remaining=rows.filter(p=>!chosen.some(q=>p.modelId===q.modelId));if(!remaining.length)break;const providers=new Set(chosen.map(p=>p.provider??p.family)),families=new Set(chosen.map(p=>p.family));remaining.sort((a,b)=>Number(providers.has(a.provider??a.family))-Number(providers.has(b.provider??b.family))||Number(families.has(a.family))-Number(families.has(b.family))||quality(a,b));add(remaining[0]);}
- return chosen.map(p=>p.modelId);
+export type SuggestionPoint = {
+  id: string;
+  modelId: string;
+  x: number;
+  y: number;
+  provider?: string;
+  family: string;
+  cohortKey: string | null;
+  indexVersion: string | null;
+};
+
+function compareVersions(leftVersion: string, rightVersion: string): number {
+  const left = leftVersion.split('.').map(Number);
+  const right = rightVersion.split('.').map(Number);
+
+  for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+    const difference = (left[index] ?? 0) - (right[index] ?? 0);
+    if (difference !== 0) return difference;
+  }
+
+  return leftVersion.localeCompare(rightVersion);
+}
+
+function qualityOrder(
+  left: SuggestionPoint,
+  right: SuggestionPoint,
+  direction: 'min' | 'max',
+): number {
+  return right.y - left.y
+    || (direction === 'min' ? left.x - right.x : right.x - left.x)
+    || left.modelId.localeCompare(right.modelId);
+}
+
+function isValidPoint(point: SuggestionPoint): boolean {
+  return Number.isFinite(point.x)
+    && point.x >= 0
+    && Number.isFinite(point.y)
+    && Boolean(point.cohortKey)
+    && typeof point.indexVersion === 'string'
+    && /^\d+(?:\.\d+)*$/.test(point.indexVersion);
+}
+
+function distance(
+  left: SuggestionPoint,
+  right: SuggestionPoint,
+  scale: { unit: number; maxX: number; minY: number; maxY: number },
+): number {
+  const transformX = (value: number) => Math.log1p(value / scale.unit);
+  const normalizedXDistance = (transformX(left.x) - transformX(right.x)) / scale.maxX;
+  const normalizedYDistance = (left.y - right.y) / (scale.maxY - scale.minY);
+  return normalizedXDistance ** 2 + normalizedYDistance ** 2;
+}
+
+/** Return deterministic, measured-only suggestions from one latest compatible cohort. */
+export function suggestedModels(
+  points: SuggestionPoint[],
+  direction: 'min' | 'max' = 'min',
+  limit = 8,
+): string[] {
+  const size = Math.max(0, Math.min(10, Math.floor(limit)));
+  if (size === 0) return [];
+
+  const validPoints = points.filter(isValidPoint);
+  const latestVersion = validPoints
+    .map(point => point.indexVersion!)
+    .sort(compareVersions)
+    .at(-1);
+  const latestPoints = validPoints.filter(point => point.indexVersion === latestVersion);
+  const cohorts = new Map<string, SuggestionPoint[]>();
+
+  for (const point of latestPoints) {
+    const cohort = cohorts.get(point.cohortKey!) ?? [];
+    cohort.push(point);
+    cohorts.set(point.cohortKey!, cohort);
+  }
+
+  const chosenCohort = [...cohorts]
+    .sort(([leftKey, left], [rightKey, right]) =>
+      right.length - left.length || leftKey.localeCompare(rightKey))[0]?.[1] ?? [];
+  const rows = [...new Map(
+    chosenCohort
+      .sort((left, right) => left.id.localeCompare(right.id))
+      .map(point => [point.modelId, point]),
+  ).values()];
+  const frontier = rows
+    .filter(point => !rows.some(other =>
+      other.modelId !== point.modelId
+      && (direction === 'min' ? other.x <= point.x : other.x >= point.x)
+      && other.y >= point.y
+      && (other.x !== point.x || other.y !== point.y)))
+    .sort((left, right) => qualityOrder(left, right, direction));
+  const chosen: SuggestionPoint[] = [];
+  const add = (point: SuggestionPoint | undefined) => {
+    if (point && chosen.length < size && !chosen.some(row => row.modelId === point.modelId)) {
+      chosen.push(point);
+    }
+  };
+
+  add(frontier[0]);
+  add([...frontier].sort((left, right) =>
+    (direction === 'min' ? left.x - right.x : right.x - left.x)
+    || qualityOrder(left, right, direction))[0]);
+
+  const positiveX = rows.filter(point => point.x > 0).map(point => point.x);
+  const unit = positiveX.length ? Math.min(...positiveX) : 1;
+  const transformX = (value: number) => Math.log1p(value / unit);
+  const scale = {
+    unit,
+    maxX: Math.max(1, ...rows.map(point => transformX(point.x))),
+    minY: Math.min(0, ...rows.map(point => point.y)),
+    maxY: Math.max(1, ...rows.map(point => point.y)),
+  };
+
+  while (chosen.length < size) {
+    const remaining = frontier.filter(point =>
+      !chosen.some(row => row.modelId === point.modelId));
+    if (remaining.length === 0) break;
+
+    remaining.sort((left, right) => {
+      const leftDistance = Math.min(...chosen.map(row => distance(left, row, scale)));
+      const rightDistance = Math.min(...chosen.map(row => distance(right, row, scale)));
+      return rightDistance - leftDistance || qualityOrder(left, right, direction);
+    });
+    add(remaining[0]);
+  }
+
+  while (chosen.length < size) {
+    const remaining = rows.filter(point =>
+      !chosen.some(row => row.modelId === point.modelId));
+    if (remaining.length === 0) break;
+
+    const providers = new Set(chosen.map(point => point.provider ?? point.family));
+    const families = new Set(chosen.map(point => point.family));
+    remaining.sort((left, right) =>
+      Number(providers.has(left.provider ?? left.family))
+        - Number(providers.has(right.provider ?? right.family))
+      || Number(families.has(left.family)) - Number(families.has(right.family))
+      || qualityOrder(left, right, direction));
+    add(remaining[0]);
+  }
+
+  return chosen.map(point => point.modelId);
 }

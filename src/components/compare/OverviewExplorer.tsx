@@ -81,6 +81,7 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
     <details className="overview-model-picker"><summary>Search, add, or remove models ({selectedIds.length} selected)</summary>
       <label>Find a model<input type="search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search full model name"/></label>
       <ul>{matchingRows.slice(0,40).map(model=><li key={model.id}><label><input type="checkbox" checked={selectedIds.includes(model.id)} onChange={()=>{customSelection.current=true;setSelectedIds(old=>old.includes(model.id)?old.filter(id=>id!==model.id):[...old,model.id]);setShowAllMeasured(false);}}/>{model.name} · {model.provider??'Unknown provider'}</label></li>)}</ul>
+      {!matchingRows.length?<p>No matching models.</p>:null}
       {matchingRows.length>40?<p>Showing first 40 matches. Narrow the search to find a specific record.</p>:null}
     </details>
     {series.scaleNotice?<p className="explorer-warning" role="status">{series.scaleNotice}</p>:null}

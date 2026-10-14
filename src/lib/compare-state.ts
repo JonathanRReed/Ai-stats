@@ -1,6 +1,7 @@
 import {epochScoreKey} from './compare-series';
 import type {EpochObservation} from './epoch-observations';
 import {SOURCE_RECORD_TYPES} from './model-identity';
+import {benchmarkConditionKey,mostCoveredBenchmarkCondition,rankedBenchmarkModels} from './benchmark-suggestions';
 export const AA_METRIC_LABELS:Record<string,string> = {
  aa_intelligence_index:'Intelligence Index',aa_coding_index:'Coding Index',aa_agentic_index:'Agentic Index',aa_math_index:'Math Index',
  mmlu_pro:'MMLU-Pro',gpqa:'GPQA Diamond',hle:"Humanity's Last Exam",livecodebench:'LiveCodeBench',scicode:'SciCode',math_500:'MATH-500',aime:'AIME',
@@ -15,6 +16,10 @@ export type CompareState = {
 const REASONING = new Set(['none','low','medium','high','xhigh','minimal','max','unknown']);
 const MAX_SELECTION = 100;
 const unique = (values:string[]) => [...new Set(values)].slice(0,MAX_SELECTION);
+export function hasExplicitCompareSelection(params:URLSearchParams):boolean{
+ return params.has('m')||params.has('models')||params.has('model')||(params.has('source')&&params.has('record'));
+}
+export function usesSuggestedCompareSelection(params:URLSearchParams):boolean{return params.get('auto')==='1'||!hasExplicitCompareSelection(params);}
 const safeIdentity = (value:string) => value.length > 0 && value.length <= 512 && Array.from(value).every(character=>character.charCodeAt(0)>=32);
 const condition = (value:string|null):string|null => {
   if(!value || value.length>2048) return null;
@@ -129,9 +134,8 @@ export function paginateFamilyGroups<T extends {source:string;family:string}>(ro
 }
 
 /** Select only identities with real observations; source-native records are not interchangeable. */
-export function selectBenchmarkModels(catalog:CompareCatalogEntry[],observations:Array<{modelVersion:string;sourceKey?:string;value:number|null}>,limit=8):string[]{
- const matches=new Set(observations.filter(row=>typeof row.value==='number'&&Number.isFinite(row.value)).map(row=>(row.sourceKey&&row.sourceKey!=='epoch-ai'?'publisher':'epoch')+':'+row.modelVersion));
- return catalog.filter(model=>model.current!==false&&matches.has(model.source+':'+model.sourceModelId)).slice(0,limit).map(model=>model.id);
+export function selectBenchmarkModels(catalog:CompareCatalogEntry[],observations:Array<{modelVersion:string;sourceKey?:string;value:number|null;unit?:'native'|'percent'|'fraction';evaluationDate?:string|null;id?:string}>,limit=8):string[]{
+ return rankedBenchmarkModels(catalog,observations,limit);
 }
 
 /** A deliberate benchmark change starts with one explicit version/metric cohort. Saved links are left untouched. */
@@ -142,5 +146,9 @@ export function benchmarkStartingSelection(catalog:CompareCatalogEntry[],observa
   return vb.localeCompare(va,undefined,{numeric:true})||a.localeCompare(b);
  });
  const scoreMetricKey=requestedMetric??groups[0]??null;
- return {modelIds:selectBenchmarkModels(catalog,scored.filter(row=>epochScoreKey(row)===scoreMetricKey)),scoreMetricKey};
+ const scoreRows=scored.filter(row=>epochScoreKey(row)===scoreMetricKey);
+ const conditionKey=mostCoveredBenchmarkCondition(catalog,scoreRows);
+ const matching=conditionKey===null?[]:scoreRows.filter(row=>benchmarkConditionKey(row)===conditionKey);
+ const higherIsBetter=matching[0]?.benchmarkSlug!=='btf3_external';
+ return {modelIds:rankedBenchmarkModels(catalog,matching,8,higherIsBetter),scoreMetricKey,conditionKey};
 }

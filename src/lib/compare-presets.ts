@@ -1,6 +1,5 @@
 import {AA_METRIC_LABELS,type CompareChart} from './compare-state';
 import type {ExplorerModel} from './compare-series';
-import {suggestedModels} from './suggested-models';
 const finite=(value:unknown):value is number=>typeof value==='number'&&Number.isFinite(value);
 const nonnegative=(value:unknown):value is number=>finite(value)&&value>=0;
 export const COMPARE_VIEW_LABELS:Array<{id:CompareChart;label:string}>=[
@@ -63,8 +62,25 @@ export function buildComparePresets(models:ExplorerModel[]):ComparePreset[]{
 
 export function selectAaBenchmarkModels(models:ExplorerModel[],metricId:string,limit=8,includeHistory=false):string[]{
  const value=(model:ExplorerModel)=>metricId==='aa_intelligence_index'?model.intelligence:metricId==='aa_coding_index'?model.coding:model.metrics?.[metricId];
- const rows=models.filter(model=>model.source==='aa'&&(includeHistory||model.current!==false)&&finite(value(model))&&Boolean(model.indexVersion&&/^\d+(?:\.\d+)*$/.test(model.indexVersion)));
- return suggestedModels(rows.map(model=>({id:model.id,modelId:model.id,x:0,y:value(model)!,provider:model.provider,family:model.family,indexVersion:model.indexVersion!,cohortKey:model.indexVersion+':'+(model.performancePrompt??'unknown')})),metricId==='epoch_btf3_external'?'min':'max',limit);
+ const eligible=models.filter(model=>model.source==='aa'&&(includeHistory||model.current===true)&&finite(value(model))&&
+  Boolean(model.indexVersion&&/^\d+(?:\.\d+)*$/.test(model.indexVersion)));
+ const latest=eligible.map(model=>model.indexVersion!).sort((a,b)=>{
+  const left=a.split('.').map(Number),right=b.split('.').map(Number);
+  for(let i=0;i<Math.max(left.length,right.length);i++){const delta=(left[i]??0)-(right[i]??0);if(delta)return delta;}
+  return a.localeCompare(b);
+ }).at(-1);
+ const latestRows=eligible.filter(model=>model.indexVersion===latest);
+ const cohorts=new Map<string,ExplorerModel[]>();
+ for(const model of latestRows){const key=model.performancePrompt??'unknown';const cohort=cohorts.get(key)??[];cohort.push(model);cohorts.set(key,cohort);}
+ const cohort=[...cohorts].sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0]))[0]?.[1]??[];
+ return [...new Map(cohort.sort((a,b)=>value(b)!-value(a)!||a.id.localeCompare(b.id)).slice(0,Math.max(0,limit))
+  .map(model=>[model.id,model])).keys()];
+}
+
+export function selectTokenPriceModels(models:ExplorerModel[],limit=8):string[]{
+ return models.filter(model=>model.current===true&&nonnegative(model.priceInput)&&nonnegative(model.priceOutput))
+  .sort((a,b)=>(a.priceInput!+a.priceOutput!)-(b.priceInput!+b.priceOutput!)||a.id.localeCompare(b.id))
+  .slice(0,Math.max(0,limit)).map(model=>model.id);
 }
 
 export function buildAaBenchmarkSelections(models:ExplorerModel[]){
