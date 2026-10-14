@@ -19,8 +19,8 @@ test('unknown prices and source membership remain unknown',()=>{
 });
 test('default selection excludes history and missing measurements without inventing a winner',()=>{
   const models:ExplorerModel[]=[{id:'old',name:'Old',family:'Old',source:'aa',sourceModelId:'old',current:false,intelligence:100,priceBlended:1},
-    {id:'a',name:'A',family:'A',source:'aa',sourceModelId:'a',current:true,intelligence:70,priceBlended:0},
-    {id:'b',name:'B',family:'B',source:'aa',sourceModelId:'b',current:true,intelligence:60,priceBlended:1}];
+    {id:'a',name:'A',family:'A',source:'aa',sourceModelId:'a',current:true,intelligence:70,priceBlended:0,aaTaskCost:.5,indexVersion:'4.3'},
+    {id:'b',name:'B',family:'B',source:'aa',sourceModelId:'b',current:true,intelligence:60,priceBlended:1,aaTaskCost:.8,indexVersion:'4.3'}];
   expect(catalog.defaultExplorerSelection?.(models)).toEqual(['a','b']);
 });
 test('recorded date labels stay in family names and unknown reasoning is not called none',()=>{
@@ -29,10 +29,17 @@ test('recorded date labels stay in family names and unknown reasoning is not cal
     .toEqual({family:'Model',reasoning:'xhigh'});
 });
 
+test('effort labels preserve minimal, non-reasoning, unknown qualifiers, and earlier preview suffixes',()=>{
+ expect(catalog.modelDisplayFacets('Gemini 3.5 Flash (Minimal)')).toEqual({family:'Gemini 3.5 Flash',reasoning:'minimal'});
+ expect(catalog.modelDisplayFacets('Model (Preview) (High)')).toEqual({family:'Model (Preview)',reasoning:'high'});
+ expect(catalog.modelDisplayFacets('Model (Non-reasoning)')).toEqual({family:'Model',reasoning:'none'});
+ expect(catalog.modelDisplayFacets('Model (Experimental Preview)')).toEqual({family:'Model (Experimental Preview)',reasoning:'unknown'});
+});
+
 test('the default chart starts with one record per provider',()=>{
   const rows:ExplorerModel[]=[
-    {id:'high',name:'A (High)',family:'A',provider:'Lab',source:'aa',sourceModelId:'high',reasoning:'high',current:true,intelligence:70,priceBlended:2},
-    {id:'low',name:'A (Low)',family:'A',provider:'Lab',source:'aa',sourceModelId:'low',reasoning:'low',current:true,intelligence:60,priceBlended:1}];
+    {id:'high',name:'A (High)',family:'A',provider:'Lab',source:'aa',sourceModelId:'high',reasoning:'high',current:true,intelligence:70,priceBlended:2,aaTaskCost:2,indexVersion:'4.3'},
+    {id:'low',name:'A (Low)',family:'A',provider:'Lab',source:'aa',sourceModelId:'low',reasoning:'low',current:true,intelligence:60,priceBlended:1,aaTaskCost:1,indexVersion:'4.3'}];
   expect(catalog.defaultExplorerSelection(rows)).toEqual(['high']);
 });
 

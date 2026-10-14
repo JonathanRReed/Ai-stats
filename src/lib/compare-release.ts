@@ -1,17 +1,19 @@
 import {COMPARE_CHARTS,AA_METRIC_LABELS} from './compare-state';
 import {expandCatalog,measurementBucket,validateMeasurementChunk,type CompareDelivery} from './compare-delivery';
 import type {ExplorerModel} from './compare-series';
-export const RELEASE_SCHEMA='ai-stats-compare-release.v2';
+export const RELEASE_SCHEMA='ai-stats-compare-release.v3';
 export const LEGACY_RELEASE_SCHEMA='ai-stats-compare-release.v1';
+const ACCEPTED_SCHEMAS=[RELEASE_SCHEMA,'ai-stats-compare-release.v2',LEGACY_RELEASE_SCHEMA] as const;
+const REQUIRED_SUGGESTION_CHARTS=['task-cost','cost-intelligence','speed-intelligence','price','total-cost'] as const;
 export type ReleaseSource={sourceKey:string;fetchedAt:string|null;publishedAt:string|null;observedAt:string|null;contentHash:string|null;snapshotId:string|null;status:string;available:boolean};
-export type CompareReleaseManifest={schemaVersion:typeof RELEASE_SCHEMA|typeof LEGACY_RELEASE_SCHEMA;generatedAt:string;datasetRevision:string;models:ExplorerModel[];defaultModelIds:string[];benchmarks:Array<{slug:string;name:string}>;sources:ReleaseSource[];delivery:CompareDelivery};
+export type CompareReleaseManifest={schemaVersion:typeof ACCEPTED_SCHEMAS[number];generatedAt:string;datasetRevision:string;models:ExplorerModel[];defaultModelIds:string[];benchmarks:Array<{slug:string;name:string}>;sources:ReleaseSource[];delivery:CompareDelivery};
 const object=(value:unknown):value is Record<string,unknown>=>Boolean(value)&&typeof value==='object'&&!Array.isArray(value);
 const text=(value:unknown):value is string=>typeof value==='string'&&value.length>0&&value.length<=2048;
 const date=(value:unknown)=>value===null||typeof value==='string'&&Number.isFinite(Date.parse(value));
 const nullableText=(value:unknown)=>value===null||text(value);
 const sources=new Set(['artificial-analysis','epoch-ai','openrouter','huggingface','litellm','polibench','openrouter-usage','livebench','weirdml','posttrainbench','terminal-bench','osworld','proofbench','blueprint-bench','apex-agents','gdp-pdf']);
 export function readCompareRelease(value:unknown):CompareReleaseManifest{
- if(!object(value)||![RELEASE_SCHEMA,LEGACY_RELEASE_SCHEMA].includes(value.schemaVersion as typeof RELEASE_SCHEMA)||typeof value.datasetRevision!=='string'||!/^[a-f0-9]{64}$/.test(value.datasetRevision)||!text(value.generatedAt)||!date(value.generatedAt)||!object(value.delivery))throw new Error('Invalid release manifest');
+ if(!object(value)||!ACCEPTED_SCHEMAS.includes(value.schemaVersion as typeof ACCEPTED_SCHEMAS[number])||typeof value.datasetRevision!=='string'||!/^[a-f0-9]{64}$/.test(value.datasetRevision)||!text(value.generatedAt)||!date(value.generatedAt)||!object(value.delivery))throw new Error('Invalid release manifest');
  const delivery=value.delivery,catalog=delivery.catalog;
  if('assetBase' in delivery||'benchmarkBase' in delivery)throw new Error('Release paths must be derived by the client');
  if(!text(delivery.revision)||!/^[a-f0-9]{64}$/.test(delivery.revision)||!object(catalog)||!Array.isArray(catalog.providers)||!catalog.providers.every(text)||
@@ -24,7 +26,7 @@ export function readCompareRelease(value:unknown):CompareReleaseManifest{
  ![row[5],row[6],row[7],row[8]].every(nullableText)||!Number.isInteger(row[9])||row[9]<0||row[9]>3)throw new Error('Invalid compact model identity');
  ids.add(row[0]);
  }
- if(!Array.isArray(value.models)||value.models.length<2||value.models.length>100||!Array.isArray(value.defaultModelIds)||
+ if(!Array.isArray(value.models)||value.models.length>100||!Array.isArray(value.defaultModelIds)||
  value.defaultModelIds.length!==value.models.length||new Set(value.defaultModelIds).size!==value.defaultModelIds.length||
  !value.defaultModelIds.every(id=>text(id)&&ids.has(id))||!value.models.every(row=>object(row)&&text(row.id)&&(value.defaultModelIds as unknown[]).includes(row.id))||
  new Set(value.models.map(row=>row.id)).size!==value.models.length)throw new Error('Invalid release seed');
@@ -35,6 +37,19 @@ export function readCompareRelease(value:unknown):CompareReleaseManifest{
    if(!Object.hasOwn(AA_METRIC_LABELS,key)||!object(groups))throw new Error('Invalid AA benchmark selections');
    for(const mode of ['current','historical']){const list=groups[mode];if(!Array.isArray(list)||list.length>8||new Set(list).size!==list.length||!list.every(id=>typeof id==='string'&&catalogRows.some(row=>row[0]===id&&row[3]===0&&(mode==='historical'||row[4]!==false))))throw new Error('Invalid AA benchmark selection identity');}
   }
+ }
+ if(delivery.suggestedModelIds!==undefined){
+  if(!object(delivery.suggestedModelIds))throw new Error('Invalid suggested model selections');
+  const compactRows=catalog.rows as unknown[][];
+  for(const [chart,list] of Object.entries(delivery.suggestedModelIds)){
+   if(!COMPARE_CHARTS.includes(chart as typeof COMPARE_CHARTS[number])||!Array.isArray(list)||list.length>8||new Set(list).size!==list.length||!list.every(id=>typeof id==='string'&&compactRows.some(row=>row[0]===id&&row[4]===true&&(chart==='price'?Boolean(Number(row[9])&1):row[3]===0&&Boolean(Number(row[9])&2)))))throw new Error('Invalid suggested model selection');
+  }
+ }
+ if(value.schemaVersion===RELEASE_SCHEMA){
+  const suggestions=delivery.suggestedModelIds;
+  if(!object(suggestions)||!REQUIRED_SUGGESTION_CHARTS.every(chart=>Array.isArray(suggestions[chart])))throw new Error('Current releases require complete chart suggestion metadata');
+  const seedIds=new Set(value.models.map(model=>model.id));
+  if(seedIds.size!==value.defaultModelIds.length||value.defaultModelIds.some(id=>!seedIds.has(id)))throw new Error('Current release seed must match default model identities');
  }
  const typed=value as unknown as CompareReleaseManifest,expanded=expandCatalog(typed.delivery.catalog);
  for(const bucket of new Set(typed.models.map(model=>measurementBucket(model.id)))){

@@ -1,6 +1,7 @@
 import {epochScoreKey} from './compare-series';
 import type {EpochObservation} from './epoch-observations';
 import {SOURCE_RECORD_TYPES} from './model-identity';
+import {benchmarkConditionKey,mostCoveredBenchmarkCondition,rankedBenchmarkModels} from './benchmark-suggestions';
 export const AA_METRIC_LABELS:Record<string,string> = {
  aa_intelligence_index:'Intelligence Index',aa_coding_index:'Coding Index',aa_agentic_index:'Agentic Index',aa_math_index:'Math Index',
  mmlu_pro:'MMLU-Pro',gpqa:'GPQA Diamond',hle:"Humanity's Last Exam",livecodebench:'LiveCodeBench',scicode:'SciCode',math_500:'MATH-500',aime:'AIME',
@@ -12,9 +13,13 @@ export type CompareState = {
   chart:CompareChart; modelIds:string[]; missingModelIds:string[]; reasoningEfforts:string[];
   metricId:string; scoreMetricKey:string|null; conditionKey:string|null; scale:'linear'|'log'; labels:boolean; frontier:boolean; includeHistory:boolean;
 };
-const REASONING = new Set(['none','low','medium','high','xhigh','max','unknown']);
+const REASONING = new Set(['none','low','medium','high','xhigh','minimal','max','unknown']);
 const MAX_SELECTION = 100;
 const unique = (values:string[]) => [...new Set(values)].slice(0,MAX_SELECTION);
+export function hasExplicitCompareSelection(params:URLSearchParams):boolean{
+ return params.has('m')||params.has('models')||params.has('model')||(params.has('source')&&params.has('record'));
+}
+export function usesSuggestedCompareSelection(params:URLSearchParams):boolean{return params.get('auto')==='1'||!hasExplicitCompareSelection(params);}
 const safeIdentity = (value:string) => value.length > 0 && value.length <= 512 && Array.from(value).every(character=>character.charCodeAt(0)>=32);
 const condition = (value:string|null):string|null => {
   if(!value || value.length>2048) return null;
@@ -32,10 +37,10 @@ const scoreMetric=(value:string|null):string|null=>{
   if(!value||value.length>1024)return null;
   try{const parsed=JSON.parse(value);return Array.isArray(parsed)&&(parsed.length===2||parsed.length===3)&&parsed.every(item=>typeof item==='string'&&item.length<=512)?JSON.stringify(parsed):null;}catch{return null;}
 };
-export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogEntry[],defaults:string[]=[]):CompareState {
+export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogEntry[],defaults:string[]=[],defaultChart:CompareChart='cost-intelligence'):CompareState {
   const metric=params.get('metric')??'aa_intelligence_index';
   const metricId=(Object.hasOwn(AA_METRIC_LABELS,metric)||/^epoch_[a-z0-9_-]+$/.test(metric))?metric:'aa_intelligence_index';
-  const chart=params.get('chart')??(params.has('metric')?'benchmark':'cost-intelligence');
+  const chart=params.get('chart')??(params.has('metric')?'benchmark':defaultChart);
   let requested=params.has('m')?params.getAll('m'):params.has('models')?(params.get('models')??'').split(','):defaults;
   const source=params.get('source'),native=params.get('record');
   let unresolvedSource=false;
@@ -77,7 +82,7 @@ export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogE
     modelIds:unique([...(unresolvedSource?[]:selected.filter(id=>ids.has(id)&&!stillMissing.includes(id))),...recovered]), missingModelIds:unique([...stillMissing,...(unresolvedSource?selected:selected.filter(id=>!ids.has(id)))]),
     reasoningEfforts:unique(params.getAll('reason').filter(value=>REASONING.has(value))).sort(),
     metricId,scoreMetricKey:scoreMetric(params.get('score_metric')),conditionKey:condition(params.get('condition')),
-    scale:params.has('scale')?(params.get('scale')==='log'?'log':'linear'):(normalizedChart==='cost-intelligence'?'log':'linear'),labels:params.get('labels')==='1',
+    scale:params.has('scale')?(params.get('scale')==='log'?'log':'linear'):(normalizedChart==='cost-intelligence'?'log':'linear'),labels:params.has('labels')?params.get('labels')==='1':true,
     frontier:params.get('frontier')!=='0',includeHistory:params.get('history')==='1',
   };
 }
@@ -91,7 +96,7 @@ export function serializeCompareState(state:CompareState):URLSearchParams {
   if(state.scoreMetricKey) params.set('score_metric',state.scoreMetricKey);
   if(state.conditionKey) params.set('condition',state.conditionKey);
   params.set('scale',state.scale);
-  if(state.labels) params.set('labels','1');
+  params.set('labels',state.labels?'1':'0');
   if(!state.frontier) params.set('frontier','0');
   if(state.includeHistory) params.set('history','1');
   for(const reason of state.reasoningEfforts) params.append('reason',reason);
@@ -116,10 +121,21 @@ export function selectVisibleRecords(selected:string[],visibleIds:string[],check
  const ids=new Set(visibleIds);return checked?unique([...selected,...visibleIds]):selected.filter(id=>!ids.has(id));
 }
 
+/** Pagination counts complete source/family groups, so a bulk toggle never stops mid-family. */
+export function paginateFamilyGroups<T extends {source:string;family:string}>(rows:T[],limit:number){
+ const groups=new Map<string,T[]>();
+ for(const row of rows){const key=JSON.stringify([row.source,row.family]);const group=groups.get(key)??[];group.push(row);groups.set(key,group);}
+ const visible:T[][]=[];let count=0;
+ for(const group of groups.values()){
+  if(count>=limit)break;
+  visible.push(group);count+=group.length;
+ }
+ return {groups:visible,visibleCount:count,totalCount:rows.length};
+}
+
 /** Select only identities with real observations; source-native records are not interchangeable. */
-export function selectBenchmarkModels(catalog:CompareCatalogEntry[],observations:Array<{modelVersion:string;sourceKey?:string;value:number|null}>,limit=8):string[]{
- const matches=new Set(observations.filter(row=>typeof row.value==='number'&&Number.isFinite(row.value)).map(row=>(row.sourceKey&&row.sourceKey!=='epoch-ai'?'publisher':'epoch')+':'+row.modelVersion));
- return catalog.filter(model=>model.current!==false&&matches.has(model.source+':'+model.sourceModelId)).slice(0,limit).map(model=>model.id);
+export function selectBenchmarkModels(catalog:CompareCatalogEntry[],observations:Array<{modelVersion:string;sourceKey?:string;value:number|null;unit?:'native'|'percent'|'fraction';evaluationDate?:string|null;id?:string}>,limit=8):string[]{
+ return rankedBenchmarkModels(catalog,observations,limit);
 }
 
 /** A deliberate benchmark change starts with one explicit version/metric cohort. Saved links are left untouched. */
@@ -130,5 +146,9 @@ export function benchmarkStartingSelection(catalog:CompareCatalogEntry[],observa
   return vb.localeCompare(va,undefined,{numeric:true})||a.localeCompare(b);
  });
  const scoreMetricKey=requestedMetric??groups[0]??null;
- return {modelIds:selectBenchmarkModels(catalog,scored.filter(row=>epochScoreKey(row)===scoreMetricKey)),scoreMetricKey};
+ const scoreRows=scored.filter(row=>epochScoreKey(row)===scoreMetricKey);
+ const conditionKey=mostCoveredBenchmarkCondition(catalog,scoreRows);
+ const matching=conditionKey===null?[]:scoreRows.filter(row=>benchmarkConditionKey(row)===conditionKey);
+ const higherIsBetter=matching[0]?.benchmarkSlug!=='btf3_external';
+ return {modelIds:rankedBenchmarkModels(catalog,matching,8,higherIsBetter),scoreMetricKey,conditionKey};
 }

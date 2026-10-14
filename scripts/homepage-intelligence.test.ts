@@ -10,6 +10,7 @@ const workbenchSource = readPendingSource("src/components/TaskWorkbench.astro");
 const latestModelsSource = readPendingSource("src/components/LatestModelsStrip.astro");
 const sourceHealthSource = readPendingSource("src/components/SourceHealthStrip.astro");
 const overviewSource = readPendingSource("src/components/IntelligenceOverview.astro");
+const overviewExplorerSource = readPendingSource("src/components/compare/OverviewExplorer.tsx");
 
 test("Stats has a clear Overview, Benchmarks, Usage order before optional details", () => {
   const overview = dashboardSource.indexOf('id="stats-overview"');
@@ -38,7 +39,7 @@ test("the model snapshot explains its evidence filter and links into comparison"
   expect(latestModelsSource).toContain("hasFiniteMetricValue(model.aa_coding_index)");
   expect(latestModelsSource).not.toContain("does not recommend a model");
   expect(latestModelsSource).not.toContain("pricing, and speed available");
-  expect(latestModelsSource).toContain('href={compareRecordHref(model.id)}');
+  expect(latestModelsSource).toContain('compareRecordHref(model.id, "benchmark", false, "aa_intelligence_index")');
   expect(latestModelsSource).not.toContain("latest-model-order");
   expect(latestModelsSource).not.toContain("overflow-x-auto");
 });
@@ -130,37 +131,28 @@ test("the source health strip exposes source dates and data mode labels", () => 
   expect(sourceHealthSource).toContain("data-source-status");
 });
 
-test("the measurements overview keeps the AA-price plot, coverage bars, and recent change log", () => {
-  expect(overviewSource).toContain('aria-label="Compare the measurements"');
-  expect(overviewSource).toContain("AA Index vs. price");
-  expect(overviewSource).toContain("Benchmark coverage");
-  expect(overviewSource).toContain("Recent source updates");
+test("the measurements overview uses an AA cost and Index explorer alongside source coverage", () => {
+  expect(overviewSource).toContain("OverviewExplorer");
+  expect(overviewExplorerSource).toContain('aria-label="AA Intelligence Index cost comparison"');
+  expect(readFileSync("src/components/OverviewDataStatus.astro", "utf8")).toContain("Coverage");
+  expect(dashboardSource).toContain("<OverviewDataStatus");
   expect(dashboardSource).toContain('href="/compare" class="eco-btn eco-btn-primary">Compare models</a>');
-  expect(overviewSource).toContain("Not dominated on price and AA Index");
-  expect(overviewSource).toContain("Other models");
-  expect(overviewSource).not.toContain("Top pick");
-  expect(overviewSource).not.toContain("Coding preset leader");
-  expect(overviewSource).toContain('role="group"');
-  expect(overviewSource).toContain('aria-label="Quality and price data table"');
-  expect(overviewSource).toContain("<progress");
-  expect(overviewSource).toContain("Artificial Analysis Intelligence Index");
-  expect(overviewSource).toContain("USD per 1M tokens");
-  expect(overviewSource).toContain("PublicPoliBenchSnapshot");
-  expect(overviewSource).toContain('href="/about"');
-  expect(overviewSource).not.toContain('href="/methodology"');
+  expect(overviewExplorerSource).toContain("Show frontier only");
+  expect(overviewExplorerSource).toContain("Exact chart data");
+  expect(overviewExplorerSource).toContain("Unknown version");
+  expect(overviewExplorerSource).toContain("Values and receipt dates are from this record's source payload.");
+  expect(dashboardSource).toContain("polibench={publicPoliBenchSnapshot}");
+  expect(readFileSync("src/components/OverviewDataStatus.astro", "utf8")).toContain('href="/about"');
+  expect(readFileSync("src/components/OverviewDataStatus.astro", "utf8")).not.toContain('href="/methodology"');
 });
 
-test("the intelligence plot supports inspection, filtering, and the complete evidence table", () => {
-  expect(overviewSource).toContain('id="plot-provider"');
-  expect(overviewSource).toContain('id="plot-search"');
-  expect(overviewSource).toContain('id="plot-frontier-only"');
-  expect(overviewSource).toContain('aria-live="polite"');
-  expect(overviewSource).toContain('data-plot-point');
-  expect(overviewSource).toContain('role="button"');
-  expect(overviewSource).toContain("ArrowRight");
-  expect(overviewSource).toContain('aria-label="Chart legend"');
-  expect(overviewSource).toContain("Complete quality and price data");
-  expect(overviewSource).not.toContain(".slice(0, 12)");
+test("the intelligence plot supports keyboard and touch inspection and the complete evidence table", () => {
+  expect(overviewExplorerSource).toContain('aria-live="polite"');
+  expect(readPendingSource("src/components/compare/ComparisonChart.tsx")).toContain("ArrowRight");
+  expect(overviewExplorerSource).toContain('aria-label="Visible model families"');
+  expect(overviewExplorerSource).toContain("Exact chart data");
+  expect(overviewExplorerSource).toContain("onPin");
+  expect(overviewExplorerSource).not.toContain(".slice(0, 12)");
 });
 
 test("the homepage components preserve non-color state labels and reduced-motion behavior", () => {
@@ -197,6 +189,26 @@ test("compact model styles do not leave a media block open",()=>{
 });
 
 test("benchmark eligibility is independent of pricing and includes the available Agentic Index",()=>{
- expect(dashboardSource).toContain('const list = [...currentMeasuredModels]');
+ expect(dashboardSource).toContain('rankModelFamilies(currentMeasuredModels, key, {limit:5})');
  expect(dashboardSource).toContain('key: "aa_agentic_index"');
+});
+
+test("homepage benchmark families filter measured reasoning variants before top-five and refresh identically",()=>{
+ expect(dashboardSource).toContain('id="leaderboard-family-search"');
+ expect(dashboardSource).toContain('id="leaderboard-family-mode"');
+ expect(dashboardSource).toContain('data-leaderboard-reasoning');
+ expect(dashboardSource).toContain('window.__leaderboardInitialModels = initialLeaderboardModels');
+ expect(dashboardSource).toContain('rankModelFamilies(models, config.key, {limit:5,...getLeaderboardFilters()})');
+ expect(dashboardSource).toContain('renderLeaderboard((snapshot.aaModels??[]).filter(model=>model.current_source_member!==false)');
+ expect(dashboardSource).not.toContain('FAILSAFE_METRIC_SWAP_MS');
+});
+
+test("empty filtered leaderboards disable Open compare and Epoch mode disables AA family controls on initial render and refresh",()=>{
+ expect(dashboardSource).toContain('setLeaderboardCompareAction(leaderboardCompareLink,panel?.dataset.compareHref||null)');
+ expect(dashboardSource).toContain('compareHref:list.length?`/compare?${params.toString()}`:""');
+ expect(dashboardSource).toContain('disabled={defaultBenchmarkKey.startsWith(\'epoch_\')}');
+ expect(dashboardSource).toContain('setLeaderboardFamilyControlsDisabled(document.getElementById("leaderboard-family-controls"),metricSelect.value.startsWith("epoch_"))');
+ expect(dashboardSource).toContain('setLeaderboardFamilyControlsDisabled(document.getElementById("leaderboard-family-controls"),metric.startsWith("epoch_"))');
+ expect(dashboardSource).toContain("const epochCatalog=list.map(model=>({id:'epoch:'+model.model_version,source:'epoch',sourceModelId:model.model_version}))");
+ expect(dashboardSource).toContain('data-compare-href="${escapeHtml(compareHref)}"');
 });

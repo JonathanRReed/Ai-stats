@@ -10,10 +10,19 @@ test('explorer server renders a real chart and exact-data fallback without brows
     benchmarks:[],defaultModelIds:['a']}));
   expect(html).toContain('Compare models');
   expect(html).toContain('<svg');
-  expect(html).toContain('aria-label="Model family legend"');
+  expect(html).toContain('aria-label="Measured endpoint"');
+  expect(html).toContain('aria-label="Model families"');
   expect(html).toContain('Exact chart data');
   expect(html).toContain('Measured model');
   expect(html).toContain('70');
+});
+
+test('no-script explanation is owned by Astro outside the React island',async()=>{
+ const componentSource=await Bun.file(new URL('../src/components/compare/CompareExplorer.tsx',import.meta.url)).text();
+ const pageSource=await Bun.file(new URL('../src/pages/compare.astro',import.meta.url)).text();
+ expect(componentSource).not.toContain('<noscript>');
+ expect(pageSource.indexOf('<CompareLive')).toBeLessThan(pageSource.indexOf('<noscript>'));
+ expect(pageSource).toContain('This is the default measured selection. Interactive filters need JavaScript; the exact data and source links remain available.');
 });
 
 test('price plots label input and output series in the chart and inspection',async()=>{

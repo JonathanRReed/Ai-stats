@@ -11,6 +11,15 @@ export type ExplorerModel = {
   metrics?:Record<string,number|null>; hasTokenPrices?:boolean; detailAvailable?:boolean;
 };
 export const EXPLORER_SOURCE_LABELS:Record<ExplorerModel['source'],string>={aa:'Artificial Analysis',epoch:'Epoch AI',openrouter:'OpenRouter',huggingface:'Hugging Face',litellm:'LiteLLM',catalog:'Database inventory',publisher:'Original publishers'};
+export function compatibleVariantLines(points:SeriesPoint[]):SeriesPoint[][] {
+  const groups=new Map<string,SeriesPoint[]>();
+  for(const point of points){
+    if(!point.cohortKey||point.reasoning==='unknown')continue;
+    const key=JSON.stringify([point.source,point.provider??point.family,point.family,point.cohortKey]);
+    const group=groups.get(key)??[];group.push(point);groups.set(key,group);
+  }
+  return [...groups.values()].filter(group=>new Set(group.map(point=>point.reasoning)).size>1);
+}
 export type ExplorerEvidence = {models:ExplorerModel[]; observations:EpochObservation[]};
 export type EvidenceReceipt = {
   source:string; sourceUrl:string|null; observedAt:string|null; fetchedAt:string|null;
@@ -18,16 +27,69 @@ export type EvidenceReceipt = {
 };
 export type SeriesPoint = {
   id:string; modelId:string; label:string; family:string; reasoning:string; series:string;
-  x:number; y:number; unit:string; cohortKey:string|null; receipt:EvidenceReceipt;
+  source:ExplorerModel['source']; provider?:string; x:number; y:number; unit:string; cohortKey:string|null; receipt:EvidenceReceipt;
 };
+export type BarCategoryLabel={x:number;label:string;title:string;ariaLabel:string};
+/** Short, unique category labels for bar charts; point values and positions are untouched. */
+export function barCategoryLabels(points:SeriesPoint[]):BarCategoryLabel[]{
+ const categories=[...new Map(points.map(point=>[point.x,point])).values()];
+ const familyCounts=new Map<string,number>();
+ categories.forEach(point=>familyCounts.set(point.family,(familyCounts.get(point.family)??0)+1));
+ const reasoningLabel=(value:string)=>value==='none'?'No reasoning':value==='unknown'?'':value==='xhigh'?'Xhigh':value.charAt(0).toUpperCase()+value.slice(1);
+ const base=categories.map(point=>{
+  const compactFamily=point.family.replace(/^Claude\s+/i,'');
+  const family=compactFamily.length>16?compactFamily.slice(0,14)+'…':compactFamily;
+  const effort=reasoningLabel(point.reasoning);
+  return familyCounts.get(point.family)!>1&&effort?`${family} · ${effort}`:family;
+ });
+ const counts=(values:string[])=>values.reduce((map,value)=>map.set(value,(map.get(value)??0)+1),new Map<string,number>());
+ const baseCounts=counts(base);
+ const candidates=categories.map((point,index)=>baseCounts.get(base[index])!>1?`${base[index]} · ${point.provider??point.source}`:base[index]);
+ const candidateCounts=counts(candidates);
+ const named=candidates.map((candidate,index)=>candidateCounts.get(candidate)!>1?`${candidate} · ${categories[index].label}`:candidate);
+ const namedCounts=counts(named);
+ return categories.map((point,index)=>{
+  const label=namedCounts.get(named[index])!>1?`${named[index]} · ${point.modelId.slice(-5)}`:named[index];
+  const full=[point.label,point.provider,EXPLORER_SOURCE_LABELS[point.source]].filter(Boolean).join(' · ');
+  return {x:point.x,label,title:full,ariaLabel:full};
+ });
+}
 export type CompareSeries = {
   available:boolean; unavailableReason:string|null; kind:'scatter'|'bars'; points:SeriesPoint[];
   excluded:Array<{modelId:string;reason:string}>; xLabel:string; yLabel:string;
   scale:'linear'|'log'; scaleNotice:string|null; mixedConditions:boolean;
   frontierGroups:Record<string,string[]>; higherXIsBetter:boolean;
 };
+export function chartLabelCandidates(points:SeriesPoint[],frontierGroups:Record<string,string[]>,limit=12):string[]{
+ const priorities:string[]=[];
+ for(const ids of Object.values(frontierGroups))priorities.push(...ids);
+ const families=new Map<string,SeriesPoint[]>();
+ for(const point of points){const group=families.get(point.family)??[];group.push(point);families.set(point.family,group);}
+ for(const group of families.values()){
+  const ordered=[...group].sort((a,b)=>a.x-b.x||a.y-b.y||a.id.localeCompare(b.id));
+  if(ordered.length)priorities.push(ordered[0].id,ordered[ordered.length-1].id);
+ }
+ return [...new Set(priorities)].slice(0,Math.max(0,limit));
+}
+export function collisionFreeChartLabels(points:Array<SeriesPoint&{cx:number;cy:number}>,frontierGroups:Record<string,string[]>,width:number,limit=12):string[]{
+ const byId=new Map(points.map(point=>[point.id,point]));
+ const placed:Array<{left:number;right:number;top:number;bottom:number}>=[];
+ const result:string[]=[];
+ for(const id of chartLabelCandidates(points,frontierGroups,limit)){
+  const point=byId.get(id);if(!point)continue;
+  const textWidth=Math.max(24,point.label.length*5.8);
+  const leftAligned=point.cx>width-150;
+  const left=leftAligned?point.cx-8-textWidth:point.cx+8;
+  const box={left,right:left+textWidth,top:point.cy-21,bottom:point.cy-7};
+  if(box.left<4||box.right>width-4)continue;
+  if(placed.some(other=>box.left<other.right+4&&box.right+4>other.left&&box.top<other.bottom+3&&box.bottom+3>other.top))continue;
+  placed.push(box);result.push(id);
+ }
+ return result;
+}
 const finite = (value:unknown):value is number => typeof value==='number'&&Number.isFinite(value);
 const nonnegative = (value:unknown):value is number => finite(value)&&value>=0;
+const verifiedIndexVersion = (value:string|null|undefined):value is string => typeof value==='string'&&/^\d+(?:\.\d+)*$/.test(value);
 const sourceUrl = (value:string|null|undefined):string|null => {
   try {const url=new URL(value??'');return url.protocol==='https:'&&!url.username&&!url.password?url.href:null;}
   catch{return null;}
@@ -65,7 +127,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
     conditions:model.performancePrompt?{performancePrompt:model.performancePrompt}:null,snapshotId:null});
   const add=(model:ExplorerModel,x:number,y:number,series:string,unit:string,receipt=receiptFor(model),id=model.id,cohortKey:string|null=null)=>{
     result.points.push({id,modelId:model.id,label:model.name,family:model.family,reasoning:model.reasoning??'unknown',
-      x,y,series,unit,receipt,cohortKey});
+      source:model.source,provider:model.provider??model.family,x,y,series,unit,receipt,cohortKey});
   };
   if(state.chart==='benchmark'&&state.metricId.startsWith('epoch_')){
     const slug=state.metricId.slice(6);
@@ -94,10 +156,10 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
       result.excluded.push({modelId:model.id,reason:'No matching benchmark observation'});
     }
   } else {
-    result.xLabel=state.chart==='cost-intelligence'?'USD / 1M tokens (3:1 input/output)':state.chart==='speed-intelligence'?'Output tokens / second':state.chart==='task-cost'?'USD / evaluation task':state.chart==='total-cost'?'USD / complete evaluation':'Model';
+    result.xLabel=state.chart==='cost-intelligence'?'USD / 1M tokens (3:1 input/output)':state.chart==='speed-intelligence'?'Output tokens / second':state.chart==='task-cost'?'USD / AA Index task':state.chart==='total-cost'?'USD / complete AA evaluation':'Model';
     result.yLabel=result.kind==='scatter'?'AA Intelligence Index':state.chart==='price'?'USD / 1M tokens':'AA benchmark value';
     models.forEach((model,index)=>{
-      const cohort=model.source==='aa'&&model.indexVersion&&(state.chart!=='speed-intelligence'||model.performancePrompt)?model.indexVersion+':'+(model.performancePrompt??'unknown'):null;
+      const cohort=model.source==='aa'&&verifiedIndexVersion(model.indexVersion)&&(state.chart!=='speed-intelligence'||model.performancePrompt)?model.indexVersion+':'+(model.performancePrompt??'unknown'):null;
       if(state.chart==='price'){
         let count=0;
         if(nonnegative(model.priceInput)){add(model,index,model.priceInput,'input','USD / 1M tokens',receiptFor(model),model.id+':input',cohort);count++;}

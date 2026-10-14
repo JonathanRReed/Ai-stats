@@ -3,13 +3,19 @@ import type {ExplorerModel} from './compare-series';
 const finite=(value:unknown):value is number=>typeof value==='number'&&Number.isFinite(value);
 const nonnegative=(value:unknown):value is number=>finite(value)&&value>=0;
 export const COMPARE_VIEW_LABELS:Array<{id:CompareChart;label:string}>=[
- {id:'cost-intelligence',label:'Price vs intelligence'},{id:'speed-intelligence',label:'Speed vs intelligence'},
- {id:'price',label:'Token prices'},{id:'benchmark',label:'Benchmarks'},
- {id:'task-cost',label:'Cost per task'},{id:'total-cost',label:'Evaluation cost'},
+ {id:'task-cost',label:'Cost per task'},{id:'cost-intelligence',label:'Token price vs intelligence'},
+ {id:'speed-intelligence',label:'Speed vs intelligence'},{id:'price',label:'Token prices'},
+ {id:'benchmark',label:'Benchmarks'},{id:'total-cost',label:'Evaluation cost'},
 ];
+export function canonicalChartMenu(availableIds:string[]){
+ const available=new Set(availableIds);
+ return COMPARE_VIEW_LABELS.filter(view=>available.has(view.id));
+}
 export function availableCompareCharts(models:ExplorerModel[]){
+ const known=(value:string|null|undefined)=>Boolean(value&&/^\d+(?:\.\d+)*$/.test(value));
  return COMPARE_VIEW_LABELS.filter(view=>view.id!=='task-cost'&&view.id!=='total-cost'||models.some(model=>
- model.source==='aa'&&finite(model.intelligence)&&nonnegative(view.id==='task-cost'?model.aaTaskCost:model.aaEvaluationCost)));
+ model.source==='aa'&&model.current===true&&known(model.indexVersion)&&finite(model.intelligence)&&
+ nonnegative(view.id==='task-cost'?model.aaTaskCost:model.aaEvaluationCost)));
 }
 export function availableAaMetrics(models:ExplorerModel[],includeHistory=false){
  return Object.entries(AA_METRIC_LABELS).filter(([key])=>models.some(model=>model.source==='aa'&&(includeHistory||model.current!==false)&&finite(
@@ -17,6 +23,10 @@ export function availableAaMetrics(models:ExplorerModel[],includeHistory=false){
 }
 export function nextCatalogSource(models:ExplorerModel[],source:string,includeHistory:boolean):string{
  return source==='all'||models.some(model=>model.source===source&&(includeHistory||model.current!==false))?source:'all';
+}
+export function defaultCatalogSource(models:ExplorerModel[],chart:string,metricId:string,includeHistory:boolean):string{
+ const preferred=chart==='price'?'all':chart==='benchmark'&&metricId.startsWith('epoch_')?'epoch':'aa';
+ return preferred==='all'||models.some(model=>model.source===preferred&&(includeHistory||model.current!==false))?preferred:'all';
 }
 export type ComparePreset={id:string;label:string;description:string;modelIds:string[];chart:CompareChart;metricId:string};
 const diverse=(models:ExplorerModel[])=>{
@@ -52,7 +62,25 @@ export function buildComparePresets(models:ExplorerModel[]):ComparePreset[]{
 
 export function selectAaBenchmarkModels(models:ExplorerModel[],metricId:string,limit=8,includeHistory=false):string[]{
  const value=(model:ExplorerModel)=>metricId==='aa_intelligence_index'?model.intelligence:metricId==='aa_coding_index'?model.coding:model.metrics?.[metricId];
- return models.filter(model=>model.source==='aa'&&(includeHistory||model.current!==false)&&finite(value(model))).sort((a,b)=>Number(value(b))-Number(value(a))||a.id.localeCompare(b.id)).slice(0,limit).map(model=>model.id);
+ const eligible=models.filter(model=>model.source==='aa'&&(includeHistory||model.current===true)&&finite(value(model))&&
+  Boolean(model.indexVersion&&/^\d+(?:\.\d+)*$/.test(model.indexVersion)));
+ const latest=eligible.map(model=>model.indexVersion!).sort((a,b)=>{
+  const left=a.split('.').map(Number),right=b.split('.').map(Number);
+  for(let i=0;i<Math.max(left.length,right.length);i++){const delta=(left[i]??0)-(right[i]??0);if(delta)return delta;}
+  return a.localeCompare(b);
+ }).at(-1);
+ const latestRows=eligible.filter(model=>model.indexVersion===latest);
+ const cohorts=new Map<string,ExplorerModel[]>();
+ for(const model of latestRows){const key=model.performancePrompt??'unknown';const cohort=cohorts.get(key)??[];cohort.push(model);cohorts.set(key,cohort);}
+ const cohort=[...cohorts].sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0]))[0]?.[1]??[];
+ return [...new Map(cohort.sort((a,b)=>value(b)!-value(a)!||a.id.localeCompare(b.id)).slice(0,Math.max(0,limit))
+  .map(model=>[model.id,model])).keys()];
+}
+
+export function selectTokenPriceModels(models:ExplorerModel[],limit=8):string[]{
+ return models.filter(model=>model.current===true&&nonnegative(model.priceInput)&&nonnegative(model.priceOutput))
+  .sort((a,b)=>(a.priceInput!+a.priceOutput!)-(b.priceInput!+b.priceOutput!)||a.id.localeCompare(b.id))
+  .slice(0,Math.max(0,limit)).map(model=>model.id);
 }
 
 export function buildAaBenchmarkSelections(models:ExplorerModel[]){

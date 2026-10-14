@@ -57,7 +57,9 @@ try{
  await assertBoundary('standalone timeout migration',true);
  await db.exec(await readFile('supabase/migrations/20261003173339_publisher_release_protocol_v2.sql','utf8'));
  await assertBoundary('publisher-v2 migration',true);
- console.log('PASS: synthetic base → timeout → publisher-v2 path, intermediate 30s timeout and invoker/service-only boundaries');
+ await db.exec(await readFile('supabase/migrations/20261014140000_app_release_schema_v3.sql','utf8'));
+ await assertBoundary('publisher-v3 migration',true);
+ console.log('PASS: synthetic base → timeout → publisher-v2 → release-v3 path, preserving timeout and invoker/service-only boundaries');
  await db.exec('set role service_role');
  await publish('a'.repeat(64));assert.equal(await current(),'a'.repeat(64));
  await publish('a'.repeat(64));assert.equal((await db.query('select count(*)::int as n from public.app_release_cache')).rows[0].n,1);
@@ -75,11 +77,12 @@ try{
  await assert.rejects(publish('d'.repeat(64)),/older/i);assert.equal(await current(),'c'.repeat(64));
  await db.query('select public.rollback_app_release($1)', ['b'.repeat(64)]);assert.equal(await current(),'b'.repeat(64));
  await publish('e'.repeat(64),{...manifest,schemaVersion:'ai-stats-compare-release.v2',generatedAt:'2026-10-02T15:00:00.000Z'});assert.equal(await current(),'e'.repeat(64));
- await assert.rejects(publish('f'.repeat(64),{...manifest,schemaVersion:'ai-stats-compare-release.v3'}),/manifest/i);
+ await publish('f'.repeat(64),{...manifest,schemaVersion:'ai-stats-compare-release.v3',generatedAt:'2026-10-02T16:00:00.000Z'});assert.equal(await current(),'f'.repeat(64));
+ await assert.rejects(publish('g'.repeat(64),{...manifest,schemaVersion:'ai-stats-compare-release.v4'}),/manifest/i);
  await assert.rejects(publish('f'.repeat(64),{...manifest,schemaVersion:null}),/manifest/i);
- await db.query('select public.rollback_app_release($1)',['b'.repeat(64)]);
+ await db.query('select public.rollback_app_release($1)',['e'.repeat(64)]);
  await db.exec('reset role; set role anon');
- assert.equal(await current(),'b'.repeat(64));
+ assert.equal(await current(),'e'.repeat(64));
  await assert.rejects(publish('d'.repeat(64)),/permission denied/i);
  await assert.rejects(db.query('select public.rollback_app_release($1)',['c'.repeat(64)]),/permission denied/i);
  await assert.rejects(db.query('update public.app_release_cache set active=false'),/permission denied/i);

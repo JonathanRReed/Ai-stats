@@ -10,6 +10,7 @@ import {
   buildModelJsonLd,
   modelPageDescription,
   modelPageTitle,
+  formatEpochScore,
   type ModelPageMetric,
   type ModelPageRecord,
 } from "../../lib/model-pages";
@@ -80,16 +81,15 @@ const formatMetric = (m: ModelPageMetric): string => {
 const published = (group: ModelPageMetric[]) => group.filter((m) => m.value !== null);
 const compact = (value: number | null): string =>
   value === null ? "Not available" : new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(value);
-const runScore = (value: number | null): string =>
-  value === null ? "Not available" : value <= 1 ? `${(value * 100).toFixed(1)}%` : value.toFixed(1);
-const runError = (value: number | null): string =>
-  value === null ? "n/a" : value <= 1 ? `${(value * 100).toFixed(1)}%` : value.toFixed(2);
+const runError = (value: number | null, unit: "native" | "percent" | "fraction" | null): string =>
+  value === null ? "n/a" : formatEpochScore(value, unit);
 const runSourceLabel = (run: ModelPageRecord["epochRuns"][number]): string =>
   run.sourceName && !/^https?:\/\//i.test(run.sourceName)
     ? run.sourceName
     : `${run.benchmark} benchmark source`;
 
-const aaPricing = record.pricing.filter((m) => m.source === "Artificial Analysis");
+const aaPricing = published(record.pricing.filter((m) => m.source === "Artificial Analysis"));
+const missingMeasurements = [...record.pricing, ...record.speed, ...record.context, ...record.benchmarks, ...record.indexes].filter((m) => m.value === null);
 const aaPrice = (key: string) => aaPricing.find((m) => m.key === key)?.value ?? null;
 const close = (a: number | null, b: number | null) => a !== null && b !== null && Math.abs(a - b) < 0.001;
 // OpenRouter list prices repeat the AA figure for most models; only show them when they differ.
@@ -177,6 +177,17 @@ const sourceLinks = [
     </header>
 
     <div class="model-grid">
+      <section class="eco-panel" aria-labelledby="indexes-heading">
+        <header class="eco-panel-head"><div><h2 id="indexes-heading">Artificial Analysis indexes</h2><p>Points on Artificial Analysis’s versioned scales.</p></div></header>
+        <div class="receipt-wrap"><table class="receipt receipt-sourced">
+          <thead><tr><th scope="col">Index</th><th scope="col" class="num">Points</th><th scope="col">Source</th></tr></thead>
+          <tbody>
+            {published(record.indexes).map((m) => <tr><th scope="row">{m.label}</th><td class="num">{formatMetric(m)}</td><td>{m.source}</td></tr>)}
+            {!published(record.indexes).length ? <tr><td colspan="3">No published AA index values for this record.</td></tr> : null}
+          </tbody>
+        </table></div>
+      </section>
+
       <section class="eco-panel" aria-labelledby="pricing-heading">
         <header class="eco-panel-head">
           <div>
@@ -195,6 +206,7 @@ const sourceLinks = [
             {routePricing.map((m) => (
               <tr><th scope="row">{m.label}</th><td class="num">{formatMetric(m)}</td><td>{m.source}</td></tr>
             ))}
+            {!aaPricing.length && !routePricing.length ? <tr><td colspan="3">No published token prices for this record.</td></tr> : null}
           </tbody>
         </table></div>
       </section>
@@ -211,9 +223,10 @@ const sourceLinks = [
             <tr><th scope="col">Measure</th><th scope="col" class="num">Value</th><th scope="col">Source</th></tr>
           </thead>
           <tbody>
-            {record.speed.map((m) => (
+            {published(record.speed).map((m) => (
               <tr><th scope="row">{m.label}</th><td class="num">{formatMetric(m)}</td><td>{m.source}</td></tr>
             ))}
+            {!published(record.speed).length ? <tr><td colspan="3">No published speed or latency measurements for this record.</td></tr> : null}
           </tbody>
         </table></div>
       </section>
@@ -230,7 +243,7 @@ const sourceLinks = [
             <tr><th scope="col">Measure</th><th scope="col" class="num">Value</th><th scope="col">Source</th></tr>
           </thead>
           <tbody>
-            {record.context.map((m) => (
+            {published(record.context).map((m) => (
               <tr><th scope="row">{m.label}</th><td class="num">{formatMetric(m)}</td><td>{m.source}</td></tr>
             ))}
             <tr>
@@ -261,28 +274,10 @@ const sourceLinks = [
             <tr><th scope="col">Benchmark</th><th scope="col" class="num">Score</th><th scope="col">Source</th></tr>
           </thead>
           <tbody>
-            {record.benchmarks.map((m) => (
+            {published(record.benchmarks).map((m) => (
               <tr><th scope="row">{m.label}</th><td class="num">{formatMetric(m)}</td><td>{m.source}</td></tr>
             ))}
-          </tbody>
-        </table></div>
-      </section>
-
-      <section class="eco-panel" aria-labelledby="indexes-heading">
-        <header class="eco-panel-head">
-          <div>
-            <h2 id="indexes-heading">Artificial Analysis indexes</h2>
-            <p>Points on Artificial Analysis’s versioned scales.</p>
-          </div>
-        </header>
-        <div class="receipt-wrap"><table class="receipt receipt-sourced">
-          <thead>
-            <tr><th scope="col">Index</th><th scope="col" class="num">Points</th><th scope="col">Source</th></tr>
-          </thead>
-          <tbody>
-            {record.indexes.map((m) => (
-              <tr><th scope="row">{m.label}</th><td class="num">{formatMetric(m)}</td><td>{m.source}</td></tr>
-            ))}
+            {!published(record.benchmarks).length ? <tr><td colspan="3">No published individual AA benchmark scores for this record.</td></tr> : null}
           </tbody>
         </table></div>
       </section>
@@ -292,19 +287,22 @@ const sourceLinks = [
           <header class="eco-panel-head">
             <div>
               <h2 id="epoch-heading">Epoch AI benchmark runs</h2>
-              <p>Independent runs matched by model name. Standard error is shown when Epoch publishes one.</p>
+              <p>Runs matched through reviewed Epoch model identifiers. Scores retain the publisher’s reported unit and version.</p>
             </div>
           </header>
           <div class="receipt-wrap"><table class="receipt">
             <thead>
-              <tr><th scope="col">Benchmark</th><th scope="col" class="num">Score</th><th scope="col" class="num">Std. error</th><th scope="col">Run source</th></tr>
+              <tr><th scope="col">Benchmark</th><th scope="col">Metric</th><th scope="col">Version</th><th scope="col">Conditions</th><th scope="col" class="num">Score</th><th scope="col" class="num">Std. error</th><th scope="col">Run source</th></tr>
             </thead>
             <tbody>
               {record.epochRuns.map((run) => (
                 <tr>
                   <th scope="row">{run.benchmark}</th>
-                  <td class="num">{runScore(run.score)}</td>
-                  <td class="num">{runError(run.stderr)}</td>
+                  <td>{run.scoreMetric ?? "Not recorded"}</td>
+                  <td>{run.benchmarkVersion ?? "Not recorded"}</td>
+                  <td>{run.conditions ? Object.entries(run.conditions).map(([key,value])=>`${key}: ${value}`).join(" · ") : "Not recorded"}</td>
+                  <td class="num">{formatEpochScore(run.score, run.scoreUnit)}{run.score === null ? "" : run.scoreUnit === "fraction" || run.scoreUnit === "percent" ? "" : run.scoreUnit === "native" ? " (native)" : " (unit not reported)"}</td>
+                  <td class="num">{runError(run.stderr, run.scoreUnit)}</td>
                   <td>{run.sourceLink ? <a href={run.sourceLink} rel="noopener noreferrer">{runSourceLabel(run)}</a> : runSourceLabel(run)}</td>
                 </tr>
               ))}
@@ -312,6 +310,12 @@ const sourceLinks = [
           </table></div>
         </section>
       ) : null}
+
+      {missingMeasurements.length ? <details class="eco-panel">
+        <summary class="eco-panel-head">Unavailable measurements ({missingMeasurements.length})</summary>
+        <p class="panel-foot">These fields were not reported for this record. They are not zero.</p>
+        <ul class="panel-foot">{missingMeasurements.map((metric) => <li>{metric.label} · {metric.source}</li>)}</ul>
+      </details> : null}
 
       <section class="eco-panel" aria-labelledby="catalog-heading">
         <header class="eco-panel-head">

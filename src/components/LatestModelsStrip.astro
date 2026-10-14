@@ -53,7 +53,7 @@ const providerFor = (model: AaModel): string =>
       <ul class="latest-model-grid eco-joined">
         {models.map((model) => (
           <li>
-            <a href={compareRecordHref(model.id)}>
+            <a href={compareRecordHref(model.id, "benchmark", false, "aa_intelligence_index")}>
               <span class="latest-model-provider">{providerFor(model)}</span>
               <strong title={model.name ?? model.id}>{model.name}</strong>
               <dl>

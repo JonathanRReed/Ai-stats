@@ -12,6 +12,39 @@ test('safe state round-trips selections, controls and missing shared identities'
     metricId:'epoch_gpqa',conditionKey:'[["Shots","0"]]',scale:'log',labels:true,frontier:false,reasoningEfforts:['high']});
   expect(state.parseCompareState?.(state.serializeCompareState?.(parsed),catalog,['b'])).toEqual(parsed);
 });
+test('fresh comparisons show labels by default and an explicit off value survives share URLs',()=>{
+ const fresh=state.parseCompareState(new URLSearchParams(),catalog);
+ expect(fresh.labels).toBe(true);
+ const off={...fresh,labels:false};
+ const url=state.serializeCompareState(off);
+ expect(url.get('labels')).toBe('0');
+ expect(state.parseCompareState(url,catalog).labels).toBe(false);
+});
+test('saved legacy model links stay explicit after a chart change and popstate restores their selection',()=>{
+ const saved=new URLSearchParams('models=a-high%2Cb&chart=cost-intelligence');
+ expect(state.hasExplicitCompareSelection(saved)).toBe(true);
+ expect(state.usesSuggestedCompareSelection(saved)).toBe(false);
+ const selected=state.parseCompareState(saved,catalog,['retired']);
+ const changed={...selected,chart:'speed-intelligence' as const};
+ const changedUrl=state.serializeCompareState(changed);
+ expect(state.parseCompareState(changedUrl,catalog,['retired']).modelIds).toEqual(['a-high','b']);
+ // popstate restores the earlier legacy URL through the same explicit-selection check.
+ expect(state.usesSuggestedCompareSelection(new URLSearchParams(saved))).toBe(false);
+ expect(state.parseCompareState(saved,catalog,['retired']).modelIds).toEqual(['a-high','b']);
+});
+test('all supported selection URL forms stay explicit instead of switching to suggested defaults',()=>{
+ for(const saved of [
+  'm=a-high',
+  'models=a-high%2Cb',
+  'model=Model%20A%20%28High%29',
+  'source=aa&record=aa-high',
+ ]){
+  const params=new URLSearchParams(saved);
+  expect(state.hasExplicitCompareSelection(params)).toBe(true);
+  expect(state.usesSuggestedCompareSelection(params)).toBe(false);
+ }
+ expect(state.hasExplicitCompareSelection(new URLSearchParams('source=aa'))).toBe(false);
+});
 test('invalid URL controls are bounded and default safely',()=>{
   const parsed=state.parseCompareState?.(new URLSearchParams('chart=script&scale=bad&metric=javascript:bad&reason=nope'),catalog,['b']);
   expect(parsed).toMatchObject({chart:'cost-intelligence',scale:'linear',modelIds:['b'],
@@ -63,6 +96,28 @@ test('explicit Epoch score metric round trips with shared URLs',()=>{
 
 test('invalid chart defaults use the normalized chart scale',()=>{
  expect(state.parseCompareState(new URLSearchParams('chart=not-a-chart'),catalog)).toMatchObject({chart:'cost-intelligence',scale:'log'});
+});
+
+test('default charts use delivered task-cost capability while explicit views and benchmark links persist',()=>{
+ expect(state.parseCompareState(new URLSearchParams(),catalog,[], 'task-cost').chart).toBe('task-cost');
+ expect(state.parseCompareState(new URLSearchParams('chart=cost-intelligence'),catalog,[], 'task-cost').chart).toBe('cost-intelligence');
+ expect(state.parseCompareState(new URLSearchParams('metric=gpqa'),catalog,[], 'task-cost')).toMatchObject({chart:'benchmark',metricId:'gpqa'});
+});
+
+test('family pagination keeps every member of a group together at the page boundary',()=>{
+ const rows=[...Array.from({length:79},(_,i)=>({source:'aa',family:'Family '+i})),
+  {source:'aa',family:'Opus'},{source:'aa',family:'Opus'},{source:'aa',family:'Opus'},
+  {source:'openrouter',family:'Opus'}];
+ const page=state.paginateFamilyGroups(rows,80);
+ expect(page.visibleCount).toBe(82);
+ expect(page.groups.at(-1)?.map(row=>row.source+':'+row.family)).toEqual(['aa:Opus','aa:Opus','aa:Opus']);
+});
+
+test('minimal reasoning filters and shared URLs retain the effort label',()=>{
+ const rows=[...catalog,{id:'minimal',name:'Gemini 3.5 Flash (Minimal)',family:'Gemini 3.5 Flash',reasoning:'minimal',current:true}];
+ const parsed=state.parseCompareState(new URLSearchParams('m=minimal&reason=minimal'),rows);
+ expect(parsed).toMatchObject({modelIds:['minimal'],reasoningEfforts:['minimal']});
+ expect(state.parseCompareState(state.serializeCompareState(parsed),rows)).toEqual(parsed);
 });
 
 test('a stale score metric remains visible and recoverable with one or zero recorded metrics',()=>{
