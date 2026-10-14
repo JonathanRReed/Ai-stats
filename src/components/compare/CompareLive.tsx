@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState} from 'react';
 import CompareExplorer from './CompareExplorer';
-import {fetchNewCompareRelease,shouldApplyRelease,type ReleaseCandidate} from '../../lib/compare-release-client';
+import {fetchNewCompareRelease,inheritCompareSuggestions,shouldApplyRelease,type ReleaseCandidate} from '../../lib/compare-release-client';
 import type {CompareReleaseManifest} from '../../lib/compare-release';
 export default function CompareLive({initial}:{initial:CompareReleaseManifest}){
  const [active,setActive]=useState<ReleaseCandidate>({revision:initial.datasetRevision,manifest:initial});
@@ -19,8 +19,9 @@ export default function CompareLive({initial}:{initial:CompareReleaseManifest}){
  const candidate=await fetchNewCompareRelease(currentDataset.current,fetch,controller.signal);
  if(cancelled||version!==requestVersion.current)return;
  if(candidate){
- if(shouldApplyRelease(firstCheck,interacted.current)){currentDataset.current=candidate.manifest.datasetRevision;setActive(candidate);setPending(null);}
- else setPending(candidate);
+ const compatible={...candidate,manifest:inheritCompareSuggestions(initial,candidate.manifest)};
+ if(shouldApplyRelease(firstCheck,interacted.current)){currentDataset.current=candidate.manifest.datasetRevision;setActive(compatible);setPending(null);}
+ else setPending(compatible);
  }else setPending(null);
  }catch{ /* Keep the dated static or previously validated data. */ }
  finally{firstCheck=false;inFlight=false;}
@@ -34,7 +35,7 @@ export default function CompareLive({initial}:{initial:CompareReleaseManifest}){
  try{
  const candidate=await fetchNewCompareRelease(currentDataset.current,fetch,undefined,true);
  if(!mounted.current||version!==requestVersion.current)return;
- if(candidate){currentDataset.current=candidate.manifest.datasetRevision;setActive(candidate);}
+ if(candidate){currentDataset.current=candidate.manifest.datasetRevision;setActive({...candidate,manifest:inheritCompareSuggestions(initial,candidate.manifest)});}
  setPending(null);
  }catch{ /* Leave the current comparison intact and allow another explicit retry. */ }
  finally{manualRefresh.current=false;if(mounted.current)setRefreshing(false);}
