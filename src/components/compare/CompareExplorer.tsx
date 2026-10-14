@@ -90,7 +90,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
     const provider=model?.provider??model?.family;
     const ambiguous=Boolean(model&&visibleModels.some(candidate=>candidate.id!==model.id&&candidate.name===model.name&&(candidate.provider??candidate.family)===provider));
     const identity=model?[provider,EXPLORER_SOURCE_LABELS[model.source],ambiguous?model.sourceModelId:null].filter(Boolean).join(' · '):id;
-    return <span className="selected-model-chip" key={id}><span><strong>{name}</strong><small>{identity}</small></span>
+    return <span className="selected-model-chip" key={id} title={identity}><span><strong>{name}</strong></span>
       <button type="button" aria-label={`Remove ${name} (${identity})`} onClick={()=>toggle(id)}>×</button></span>;};
   const chooseMeasured=()=>update(benchmarkStartingSelection(visibleModels,observations.filter(row=>!state.conditionKey||epochConditionKey(row.conditions)===state.conditionKey),state.scoreMetricKey));
   const chooseBenchmark=(metricId:string)=>{const slug=metricId.startsWith('epoch_')?metricId.slice(6):null;const rows=slug?readBenchmarkCache(benchmarkCache,slug):null;if(!slug){update({metricId,conditionKey:null,scoreMetricKey:null,modelIds:delivery?.aaBenchmarkSelections?.[metricId]?.[state.includeHistory?'historical':'current']??selectAaBenchmarkModels(measuredModels,metricId,8,state.includeHistory),missingModelIds:[]});return;}update({metricId,conditionKey:null,scoreMetricKey:null,...(rows?{...benchmarkStartingSelection(models,rows),missingModelIds:[]}: {})});pendingBenchmarkChoice.current=rows?null:slug;};

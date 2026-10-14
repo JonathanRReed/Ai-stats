@@ -81,7 +81,8 @@ test('selection helper only changes rendered records, never hidden same-name sou
  expect(selectVisibleRecords(['aa:a','openrouter:a'],['openrouter:a'],false)).toEqual(['aa:a']);
  const selector=readFileSync('src/components/compare/ModelSelector.tsx','utf8');
  expect(selector).toContain('key={model.id}');
- expect(selector).toContain('onToggle(model.id);searchRef.current?.focus()');
+ expect(selector).toContain('onChange={()=>onToggle(model.id)}');
+ expect(selector).toContain('ref={searchRef}');
 });
 
 test('AA registry slugs represent all exact UUID variants without duplicate inventory rows',()=>{

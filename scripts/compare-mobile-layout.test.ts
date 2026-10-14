@@ -10,7 +10,10 @@ test('mobile explorer uses a native modal filter drawer and returns focus',()=>{
   expect(component).toContain('filterButton.current?.focus()');
   expect(component).toContain("querySelector<HTMLInputElement>('input[type=\"search\"]')?.focus()");
   expect(component).toContain('onClose={()=>{setFiltersOpen(false);filterButton.current?.focus();}}');
-  expect(readFileSync('src/components/compare/ModelSelector.tsx','utf8')).toContain('onToggle(model.id);searchRef.current?.focus()');
+  const selector=readFileSync('src/components/compare/ModelSelector.tsx','utf8');
+  expect(selector).toContain('ref={searchRef}');
+  expect(selector).toContain('onChange={()=>onToggle(model.id)}');
+  expect(selector).not.toContain('onToggle(model.id);searchRef.current?.focus()');
   expect(component).toContain('aria-labelledby="model-picker-title"');
   expect(css).toContain('@media (max-width: 900px)');
   expect(css).toContain('.explorer-workspace{display:grid;grid-template-columns:minmax(0,1fr)}');

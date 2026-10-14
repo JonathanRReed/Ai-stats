@@ -39,7 +39,7 @@ export default function ModelSelector({models,selected,includeHistory,chart,metr
     const hasSiblingIdentity=models.some(candidate=>candidate.id!==model.id&&candidate.name===model.name&&
      (candidate.provider??candidate.family)===provider);
     return <label className="model-option" key={model.id} data-selected={selectedSet.has(model.id)}>
-     <input type="checkbox" checked={selectedSet.has(model.id)} disabled={!selectedSet.has(model.id)&&selected.length>=100} onChange={()=>{onToggle(model.id);searchRef.current?.focus();}}/>
+     <input type="checkbox" checked={selectedSet.has(model.id)} disabled={!selectedSet.has(model.id)&&selected.length>=100} onChange={()=>onToggle(model.id)}/>
      <span><strong>{model.name}</strong><small>{provider} · {sourceLabel}</small>{hasSiblingIdentity?<small>{model.sourceModelId}</small>:null}
       <small>{model.current===false?'Historical · ':model.source==='aa'&&model.current===null?'Membership unverified · ':''}{model.source==='epoch'?'Benchmark records':model.source==='aa'?'AA measurements':model.hasTokenPrices||typeof model.priceInput==='number'||typeof model.priceOutput==='number'?'Token prices available':'Catalog only · no chart measurements'}</small>
      </span>
