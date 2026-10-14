@@ -65,6 +65,28 @@ test('invalid chart defaults use the normalized chart scale',()=>{
  expect(state.parseCompareState(new URLSearchParams('chart=not-a-chart'),catalog)).toMatchObject({chart:'cost-intelligence',scale:'log'});
 });
 
+test('default charts use delivered task-cost capability while explicit views and benchmark links persist',()=>{
+ expect(state.parseCompareState(new URLSearchParams(),catalog,[], 'task-cost').chart).toBe('task-cost');
+ expect(state.parseCompareState(new URLSearchParams('chart=cost-intelligence'),catalog,[], 'task-cost').chart).toBe('cost-intelligence');
+ expect(state.parseCompareState(new URLSearchParams('metric=gpqa'),catalog,[], 'task-cost')).toMatchObject({chart:'benchmark',metricId:'gpqa'});
+});
+
+test('family pagination keeps every member of a group together at the page boundary',()=>{
+ const rows=[...Array.from({length:79},(_,i)=>({source:'aa',family:'Family '+i})),
+  {source:'aa',family:'Opus'},{source:'aa',family:'Opus'},{source:'aa',family:'Opus'},
+  {source:'openrouter',family:'Opus'}];
+ const page=state.paginateFamilyGroups(rows,80);
+ expect(page.visibleCount).toBe(82);
+ expect(page.groups.at(-1)?.map(row=>row.source+':'+row.family)).toEqual(['aa:Opus','aa:Opus','aa:Opus']);
+});
+
+test('minimal reasoning filters and shared URLs retain the effort label',()=>{
+ const rows=[...catalog,{id:'minimal',name:'Gemini 3.5 Flash (Minimal)',family:'Gemini 3.5 Flash',reasoning:'minimal',current:true}];
+ const parsed=state.parseCompareState(new URLSearchParams('m=minimal&reason=minimal'),rows);
+ expect(parsed).toMatchObject({modelIds:['minimal'],reasoningEfforts:['minimal']});
+ expect(state.parseCompareState(state.serializeCompareState(parsed),rows)).toEqual(parsed);
+});
+
 test('a stale score metric remains visible and recoverable with one or zero recorded metrics',()=>{
  expect(state.scoreMetricOptions(['valid'],'retired')).toEqual({visible:true,missing:true});
  expect(state.scoreMetricOptions([],'retired')).toEqual({visible:true,missing:true});

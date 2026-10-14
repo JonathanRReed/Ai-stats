@@ -11,6 +11,15 @@ export type ExplorerModel = {
   metrics?:Record<string,number|null>; hasTokenPrices?:boolean; detailAvailable?:boolean;
 };
 export const EXPLORER_SOURCE_LABELS:Record<ExplorerModel['source'],string>={aa:'Artificial Analysis',epoch:'Epoch AI',openrouter:'OpenRouter',huggingface:'Hugging Face',litellm:'LiteLLM',catalog:'Database inventory',publisher:'Original publishers'};
+export function compatibleVariantLines(points:SeriesPoint[]):SeriesPoint[][] {
+  const groups=new Map<string,SeriesPoint[]>();
+  for(const point of points){
+    if(!point.cohortKey||point.reasoning==='unknown')continue;
+    const key=JSON.stringify([point.source,point.family,point.cohortKey]);
+    const group=groups.get(key)??[];group.push(point);groups.set(key,group);
+  }
+  return [...groups.values()].filter(group=>new Set(group.map(point=>point.reasoning)).size>1);
+}
 export type ExplorerEvidence = {models:ExplorerModel[]; observations:EpochObservation[]};
 export type EvidenceReceipt = {
   source:string; sourceUrl:string|null; observedAt:string|null; fetchedAt:string|null;
@@ -18,7 +27,7 @@ export type EvidenceReceipt = {
 };
 export type SeriesPoint = {
   id:string; modelId:string; label:string; family:string; reasoning:string; series:string;
-  x:number; y:number; unit:string; cohortKey:string|null; receipt:EvidenceReceipt;
+  source:ExplorerModel['source']; x:number; y:number; unit:string; cohortKey:string|null; receipt:EvidenceReceipt;
 };
 export type CompareSeries = {
   available:boolean; unavailableReason:string|null; kind:'scatter'|'bars'; points:SeriesPoint[];
@@ -65,7 +74,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
     conditions:model.performancePrompt?{performancePrompt:model.performancePrompt}:null,snapshotId:null});
   const add=(model:ExplorerModel,x:number,y:number,series:string,unit:string,receipt=receiptFor(model),id=model.id,cohortKey:string|null=null)=>{
     result.points.push({id,modelId:model.id,label:model.name,family:model.family,reasoning:model.reasoning??'unknown',
-      x,y,series,unit,receipt,cohortKey});
+      source:model.source,x,y,series,unit,receipt,cohortKey});
   };
   if(state.chart==='benchmark'&&state.metricId.startsWith('epoch_')){
     const slug=state.metricId.slice(6);
@@ -94,7 +103,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
       result.excluded.push({modelId:model.id,reason:'No matching benchmark observation'});
     }
   } else {
-    result.xLabel=state.chart==='cost-intelligence'?'USD / 1M tokens (3:1 input/output)':state.chart==='speed-intelligence'?'Output tokens / second':state.chart==='task-cost'?'USD / evaluation task':state.chart==='total-cost'?'USD / complete evaluation':'Model';
+    result.xLabel=state.chart==='cost-intelligence'?'USD / 1M tokens (3:1 input/output)':state.chart==='speed-intelligence'?'Output tokens / second':state.chart==='task-cost'?'USD / AA Index task':state.chart==='total-cost'?'USD / complete AA evaluation':'Model';
     result.yLabel=result.kind==='scatter'?'AA Intelligence Index':state.chart==='price'?'USD / 1M tokens':'AA benchmark value';
     models.forEach((model,index)=>{
       const cohort=model.source==='aa'&&model.indexVersion&&(state.chart!=='speed-intelligence'||model.performancePrompt)?model.indexVersion+':'+(model.performancePrompt??'unknown'):null;

@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState,type RefObject} from 'react';
 import {plotGeometry,formatChartNumber} from '../../lib/compare-geometry';
-import type {CompareSeries,SeriesPoint} from '../../lib/compare-series';
+import {compatibleVariantLines,type CompareSeries,type SeriesPoint} from '../../lib/compare-series';
 const FAMILY_HUES:Array<[RegExp,number]>=[
   [/^Claude/i,1],[/^(GPT|o[1-9])/i,8],[/^(Gemini|Gemma)/i,0],[/^(Muse|Llama)/i,2],
   [/^Grok/i,3],[/^MiMo/i,4],[/^Qwen/i,5],[/^Kimi/i,6],[/^GLM/i,7],[/^DeepSeek/i,5],
@@ -28,9 +28,7 @@ export default function ComparisonChart({series,labels,activeId,onPreview,onPin,
   });
   const plot=plotGeometry(series.points,series.kind,series.scale,width,height,Math.min(height*.35,legendY+24));
   const byId=new Map(plot.points.map(point=>[point.id,point]));
-  const linked=new Map<string,typeof plot.points>();
-  for(const point of plot.points){if(!point.cohortKey||point.reasoning==='unknown')continue;
-    const key=point.family+':'+point.cohortKey;const group=linked.get(key)??[];group.push(point);linked.set(key,group);}
+  const linked=compatibleVariantLines(series.points);
   const inspect=(point:SeriesPoint)=>point.label+(point.series==='input'?' · Input tokens':point.series==='output'?' · Output tokens':'')+': '+(series.kind==='scatter'?formatChartNumber(point.x)+' '+series.xLabel+' · ':'')+formatChartNumber(point.y)+' '+point.unit;
   return <div className="comparison-plot" ref={frame}>
     {!series.available?<div className="plot-empty"><h2>Awaiting data access</h2><p>{series.unavailableReason}</p></div>:
@@ -47,21 +45,24 @@ export default function ComparisonChart({series,labels,activeId,onPreview,onPin,
         <text className="plot-tick" x={tick.position} y={plot.bottom+24} textAnchor="middle">{tick.label}</text></g>):null}
       <line className="plot-axis" x1={plot.left} x2={plot.right} y1={plot.bottom} y2={plot.bottom}/>
       <line className="plot-axis" x1={plot.left} x2={plot.left} y1={plot.top} y2={plot.bottom}/>
-      {series.kind==='scatter'?[...linked].map(([key,points])=>points.length>1?<polyline key={key} className="variant-link" stroke={familyColor(points[0].family)}
-        points={[...points].sort((a,b)=>a.x-b.x).map(point=>point.cx+','+point.cy).join(' ')}/>:null):null}
+      {series.kind==='scatter'?linked.map((points,index)=><polyline key={JSON.stringify([points[0].source,points[0].family,points[0].cohortKey,index])} className="variant-link" stroke={familyColor(points[0].family)}
+        points={[...points].sort((a,b)=>a.x-b.x).map(point=>byId.get(point.id)).filter(Boolean).map(point=>point!.cx+','+point!.cy).join(' ')}/>):null}
       {Object.entries(series.frontierGroups).map(([key,ids])=><polyline key={key} className="frontier-line"
         points={ids.map(id=>byId.get(id)).filter(Boolean).map(point=>point!.cx+','+point!.cy).join(' ')}/>)}
       {plot.points.map(point=><g key={point.id} role="button" tabIndex={0} aria-label={inspect(point)}
         className={'chart-point'+(activeId===point.id?' is-active':'')}
         onPointerEnter={()=>onPreview(point.id)} onPointerLeave={()=>onPreview(null)} onFocus={()=>onPreview(point.id)}
         onBlur={()=>onPreview(null)} onClick={()=>onPin(point.id)}
-        onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onPin(point.id);}}}>
+        onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onPin(point.id);}
+          if(event.key==='ArrowRight'||event.key==='ArrowLeft'){event.preventDefault();const nodes=[...event.currentTarget.ownerSVGElement!.querySelectorAll<SVGGElement>('.chart-point')];
+            nodes[Math.max(0,Math.min(nodes.length-1,nodes.indexOf(event.currentTarget)+(event.key==='ArrowRight'?1:-1)))]?.focus();}}}>
         <title>{inspect(point)}</title>
         {series.kind==='scatter'?<><circle cx={point.cx} cy={point.cy} r="11" fill="transparent"/><circle className="point-mark" cx={point.cx} cy={point.cy}
           r={activeId===point.id?6:4.5} fill={familyColor(point.family)}/></>:<rect className="point-mark" x={point.cx-point.visibleBarWidth/2}
           y={Math.min(point.cy,plot.baseline)} width={point.visibleBarWidth} height={Math.max(1,Math.abs(plot.baseline-point.cy))}
           fill={familyColor(point.family)} opacity={point.series==='input'?.55:1}/>}
-        {labels?<text className="point-label" x={point.cx+8} y={point.cy-10}>{point.label}</text>:null}
+        {labels||activeId===point.id?<text className="point-label" textAnchor={point.cx>width-150?'end':'start'}
+          x={point.cx+(point.cx>width-150?-8:8)} y={point.cy-10}>{point.label}</text>:null}
       </g>)}
       {series.kind==='bars'&&new Set(plot.points.map(point=>point.x)).size<=12?
         [...new Map(plot.points.map(point=>[point.x,point])).values()].map(point=><text key={'category:'+point.x}

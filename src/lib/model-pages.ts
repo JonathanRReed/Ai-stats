@@ -43,6 +43,8 @@ export type ModelPageEpochRun = {
   benchmarkSlug: string;
   benchmark: string;
   score: number | null;
+  scoreUnit: 'native' | 'percent' | 'fraction' | null;
+  benchmarkVersion: string | null;
   stderr: number | null;
   scoreMetric: string | null;
   sourceName: string | null;
@@ -119,8 +121,8 @@ export type ModelPageContext = {
 };
 
 const finite = (value: unknown): number | null => {
-  if (value === null || value === undefined || value === '') return null;
-  const num = Number(value);
+  if (typeof value !== 'number' && !(typeof value === 'string' && value.trim() && /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(value.trim()))) return null;
+  const num = typeof value === 'number' ? value : Number(value.trim());
   return Number.isFinite(num) ? num : null;
 };
 
@@ -167,6 +169,8 @@ export const matchEpochRuns = (
         benchmarkSlug: run.benchmark_slug ?? benchmark?.slug ?? run.benchmark_id,
         benchmark: run.benchmark_name ?? benchmark?.name ?? run.benchmark_id,
         score: finite(run.score),
+        scoreUnit: run.score_unit ?? null,
+        benchmarkVersion: text(run.benchmark_version),
         stderr: finite(run.stderr),
         scoreMetric: text(run.score_metric),
         sourceName: useEpochVpctPage ? 'Epoch AI VPCT benchmark' : text(run.source_name),

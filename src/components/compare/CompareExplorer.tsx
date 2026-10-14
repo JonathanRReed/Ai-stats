@@ -21,7 +21,8 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const charts=useMemo(()=>delivery?.charts??availableCompareCharts(models),[delivery,models]);
   const presets=useMemo(()=>delivery?.presets??buildComparePresets(models),[delivery,models]);
   const [presetDescription,setPresetDescription]=useState('');
-  const [state,setState]=useState(()=>parseCompareState(new URLSearchParams(),models,defaultModelIds));
+  const defaultChart=charts.some(chart=>chart.id==='task-cost')?'task-cost':'cost-intelligence';
+  const [state,setState]=useState(()=>parseCompareState(new URLSearchParams(),models,defaultModelIds,defaultChart));
   const pendingBenchmarkChoice=useRef<string|null>(null);
   const aaMetrics=useMemo(()=>delivery?.aaBenchmarkSelections?Object.entries(delivery.aaBenchmarkSelections).filter(([,groups])=>(state.includeHistory?groups.historical:groups.current).length).map(([key])=>[key,AA_METRIC_LABELS[key]] as [string,string]):delivery?.aaMetrics??availableAaMetrics(models,state.includeHistory),[delivery,models,state.includeHistory]);
   const [benchmarkCache,setBenchmarkCache]=useState<Record<string,EpochObservation[]>>({});
@@ -29,8 +30,8 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const [hovered,setHovered]=useState<string|null>(null);const [pinned,setPinned]=useState<string|null>(null);
   const [filtersOpen,setFiltersOpen]=useState(false);const dialog=useRef<HTMLDialogElement>(null);
   const filterButton=useRef<HTMLButtonElement>(null);const svg=useRef<SVGSVGElement>(null);
-  useEffect(()=>{const read=()=>{pendingBenchmarkChoice.current=null;setPresetDescription('');setState(parseCompareState(new URLSearchParams(window.location.search),models,defaultModelIds));};
-    read();window.addEventListener('popstate',read);return()=>window.removeEventListener('popstate',read);},[models,defaultModelIds]);
+  useEffect(()=>{const read=()=>{pendingBenchmarkChoice.current=null;setPresetDescription('');setState(parseCompareState(new URLSearchParams(window.location.search),models,defaultModelIds,defaultChart));};
+    read();window.addEventListener('popstate',read);return()=>window.removeEventListener('popstate',read);},[models,defaultModelIds,defaultChart]);
   const epochSlug=state.chart==='benchmark'&&state.metricId.startsWith('epoch_')?state.metricId.slice(6):null;
   const observations=epochSlug?readBenchmarkCache(benchmarkCache,epochSlug)??EMPTY_OBSERVATIONS:EMPTY_OBSERVATIONS;
   useEffect(()=>{
@@ -74,8 +75,8 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const update=(patch:Partial<CompareState>)=>{if(['modelIds','metricId','scoreMetricKey','conditionKey','chart','includeHistory'].some(key=>Object.hasOwn(patch,key)))pendingBenchmarkChoice.current=null;setPresetDescription('');const next={...state,...patch};setState(next);setPinned(null);setHovered(null);
     const url=new URL(window.location.href);url.search=serializeCompareState(next).toString();window.history.pushState(null,'',url);};
   const toggle=(id:string)=>update({modelIds:state.modelIds.includes(id)?state.modelIds.filter(value=>value!==id):[...state.modelIds,id].slice(0,100)});
-  const reset=()=>update(parseCompareState(new URLSearchParams(),models,defaultModelIds));
-  const selectorProps={models:visibleModels,selected:state.modelIds,includeHistory:state.includeHistory,onToggle:toggle,
+  const reset=()=>update(parseCompareState(new URLSearchParams(),models,defaultModelIds,defaultChart));
+  const selectorProps={models:visibleModels,selected:state.modelIds,includeHistory:state.includeHistory,chart:state.chart,onToggle:toggle,
     onFamily:(family:string,checked:boolean)=>update({modelIds:selectFamily(state.modelIds,visibleModels,family,checked,state.includeHistory)}),
     onGroup:(ids:string[],checked:boolean)=>update({modelIds:selectVisibleRecords(state.modelIds,ids,checked)}),
     onHistory:(includeHistory:boolean)=>update({includeHistory}),reasoningEfforts:state.reasoningEfforts,
@@ -109,8 +110,9 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
           <option value="">Choose a score metric</option>{scoreOptions.missing?<option value={state.scoreMetricKey!}>Unavailable saved metric</option>:null}{scoreMetrics.map(key=><option key={key} value={key}>{JSON.parse(key).join(' · ')}</option>)}</select></label>:null}
         {epochSlug&&conditions.length?<label>Conditions<select value={state.conditionKey??''} onChange={event=>update({conditionKey:event.target.value||null})}>
           <option value="">All recorded runs</option>{conditions.map(key=><option value={key} key={key}>{key==='unknown'?'Not recorded':JSON.parse(key).map(([name,value]:[string,unknown])=>name+': '+value).join(' · ')}</option>)}</select></label>:null}
-        <details className="chart-options"><summary>Chart options</summary><div className="chart-options-content"><div className="scale-buttons" aria-label="Axis scale"><button type="button" aria-pressed={state.scale==='linear'} onClick={()=>update({scale:'linear'})}>Linear</button>
-          <button type="button" aria-pressed={state.scale==='log'} onClick={()=>update({scale:'log'})}>Log</button></div>
+        {series.kind==='scatter'?<div className="scale-buttons" role="group" aria-label="Horizontal axis scale"><button type="button" aria-pressed={series.scale==='linear'} onClick={()=>update({scale:'linear'})}>Linear</button>
+          <button type="button" aria-pressed={series.scale==='log'} onClick={()=>update({scale:'log'})}>Log</button></div>:null}
+        <details className="chart-options"><summary>Chart options</summary><div className="chart-options-content">
         <label className="toolbar-check"><input type="checkbox" checked={state.labels} onChange={event=>update({labels:event.target.checked})}/>Labels</label>
         {series.kind==='scatter'?<label className="toolbar-check"><input type="checkbox" checked={state.frontier} onChange={event=>update({frontier:event.target.checked})}/>Frontier</label>:null}
         </div></details>
@@ -138,7 +140,8 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
         {models.find(model=>model.id===item.modelId)?.name??item.modelId}: {item.reason}</li>)}</ul></details>:null}</div>
     <p className="share-notice" role="status">{notice}</p>
     <details className="explorer-methodology"><summary>Sources and calculations</summary>
-      <p>Blended prices use three input tokens for each output token. Evaluation costs are Artificial Analysis’s reported spending on each evaluation.</p>
+      <p>Task cost is Artificial Analysis’s weighted average cost across its Intelligence Index evaluation tasks, including measured input, cache, reasoning, and answer-token charges. It is a benchmark methodology measure, not a universal real-world task price. Total evaluation cost is AA’s separately reported complete evaluation spend. Neither is derived from token price.</p>
+      <p>Blended prices use three input tokens for each output token. Missing or unsupported values are excluded and shown as exclusions; a recorded zero remains zero.</p>
       <p>Frontiers compare models using the same AA index version and timing settings. Epoch results retain their benchmark and test settings.</p>
       <p>Historical AA results are off by default. Select a point to see its source and date.</p>
     </details>

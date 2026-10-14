@@ -3,13 +3,15 @@ import type {ExplorerModel} from './compare-series';
 const finite=(value:unknown):value is number=>typeof value==='number'&&Number.isFinite(value);
 const nonnegative=(value:unknown):value is number=>finite(value)&&value>=0;
 export const COMPARE_VIEW_LABELS:Array<{id:CompareChart;label:string}>=[
- {id:'cost-intelligence',label:'Price vs intelligence'},{id:'speed-intelligence',label:'Speed vs intelligence'},
- {id:'price',label:'Token prices'},{id:'benchmark',label:'Benchmarks'},
- {id:'task-cost',label:'Cost per task'},{id:'total-cost',label:'Evaluation cost'},
+ {id:'task-cost',label:'Cost per task'},{id:'cost-intelligence',label:'Token price vs intelligence'},
+ {id:'speed-intelligence',label:'Speed vs intelligence'},{id:'price',label:'Token prices'},
+ {id:'benchmark',label:'Benchmarks'},{id:'total-cost',label:'Evaluation cost'},
 ];
 export function availableCompareCharts(models:ExplorerModel[]){
+ const known=(value:string|null|undefined)=>Boolean(value&&/^\d+(?:\.\d+)*$/.test(value));
  return COMPARE_VIEW_LABELS.filter(view=>view.id!=='task-cost'&&view.id!=='total-cost'||models.some(model=>
- model.source==='aa'&&finite(model.intelligence)&&nonnegative(view.id==='task-cost'?model.aaTaskCost:model.aaEvaluationCost)));
+ model.source==='aa'&&model.current===true&&known(model.indexVersion)&&finite(model.intelligence)&&
+ nonnegative(view.id==='task-cost'?model.aaTaskCost:model.aaEvaluationCost)));
 }
 export function availableAaMetrics(models:ExplorerModel[],includeHistory=false){
  return Object.entries(AA_METRIC_LABELS).filter(([key])=>models.some(model=>model.source==='aa'&&(includeHistory||model.current!==false)&&finite(

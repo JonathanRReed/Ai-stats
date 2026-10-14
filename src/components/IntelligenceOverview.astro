@@ -1,12 +1,10 @@
 ---
 import type { DataFreshness } from "../lib/data-freshness";
-import {
-  buildParetoFrontier,
-  type ModelEvidence,
-} from "../lib/model-intelligence";
 import type { PublicPoliBenchSnapshot } from "../lib/polibench-snapshot";
 import type { AaModel, EpochBenchmark, EpochBenchmarkRun, EpochModel } from "../lib/supabase";
 import { hasFiniteMetricValue } from "../lib/metric-values";
+import { buildExplorerCatalog } from "../lib/compare-catalog";
+import OverviewExplorer from "./compare/OverviewExplorer";
 
 interface Props {
   models: AaModel[];
@@ -17,513 +15,70 @@ interface Props {
   freshness: DataFreshness;
 }
 
-const { models, epochModels, epochBenchmarks, epochRuns, polibench, freshness } = Astro.props;
-const finitePositive = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value) && value > 0;
-const evidence: ModelEvidence[] = models.map((model) => ({
-  id: model.id,
-  label: model.name,
-  metrics: {
-    aa_intelligence_index: model.aa_intelligence_index,
-    aa_coding_index: model.aa_coding_index,
-    livecodebench: model.livecodebench,
-    gpqa: model.gpqa,
-    hle: model.hle,
-    price_1m_blended_3_to_1: model.price_1m_blended_3_to_1,
-    median_output_tokens_per_second: model.median_output_tokens_per_second,
-  },
-}));
-const qualityPriceModels = evidence.filter(
-  (model) =>
-    hasFiniteMetricValue(model.metrics.aa_intelligence_index) &&
-    finitePositive(model.metrics.price_1m_blended_3_to_1),
-);
-const frontier = buildParetoFrontier(qualityPriceModels, {
-  qualityMetricKey: "aa_intelligence_index",
-  priceMetricKey: "price_1m_blended_3_to_1",
-});
-const frontierIds = new Set(frontier.map((model) => model.id));
-const qualityValues = qualityPriceModels.map((model) => Number(model.metrics.aa_intelligence_index));
-const priceValues = qualityPriceModels.map((model) => Number(model.metrics.price_1m_blended_3_to_1));
-const priceMin = priceValues.length ? Math.min(...priceValues) : 0.01;
-const priceMax = priceValues.length ? Math.max(...priceValues) : 100;
-const logMin = Math.log10(Math.max(priceMin, 0.001));
-const logMax = Math.log10(Math.max(priceMax, priceMin * 1.01));
-const chartLeft = 58;
-const chartRight = 612;
-const chartTop = 32;
-const chartBottom = 286;
-const scaleX = (price: number): number =>
-  chartLeft + ((Math.log10(Math.max(price, 0.001)) - logMin) / Math.max(logMax - logMin, 0.01)) * (chartRight - chartLeft);
-const scaleY = (quality: number): number =>
-  chartBottom - (Math.max(0, Math.min(100, quality)) / 100) * (chartBottom - chartTop);
-const priceTicks = [0.01, 0.1, 1, 10, 100].filter(
-  (tick) => tick >= priceMin * 0.8 && tick <= priceMax * 1.2,
-);
-const qualityTicks = [0, 25, 50, 75, 100];
-const chartRows = [...qualityPriceModels]
-  .sort((a, b) => Number(b.metrics.aa_intelligence_index) - Number(a.metrics.aa_intelligence_index));
-const chartSourceModels = new Map(models.map((model) => [model.id, model]));
-const providerOptions = [...new Set(
-  qualityPriceModels
-    .map((model) => chartSourceModels.get(model.id)?.company_name ?? chartSourceModels.get(model.id)?.creator_name ?? "Unknown provider")
-    .filter(Boolean),
-)].sort((a, b) => a.localeCompare(b));
-
-const aaIntelligenceCount = models.filter((model) => hasFiniteMetricValue(model.aa_intelligence_index)).length;
-const aaCodingCount = models.filter(
-  (model) => hasFiniteMetricValue(model.aa_coding_index) || hasFiniteMetricValue(model.livecodebench),
-).length;
-const epochModelVersions = new Set(epochRuns.map((run) => run.model_version).filter(Boolean));
-const simpleBenchRuns = epochRuns.filter((run) =>
-  String(run.benchmark_slug ?? run.benchmark_name ?? "").toLowerCase().includes("simplebench"),
-);
+const { models, epochModels, epochRuns, polibench, freshness } = Astro.props;
+const explorerModels = buildExplorerCatalog(models, []);
+const aaIntelligenceCount = models.filter(model => hasFiniteMetricValue(model.aa_intelligence_index)).length;
+const aaCodingCount = models.filter(model => hasFiniteMetricValue(model.aa_coding_index) || hasFiniteMetricValue(model.livecodebench)).length;
+const epochModelVersions = new Set(epochRuns.map(run => run.model_version).filter(Boolean));
+const simpleBenchRuns = epochRuns.filter(run => String(run.benchmark_slug ?? run.benchmark_name ?? "").toLowerCase().includes("simplebench"));
 const coverageRows = [
-  { label: "AA Index available", value: aaIntelligenceCount, max: Math.max(models.length, 1), detail: `${aaIntelligenceCount} / ${models.length} models`, showProgress: true },
-  { label: "Coding metrics available", value: aaCodingCount, max: Math.max(models.length, 1), detail: `${aaCodingCount} / ${models.length} models`, showProgress: true },
-  { label: "Epoch models with runs", value: epochModelVersions.size, max: Math.max(epochModels.length, 1), detail: `${epochModelVersions.size} / ${epochModels.length} models`, showProgress: true },
-  { label: "SimpleBench via Epoch snapshot", value: simpleBenchRuns.length, max: 0, detail: `${simpleBenchRuns.length.toLocaleString("en-US")} recorded observations`, showProgress: false },
-  { label: "PoliBench current snapshot", value: polibench?.counts.models ?? 0, max: 0, detail: polibench ? `${polibench.counts.models} models / ${polibench.counts.runs} runs` : "No checked snapshot", showProgress: false },
+  { label: "AA Index measurements", detail: `${aaIntelligenceCount} / ${models.length} current AA records`, value: aaIntelligenceCount, max: Math.max(models.length,1) },
+  { label: "Coding measurements", detail: `${aaCodingCount} / ${models.length} current AA records`, value: aaCodingCount, max: Math.max(models.length,1) },
+  { label: "Epoch records with runs", detail: `${epochModelVersions.size} / ${epochModels.length} model versions`, value: epochModelVersions.size, max: Math.max(epochModels.length,1) },
+  { label: "SimpleBench via Epoch snapshot", detail: `${simpleBenchRuns.length.toLocaleString("en-US")} recorded observations`, value: simpleBenchRuns.length, max: 0 },
+  { label: "PoliBench checked snapshot", detail: polibench ? `${polibench.counts.models} records / ${polibench.counts.runs} runs` : "No checked snapshot", value: polibench?.counts.models ?? 0, max: 0 },
 ];
-
-const recentSources = [...freshness.sources]
-  .filter((source) => source.lastObservedAt !== null)
-  .sort((a, b) => Number(b.lastObservedAt) - Number(a.lastObservedAt))
-  .slice(0, 5);
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  timeZone: "UTC",
-});
-const money = (value: number | null | undefined): string =>
-  finitePositive(value) ? `$${value.toFixed(value < 1 ? 3 : 2)}` : "Missing";
+const recentSources = [...freshness.sources].filter(source => source.lastObservedAt !== null)
+  .sort((a,b) => Number(b.lastObservedAt)-Number(a.lastObservedAt)).slice(0,5);
+const dateFormatter = new Intl.DateTimeFormat("en-US", { month:"short", day:"numeric", year:"numeric", timeZone:"UTC" });
 ---
 
-<section class="intelligence-overview" aria-label="Compare the measurements">
-  <header class="overview-header">
-    <div>
-      <span>Price and performance</span>
-      <h2>Overview</h2>
-    </div>
-  </header>
-
-  <div class="overview-facts">
-    <article>
-      <span>Priced AA models</span>
-      <strong>{models.length}</strong>
-    </article>
-    <article>
-      <span>AA Index range</span>
-      <strong>{qualityValues.length ? `${Math.min(...qualityValues).toFixed(1)}–${Math.max(...qualityValues).toFixed(1)}` : "No observations"}</strong>
-    </article>
-    <article>
-      <span title="USD per 1M tokens">Blended price / 1M</span>
-      <strong>{priceValues.length ? `${money(priceMin)}–${money(priceMax)}` : "No prices"}</strong>
-    </article>
-    <article>
-      <span>Benchmarks · {epochBenchmarks.length} benchmarks</span>
-      <strong>{epochRuns.length.toLocaleString("en-US")} runs</strong>
-    </article>
-  </div>
-
-  <div class="overview-grid">
-    <figure class="quality-price">
-      <figcaption>
-        <span>AA Index vs. price</span>
-        <p>Artificial Analysis Intelligence Index against blended price. Log price scale. Select a point for exact values.</p>
-      </figcaption>
-      <div class="plot-controls" aria-label="Filter AA Index and price plot">
-        <label>
-          <span>Provider</span>
-          <select id="plot-provider">
-            <option value="">All providers</option>
-            {providerOptions.map((provider) => <option value={provider}>{provider}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Find a model</span>
-          <input id="plot-search" type="search" placeholder="Search names" autocomplete="off" />
-        </label>
-        <label class="plot-check">
-          <input id="plot-frontier-only" type="checkbox" />
-          <span>Not dominated only</span>
-        </label>
-      </div>
-      <p id="plot-status" class="plot-status" aria-live="polite">Showing {qualityPriceModels.length} measured models.</p>
-      {qualityPriceModels.length ? (
-        <p class="plot-mobile-hint">Swipe horizontally to inspect the full chart.</p>
-        <div class="plot-stage" role="region" aria-label="Scrollable AA Index and price plot">
-        <svg viewBox="0 0 640 340" role="group" aria-labelledby="quality-price-title quality-price-desc">
-          <title id="quality-price-title">Artificial Analysis Intelligence Index versus price</title>
-          <desc id="quality-price-desc">Each point is a model. Horizontal position is blended US dollar price per one million tokens on a logarithmic scale. Vertical position is the Artificial Analysis Intelligence Index. Copper points have no measured model that is both cheaper and higher-index.</desc>
-          <rect x={chartLeft} y={chartTop} width={chartRight - chartLeft} height={chartBottom - chartTop} class="chart-frame" />
-          {qualityTicks.map((tick) => (
-            <g>
-              <line x1={chartLeft} x2={chartRight} y1={scaleY(tick)} y2={scaleY(tick)} class="chart-gridline" />
-              <text x={chartLeft - 10} y={scaleY(tick) + 4} text-anchor="end">{tick}</text>
-            </g>
-          ))}
-          {priceTicks.map((tick) => (
-            <g>
-              <line x1={scaleX(tick)} x2={scaleX(tick)} y1={chartTop} y2={chartBottom} class="chart-gridline" />
-              <text x={scaleX(tick)} y={chartBottom + 20} text-anchor="middle">${tick}</text>
-            </g>
-          ))}
-          {qualityPriceModels.map((model, index) => {
-            const isFrontier = frontierIds.has(model.id);
-            const sourceModel = chartSourceModels.get(model.id);
-            const provider = sourceModel?.company_name ?? sourceModel?.creator_name ?? "Unknown provider";
-            const quality = Number(model.metrics.aa_intelligence_index);
-            const price = Number(model.metrics.price_1m_blended_3_to_1);
-            return (
-              <g
-                data-plot-point
-                data-model-id={model.id}
-                data-model-name={model.label ?? model.id}
-                data-provider={provider}
-                data-frontier={isFrontier ? "true" : "false"}
-                data-quality={quality}
-                data-price={price}
-                data-first-tracked={(sourceModel?.first_seen ?? "").slice(0, 10)}
-                data-last-observed={(sourceModel?.last_seen ?? "").slice(0, 10)}
-                tabindex={index === 0 ? 0 : -1}
-                role="button"
-                aria-label={`${model.label ?? model.id}, ${provider}, AA Index ${quality.toFixed(1)}, ${money(price)} per 1M tokens${isFrontier ? ", not dominated on price and AA Index" : ""}`}
-              >
-                <circle
-                  cx={scaleX(price).toFixed(1)}
-                  cy={scaleY(quality).toFixed(1)}
-                  r={isFrontier ? 4.2 : 2.8}
-                  class={isFrontier ? "plot-frontier" : "plot-other"}
-                />
-                <circle cx={scaleX(price).toFixed(1)} cy={scaleY(quality).toFixed(1)} r="10" class="plot-hit-area" aria-hidden="true" />
-                <title>{model.label ?? model.id}: index {quality.toFixed(1)}, {money(price)} per 1M tokens</title>
-              </g>
-            );
-          })}
-          <text x={(chartLeft + chartRight) / 2} y="330" text-anchor="middle" class="axis-title">Blended price, USD per 1M tokens</text>
-          <text transform="translate(14 190) rotate(-90)" text-anchor="middle" class="axis-title">Artificial Analysis Intelligence Index</text>
-        </svg>
-        </div>
-      ) : (
-        <p class="chart-empty">Quality and price observations are unavailable in this build.</p>
-      )}
-      <aside id="plot-inspector" class="plot-inspector" aria-live="polite" aria-label="Selected model details">
-        <strong id="plot-inspector-name">Select a point</strong>
-        <span id="plot-inspector-values">Use click, touch, or arrow keys to inspect exact values.</span>
-        <a id="plot-inspector-link" href="/compare">Compare selected model</a>
-      </aside>
-      <div class="plot-legend" aria-label="Chart legend">
-        <span><i class="frontier-swatch" /> Not dominated on price and AA Index</span>
-        <span><i class="other-swatch" /> Other models</span>
-      </div>
-      <details>
-        <summary>Complete quality and price data</summary>
-        <div class="table-scroll">
-          <table aria-label="Quality and price data table">
-            <thead><tr><th scope="col">Model</th><th scope="col">AA Index</th><th scope="col">Blended USD / 1M</th><th scope="col">Not dominated</th></tr></thead>
-            <tbody>
-              {chartRows.map((model) => (
-                <tr data-plot-row data-model-id={model.id} data-model-name={model.label ?? model.id} data-provider={chartSourceModels.get(model.id)?.company_name ?? chartSourceModels.get(model.id)?.creator_name ?? "Unknown provider"} data-frontier={frontierIds.has(model.id) ? "true" : "false"}>
-                  <th scope="row">{model.label ?? model.id}</th>
-                  <td>{Number(model.metrics.aa_intelligence_index).toFixed(1)}</td>
-                  <td>{money(Number(model.metrics.price_1m_blended_3_to_1))}</td>
-                  <td>{frontierIds.has(model.id) ? "Yes" : "No"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </details>
-    </figure>
-
-    <details class="overview-details"><summary>Coverage and recent updates</summary><div class="overview-extra">
-    <section class="coverage-panel" aria-labelledby="coverage-title">
-      <header><h3 id="coverage-title">Benchmark coverage</h3></header>
-      <div class="coverage-list">
-        {coverageRows.map((row) => (
-          <div>
+<section class="intelligence-overview" aria-label="Model intelligence and cost overview">
+  <OverviewExplorer client:load models={explorerModels} />
+  <section class="overview-data-status" aria-label="Source coverage and status">
+    <header class="overview-status-heading"><h2>Coverage and source updates</h2><p>Counts describe records and runs in the current build snapshot.</p></header>
+    <div class="overview-status-grid">
+      <section class="coverage-panel" aria-labelledby="coverage-title">
+        <h3 id="coverage-title">Measurement coverage</h3>
+        <div class="coverage-list">
+          {coverageRows.map(row => <div>
             <div><span>{row.label}</span><b>{row.detail}</b></div>
-            {row.showProgress ? <progress value={row.value} max={row.max} aria-label={`${row.label}: ${row.detail}`}>{row.value} of {row.max}</progress> : null}
-          </div>
-        ))}
-      </div>
-    </section>
-
-    <section class="changes-panel" aria-labelledby="changes-title">
-      <header><h3 id="changes-title">Recent source updates</h3></header>
-      {recentSources.length ? (
-        <ol>
-          {recentSources.map((source) => (
-            <li>
-              <time datetime={source.lastObservedAt?.toISOString()}>{dateFormatter.format(source.lastObservedAt as Date)}</time>
-              <div>
-                <strong>{source.displayName}</strong>
-                <span>{source.coverageLabel ?? source.message}</span>
-              </div>
-              <b>{source.status}</b>
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <p class="changes-empty">No dated source update is available. Checked snapshots remain visible above.</p>
-      )}
-      <a href="/about">Read source methodology</a>
-    </section>
-    </div></details>
-  </div>
+            {row.max>0?<progress value={row.value} max={row.max} aria-label={`${row.label}: ${row.detail}`}>{row.value} of {row.max}</progress>:null}
+          </div>)}
+        </div>
+      </section>
+      <section class="changes-panel" aria-labelledby="changes-title">
+        <h3 id="changes-title">Latest source observations</h3>
+        {recentSources.length ? <ol>{recentSources.map(source => <li>
+          <time datetime={source.lastObservedAt?.toISOString()}>{dateFormatter.format(source.lastObservedAt as Date)}</time>
+          <div><strong>{source.displayName}</strong><span>{source.coverageLabel ?? source.message}</span></div>
+          <b>{source.status}</b>
+        </li>)}</ol> : <p class="changes-empty">No dated source update is available. Checked snapshots remain visible.</p>}
+        <a href="/about">Read source methodology</a>
+      </section>
+    </div>
+  </section>
 </section>
 
 <style>
-  .intelligence-overview { background: var(--surface-1); border: 1px solid var(--line-0); border-radius: var(--radius-md); }
-  .overview-header {
-    display: flex;
-    align-items: end;
-    justify-content: space-between;
-    gap: var(--space-4);
-    padding: var(--space-4);
-    border-bottom: 1px solid var(--line-0);
-  }
-  .overview-header > div > span,
-  .overview-facts article > span,
-  .quality-price figcaption > span {
-    display: block;
-    color: var(--ink-2);
-    font-size: var(--text-xs);
-    font-weight: 500;
-  }
-  .coverage-panel h3,
-  .changes-panel h3 { font-size: var(--text-base); font-weight: 600; }
-  .overview-header h2 { margin-top: 0.3rem; color: var(--ink-0); font-size: var(--text-xl); }
-  .overview-header a,
-  .changes-panel > a { color: var(--signal); font-size: var(--text-sm); font-weight: 500; text-underline-offset: 4px; }
-  .overview-header a:hover,
-  .changes-panel > a:hover { text-decoration: underline; }
-  .overview-header a span, .changes-panel > a span { display: none; }
-  .overview-facts {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 1px;
-    background: var(--line-0);
-    border-bottom: 1px solid var(--line-0);
-  }
-  .overview-facts article { min-width: 0; padding: var(--space-4); background: var(--surface-1); }
-  .overview-facts strong {
-    display: block;
-    margin-top: var(--space-3);
-    color: var(--ink-0);
-    font-family: var(--font-mono);
-    font-size: var(--text-2xl);
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
-    overflow-wrap: anywhere;
-  }
-  .overview-facts p { margin-top: var(--space-2); color: var(--ink-2); font-size: var(--text-xs); line-height: var(--leading-snug); }
-  .overview-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(15rem, 0.8fr) minmax(15rem, 0.9fr); gap: 1px; background: var(--line-0); }
-  .overview-grid > * { min-width: 0; padding: var(--space-4); background: var(--surface-1); }
-  .quality-price { margin: 0; }
-  .quality-price figcaption p,
-  .coverage-panel header p,
-  .changes-panel header p { margin-top: 0.3rem; color: var(--ink-2); font-size: var(--text-xs); }
-  .plot-controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-2); margin-top: var(--space-4); }
-  .plot-controls label { display: grid; gap: 0.25rem; min-width: 9rem; color: var(--ink-2); font-size: var(--text-xs); font-weight: 500; }
-  .plot-controls select,
-  .plot-controls input[type="search"] { min-height: var(--control-h); border: 1px solid var(--line-1); border-radius: var(--radius-md); background: var(--surface-0); padding: 0 var(--space-2); color: var(--ink-0); font: inherit; font-size: var(--text-sm); }
-  .plot-check { display: flex !important; grid-template-columns: auto 1fr; align-items: center; min-width: auto !important; gap: 0.45rem !important; min-height: var(--control-h); }
-  /* The box itself stays small, the label row carries the 44px target. */
-  .plot-check input { width: 1.25rem; height: 1.25rem; margin: 0; accent-color: var(--signal); }
-  .plot-status { margin-top: var(--space-2); color: var(--ink-2); font-size: var(--text-xs); }
-  .plot-mobile-hint { display: none; margin-top: var(--space-2); color: var(--ink-2); font-size: var(--text-xs); }
-  .plot-stage { overflow-x: auto; margin-top: 0.25rem; padding: 0.1rem 0.1rem 0.35rem; }
-  .quality-price svg { display: block; width: 100%; min-width: 38rem; height: auto; margin-top: var(--space-2); overflow: visible; }
-  .quality-price svg text { fill: var(--ink-2); font-family: var(--font-mono); font-size: 11px; }
-  .chart-frame { fill: transparent; stroke: var(--line-1); }
-  .chart-gridline { stroke: var(--line-0); stroke-width: 1; }
-  .plot-other { fill: color-mix(in srgb, var(--info) 55%, transparent); }
-  .plot-frontier { fill: var(--signal); stroke: var(--surface-0); stroke-width: 1; }
-  .plot-hit-area { fill: transparent; pointer-events: all; }
-  [data-plot-point] { cursor: pointer; outline: none; }
-  [data-plot-point]:focus-visible .plot-other,
-  [data-plot-point]:focus-visible .plot-frontier,
-  [data-plot-point].is-selected .plot-other,
-  [data-plot-point].is-selected .plot-frontier { stroke: var(--ink-0); stroke-width: 2; }
-  [data-plot-point].is-filtered,
-  [data-plot-row].is-filtered { display: none; }
-  .plot-inspector { display: grid; gap: 0.25rem; min-height: 3.3rem; margin: var(--space-3) 0 var(--space-3); border-left: 2px solid var(--signal); background: var(--signal-soft); padding: var(--space-3); border-radius: 0 var(--radius-md) var(--radius-md) 0; }
-  .plot-inspector strong { color: var(--ink-0); font-size: var(--text-sm); font-weight: 600; }
-  .plot-inspector span { color: var(--ink-1); font-size: var(--text-xs); line-height: var(--leading-snug); }
-  .plot-inspector a { width: fit-content; min-height: 2.25rem; padding-top: 0.5rem; color: var(--ink-0); font-size: var(--text-sm); font-weight: 600; text-decoration: underline; text-decoration-color: var(--signal); text-decoration-thickness: 2px; text-underline-offset: 4px; }
-  .plot-inspector a:hover,
-  .plot-inspector a:focus-visible { text-decoration-color: var(--ink-0); }
-  .quality-price .axis-title { fill: var(--ink-1); font-family: var(--font-sans); font-size: 11px; }
-  .plot-legend { display: flex; flex-wrap: wrap; gap: var(--space-4); margin: 0.2rem 0 var(--space-3); color: var(--ink-2); font-size: var(--text-xs); }
-  .plot-legend span { display: flex; align-items: center; gap: 0.4rem; }
-  .plot-legend i { width: 0.55rem; height: 0.55rem; border-radius: 50%; }
-  .frontier-swatch { background: var(--signal); }
-  .other-swatch { background: var(--info); }
-  .plot-how-to-read { color: var(--ink-2); font-size: var(--text-xs); line-height: var(--leading-snug); }
-  .plot-how-to-read strong { color: var(--ink-1); font-weight: 600; }
-  .quality-price details { margin-top: var(--space-3); border-top: 1px solid var(--line-0); }
-  .quality-price summary { min-height: 44px; padding: var(--space-3) 0; color: var(--ink-1); cursor: pointer; font-size: var(--text-sm); font-weight: 500; }
-  .table-scroll { overflow-x: auto; }
-  .quality-price table { width: 100%; min-width: 30rem; border-collapse: collapse; font-size: var(--text-xs); }
-  .quality-price th,
-  .quality-price td { padding: var(--space-2); border-top: 1px solid var(--line-0); text-align: left; color: var(--ink-1); }
-  .quality-price td { font-family: var(--font-mono); }
-  .quality-price th { color: var(--ink-0); font-weight: 600; }
-  .quality-price tbody th { font-family: var(--font-sans); font-weight: 500; }
-  .chart-empty,
-  .changes-empty { padding: var(--space-6) 0; color: var(--ink-2); font-size: var(--text-sm); }
-  .coverage-list { display: grid; gap: var(--space-4); margin-top: var(--space-4); }
-  .coverage-list > div > div { display: flex; justify-content: space-between; gap: var(--space-3); margin-bottom: 0.35rem; }
-  .coverage-list span { color: var(--ink-1); font-size: var(--text-xs); }
-  .coverage-list b { color: var(--ink-0); font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 500; text-align: right; white-space: nowrap; }
-  .coverage-list progress { display: block; width: 100%; height: 0.375rem; border: 0; border-radius: 0; background: var(--surface-3); accent-color: var(--info); }
-  .coverage-list progress::-webkit-progress-bar { background: var(--surface-3); }
-  .coverage-list progress::-webkit-progress-value { background: var(--info); }
-  .coverage-list progress::-moz-progress-bar { background: var(--info); }
-  .coverage-source-note { margin: 0.3rem 0 0; color: var(--ink-2); font-size: var(--text-xs); line-height: var(--leading-snug); }
-  .coverage-note { margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--line-0); color: var(--ink-2); font-size: var(--text-xs); line-height: var(--leading-snug); }
-  .changes-panel ol { margin: var(--space-3) 0 0; padding: 0; list-style: none; }
-  .changes-panel li { display: grid; grid-template-columns: 5.2rem minmax(0, 1fr) auto; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--line-0); }
-  .changes-panel time { color: var(--ink-2); font-family: var(--font-mono); font-size: var(--text-xs); }
-  .changes-panel li b { color: var(--ink-2); font-size: var(--text-xs); font-weight: 500; text-transform: capitalize; }
-  .changes-panel li div { display: grid; gap: 0.15rem; }
-  .changes-panel li strong { color: var(--ink-0); font-size: var(--text-sm); font-weight: 500; }
-  .changes-panel li span { color: var(--ink-2); font-size: var(--text-xs); line-height: var(--leading-snug); }
-  .changes-panel > a { display: inline-block; min-height: 44px; padding-top: var(--space-4); }
-  @media (max-width: 1050px) {
-    .overview-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .overview-grid { grid-template-columns: 1fr 1fr; }
-    .quality-price { grid-column: 1 / -1; }
-  }
-  @media (max-width: 660px) {
-    .overview-header { align-items: flex-start; flex-direction: column; }
-    .overview-header a { min-height: 44px; padding-top: 0.6rem; }
-    .overview-facts,
-    .overview-grid { grid-template-columns: 1fr; }
-    .quality-price { grid-column: auto; }
-    .plot-controls label { flex: 1 1 8rem; }
-    .plot-mobile-hint { display: block; }
-    .quality-price svg { min-width: 32rem; }
-    .changes-panel li { grid-template-columns: 5rem minmax(0, 1fr); }
-    .changes-panel li b { grid-column: 2; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .quality-price summary { scroll-behavior: auto; }
-  }
-
- .overview-grid{display:block}
- .overview-details{border-top:1px solid var(--line-0)}
- .overview-details>summary{min-height:44px;display:list-item;cursor:pointer;color:var(--ink-1);font-size:var(--text-sm);padding:.5rem 0}
- .overview-extra{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;padding-top:1rem}
- .quality-price svg{max-height:440px}
- @media(max-width:660px){.overview-extra{grid-template-columns:1fr}.overview-facts{grid-template-columns:1fr 1fr}.overview-facts article{padding:1rem}.overview-facts strong{font-size:1.25rem}}
+  .intelligence-overview{display:grid;gap:1rem}
+  .overview-data-status{border-top:1px solid var(--line-0);padding-top:1rem}
+  .overview-status-heading{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;margin-bottom:.5rem}
+  .overview-status-heading h2{font-size:var(--text-base);font-weight:600;color:var(--ink-0)}
+  .overview-status-heading p{font-size:var(--text-xs);color:var(--ink-2)}
+  .overview-status-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+  .coverage-panel,.changes-panel{min-width:0;background:var(--surface-1);border:1px solid var(--line-0);padding:1rem;border-radius:var(--radius-md)}
+  .coverage-panel h3,.changes-panel h3{font-size:var(--text-sm);font-weight:600;color:var(--ink-0)}
+  .coverage-list{display:grid;gap:.75rem;margin-top:.75rem}
+  .coverage-list>div>div{display:flex;justify-content:space-between;gap:.75rem;margin-bottom:.3rem}
+  .coverage-list span,.coverage-list b{font-size:var(--text-xs);color:var(--ink-1)}
+  .coverage-list b{font-family:var(--font-mono);font-weight:500;text-align:right}
+  .coverage-list progress{width:100%;height:.375rem;accent-color:var(--info)}
+  .changes-panel ol{list-style:none;padding:0;margin:.5rem 0}
+  .changes-panel li{display:grid;grid-template-columns:5rem minmax(0,1fr) auto;gap:.6rem;padding:.5rem 0;border-bottom:1px solid var(--line-0)}
+  .changes-panel time,.changes-panel li b{font:var(--text-xs) var(--font-mono);color:var(--ink-2);white-space:nowrap}
+  .changes-panel li div{display:grid;gap:.15rem}.changes-panel li strong{font-size:var(--text-xs);font-weight:500;color:var(--ink-0)}
+  .changes-panel li span,.changes-empty{font-size:var(--text-xs);color:var(--ink-2);line-height:1.45}
+  .changes-panel>a{display:inline-block;min-height:44px;padding-top:.7rem;color:var(--signal);font-size:var(--text-sm);text-underline-offset:4px}
+  @media(max-width:700px){.overview-status-heading{align-items:flex-start;flex-direction:column;gap:.25rem}.overview-status-grid{grid-template-columns:1fr}.changes-panel li{grid-template-columns:5rem minmax(0,1fr)}.changes-panel li b{grid-column:2}}
 </style>
-
-<script>
-  const overview = document.querySelector<HTMLElement>(".intelligence-overview");
-  if (overview) {
-    const points = Array.from(overview.querySelectorAll<SVGGElement>("[data-plot-point]"));
-    const rows = Array.from(overview.querySelectorAll<HTMLElement>("[data-plot-row]"));
-    const provider = overview.querySelector<HTMLSelectElement>("#plot-provider");
-    const search = overview.querySelector<HTMLInputElement>("#plot-search");
-    const frontierOnly = overview.querySelector<HTMLInputElement>("#plot-frontier-only");
-    const status = overview.querySelector<HTMLElement>("#plot-status");
-    const inspectorName = overview.querySelector<HTMLElement>("#plot-inspector-name");
-    const inspectorValues = overview.querySelector<HTMLElement>("#plot-inspector-values");
-    const inspectorLink = overview.querySelector<HTMLAnchorElement>("#plot-inspector-link");
-    let selectedPoint: SVGGElement | null = null;
-
-    const formatDate = (value: string | undefined) => {
-      const parsed = new Date(value ?? "");
-      if (Number.isNaN(parsed.getTime())) return "date unavailable";
-      return new Intl.DateTimeFormat("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        timeZone: "UTC",
-      }).format(parsed);
-    };
-
-    const setEmptyInspector = (message: string) => {
-      selectedPoint?.classList.remove("is-selected");
-      selectedPoint = null;
-      points.forEach((candidate) => candidate.setAttribute("tabindex", "-1"));
-      if (inspectorName) inspectorName.textContent = "No model selected";
-      if (inspectorValues) inspectorValues.textContent = message;
-      if (inspectorLink) inspectorLink.hidden = true;
-    };
-
-    const setInspector = (point: SVGGElement) => {
-      selectedPoint?.classList.remove("is-selected");
-      selectedPoint = point;
-      point.classList.add("is-selected");
-      points.forEach((candidate) => candidate.setAttribute("tabindex", candidate === point ? "0" : "-1"));
-      const name = point.dataset.modelName ?? "Selected model";
-      const modelProvider = point.dataset.provider ?? "Unknown provider";
-      const quality = Number(point.dataset.quality ?? 0).toFixed(1);
-      const price = Number(point.dataset.price ?? 0);
-      const priceLabel = price < 1 ? `$${price.toFixed(3)}` : `$${price.toFixed(2)}`;
-      const frontierLabel = point.dataset.frontier === "true" ? " · Not dominated on price and AA Index" : "";
-      const dates = ` · First tracked ${formatDate(point.dataset.firstTracked)} · Last observed ${formatDate(point.dataset.lastObserved)}`;
-      if (inspectorName) inspectorName.textContent = name;
-      if (inspectorValues) inspectorValues.textContent = `${modelProvider} · AA Index ${quality} · ${priceLabel} per 1M tokens${frontierLabel}${dates}`;
-      if (inspectorLink) {
-        inspectorLink.hidden = false;
-        inspectorLink.href = `/compare?m=${encodeURIComponent(point.dataset.modelId ?? '')}`;
-        inspectorLink.setAttribute("aria-label", `Compare ${name}`);
-      }
-    };
-
-    const matches = (element: HTMLElement | SVGGElement) => {
-      const providerMatch = !provider?.value || element.dataset.provider === provider.value;
-      const searchMatch = !search?.value || (element.dataset.modelName ?? "").toLowerCase().includes(search.value.toLowerCase());
-      const frontierMatch = !frontierOnly?.checked || element.dataset.frontier === "true";
-      return providerMatch && searchMatch && frontierMatch;
-    };
-
-    const applyFilters = () => {
-      let visible = 0;
-      points.forEach((point) => {
-        const visiblePoint = matches(point);
-        point.classList.toggle("is-filtered", !visiblePoint);
-        point.setAttribute("aria-hidden", visiblePoint ? "false" : "true");
-        if (visiblePoint) visible += 1;
-      });
-      rows.forEach((row) => row.classList.toggle("is-filtered", !matches(row)));
-      if (status) status.textContent = `Showing ${visible} of ${points.length} measured models.`;
-      const next = points.find((point) => !point.classList.contains("is-filtered"));
-      if (!next) setEmptyInspector("No models match the current filters.");
-      else if (!selectedPoint || selectedPoint.classList.contains("is-filtered")) setInspector(next);
-    };
-
-    points.forEach((point) => {
-      point.addEventListener("click", () => setInspector(point));
-      point.addEventListener("focus", () => setInspector(point));
-      point.addEventListener("keydown", (event) => {
-        if (!["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown", "Enter", " "].includes(event.key)) return;
-        event.preventDefault();
-        if (event.key === "Enter" || event.key === " ") {
-          setInspector(point);
-          return;
-        }
-        const direction = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
-        const visiblePoints = points.filter((candidate) => !candidate.classList.contains("is-filtered"));
-        const visibleIndex = visiblePoints.indexOf(point);
-        const next = visiblePoints[(visibleIndex + direction + visiblePoints.length) % visiblePoints.length];
-        if (next) {
-          setInspector(next);
-          next.focus();
-        }
-      });
-    });
-    provider?.addEventListener("change", applyFilters);
-    search?.addEventListener("input", applyFilters);
-    frontierOnly?.addEventListener("change", applyFilters);
-    if (points[0]) setInspector(points[0]);
-    applyFilters();
-  }
-</script>

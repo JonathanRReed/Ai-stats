@@ -24,20 +24,20 @@ test('prices retain source provenance without borrowing benchmark scores',()=>{
  expect(result.points[0]).toMatchObject({y:0,receipt:{source:'OpenRouter'}});
  expect(buildCompareSeries({models,observations:[]},{...state,chart:'cost-intelligence'}).points).toHaveLength(0);
 });
-test('unavailable chart links recover and no disabled cost/token tabs appear',()=>{
+test('unavailable chart links recover and controls follow delivered chart availability',()=>{
  const state=parseCompareState(new URLSearchParams('chart=tokens-task'),[]);
  expect(state.chart).toBe('cost-intelligence');
  const html=renderToStaticMarkup(createElement(CompareExplorer,{models:[],benchmarks:[],defaultModelIds:[]}));
- expect(html).not.toContain('Task cost'); expect(html).not.toContain('Total tokens');
+ expect(html).not.toContain('Evaluation cost');
  expect(html).toContain('Compare by');
 });
 test('picker offers more results and searches the full catalog with source labels',()=>{
  const models=buildExplorerCatalog(Array.from({length:100},(_,i)=>({id:'a'+i,name:'Model '+i,current_source_member:true})),[]);
- const html=renderToStaticMarkup(createElement(ModelSelector,{models,selected:[],includeHistory:false,onToggle:()=>{},onFamily:()=>{},onHistory:()=>{},reasoningEfforts:[],onReasoning:()=>{},onClear:()=>{},onReset:()=>{}}));
+ const html=renderToStaticMarkup(createElement(ModelSelector,{models,selected:[],includeHistory:false,chart:'cost-intelligence',onToggle:()=>{},onFamily:()=>{},onHistory:()=>{},reasoningEfforts:[],onReasoning:()=>{},onClear:()=>{},onReset:()=>{}}));
  expect(html).toContain('Show more'); expect(html).toContain('Artificial Analysis'); expect(html).toContain('Catalog source');
 });
 test('default comparison stays compact without hiding other variants',()=>{
- const models=buildExplorerCatalog([{id:'high',name:'A (High)',creator_name:'Lab',current_source_member:true,aa_intelligence_index:70,price_1m_blended_3_to_1:2},{id:'low',name:'A (Low)',creator_name:'Lab',current_source_member:true,aa_intelligence_index:60,price_1m_blended_3_to_1:1}],[]);
+ const models=buildExplorerCatalog([{id:'high',name:'A (High)',creator_name:'Lab',current_source_member:true,aa_intelligence_index:70,price_1m_blended_3_to_1:2,source_metadata:{intelligence_index_version:'4.3',index_cost:{cost_per_task:{total_cost:1}}}},{id:'low',name:'A (Low)',creator_name:'Lab',current_source_member:true,aa_intelligence_index:60,price_1m_blended_3_to_1:1,source_metadata:{intelligence_index_version:'4.3',index_cost:{cost_per_task:{total_cost:1}}}}],[]);
  expect(defaultExplorerSelection(models)).toEqual(['high']); expect(models).toHaveLength(2);
 });
 test('Compare uses uncapped database caches rather than the capped homepage getter',()=>{

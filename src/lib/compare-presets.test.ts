@@ -19,6 +19,13 @@ test('unavailable cost views and benchmark fields stay out of controls',()=>{
  expect(availableCompareCharts([aa('a',{aaTaskCost:0})]).map(c=>c.id)).toContain('task-cost');
  expect(availableAaMetrics([aa('a')]).map(([key])=>key)).toEqual(['aa_intelligence_index','aa_coding_index']);
 });
+
+test('task-cost defaults require known-version current AA task costs and zero remains measured',()=>{
+ const rows=[aa('null',{aaTaskCost:null}),aa('unknown',{indexVersion:null,aaTaskCost:1}),
+  aa('history',{current:false,aaTaskCost:1}),aa('zero-cost',{aaTaskCost:0}),
+  aa('other-family',{family:'Gemini',provider:'Google',indexVersion:'4.2',aaTaskCost:2})];
+ expect(availableCompareCharts(rows).find(chart=>chart.id==='task-cost')).toBeTruthy();
+});
 test('turning off history resets a source that has no current records',()=>{
  const rows=[aa('old',{current:false}),{...aa('or'),source:'openrouter' as const}];
  expect(nextCatalogSource(rows,'aa',false)).toBe('all');

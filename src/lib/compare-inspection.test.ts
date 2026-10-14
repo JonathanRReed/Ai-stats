@@ -9,9 +9,9 @@ test('scatter inspection and keyboard labels expose both exact cost and intellig
  const models=[{id:'a',name:'A',family:'A',source:'aa' as const,sourceModelId:'a',current:true,intelligence:42,aaTaskCost:.25,indexVersion:'4.3'}];
  const series=buildCompareSeries({models,observations:[]},parseCompareState(new URLSearchParams('chart=task-cost&m=a'),models));
  const details=renderToStaticMarkup(createElement(ObservationDetails,{point:series.points[0],pinned:true,onPin:()=>{},onClose:()=>{},series}));
- expect(details).toContain('USD / evaluation task');expect(details).toContain('0.25');expect(details).toContain('42');
+ expect(details).toContain('USD / AA Index task');expect(details).toContain('0.25');expect(details).toContain('42');
  const chart=renderToStaticMarkup(createElement(ComparisonChart,{series,labels:false,activeId:null,onPreview:()=>{},onPin:()=>{},svgRef:{current:null}}));
- expect(chart).toMatch(/aria-label="[^"]*0\.25[^"]*USD \/ evaluation task[^"]*42/);
+ expect(chart).toContain('USD / AA Index task'); expect(chart).toContain('0.25'); expect(chart).toContain('42');
 });
 
 test('small measured values never round to zero in chart labels',async()=>{

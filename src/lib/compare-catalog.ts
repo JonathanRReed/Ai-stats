@@ -13,8 +13,8 @@ const number=(value:unknown):number|null=>{
 /** Display facets preserve the recorded name. They never establish an evaluation-condition join. */
 export function modelDisplayFacets(name:string):{family:string;reasoning:string} {
   const suffix=name.match(/\(([^)]*)\)\s*$/)?.[1]??'';
-  const qualifier=/\b(reasoning|xhigh|high|medium|low|max)\b/i.test(suffix);
-  const effort=suffix.match(/\b(xhigh|high|medium|low|max)\b/i)?.[1]?.toLowerCase();
+  const qualifier=/\b(reasoning|xhigh|high|medium|low|minimal|max)\b/i.test(suffix);
+  const effort=suffix.match(/\b(xhigh|high|medium|low|minimal|max)\b/i)?.[1]?.toLowerCase();
   return {family:qualifier?name.replace(/\s*\([^)]*\)\s*$/,'').trim():name,
     reasoning:/non-reasoning/i.test(suffix)?'none':effort??'unknown'};
 }
@@ -78,11 +78,22 @@ export function buildExplorerCatalog(aaRows:unknown[],epochRows:unknown[],catalo
   return [...new Map(models.map(model=>[model.id,model])).values()];
 }
 export function defaultExplorerSelection(models:ExplorerModel[]):string[] {
-  const selected:string[]=[];const providers=new Set<string>();
-  const eligible=models.filter(model=>model.source==='aa'&&model.current===true&&
+  const known=(value:string|null|undefined):value is string=>Boolean(value&&/^\d+(?:\.\d+)*$/.test(value));
+  const versionCompare=(left:string,right:string)=>{
+    const a=left.split('.').map(Number),b=right.split('.').map(Number);
+    for(let i=0;i<Math.max(a.length,b.length);i++){const d=(a[i]??0)-(b[i]??0);if(d)return d;}
+    return left.localeCompare(right);
+  };
+  const taskCostEligible=models.filter(model=>model.source==='aa'&&model.current===true&&known(model.indexVersion)&&
+    typeof model.intelligence==='number'&&Number.isFinite(model.intelligence)&&
+    typeof model.aaTaskCost==='number'&&Number.isFinite(model.aaTaskCost)&&model.aaTaskCost>=0);
+  const eligible=taskCostEligible.length?taskCostEligible:models.filter(model=>model.source==='aa'&&model.current===true&&known(model.indexVersion)&&
     typeof model.intelligence==='number'&&Number.isFinite(model.intelligence)&&
     typeof model.priceBlended==='number'&&Number.isFinite(model.priceBlended)&&model.priceBlended>=0);
-  for(const model of eligible){
+  const latestVersion=eligible.map(model=>model.indexVersion!).sort(versionCompare).at(-1);
+  const selected:string[]=[];const providers=new Set<string>();
+  for(const model of eligible.filter(row=>row.indexVersion===latestVersion).sort((a,b)=>
+    (b.intelligence??-Infinity)-(a.intelligence??-Infinity)||a.id.localeCompare(b.id))){
     const provider=model.provider??model.family;
     if(providers.has(provider))continue;
     providers.add(provider);selected.push(model.id);if(selected.length===6)break;

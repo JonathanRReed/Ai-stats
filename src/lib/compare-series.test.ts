@@ -62,6 +62,33 @@ test('unknown timing conditions do not establish a compatible speed frontier',()
   expect(series.buildCompareSeries({models:unknown,observations:[]},selection('chart=speed-intelligence')).frontierGroups).toEqual({});
 });
 
+test('variant links require the same source, family, and recorded cohort',()=>{
+ const {compatibleVariantLines}=series;
+ const point=(id:string,source:'aa'|'openrouter',family:string,cohortKey:string,reasoning:'low'|'high')=>({
+  id,modelId:id,label:id,family,reasoning,source,series:'model',x:1,y:2,unit:'AA Index points',cohortKey,
+  receipt:{source:'Artificial Analysis',sourceUrl:null,observedAt:null,fetchedAt:null,indexVersion:'4.3',conditions:null,snapshotId:null},
+ });
+ const lines=compatibleVariantLines([
+  point('aa-low','aa','Opus','4.3:long','low'),point('aa-high','aa','Opus','4.3:long','high'),
+  point('route-high','openrouter','Opus','4.3:long','high'),point('cohort-high','aa','Opus','4.2:long','high'),
+  point('other-family','aa','Gemini','4.3:long','high'),
+ ]);
+ expect(lines).toHaveLength(1);
+ expect(lines[0].map(row=>row.id)).toEqual(['aa-low','aa-high']);
+});
+
+test('five Opus effort records remain directly aligned at equal prices and share one variant path',()=>{
+ const efforts=['minimal','low','medium','high','xhigh'] as const;
+ const variants:ExplorerModel[]=efforts.map((reasoning,index)=>({id:'opus-'+reasoning,name:'Claude Opus 5.5 ('+reasoning+')',family:'Claude Opus 5.5',provider:'Anthropic',reasoning,
+  source:'aa',sourceModelId:'opus-'+reasoning,current:true,intelligence:90-index*3,priceInput:4,priceOutput:20,priceBlended:8,
+  aaTaskCost:1.25,indexVersion:'4.3',performancePrompt:'long'}));
+ const state=parseCompareState(new URLSearchParams('chart=cost-intelligence&scale=linear&'+variants.map(row=>'m='+row.id).join('&')),variants);
+ const result=series.buildCompareSeries({models:variants,observations:[]},state);
+ expect(result.points).toHaveLength(5);
+ expect(new Set(result.points.map(point=>point.x))).toEqual(new Set([8]));
+ expect(series.compatibleVariantLines(result.points).map(line=>line.map(point=>point.reasoning))).toEqual([[...efforts]]);
+});
+
 test('selections from another source explain why they are not plotted',()=>{
   const epochModel:ExplorerModel={id:'epoch:v',name:'V',family:'V',source:'epoch',sourceModelId:'v',current:true};
   const state=selection('chart=benchmark&metric=epoch_b');

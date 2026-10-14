@@ -118,14 +118,22 @@ test("Epoch runs require explicitly verified native versions", () => {
   const runs = matchEpochRuns(
     { name: "Test Model 1", slug: "test-model-1" },
     [
-      { id: "r1", model_version: "test-model-1", benchmark_id: "b1", score: 0.55, release_date: null, organization: null, country: null, stderr: 0.02, source_name: "Epoch AI", source_link: "https://epoch.ai/x" },
+      { id: "r1", model_version: "test-model-1", benchmark_id: "b1", score: 0.55, score_unit:'fraction', benchmark_version:'2026-1', release_date: null, organization: null, country: null, stderr: 0.02, source_name: "Epoch AI", source_link: "https://epoch.ai/x" },
       { id: "r2", model_version: "Other", benchmark_id: "b1", score: 0.9, release_date: null, organization: null, country: null, stderr: null },
     ],
     [{ id: "b1", slug: "gpqa_diamond", name: "GPQA Diamond", description: null, source: null }],
     ["test-model-1"],
   );
   expect(runs).toHaveLength(1);
-  expect(runs[0]).toMatchObject({ benchmark: "GPQA Diamond", score: 0.55, stderr: 0.02, sourceLink: "https://epoch.ai/x" });
+  expect(runs[0]).toMatchObject({ benchmark: "GPQA Diamond", score: 0.55, stderr: 0.02, scoreUnit:'fraction', benchmarkVersion:'2026-1', sourceLink: "https://epoch.ai/x" });
+});
+
+test('Epoch score payload parsing rejects booleans and whitespace-as-zero',()=>{
+ const runs=matchEpochRuns({name:'Test',slug:'test'},[
+  {id:'bool',model_version:'test',benchmark_id:'b',score:true as unknown as number,release_date:null,organization:null,country:null,stderr:' ' as unknown as number},
+  {id:'numeric',model_version:'test',benchmark_id:'b',score:'0.7' as unknown as number,release_date:null,organization:null,country:null,stderr:null,score_unit:'percent'},
+ ],[{id:'b',slug:'b',name:'B',description:null,source:null}],['test']);
+ expect(runs.map(run=>[run.score,run.stderr])).toEqual([[null,null],[.7,null]]);
 });
 
 test("VPCT runs link to Epoch's published benchmark when the creator site is unavailable", () => {
