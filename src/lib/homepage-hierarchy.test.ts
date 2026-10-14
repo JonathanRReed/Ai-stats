@@ -26,5 +26,6 @@ test('the cost and intelligence chart is secondary to updates and leaders',()=>{
 test('usage stays in the main page flow without the dropped introductory preface',()=>{
  const usage=readFileSync('src/components/OpenRouterUsage.tsx','utf8');
  expect(usage).toContain('aria-labelledby="usage-title"');
+ expect(usage).toContain('<h2 id="usage-title">OpenRouter usage</h2>');
  expect(usage).not.toContain('Daily tokens across OpenRouter');
 });
