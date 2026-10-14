@@ -223,7 +223,7 @@ test("AA and Epoch leaderboards both use the progressive 5/20/50/all row windows
  expect(dashboardSource).toContain('nextLeaderboardLimit(leaderboardVisibleCounts.get(key) ?? 5)');
  expect(dashboardSource).toContain('if (key.startsWith("aa_"))');
  expect(dashboardSource).toContain('renderAaLeaderboardPanels(latestLeaderboardModels)');
- expect(dashboardSource).toContain('ensureEpochLeaderboardRanking');
+ expect(dashboardSource).toContain('epochRanking.ensureComplete(lifecycle.signal)');
  expect(dashboardSource).toContain('renderLeaderboard(latestLeaderboardModels, latestEpochBenchmarks, latestEpochRuns)');
  expect(readFileSync('src/lib/leaderboard-pagination.ts','utf8')).toContain('20');
  expect(readFileSync('src/lib/leaderboard-pagination.ts','utf8')).toContain('50');

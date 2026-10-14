@@ -42,6 +42,7 @@ test('serialized Epoch picker inputs retain only the initial top rows and requir
 
  const dashboard=readFileSync('src/components/Dashboard.astro','utf8');
  expect(dashboard).toContain('const initialEpochLeaderboard = buildInitialEpochLeaderboardData(');
+ expect(dashboard).toContain('assertInitialEpochLeaderboardBudget(initialEpochLeaderboard)');
  expect(dashboard).toContain('epochBenchmarksWithRuns,\n  epochRuns,\n  epochBenchmarkNames,');
  expect(dashboard).toMatch(/<script is:inline define:vars=\{\{[^}]*initialEpochLeaderboard[^}]*\}\}>/);
  expect(dashboard).toContain('window.__epochInitialBenchmarks = initialEpochLeaderboard.benchmarks');
@@ -49,19 +50,20 @@ test('serialized Epoch picker inputs retain only the initial top rows and requir
  expect(dashboard).toContain('window.__epochModelNames = initialEpochLeaderboard.modelNames');
  expect(dashboard).toContain('window.__epochLeaderboardTotals = initialEpochLeaderboard.totals');
  expect(dashboard).toContain('leaderboardRunCatalogRecord');
- expect(dashboard).toContain('createEpochLeaderboardRankingLoader');
+ expect(dashboard).toContain('createEpochRankingController({\n      revision: window.__epochRankingRevision,');
+ expect(dashboard).toContain('window.__epochRankingRevision = epochRankingRevision');
  expect(dashboard).toContain('resolveEpochLeaderboardRunNames(cohort.runs, benchmarkModelNameRecord)');
  expect(dashboard).toContain('resolveEpochLeaderboardRunNames(cohort.runs, epochModelNames)');
  expect(dashboard).toContain('name: run.name,');
- expect(dashboard).toContain('...Object.fromEntries((snapshot.epochModels ?? []).flatMap');
+ expect(dashboard).toContain('Object.fromEntries((snapshot.epochModels ?? []).flatMap');
  expect(dashboard).toContain('window.__epochBenchmarkLabels = initialEpochLeaderboard.labels');
 });
 
 test('initial-delivery budget rejects silently inlining a full corpus',()=>{
  const benchmarks=[benchmark('gpqa_diamond'),benchmark('livebench','livebench')];
  const runs=[
-  ...Array.from({length:400},(_,index)=>run(`gpqa:${index}`,`gpqa-model:${index}`,400-index,'gpqa_diamond')),
-  ...Array.from({length:400},(_,index)=>run(`lb:${index}`,`lb-model:${index}`,400-index,'livebench','livebench')),
+  ...Array.from({length:2500},(_,index)=>run(`gpqa:${index}`,`gpqa-model:${index}`,2500-index,'gpqa_diamond')),
+  ...Array.from({length:2500},(_,index)=>run(`lb:${index}`,`lb-model:${index}`,2500-index,'livebench','livebench')),
  ];
  const payload=buildInitialEpochLeaderboardData(
   benchmarks,
@@ -72,7 +74,7 @@ test('initial-delivery budget rejects silently inlining a full corpus',()=>{
  expect(payload.runs.length).toBeLessThanOrEqual(benchmarks.length*INITIAL_EPOCH_LEADERBOARD_LIMIT*2);
  expect(payload.runs.length).toBeLessThan(runs.length/10);
  const bytes=assertInitialEpochLeaderboardBudget(payload);
- const fullBytes=new TextEncoder().encode(JSON.stringify({
+ const fullPayload={
   ...payload,
   runs:runs.map(row=>({
    id:row.id,model_version:row.model_version,organization:row.organization,source_key:row.source_key,
@@ -80,10 +82,17 @@ test('initial-delivery budget rejects silently inlining a full corpus',()=>{
    score_unit:row.score_unit,score:row.score,score_metric:row.score_metric,source_name:row.source_name,
    source_link:row.source_link,benchmark_slug:row.benchmark_slug,
   })),
- })).length;
+ };
+ const fullBytes=new TextEncoder().encode(JSON.stringify(fullPayload)).length;
  expect(bytes).toBeLessThan(fullBytes/5);
  expect(bytes).toBeLessThan(INITIAL_EPOCH_LEADERBOARD_BUDGET_BYTES);
- expect(()=>assertInitialEpochLeaderboardBudget(payload,bytes-1)).toThrow(/budget/i);
+ expect(INITIAL_EPOCH_LEADERBOARD_BUDGET_BYTES).toBe(400_000);
+ expect(()=>assertInitialEpochLeaderboardBudget(payload,bytes-1)).toThrow(/budget is \d+ bytes/);
+ // Prove an oversized *generated* payload (same shape as production) fails the real 400_000-byte gate.
+ expect(fullBytes).toBeGreaterThan(INITIAL_EPOCH_LEADERBOARD_BUDGET_BYTES);
+ expect(()=>assertInitialEpochLeaderboardBudget(fullPayload)).toThrow(
+  new RegExp(`Initial Epoch leaderboard payload is ${fullBytes} bytes; budget is ${INITIAL_EPOCH_LEADERBOARD_BUDGET_BYTES} bytes`),
+ );
 });
 
 test('Epoch names stay identical before expansion, after expansion, and after collapse',()=>{

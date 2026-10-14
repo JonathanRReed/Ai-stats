@@ -1,150 +1,112 @@
-import {adaptPublisherEvidence,PUBLISHER_NAMES,type PublisherSnapshot} from './publisher-evidence';
+import {buildInitialEpochLeaderboardData} from './epoch-leaderboard-initial';
 import type {EpochBenchmark,EpochBenchmarkRun} from './supabase';
 
-export type EpochLeaderboardRankingCorpus={
+/**
+ * The full ranking is a build artifact keyed by the compare release `datasetRevision`, the
+ * fingerprint of the same catalog the page was rendered from. A view only ever adopts rows
+ * from its own revision, so a late, cached, or redeployed corpus cannot mix into it.
+ */
+export const epochRankingUrl=(revision:string)=>`/api/epoch-ranking/${revision}.json`;
+
+type RankedRun=ReturnType<typeof buildInitialEpochLeaderboardData>['runs'][number];
+export type EpochRankingPayload={schemaVersion:1;revision:string;runs:RankedRun[];modelNames:Record<string,string>};
+
+export function buildEpochRankingPayload(source:{
+ revision:string;
+ benchmarks:EpochBenchmark[];
+ runs:EpochBenchmarkRun[];
+ labels:Record<string,string>;
+ modelNames:Record<string,string>;
+}):EpochRankingPayload{
+ const full=buildInitialEpochLeaderboardData(source.benchmarks,source.runs,source.labels,source.modelNames,Number.POSITIVE_INFINITY);
+ return {schemaVersion:1,revision:source.revision,runs:full.runs,modelNames:full.modelNames};
+}
+
+const record=(value:unknown):value is Record<string,unknown>=>Boolean(value)&&typeof value==='object'&&!Array.isArray(value);
+const text=(value:unknown):value is string=>typeof value==='string'&&value.length>0;
+
+export function parseEpochRankingPayload(value:unknown,revision:string):EpochRankingPayload{
+ if(!record(value)||value.schemaVersion!==1||!Array.isArray(value.runs)||!record(value.modelNames))throw new Error('Invalid Epoch ranking payload');
+ if(value.revision!==revision)throw new Error('Epoch ranking revision does not match this page');
+ const ids=new Set<string>();
+ for(const run of value.runs){
+  if(!record(run)||!text(run.id)||ids.has(run.id)||!text(run.model_version)||!text(run.benchmark_slug))throw new Error('Invalid Epoch ranking run');
+  ids.add(run.id);
+ }
+ return value as EpochRankingPayload;
+}
+
+export type EpochRankingView={
+ revision:string;
  benchmarks:EpochBenchmark[];
  runs:EpochBenchmarkRun[];
  modelNames:Record<string,string>;
- revision:string;
+ complete:boolean;
 };
+export type EpochRankingStatus='idle'|'loading'|'failed';
+type FetchLike=(input:string,init?:RequestInit)=>Promise<Response>;
 
-type FetchLike=(input:RequestInfo|URL,init?:RequestInit)=>Promise<Response>;
+export function createEpochRankingController(initial:Omit<EpochRankingView,'complete'>,options:{fetch?:FetchLike}={}){
+ const fetchImpl=options.fetch??((input,init)=>fetch(input,init));
+ let view:EpochRankingView={...initial,complete:false};
+ let status:EpochRankingStatus='idle';
+ let pending:{revision:string;promise:Promise<EpochRankingPayload>}|null=null;
+ let liveSnapshots=0;
 
-const toStringOrEmpty=(value:unknown):string=>{
- if(value===null||value===undefined)return '';
- return String(value);
-};
-const toStringOrNull=(value:unknown):string|null=>{
- if(value===null||value===undefined)return null;
- const text=String(value).trim();
- return text.length?text:null;
-};
-const toNumberOrNull=(value:unknown):number|null=>{
- if(value===null||value===undefined)return null;
- const number=Number(value);
- return Number.isFinite(number)?number:null;
-};
-
-function normalizeEpochBenchmark(row:Record<string,unknown>):EpochBenchmark{
- return {
-  id:toStringOrEmpty(row.id||row.slug),
-  slug:toStringOrEmpty(row.slug),
-  name:toStringOrEmpty(row.name||row.slug),
-  description:toStringOrNull(row.description),
-  source:toStringOrNull(row.source),
-  metadata:row.metadata&&typeof row.metadata==='object'&&!Array.isArray(row.metadata)
-   ?row.metadata as Record<string,string|null>
-   :null,
- };
-}
-
-function normalizeEpochRun(row:Record<string,unknown>,benchmarkMap:Map<string,EpochBenchmark>):EpochBenchmarkRun{
- const benchmarkSlug=toStringOrEmpty(row.benchmark_slug||row.benchmark_id);
- const benchmark=benchmarkMap.get(benchmarkSlug);
- return {
-  id:toStringOrEmpty(row.id),
-  model_version:toStringOrEmpty(row.model_version),
-  benchmark_id:benchmark?.id??benchmarkSlug,
-  score:toNumberOrNull(row.score),
-  release_date:toStringOrNull(row.release_date),
-  organization:toStringOrNull(row.organization),
-  country:toStringOrNull(row.country),
-  stderr:toNumberOrNull(row.stderr),
-  score_metric:toStringOrNull(row.score_metric),
-  source_name:toStringOrNull(row.source_name),
-  source_link:toStringOrNull(row.source_link),
-  conditions:row.conditions&&typeof row.conditions==='object'&&!Array.isArray(row.conditions)
-   ?row.conditions as Record<string,string|number|boolean>
-   :null,
-  evaluation_date:toStringOrNull(row.evaluation_date),
-  score_unit:(()=>{const unit=toStringOrNull(row.score_unit);return unit==='percent'||unit==='fraction'||unit==='native'?unit:'native';})(),
-  benchmark_version:toStringOrNull(row.benchmark_version),
-  benchmark_name:benchmark?.name??toStringOrNull(row.benchmark_name)??undefined,
-  benchmark_slug:benchmark?.slug??benchmarkSlug,
-  source_key:toStringOrNull(row.source_key)??undefined,
-  higher_is_better:typeof row.higher_is_better==='boolean'?row.higher_is_better:undefined,
- };
-}
-
-export function parseEpochSnapshotPayload(snapshot:Record<string,unknown>):Omit<EpochLeaderboardRankingCorpus,'revision'>&{fetchedAt:string|null}{
- const epochBenchmarks=(Array.isArray(snapshot.benchmarks)?snapshot.benchmarks:[]).map(row=>normalizeEpochBenchmark(row as Record<string,unknown>));
- const benchmarkMap=new Map(epochBenchmarks.map(benchmark=>[benchmark.slug,benchmark]));
- const epochRuns=(Array.isArray(snapshot.runs)?snapshot.runs:[]).map(row=>normalizeEpochRun(row as Record<string,unknown>,benchmarkMap));
- const modelNames=Object.fromEntries((Array.isArray(snapshot.models)?snapshot.models:[]).flatMap(row=>{
-  const record=row as Record<string,unknown>;
-  const version=toStringOrEmpty(record.model_version);
-  const name=toStringOrNull(record.display_name)||toStringOrNull(record.model_name);
-  return version&&name?[[version,name] as const]:[];
- }));
- const fetchedAt=typeof snapshot.fetched_at==='string'&&Number.isFinite(Date.parse(snapshot.fetched_at))?snapshot.fetched_at:null;
- return {benchmarks:epochBenchmarks,runs:epochRuns,modelNames,fetchedAt};
-}
-
-export function rankingCorpusRevision(parts:Array<string|null|undefined>):string{
- return parts.filter(Boolean).join('|')||'unknown';
-}
-
-export function createEpochLeaderboardRankingLoader(options:{
- fetch?:FetchLike;
- epochSnapshotUrl?:string;
- publisherKeys?:string[];
- publisherUrl?:(sourceKey:string)=>string;
-}={}){
- const fetchImpl=options.fetch??fetch;
- const epochSnapshotUrl=options.epochSnapshotUrl??'/data/epoch-benchmark-snapshot.json';
- const publisherKeys=options.publisherKeys??Object.keys(PUBLISHER_NAMES);
- const publisherUrl=options.publisherUrl??((sourceKey:string)=>`/data/publisher-benchmarks/${sourceKey}.json`);
- let inFlight:Promise<EpochLeaderboardRankingCorpus>|null=null;
- let cached:EpochLeaderboardRankingCorpus|null=null;
-
- const loadFull=async(signal?:AbortSignal):Promise<EpochLeaderboardRankingCorpus>=>{
-  if(cached)return cached;
-  if(inFlight)return inFlight;
-  inFlight=(async()=>{
-   const epochResponse=await fetchImpl(epochSnapshotUrl,{cache:'force-cache',signal});
-   if(!epochResponse.ok)throw new Error(`Epoch ranking snapshot failed with ${epochResponse.status}`);
-   const epochParsed=parseEpochSnapshotPayload(await epochResponse.json() as Record<string,unknown>);
-   const publisherSnapshots:PublisherSnapshot[]=[];
-   for(const sourceKey of publisherKeys){
-    const response=await fetchImpl(publisherUrl(sourceKey),{cache:'force-cache',signal});
-    if(!response.ok)throw new Error(`Publisher ranking snapshot ${sourceKey} failed with ${response.status}`);
-    publisherSnapshots.push(await response.json() as PublisherSnapshot);
-   }
-   const publishers=adaptPublisherEvidence(publisherSnapshots);
-   const corpus:EpochLeaderboardRankingCorpus={
-    benchmarks:[...epochParsed.benchmarks,...publishers.benchmarks],
-    runs:[...epochParsed.runs,...publishers.runs],
-    modelNames:{
-     ...epochParsed.modelNames,
-     ...Object.fromEntries(publishers.models.map(model=>[model.sourceModelId,model.family])),
-    },
-    revision:rankingCorpusRevision([
-     epochParsed.fetchedAt,
-     ...publisherSnapshots.map(snapshot=>snapshot.fetchedAt),
-    ]),
-   };
-   cached=corpus;
-   return corpus;
+ const load=(revision:string,signal?:AbortSignal)=>{
+  if(pending?.revision===revision)return pending.promise;
+  const promise=(async()=>{
+   const response=await fetchImpl(epochRankingUrl(revision),{cache:'force-cache',signal});
+   if(!response.ok)throw new Error(`Epoch ranking failed with ${response.status}`);
+   return parseEpochRankingPayload(await response.json(),revision);
   })();
-  try{
-   return await inFlight;
-  }finally{
-   inFlight=null;
-  }
+  const entry={revision,promise};
+  pending=entry;
+  void promise.catch(()=>undefined).finally(()=>{if(pending===entry)pending=null;});
+  return promise;
  };
 
  return {
-  loadFull,
-  getCached:()=>cached,
-  clear:()=>{cached=null;inFlight=null;},
+  view:()=>view,
+  status:()=>status,
+  /** Resolves true once the current view holds its full ranking. Never blanks rows on failure. */
+  async ensureComplete(signal?:AbortSignal):Promise<boolean>{
+   if(view.complete)return true;
+   const revision=view.revision;
+   status='loading';
+   try{
+    const payload=await load(revision,signal);
+    if(view.revision===revision&&!view.complete){
+     view={...view,runs:payload.runs as EpochBenchmarkRun[],modelNames:{...view.modelNames,...payload.modelNames},complete:true};
+    }
+   }catch(error){
+    if(view.revision===revision&&!view.complete){
+     status='failed';
+     console.warn('Failed to load Epoch leaderboard ranking',error);
+    }
+   }
+   if(view.complete)status='idle';
+   return view.complete;
+  },
+  /** A live snapshot is a complete, newer corpus: it replaces rows (so withdrawals stick) and retires the page revision. */
+  applyLiveSnapshot(snapshot:{benchmarks:EpochBenchmark[];runs:EpochBenchmarkRun[];modelNames:Record<string,string>}):boolean{
+   if(!snapshot.runs.length)return false;
+   liveSnapshots+=1;
+   view={revision:`live:${liveSnapshots}`,benchmarks:snapshot.benchmarks,runs:snapshot.runs,modelNames:{...view.modelNames,...snapshot.modelNames},complete:true};
+   status='idle';
+   return true;
+  },
  };
 }
 
-/** Prefer the larger ranked list without dropping a newer in-memory choice on failed refresh. */
-export function mergeEpochLeaderboardRuns(current:EpochBenchmarkRun[],incoming:EpochBenchmarkRun[]):EpochBenchmarkRun[]{
- if(!incoming.length)return current;
- if(!current.length)return incoming;
- const byId=new Map(current.map(run=>[run.id,run]));
- for(const run of incoming)byId.set(run.id,run);
- return [...byId.values()];
+/** After an expansion settles, shrink a failed request only if the user still wants that exact count. */
+export function visibleCountAfterExpansion(input:{
+ key:string;
+ desired:number;
+ loaded:boolean;
+ available:number;
+ visibleCounts:Map<string,number>;
+}):number|undefined{
+ if(input.loaded||input.visibleCounts.get(input.key)!==input.desired)return undefined;
+ return Math.min(input.desired,Math.max(5,input.available));
 }

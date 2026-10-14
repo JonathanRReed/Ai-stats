@@ -2,7 +2,7 @@ import {buildBenchmarkCohorts} from './benchmark-leaderboard';
 import type {EpochBenchmark,EpochBenchmarkRun} from './supabase';
 
 export const INITIAL_EPOCH_LEADERBOARD_LIMIT=5;
-/** Hard ceiling on serialized initial Epoch leaderboard JSON so full corpora cannot quietly return. */
+/** Hard ceiling on serialized initial Epoch leaderboard JSON (400_000 bytes, not KiB) so full corpora cannot quietly return. */
 export const INITIAL_EPOCH_LEADERBOARD_BUDGET_BYTES=400_000;
 
 type InitialBenchmark=Pick<EpochBenchmark,'id'|'slug'|'name'>&{
@@ -75,9 +75,8 @@ export function buildInitialEpochLeaderboardData(
    }
   }
  }
- const neededNames=Object.fromEntries(
-  Object.entries(modelNames).filter(([version])=>[...selected.values()].some(run=>run.model_version===version)),
- );
+ const versions=new Set([...selected.values()].map(run=>run.model_version));
+ const neededNames=Object.fromEntries(Object.entries(modelNames).filter(([version])=>versions.has(version)));
  return {
   benchmarks:compactBenchmarks,
   runs:[...selected.values()],
@@ -90,7 +89,7 @@ export function buildInitialEpochLeaderboardData(
 export function assertInitialEpochLeaderboardBudget(payload:{runs:unknown[]},budgetBytes=INITIAL_EPOCH_LEADERBOARD_BUDGET_BYTES):number{
  const bytes=new TextEncoder().encode(JSON.stringify(payload)).length;
  if(bytes>budgetBytes){
-  throw new Error(`Initial Epoch leaderboard payload is ${bytes} bytes; budget is ${budgetBytes}`);
+  throw new Error(`Initial Epoch leaderboard payload is ${bytes} bytes; budget is ${budgetBytes} bytes`);
  }
  return bytes;
 }
