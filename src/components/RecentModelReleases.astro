@@ -1,0 +1,41 @@
+---
+import type {AaModel} from '../lib/supabase';
+import {buildExplorerCatalog} from '../lib/compare-catalog';
+import {compareRecordHref} from '../lib/model-identity';
+import {recentModelReleases} from '../lib/recent-models';
+import {formatIndex} from '../lib/format-utils';
+interface Props {models:AaModel[]}
+const {models}=Astro.props;
+const identities=new Map(buildExplorerCatalog(models,[]).map(model=>[model.id,model]));
+const releases=recentModelReleases(models.map(model=>({id:model.id,name:model.name,family:identities.get(model.id)?.family??model.name??model.id,
+ provider:model.company_name??model.creator_name??'Unknown provider',releaseDate:model.source_metadata?.release_date??null,
+ current:model.current_source_member??null,score:model.aa_intelligence_index})));
+const dateFormat=new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+---
+{releases.length>0?<section class="recent-releases" aria-labelledby="recent-release-heading">
+ <header><h2 id="recent-release-heading">Latest releases</h2><span>Release dates from Artificial Analysis</span></header>
+ <ul>{releases.map(model=><li><a href={compareRecordHref(model.id,'benchmark',false,'aa_intelligence_index')}>
+  <div class="release-date"><time datetime={model.releaseDate!}>{dateFormat.format(new Date(model.releaseDate!))}</time><span>{model.provider}</span></div>
+  <strong>{model.name}</strong>
+  <span class="release-metric">{typeof model.score==='number'&&Number.isFinite(model.score)?<>AA Index <b>{formatIndex(model.score)}</b></>:'View measurements'}<span aria-hidden="true">↗</span></span>
+ </a></li>)}</ul>
+</section>:null}
+<style>
+.recent-releases{min-width:0;display:grid;gap:12px}
+.recent-releases>header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.recent-releases h2{font-size:var(--text-lg);margin:0;color:var(--ink-0)}
+.recent-releases>header>span{font-size:var(--text-xs);color:var(--ink-2)}
+.recent-releases ul{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line-1);border:1px solid var(--line-1);padding:0;margin:0;list-style:none}
+.recent-releases li{min-width:0;background:var(--surface-0)}
+.recent-releases a{display:flex;flex-direction:column;gap:12px;height:100%;padding:16px;color:inherit;text-decoration:none;box-sizing:border-box}
+.recent-releases a:hover{background:var(--surface-1)}
+.recent-releases a:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+.release-date{display:flex;justify-content:space-between;gap:10px;font-size:var(--text-xs);color:var(--ink-2)}
+.release-date time{font-family:var(--font-mono);color:var(--signal-text)}
+.recent-releases strong{font-size:var(--text-sm);font-weight:600;overflow-wrap:anywhere}
+.release-metric{display:flex;gap:6px;font-size:var(--text-xs);color:var(--ink-2);margin-top:auto}
+.release-metric b{font-family:var(--font-mono);color:var(--ink-0)}
+.release-metric>span:last-child{margin-left:auto}
+@media(max-width:700px){.recent-releases ul{grid-template-columns:repeat(2,minmax(0,1fr))}.recent-releases a{padding:12px}.release-date{flex-wrap:wrap}}
+@media(max-width:380px){.recent-releases ul{grid-template-columns:1fr}}
+</style>

@@ -10,7 +10,7 @@ test('compact delivery preserves the full picker and server-rendered default mea
  const rows:ExplorerModel[]=Array.from({length:100},(_,i)=>({id:'aa'+i,name:'Model '+i,family:'Model '+i,provider:'Provider '+i,source:'aa',sourceModelId:'aa'+i,current:true,intelligence:42,priceBlended:1,indexVersion:'4.3'}));
  const delivery={catalog:compactCatalog(rows),revision:'test',charts:availableCompareCharts(rows),aaMetrics:availableAaMetrics(rows),presets:buildComparePresets(rows)};
  const html=renderToStaticMarkup(createElement(CompareExplorer,{models:[rows[0]],benchmarks:[],defaultModelIds:['aa0'],delivery}));
- expect(html).toContain('Add models (1)');expect(html).toContain('Model 0');expect(html).toContain('Provider 0');expect(html).toContain('Artificial Analysis');expect(html).toContain('aa0');expect(html).toContain('42');
+ expect(html).toContain('Add models (1)');expect(html).toContain('Model 0');expect(html).toContain('Provider 0');expect(html).toContain('Artificial Analysis');expect(html).toContain('42');
  expect(html).toContain('Sources and calculations');expect(html).not.toContain('desktop-model-selector');
  expect(html).not.toContain('not a recommendation');
 });

@@ -36,9 +36,11 @@ export default function ModelSelector({models,selected,includeHistory,chart,metr
    {results.records.map(model=>{
     const sourceLabel=EXPLORER_SOURCE_LABELS[model.source];
     const provider=model.provider??model.family;
+    const hasSiblingIdentity=models.some(candidate=>candidate.id!==model.id&&candidate.name===model.name&&
+     (candidate.provider??candidate.family)===provider);
     return <label className="model-option" key={model.id} data-selected={selectedSet.has(model.id)}>
      <input type="checkbox" checked={selectedSet.has(model.id)} disabled={!selectedSet.has(model.id)&&selected.length>=100} onChange={()=>{onToggle(model.id);searchRef.current?.focus();}}/>
-     <span><strong>{model.name}</strong><small>{provider} · {sourceLabel}</small><small>{model.sourceModelId}</small>
+     <span><strong>{model.name}</strong><small>{provider} · {sourceLabel}</small>{hasSiblingIdentity?<small>{model.sourceModelId}</small>:null}
       <small>{model.current===false?'Historical · ':model.source==='aa'&&model.current===null?'Membership unverified · ':''}{model.source==='epoch'?'Benchmark records':model.source==='aa'?'AA measurements':model.hasTokenPrices||typeof model.priceInput==='number'||typeof model.priceOutput==='number'?'Token prices available':'Catalog only · no chart measurements'}</small>
      </span>
     </label>;

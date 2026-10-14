@@ -35,7 +35,13 @@ test('picker shows a bounded, searchable page with source and identity labels',(
  const models=buildExplorerCatalog(Array.from({length:100},(_,i)=>({id:'a'+i,name:'Model '+i,current_source_member:true})),[]);
  const html=renderToStaticMarkup(createElement(ModelSelector,{models,selected:[],includeHistory:false,chart:'cost-intelligence',metricId:'aa_intelligence_index',onToggle:()=>{},onHistory:()=>{},reasoningEfforts:[],onReasoning:()=>{}}));
  expect(html).toContain('Find models'); expect(html).toContain('Matching models'); expect(html).toContain('100 matches');
- expect(html).toContain('Artificial Analysis'); expect(html).toContain('a0'); expect(html).not.toContain('Model 12</strong>');
+ expect(html).toContain('Artificial Analysis'); expect(html).not.toContain('<small>a0</small>'); expect(html).not.toContain('Model 12</strong>');
+});
+test('picker reveals native IDs when same-provider model names collide',()=>{
+ const records=[{id:'same-a',name:'Same model',creator_name:'Lab',current_source_member:true},{id:'same-b',name:'Same model',creator_name:'Lab',current_source_member:true}];
+ const models=buildExplorerCatalog(records,[]);
+ const html=renderToStaticMarkup(createElement(ModelSelector,{models,selected:[],includeHistory:false,chart:'cost-intelligence',metricId:'aa_intelligence_index',onToggle:()=>{},onHistory:()=>{},reasoningEfforts:[],onReasoning:()=>{}}));
+ expect(html).toContain('same-a'); expect(html).toContain('same-b');
 });
 test('default comparison stays compact without hiding other variants',()=>{
  const models=buildExplorerCatalog([{id:'high',name:'A (High)',creator_name:'Lab',current_source_member:true,aa_intelligence_index:70,price_1m_blended_3_to_1:2,source_metadata:{intelligence_index_version:'4.3',index_cost:{cost_per_task:{total_cost:1}}}},{id:'low',name:'A (Low)',creator_name:'Lab',current_source_member:true,aa_intelligence_index:60,price_1m_blended_3_to_1:1,source_metadata:{intelligence_index_version:'4.3',index_cost:{cost_per_task:{total_cost:1}}}}],[]);

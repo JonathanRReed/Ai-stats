@@ -134,16 +134,16 @@ test("the source health strip exposes source dates and data mode labels", () => 
 test("the measurements overview uses an AA cost and Index explorer alongside source coverage", () => {
   expect(overviewSource).toContain("OverviewExplorer");
   expect(overviewExplorerSource).toContain('aria-label="AA Intelligence Index cost comparison"');
-  expect(overviewSource).toContain("Coverage");
-  expect(overviewSource).toContain("Coverage and source updates");
+  expect(readFileSync("src/components/OverviewDataStatus.astro", "utf8")).toContain("Coverage");
+  expect(dashboardSource).toContain("<OverviewDataStatus");
   expect(dashboardSource).toContain('href="/compare" class="eco-btn eco-btn-primary">Compare models</a>');
   expect(overviewExplorerSource).toContain("Show frontier only");
   expect(overviewExplorerSource).toContain("Exact chart data");
   expect(overviewExplorerSource).toContain("Unknown version");
   expect(overviewExplorerSource).toContain("Values and receipt dates are from this record's source payload.");
-  expect(overviewSource).toContain("PublicPoliBenchSnapshot");
-  expect(overviewSource).toContain('href="/about"');
-  expect(overviewSource).not.toContain('href="/methodology"');
+  expect(dashboardSource).toContain("polibench={publicPoliBenchSnapshot}");
+  expect(readFileSync("src/components/OverviewDataStatus.astro", "utf8")).toContain('href="/about"');
+  expect(readFileSync("src/components/OverviewDataStatus.astro", "utf8")).not.toContain('href="/methodology"');
 });
 
 test("the intelligence plot supports keyboard and touch inspection and the complete evidence table", () => {

@@ -87,7 +87,9 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
     onReasoning:(value:string)=>update({reasoningEfforts:value==='all'?[]:state.reasoningEfforts.includes(value)
       ?state.reasoningEfforts.filter(reason=>reason!==value):[...state.reasoningEfforts,value]})};
   const selectedChip=(id:string)=>{const model=visibleModels.find(item=>item.id===id);const name=model?.name??id;
-    const identity=model?[model.provider??model.family,EXPLORER_SOURCE_LABELS[model.source],model.sourceModelId].filter(Boolean).join(' · '):id;
+    const provider=model?.provider??model?.family;
+    const ambiguous=Boolean(model&&visibleModels.some(candidate=>candidate.id!==model.id&&candidate.name===model.name&&(candidate.provider??candidate.family)===provider));
+    const identity=model?[provider,EXPLORER_SOURCE_LABELS[model.source],ambiguous?model.sourceModelId:null].filter(Boolean).join(' · '):id;
     return <span className="selected-model-chip" key={id}><span><strong>{name}</strong><small>{identity}</small></span>
       <button type="button" aria-label={`Remove ${name} (${identity})`} onClick={()=>toggle(id)}>×</button></span>;};
   const chooseMeasured=()=>update(benchmarkStartingSelection(visibleModels,observations.filter(row=>!state.conditionKey||epochConditionKey(row.conditions)===state.conditionKey),state.scoreMetricKey));

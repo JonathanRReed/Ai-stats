@@ -27,6 +27,7 @@ import ModelCard from "./ModelCard.astro";
 import TaskWorkbench from "./TaskWorkbench.astro";
 import { buildReasoningHighlights } from "../lib/reasoning-highlights";
 import SourceHealthStrip from "./SourceHealthStrip.astro";
+import OverviewDataStatus from "./OverviewDataStatus.astro";
 import IntelligenceOverview from "./IntelligenceOverview.astro";
 import PoliBenchLab from "./PoliBenchLab.astro";
 import { getPublicPoliBenchSnapshot } from "../lib/polibench-snapshot";
@@ -380,7 +381,7 @@ function getScoreClass(score: number | null | undefined): string {
       <a href="#stats-sources">Sources</a>
     </nav>
     <section id="stats-overview" class="stats-section" aria-label="Overview">
-      <IntelligenceOverview models={currentMeasuredModels} epochModels={catalog.epoch.epochModels} epochBenchmarks={catalog.epoch.epochBenchmarks} epochRuns={catalog.epoch.epochRuns} polibench={publicPoliBenchSnapshot} freshness={dataFreshness} leaders={benchmarkSnapshotModels} />
+      <IntelligenceOverview models={currentMeasuredModels} leaders={benchmarkSnapshotModels} />
     </section>
     <section id="stats-benchmarks" class="stats-section" aria-label="Benchmarks">
     <section id="leaderboard" aria-label="Models by metric" class="space-y-4 fade-in-section scroll-mt-28">
@@ -818,6 +819,7 @@ function getScoreClass(score: number | null | undefined): string {
       <summary>Sources and coverage</summary>
       <div class="stats-disclosure-content">
         <SourceHealthStrip freshness={dataFreshness} />
+        <OverviewDataStatus models={currentMeasuredModels} epochModels={catalog.epoch.epochModels} epochRuns={catalog.epoch.epochRuns} polibench={publicPoliBenchSnapshot} freshness={dataFreshness} />
         <CatalogCoverage />
         <details class="dashboard-definition">
           <summary>Data in this build</summary>
