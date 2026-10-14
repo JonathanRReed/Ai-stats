@@ -12,7 +12,7 @@ describe("not-found page", () => {
     const build = Bun.spawn(
       // This fixture checks the recovery page without data credentials. Keep it
       // isolated from the production artifact and its populated-data gate.
-      ["bun", "run", "astro", "build", "--outDir", outputDirectory],
+      ["bun", "--bun", "run", "astro", "build", "--outDir", outputDirectory],
       {
         stdout: "pipe",
         stderr: "pipe",
