@@ -26,7 +26,6 @@ import { getDataFreshness } from "../lib/data-freshness";
 import ModelCard from "./ModelCard.astro";
 import TaskWorkbench from "./TaskWorkbench.astro";
 import { buildReasoningHighlights } from "../lib/reasoning-highlights";
-import LatestModelsStrip from "./LatestModelsStrip.astro";
 import SourceHealthStrip from "./SourceHealthStrip.astro";
 import IntelligenceOverview from "./IntelligenceOverview.astro";
 import PoliBenchLab from "./PoliBenchLab.astro";
@@ -381,8 +380,7 @@ function getScoreClass(score: number | null | undefined): string {
       <a href="#stats-sources">Sources</a>
     </nav>
     <section id="stats-overview" class="stats-section" aria-label="Overview">
-      <IntelligenceOverview models={currentMeasuredModels} epochModels={catalog.epoch.epochModels} epochBenchmarks={catalog.epoch.epochBenchmarks} epochRuns={catalog.epoch.epochRuns} polibench={publicPoliBenchSnapshot} freshness={dataFreshness} />
-      <LatestModelsStrip models={benchmarkSnapshotModels} />
+      <IntelligenceOverview models={currentMeasuredModels} epochModels={catalog.epoch.epochModels} epochBenchmarks={catalog.epoch.epochBenchmarks} epochRuns={catalog.epoch.epochRuns} polibench={publicPoliBenchSnapshot} freshness={dataFreshness} leaders={benchmarkSnapshotModels} />
     </section>
     <section id="stats-benchmarks" class="stats-section" aria-label="Benchmarks">
     <section id="leaderboard" aria-label="Models by metric" class="space-y-4 fade-in-section scroll-mt-28">
@@ -547,16 +545,14 @@ function getScoreClass(score: number | null | undefined): string {
       </article>
     </section>
 
-    <!-- All models -->
-
-      <details class="stats-disclosure" id="stats-tasks">
-        <summary>Compare by task</summary>
-        <div class="stats-disclosure-content"><TaskWorkbench models={workbenchModels} reasoningHighlights={buildReasoningHighlights(epochRuns, epochModels)} /></div>
-      </details>
     </section>
     <section id="stats-usage" class="stats-section" aria-label="Usage">
       <OpenRouterUsage snapshot={dailyUsage?.snapshot ?? null} receipt={dailyUsage?.receipt ?? null} client:visible />
     </section>
+    <details class="stats-disclosure" id="stats-tasks">
+      <summary>Compare by task</summary>
+      <div class="stats-disclosure-content"><TaskWorkbench models={workbenchModels} reasoningHighlights={buildReasoningHighlights(epochRuns, epochModels)} /></div>
+    </details>
     <details class="stats-disclosure" id="stats-profiles">
       <summary>Political profiles · PoliBench</summary>
       <div class="stats-disclosure-content"><PoliBenchLab snapshot={publicPoliBenchSnapshot} /></div>

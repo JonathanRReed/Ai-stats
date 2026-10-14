@@ -31,10 +31,11 @@ test('unavailable chart links recover and controls follow delivered chart availa
  expect(html).not.toContain('Evaluation cost');
  expect(html).toContain('Compare by');
 });
-test('picker offers more results and searches the full catalog with source labels',()=>{
+test('picker shows a bounded, searchable page with source and identity labels',()=>{
  const models=buildExplorerCatalog(Array.from({length:100},(_,i)=>({id:'a'+i,name:'Model '+i,current_source_member:true})),[]);
- const html=renderToStaticMarkup(createElement(ModelSelector,{models,selected:[],includeHistory:false,chart:'cost-intelligence',metricId:'aa_intelligence_index',onToggle:()=>{},onFamily:()=>{},onHistory:()=>{},reasoningEfforts:[],onReasoning:()=>{},onClear:()=>{},onReset:()=>{}}));
- expect(html).toContain('Show more'); expect(html).toContain('Artificial Analysis'); expect(html).toContain('Catalog source');
+ const html=renderToStaticMarkup(createElement(ModelSelector,{models,selected:[],includeHistory:false,chart:'cost-intelligence',metricId:'aa_intelligence_index',onToggle:()=>{},onHistory:()=>{},reasoningEfforts:[],onReasoning:()=>{}}));
+ expect(html).toContain('Find models'); expect(html).toContain('Matching models'); expect(html).toContain('100 matches');
+ expect(html).toContain('Artificial Analysis'); expect(html).toContain('a0'); expect(html).not.toContain('Model 12</strong>');
 });
 test('default comparison stays compact without hiding other variants',()=>{
  const models=buildExplorerCatalog([{id:'high',name:'A (High)',creator_name:'Lab',current_source_member:true,aa_intelligence_index:70,price_1m_blended_3_to_1:2,source_metadata:{intelligence_index_version:'4.3',index_cost:{cost_per_task:{total_cost:1}}}},{id:'low',name:'A (Low)',creator_name:'Lab',current_source_member:true,aa_intelligence_index:60,price_1m_blended_3_to_1:1,source_metadata:{intelligence_index_version:'4.3',index_cost:{cost_per_task:{total_cost:1}}}}],[]);
@@ -68,12 +69,13 @@ test('Epoch inventory uses the registered epoch-ai source key',()=>{
  expect(result.map(model=>model.id)).toEqual(['epoch:v']);
 });
 
-test('bulk selection only changes rendered records, never hidden same-name source records',async()=>{
+test('selection helper only changes rendered records, never hidden same-name source records',async()=>{
  const {selectVisibleRecords}=await import('./compare-state');
  expect(selectVisibleRecords(['aa:a'],['openrouter:a'],true)).toEqual(['aa:a','openrouter:a']);
  expect(selectVisibleRecords(['aa:a','openrouter:a'],['openrouter:a'],false)).toEqual(['aa:a']);
  const selector=readFileSync('src/components/compare/ModelSelector.tsx','utf8');
- expect(selector).toContain('onGroup?.(group.map(model=>model.id),!groupChosen(group))');
+ expect(selector).toContain('key={model.id}');
+ expect(selector).toContain('onChange={()=>onToggle(model.id)}');
 });
 
 test('AA registry slugs represent all exact UUID variants without duplicate inventory rows',()=>{

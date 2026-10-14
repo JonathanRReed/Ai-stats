@@ -5,6 +5,7 @@ import type { AaModel, EpochBenchmark, EpochBenchmarkRun, EpochModel } from "../
 import { hasFiniteMetricValue } from "../lib/metric-values";
 import { buildExplorerCatalog } from "../lib/compare-catalog";
 import OverviewExplorer from "./compare/OverviewExplorer";
+import LatestModelsStrip from "./LatestModelsStrip.astro";
 import { suggestedModels } from "../lib/suggested-models";
 
 interface Props {
@@ -14,9 +15,10 @@ interface Props {
   epochRuns: EpochBenchmarkRun[];
   polibench: PublicPoliBenchSnapshot | null;
   freshness: DataFreshness;
+  leaders: AaModel[];
 }
 
-const { models, epochModels, epochRuns, polibench, freshness } = Astro.props;
+const { models, epochModels, epochRuns, polibench, freshness, leaders } = Astro.props;
 const explorerModels = buildExplorerCatalog(models, []);
 const versions=[...new Set(explorerModels.filter(model=>model.source==='aa'&&model.current===true&&model.indexVersion&&/^\d+(?:\.\d+)*$/.test(model.indexVersion)).map(model=>model.indexVersion!))];
 const suggestions = Object.fromEntries(versions.flatMap(version=>(['task-cost','cost-intelligence'] as const).map(metric=>{
@@ -42,7 +44,6 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", { month:"short", day:"num
 ---
 
 <section class="intelligence-overview" aria-label="Model intelligence and cost overview">
-  <OverviewExplorer client:load models={explorerModels} suggestions={suggestions} />
   <section class="overview-data-status" aria-label="Source coverage and status">
     <header class="overview-status-heading"><h2>Coverage and source updates</h2><p>Counts describe records and runs in the current build snapshot.</p></header>
     <div class="overview-status-grid">
@@ -66,11 +67,20 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", { month:"short", day:"num
       </section>
     </div>
   </section>
+  <LatestModelsStrip models={leaders} />
+  <details class="overview-chart-disclosure">
+    <summary>Explore cost and Intelligence Index</summary>
+    <OverviewExplorer client:load models={explorerModels} suggestions={suggestions} />
+  </details>
 </section>
 
 <style>
   .intelligence-overview{display:grid;gap:1rem}
   .overview-data-status{border-top:1px solid var(--line-0);padding-top:1rem}
+  .overview-chart-disclosure{min-width:0;border:1px solid var(--line-1);border-radius:var(--radius-md);background:var(--surface-1)}
+  .overview-chart-disclosure>summary{min-height:54px;padding:1rem 1.2rem;cursor:pointer;font-size:var(--text-base);font-weight:600;color:var(--ink-0)}
+  .overview-chart-disclosure[open]>summary{border-bottom:1px solid var(--line-1)}
+  .overview-chart-disclosure>astro-island{display:block;padding:clamp(12px,2vw,22px)}
   .overview-status-heading{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;margin-bottom:.5rem}
   .overview-status-heading h2{font-size:var(--text-base);font-weight:600;color:var(--ink-0)}
   .overview-status-heading p{font-size:var(--text-xs);color:var(--ink-2)}

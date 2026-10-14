@@ -29,8 +29,7 @@ export default function OpenRouterUsage({snapshot,receipt}:Props){
  const inspect=(index:number)=>{setActiveDate(series.days[index].date);dayRefs.current[index]?.focus();};
  const toggle=(key:string)=>setSelected(current=>current.includes(key)?current.filter(value=>value!==key):current.length<8?[...current,key]:current);
  return <section className="usage-module" aria-labelledby="usage-title">
-  <header className="usage-heading"><div><h2 id="usage-title">Usage</h2>
-   <p>Daily tokens across OpenRouter’s public models.</p></div>
+  <header className="usage-heading"><div><h2 id="usage-title">Usage</h2></div>
    <div className="usage-controls">
     <div role="group" aria-label="Usage window">{[7,30,90].map(days=><button type="button" key={days} aria-pressed={days===windowDays} onClick={()=>setWindowDays(days)}>{days} days</button>)}</div>
     <div role="group" aria-label="Usage measure">{[['share','Share'],['volume','Token volume']].map(([key,name])=><button type="button" key={key} aria-pressed={key===mode} onClick={()=>setMode(key)}>{name}</button>)}</div>
