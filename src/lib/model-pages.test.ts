@@ -9,6 +9,7 @@ import {
   modelPageSlug,
   modelPageTitle,
   modelRecordToText,
+  formatEpochScore,
 } from "./model-pages";
 
 const model = (overrides: Partial<AaModel>): AaModel =>
@@ -46,6 +47,15 @@ test("slugs come from the AA slug and fall back to the name", () => {
   expect(modelPageSlug({ slug: "gpt-6-astra", name: "GPT-6 Astra", id: "x" })).toBe("gpt-6-astra");
   expect(modelPageSlug({ slug: null, name: "Claude Fable 5.1 (Max Effort)", id: "x" })).toBe("claude-fable-5-1-max-effort");
   expect(modelPageSlug({ slug: null, name: null, id: "9b16-6bf3" })).toBe("9b16-6bf3");
+});
+
+test('Epoch score formatting preserves units, zero, missing values, and small nonzero values',()=>{
+ expect(formatEpochScore(0.5,'native')).toBe('0.5');
+ expect(formatEpochScore(0.5,'percent')).toBe('0.5%');
+ expect(formatEpochScore(0.5,'fraction')).toBe('50%');
+ expect(formatEpochScore(0,'native')).toBe('0');
+ expect(formatEpochScore(null,'native')).toBe('Not available');
+ expect(formatEpochScore(0.000004,'percent')).toBe('0.000004%');
 });
 
 test("model titles keep the full model name without redundant text", () => {
@@ -118,14 +128,14 @@ test("Epoch runs require explicitly verified native versions", () => {
   const runs = matchEpochRuns(
     { name: "Test Model 1", slug: "test-model-1" },
     [
-      { id: "r1", model_version: "test-model-1", benchmark_id: "b1", score: 0.55, score_unit:'fraction', benchmark_version:'2026-1', release_date: null, organization: null, country: null, stderr: 0.02, source_name: "Epoch AI", source_link: "https://epoch.ai/x" },
+      { id: "r1", model_version: "test-model-1", benchmark_id: "b1", score: 0.55, score_unit:'fraction', benchmark_version:'2026-1', conditions:{shots:5,format:'diff'}, release_date: null, organization: null, country: null, stderr: 0.02, source_name: "Epoch AI", source_link: "https://epoch.ai/x" },
       { id: "r2", model_version: "Other", benchmark_id: "b1", score: 0.9, release_date: null, organization: null, country: null, stderr: null },
     ],
     [{ id: "b1", slug: "gpqa_diamond", name: "GPQA Diamond", description: null, source: null }],
     ["test-model-1"],
   );
   expect(runs).toHaveLength(1);
-  expect(runs[0]).toMatchObject({ benchmark: "GPQA Diamond", score: 0.55, stderr: 0.02, scoreUnit:'fraction', benchmarkVersion:'2026-1', sourceLink: "https://epoch.ai/x" });
+  expect(runs[0]).toMatchObject({ benchmark: "GPQA Diamond", score: 0.55, stderr: 0.02, scoreUnit:'fraction', benchmarkVersion:'2026-1', conditions:{shots:5,format:'diff'}, sourceLink: "https://epoch.ai/x" });
 });
 
 test('Epoch score payload parsing rejects booleans and whitespace-as-zero',()=>{

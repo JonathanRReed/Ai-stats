@@ -35,6 +35,17 @@ export type CompareSeries = {
   scale:'linear'|'log'; scaleNotice:string|null; mixedConditions:boolean;
   frontierGroups:Record<string,string[]>; higherXIsBetter:boolean;
 };
+export function chartLabelCandidates(points:SeriesPoint[],frontierGroups:Record<string,string[]>,limit=12):string[]{
+ const priorities:string[]=[];
+ for(const ids of Object.values(frontierGroups))priorities.push(...ids);
+ const families=new Map<string,SeriesPoint[]>();
+ for(const point of points){const group=families.get(point.family)??[];group.push(point);families.set(point.family,group);}
+ for(const group of families.values()){
+  const ordered=[...group].sort((a,b)=>a.x-b.x||a.y-b.y||a.id.localeCompare(b.id));
+  if(ordered.length)priorities.push(ordered[0].id,ordered[ordered.length-1].id);
+ }
+ return [...new Set(priorities)].slice(0,Math.max(0,limit));
+}
 const finite = (value:unknown):value is number => typeof value==='number'&&Number.isFinite(value);
 const nonnegative = (value:unknown):value is number => finite(value)&&value>=0;
 const sourceUrl = (value:string|null|undefined):string|null => {

@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState,type RefObject} from 'react';
 import {plotGeometry,formatChartNumber} from '../../lib/compare-geometry';
-import {compatibleVariantLines,type CompareSeries,type SeriesPoint} from '../../lib/compare-series';
+import {chartLabelCandidates,compatibleVariantLines,type CompareSeries,type SeriesPoint} from '../../lib/compare-series';
 const FAMILY_HUES:Array<[RegExp,number]>=[
   [/^Claude/i,1],[/^(GPT|o[1-9])/i,8],[/^(Gemini|Gemma)/i,0],[/^(Muse|Llama)/i,2],
   [/^Grok/i,3],[/^MiMo/i,4],[/^Qwen/i,5],[/^Kimi/i,6],[/^GLM/i,7],[/^DeepSeek/i,5],
@@ -10,13 +10,13 @@ export function familyColor(family:string){
   let hash=0;for(const letter of family)hash=(hash*31+letter.charCodeAt(0))>>>0;
   return 'var(--compare-family-'+(known?.[1]??hash%9)+')';
 }
-type Props={series:CompareSeries;labels:boolean;activeId:string|null;onPreview:(id:string|null)=>void;onPin:(id:string)=>void;svgRef:RefObject<SVGSVGElement|null>};
-export default function ComparisonChart({series,labels,activeId,onPreview,onPin,svgRef}:Props){
+type Props={series:CompareSeries;labels:boolean;showFamilyLegend?:boolean;activeId:string|null;onPreview:(id:string|null)=>void;onPin:(id:string)=>void;svgRef:RefObject<SVGSVGElement|null>};
+export default function ComparisonChart({series,labels,showFamilyLegend=true,activeId,onPreview,onPin,svgRef}:Props){
   const frame=useRef<HTMLDivElement>(null);const [width,setWidth]=useState(1000);
   useEffect(()=>{if(!frame.current)return;const observer=new ResizeObserver(([entry])=>setWidth(Math.max(300,entry.contentRect.width)));
     observer.observe(frame.current);return()=>observer.disconnect();},[]);
   const height=width<600?420:520;
-  const families=[...new Set(series.points.map(point=>point.family))];
+  const families=showFamilyLegend?[...new Set(series.points.map(point=>point.family))]:[];
   const tokenPrices=series.points.some(point=>point.series==='input'||point.series==='output');
   let legendX=70,legendY=tokenPrices?34:13;
   const legend=families.slice(0,width<600?6:12).map(family=>{
@@ -29,6 +29,7 @@ export default function ComparisonChart({series,labels,activeId,onPreview,onPin,
   const plot=plotGeometry(series.points,series.kind,series.scale,width,height,Math.min(height*.35,legendY+24));
   const byId=new Map(plot.points.map(point=>[point.id,point]));
   const linked=compatibleVariantLines(series.points);
+  const labeledIds=new Set(labels?chartLabelCandidates(series.points,series.frontierGroups):[]);
   const inspect=(point:SeriesPoint)=>point.label+(point.series==='input'?' · Input tokens':point.series==='output'?' · Output tokens':'')+': '+(series.kind==='scatter'?formatChartNumber(point.x)+' '+series.xLabel+' · ':'')+formatChartNumber(point.y)+' '+point.unit;
   return <div className="comparison-plot" ref={frame}>
     {!series.available?<div className="plot-empty"><h2>Awaiting data access</h2><p>{series.unavailableReason}</p></div>:
@@ -61,7 +62,7 @@ export default function ComparisonChart({series,labels,activeId,onPreview,onPin,
           r={activeId===point.id?6:4.5} fill={familyColor(point.family)}/></>:<rect className="point-mark" x={point.cx-point.visibleBarWidth/2}
           y={Math.min(point.cy,plot.baseline)} width={point.visibleBarWidth} height={Math.max(1,Math.abs(plot.baseline-point.cy))}
           fill={familyColor(point.family)} opacity={point.series==='input'?.55:1}/>}
-        {labels||activeId===point.id?<text className="point-label" textAnchor={point.cx>width-150?'end':'start'}
+        {labeledIds.has(point.id)||activeId===point.id?<text className="point-label" textAnchor={point.cx>width-150?'end':'start'}
           x={point.cx+(point.cx>width-150?-8:8)} y={point.cy-10}>{point.label}</text>:null}
       </g>)}
       {series.kind==='bars'&&new Set(plot.points.map(point=>point.x)).size<=12?

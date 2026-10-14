@@ -45,6 +45,7 @@ export type ModelPageEpochRun = {
   score: number | null;
   scoreUnit: 'native' | 'percent' | 'fraction' | null;
   benchmarkVersion: string | null;
+  conditions: Record<string, string | number | boolean> | null;
   stderr: number | null;
   scoreMetric: string | null;
   sourceName: string | null;
@@ -120,6 +121,14 @@ export type ModelPageContext = {
   verifiedBindings?:VerifiedBindings;
 };
 
+const preciseNumber=(value:number):string=>new Intl.NumberFormat('en-US',{maximumSignificantDigits:12,useGrouping:false}).format(value);
+export function formatEpochScore(value:number|null,unit:'native'|'percent'|'fraction'|null):string{
+  if(value===null)return 'Not available';
+  if(unit==='fraction')return `${preciseNumber(value*100)}%`;
+  if(unit==='percent')return `${preciseNumber(value)}%`;
+  return preciseNumber(value);
+}
+
 const finite = (value: unknown): number | null => {
   if (typeof value !== 'number' && !(typeof value === 'string' && value.trim() && /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(value.trim()))) return null;
   const num = typeof value === 'number' ? value : Number(value.trim());
@@ -171,6 +180,7 @@ export const matchEpochRuns = (
         score: finite(run.score),
         scoreUnit: run.score_unit ?? null,
         benchmarkVersion: text(run.benchmark_version),
+        conditions: run.conditions && typeof run.conditions === 'object' ? run.conditions : null,
         stderr: finite(run.stderr),
         scoreMetric: text(run.score_metric),
         sourceName: useEpochVpctPage ? 'Epoch AI VPCT benchmark' : text(run.source_name),
@@ -527,7 +537,7 @@ export const modelRecordToText = (record: ModelPageRecord): string => {
   if (record.catalog.openRouterId) lines.push(`- OpenRouter id: ${record.catalog.openRouterId}`);
   if (record.catalog.huggingFaceId) lines.push(`- Hugging Face: ${record.catalog.huggingFaceId}`);
   if (record.epochRuns.length) {
-    lines.push(`- Epoch AI runs: ${record.epochRuns.map((run) => `${run.benchmark} ${run.score === null ? 'n/a' : run.score <= 1 ? `${(run.score * 100).toFixed(1)}%` : run.score.toFixed(1)}`).join(', ')}`);
+    lines.push(`- Epoch AI runs: ${record.epochRuns.map((run) => `${run.benchmark} ${formatEpochScore(run.score,run.scoreUnit)}${run.conditions?` (${Object.entries(run.conditions).map(([key,value])=>`${key}: ${value}`).join(', ')})`:''}`).join(', ')}`);
   }
   if (record.poliBench) lines.push(`- PoliBench profile: ${record.poliBench.url} (${record.poliBench.evidenceLabel})`);
   if (record.firstSeen || record.lastSeen) {

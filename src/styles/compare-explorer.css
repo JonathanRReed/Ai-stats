@@ -40,7 +40,7 @@
 .plot-empty h2{font-size:18px;font-weight:500;color:var(--ink-1);margin:0 0 8px}
 .plot-empty p{max-width:380px;font-size:13px;line-height:1.6;margin:0}
 .inspect-hint{font-size:11px;color:var(--ink-2);margin:0;padding:2px 16px 12px}
-.observation-details{position:absolute;right:22px;bottom:76px;z-index:2;background:var(--surface-1);border:1px solid var(--line-1);border-radius:5px;padding:13px;width:min(310px,calc(100% - 36px));box-shadow:var(--shadow-1)}
+.observation-details{position:relative;z-index:1;background:var(--surface-1);border:1px solid var(--line-1);border-radius:5px;padding:13px;width:min(100%,680px);margin:12px 0 0;box-shadow:none}
 .observation-heading{display:flex;justify-content:space-between;gap:10px;align-items:start}
 .observation-heading strong{font-size:13px;line-height:1.4;max-width:210px}
 .observation-heading>div{display:flex;gap:3px}
@@ -66,9 +66,9 @@
 .selected-family{display:grid;gap:4px;padding:7px 0;border-bottom:1px solid var(--line-0)}
 .selected-family-heading{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--ink-1)}
 .selected-family-heading i{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
-.selected-family-heading small{margin-left:auto;color:var(--ink-3);font-size:9px;font-weight:400}
+.selected-family-heading small{margin-left:auto;color:var(--ink-2);font-size:10px;font-weight:400}
 .selected-family-variants{display:flex;flex-wrap:wrap;gap:4px;padding-left:13px}
-.selected-family-variants button{display:inline-flex;align-items:center;gap:5px;padding:4px 6px;font-size:10px;max-width:100%;overflow-wrap:anywhere}
+.selected-family-variants button{display:inline-flex;align-items:center;gap:5px;min-height:34px;padding:6px 8px;font-size:11px;max-width:100%;overflow-wrap:anywhere}
 .selected-family-variants button span{color:var(--ink-2);font-size:13px;line-height:1}
 .history-toggle{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--ink-2);margin-top:12px}
 .model-options{overflow-y:auto;scrollbar-width:thin;min-height:0;flex:1}

@@ -25,7 +25,7 @@
 .overview-explorer .point-label{font-size:10px}.overview-explorer .observation-details{position:relative;inset:auto;width:auto;max-width:none;margin:.4rem 0;box-shadow:none}
 .overview-family-key{display:grid;align-content:start;gap:.3rem;border-left:1px solid var(--line-0);padding:.2rem 0 .2rem .65rem;max-height:460px;overflow:auto}
 .overview-family-key h3{margin:0 0 .2rem;font-size:var(--text-xs);font-weight:600;color:var(--ink-1)}
-.overview-family-key>span{display:flex;align-items:center;gap:.4rem;color:var(--ink-2);font-size:10px;line-height:1.3;overflow-wrap:anywhere}
+.overview-family-key>span{display:flex;align-items:center;gap:.45rem;color:var(--ink-1);font-size:11px;line-height:1.35;overflow-wrap:anywhere}
 .overview-family-key i{width:.45rem;height:.45rem;border-radius:50%;flex:0 0 auto}.overview-family-key p{margin:0;color:var(--ink-2);font-size:10px;line-height:1.5}
 .overview-inspect-hint{color:var(--ink-2);font-size:10px;line-height:1.4;margin:.25rem 0 .4rem}
 .overview-excluded,.overview-exact-data{border-top:1px solid var(--line-0);margin-top:.65rem;padding-top:.35rem}
@@ -38,7 +38,7 @@
 .overview-explorer :focus-visible{outline:2px solid var(--focus);outline-offset:3px}
 @media(max-width:760px){
  .overview-chart-layout{grid-template-columns:1fr}.overview-family-key{display:flex;flex-wrap:wrap;border:0;border-top:1px solid var(--line-0);padding:.55rem 0 0;max-height:5.5rem}
- .overview-family-key h3{width:100%}.overview-family-key>span{font-size:10px}.overview-explorer .comparison-plot{height:420px}
+ .overview-family-key h3{width:100%}.overview-family-key>span{font-size:11px}.overview-explorer .comparison-plot{height:420px}
  .overview-summary{grid-template-columns:repeat(3,minmax(0,1fr))}.overview-summary>div{padding:.55rem .45rem}.overview-summary dd{font-size:11px}
 }
 @media(max-width:520px){.overview-chart-controls>label{flex:1 1 calc(50% - .6rem)}.overview-chart-controls .overview-search{flex-basis:100%}

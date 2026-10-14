@@ -39,7 +39,7 @@ test("the model snapshot explains its evidence filter and links into comparison"
   expect(latestModelsSource).toContain("hasFiniteMetricValue(model.aa_coding_index)");
   expect(latestModelsSource).not.toContain("does not recommend a model");
   expect(latestModelsSource).not.toContain("pricing, and speed available");
-  expect(latestModelsSource).toContain('href={compareRecordHref(model.id)}');
+  expect(latestModelsSource).toContain('compareRecordHref(model.id, "benchmark", false, "aa_intelligence_index")');
   expect(latestModelsSource).not.toContain("latest-model-order");
   expect(latestModelsSource).not.toContain("overflow-x-auto");
 });

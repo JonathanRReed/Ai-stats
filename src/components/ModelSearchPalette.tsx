@@ -8,8 +8,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-
-type IndexEntry = { n: string; p: string; u: string; i: number | null };
+import { readModelSearchIndex, type ModelSearchEntry } from '@/lib/model-search-index';
 
 const MAX_RESULTS = 40;
 
@@ -22,10 +21,19 @@ const MAX_RESULTS = 40;
  */
 export default function ModelSearchPalette() {
   const [open, setOpen] = useState(false);
-  const [entries, setEntries] = useState<IndexEntry[]>([]);
+  const [entries, setEntries] = useState<ModelSearchEntry[]>([]);
   const [query, setQuery] = useState('');
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const requested = useRef(false);
+  const isOpen = useRef(false);
+  const opener = useRef<HTMLElement | null>(null);
+  const changeOpen = useCallback((next: boolean) => {
+    if (next && !isOpen.current) {
+      opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    }
+    isOpen.current = next;
+    setOpen(next);
+  }, []);
 
   const load = useCallback(async () => {
     if (requested.current) return;
@@ -35,8 +43,7 @@ export default function ModelSearchPalette() {
       const response = await fetch('/api/model-index.json');
       if (!response.ok) throw new Error(String(response.status));
       const data: unknown = await response.json();
-      if (!Array.isArray(data)) throw new Error('unexpected shape');
-      setEntries(data as IndexEntry[]);
+      setEntries(readModelSearchIndex(data));
       setState('ready');
     } catch {
       requested.current = false;
@@ -48,17 +55,17 @@ export default function ModelSearchPalette() {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        setOpen((value) => !value);
+        changeOpen(!isOpen.current);
       }
     };
     document.addEventListener('keydown', onKey);
-    const onOpen = () => setOpen(true);
+    const onOpen = () => changeOpen(true);
     window.addEventListener('ai-stats:open-model-search', onOpen);
     return () => {
       document.removeEventListener('keydown', onKey);
       window.removeEventListener('ai-stats:open-model-search', onOpen);
     };
-  }, []);
+  }, [changeOpen]);
 
   useEffect(() => {
     if (open) void load();
@@ -75,7 +82,13 @@ export default function ModelSearchPalette() {
   return (
     <CommandDialog
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={changeOpen}
+      onCloseAutoFocus={(event) => {
+        event.preventDefault();
+        const target = opener.current?.isConnected && opener.current !== document.body
+          ? opener.current : document.getElementById('model-search-open');
+        target?.focus();
+      }}
       title="Find a model"
       description="Search models and providers."
     >
@@ -84,13 +97,14 @@ export default function ModelSearchPalette() {
           so cmdk's own scoring is switched off. */}
       <Command shouldFilter={false}>
       <CommandInput
+        aria-label="Search models or providers"
         placeholder="Search models or providers"
         value={query}
         onValueChange={setQuery}
       />
       <CommandList>
         {state === 'loading' && <CommandEmpty>Loading the model list.</CommandEmpty>}
-        {state === 'error' && <CommandEmpty>The model list could not be loaded. Close this and try again.</CommandEmpty>}
+        {state === 'error' && <CommandEmpty>The model list could not be loaded. <button type="button" onClick={() => void load()}>Try again</button></CommandEmpty>}
         {state === 'ready' && results.length === 0 && <CommandEmpty>No model or provider matches that search.</CommandEmpty>}
         {results.length > 0 && (
           <CommandGroup heading={query.trim() ? `${results.length} shown` : `${entries.length} catalog entries`}>

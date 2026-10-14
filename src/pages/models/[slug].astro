@@ -10,6 +10,7 @@ import {
   buildModelJsonLd,
   modelPageDescription,
   modelPageTitle,
+  formatEpochScore,
   type ModelPageMetric,
   type ModelPageRecord,
 } from "../../lib/model-pages";
@@ -80,10 +81,8 @@ const formatMetric = (m: ModelPageMetric): string => {
 const published = (group: ModelPageMetric[]) => group.filter((m) => m.value !== null);
 const compact = (value: number | null): string =>
   value === null ? "Not available" : new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(value);
-const runScore = (value: number | null, unit: "native" | "percent" | "fraction" | null): string =>
-  value === null ? "Not available" : unit === "fraction" ? `${(value * 100).toFixed(1)}%` : unit === "percent" ? `${value.toFixed(1)}%` : value.toFixed(2);
 const runError = (value: number | null, unit: "native" | "percent" | "fraction" | null): string =>
-  value === null ? "n/a" : unit === "fraction" ? `${(value * 100).toFixed(1)}%` : unit === "percent" ? `${value.toFixed(1)}%` : value.toFixed(2);
+  value === null ? "n/a" : formatEpochScore(value, unit);
 const runSourceLabel = (run: ModelPageRecord["epochRuns"][number]): string =>
   run.sourceName && !/^https?:\/\//i.test(run.sourceName)
     ? run.sourceName
@@ -297,7 +296,7 @@ const sourceLinks = [
           </header>
           <div class="receipt-wrap"><table class="receipt">
             <thead>
-              <tr><th scope="col">Benchmark</th><th scope="col">Metric</th><th scope="col">Version</th><th scope="col" class="num">Score</th><th scope="col" class="num">Std. error</th><th scope="col">Run source</th></tr>
+              <tr><th scope="col">Benchmark</th><th scope="col">Metric</th><th scope="col">Version</th><th scope="col">Conditions</th><th scope="col" class="num">Score</th><th scope="col" class="num">Std. error</th><th scope="col">Run source</th></tr>
             </thead>
             <tbody>
               {record.epochRuns.map((run) => (
@@ -305,7 +304,8 @@ const sourceLinks = [
                   <th scope="row">{run.benchmark}</th>
                   <td>{run.scoreMetric ?? "Not recorded"}</td>
                   <td>{run.benchmarkVersion ?? "Not recorded"}</td>
-                  <td class="num">{runScore(run.score, run.scoreUnit)}{run.score === null ? "" : run.scoreUnit === "fraction" || run.scoreUnit === "percent" ? "" : run.scoreUnit === "native" ? " (native)" : " (unit not reported)"}</td>
+                  <td>{run.conditions ? Object.entries(run.conditions).map(([key,value])=>`${key}: ${value}`).join(" · ") : "Not recorded"}</td>
+                  <td class="num">{formatEpochScore(run.score, run.scoreUnit)}{run.score === null ? "" : run.scoreUnit === "fraction" || run.scoreUnit === "percent" ? "" : run.scoreUnit === "native" ? " (native)" : " (unit not reported)"}</td>
                   <td class="num">{runError(run.stderr, run.scoreUnit)}</td>
                   <td>{run.sourceLink ? <a href={run.sourceLink} rel="noopener noreferrer">{runSourceLabel(run)}</a> : runSourceLabel(run)}</td>
                 </tr>

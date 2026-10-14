@@ -158,8 +158,8 @@ const jsonLd = JSON.stringify({
         <summary>
           <h2 id={`${group.id}-heading`}>{group.provider}</h2>
           <span class="models-group-meta">
-            {group.models.length} {group.models.length === 1 ? "model" : "models"}
-            {group.indexRange ? <> · AA Index {group.indexRange}</> : null}
+            <span data-provider-count>{group.models.length} {group.models.length === 1 ? "model" : "models"}</span>
+            {group.indexRange ? <span data-provider-range> · AA Index {group.indexRange}</span> : null}
           </span>
           <span class="models-group-hint" aria-hidden="true"></span>
         </summary>
@@ -197,6 +197,7 @@ const jsonLd = JSON.stringify({
   </main>
 
   <script>
+    import { searchDirectoryGroups, providerIdFromHash } from "../../lib/model-directory-search";
     // Progressive enhancement: the page works with every provider closed and
     // opened by click. With JavaScript the search filters rows across all
     // providers and opens only the sections that still have a match.
@@ -209,6 +210,8 @@ const jsonLd = JSON.stringify({
       const rows = groups.map((group) => ({
         group,
         provider: group.dataset.provider ?? "",
+        countLabel: group.querySelector<HTMLElement>("[data-provider-count]"),
+        rangeLabel: group.querySelector<HTMLElement>("[data-provider-range]"),
         items: Array.from(group.querySelectorAll<HTMLTableRowElement>("tbody tr")).map((row) => ({
           row,
           name: (row.querySelector("th a")?.textContent ?? "").toLowerCase(),
@@ -218,30 +221,33 @@ const jsonLd = JSON.stringify({
 
       const apply = (raw: string) => {
         const query = raw.trim().toLowerCase();
+        const results = searchDirectoryGroups(rows.map(entry=>({provider:entry.provider,names:entry.items.map(item=>item.name)})),raw);
         if (!query) {
-          for (const entry of rows) {
+          rows.forEach((entry,index) => {
             for (const item of entry.items) item.row.hidden = false;
             entry.group.hidden = false;
             entry.group.open = false;
-          }
+            if (entry.countLabel) entry.countLabel.textContent = results[index].countText;
+            if (entry.rangeLabel) entry.rangeLabel.hidden = !results[index].showRange;
+          });
           status.textContent = closedMessage;
           return;
         }
         let matches = 0;
         let shownGroups = 0;
-        for (const entry of rows) {
-          const providerHit = entry.provider.includes(query);
-          let groupMatches = 0;
-          for (const item of entry.items) {
-            const hit = providerHit || item.name.includes(query);
+        rows.forEach((entry,index) => {
+          const result=results[index];
+          for (const [itemIndex,item] of entry.items.entries()) {
+            const hit = result.itemMatches[itemIndex];
             item.row.hidden = !hit;
-            if (hit) groupMatches += 1;
           }
-          matches += groupMatches;
-          entry.group.hidden = groupMatches === 0;
-          entry.group.open = groupMatches > 0;
-          if (groupMatches > 0) shownGroups += 1;
-        }
+          if (entry.countLabel) entry.countLabel.textContent = result.countText;
+          if (entry.rangeLabel) entry.rangeLabel.hidden = !result.showRange;
+          matches += result.matchCount;
+          entry.group.hidden = !result.visible;
+          entry.group.open = result.matchCount > 0;
+          if (result.matchCount > 0) shownGroups += 1;
+        });
         status.textContent = matches
           ? `${matches} ${matches === 1 ? "model" : "models"} across ${shownGroups} ${shownGroups === 1 ? "provider" : "providers"}.`
           : "No model or provider matches that search.";
@@ -262,7 +268,7 @@ const jsonLd = JSON.stringify({
 
       // A link to #provider must reveal that provider, not just scroll to a closed row.
       const openFromHash = () => {
-        const id = decodeURIComponent(window.location.hash.replace("#", ""));
+        const id = providerIdFromHash(window.location.hash);
         if (!id) return;
         const target = document.getElementById(id);
         if (target instanceof HTMLDetailsElement) {

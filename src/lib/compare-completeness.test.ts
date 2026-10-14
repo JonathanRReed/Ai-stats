@@ -33,7 +33,7 @@ test('unavailable chart links recover and controls follow delivered chart availa
 });
 test('picker offers more results and searches the full catalog with source labels',()=>{
  const models=buildExplorerCatalog(Array.from({length:100},(_,i)=>({id:'a'+i,name:'Model '+i,current_source_member:true})),[]);
- const html=renderToStaticMarkup(createElement(ModelSelector,{models,selected:[],includeHistory:false,chart:'cost-intelligence',onToggle:()=>{},onFamily:()=>{},onHistory:()=>{},reasoningEfforts:[],onReasoning:()=>{},onClear:()=>{},onReset:()=>{}}));
+ const html=renderToStaticMarkup(createElement(ModelSelector,{models,selected:[],includeHistory:false,chart:'cost-intelligence',metricId:'aa_intelligence_index',onToggle:()=>{},onFamily:()=>{},onHistory:()=>{},reasoningEfforts:[],onReasoning:()=>{},onClear:()=>{},onReset:()=>{}}));
  expect(html).toContain('Show more'); expect(html).toContain('Artificial Analysis'); expect(html).toContain('Catalog source');
 });
 test('default comparison stays compact without hiding other variants',()=>{

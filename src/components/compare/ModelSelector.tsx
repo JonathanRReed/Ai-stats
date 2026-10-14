@@ -1,15 +1,15 @@
 import {useDeferredValue,useMemo,useState,useEffect,useRef} from 'react';
 import {EXPLORER_SOURCE_LABELS,type ExplorerModel} from '../../lib/compare-series';
 import {paginateFamilyGroups} from '../../lib/compare-state';
-import {nextCatalogSource} from '../../lib/compare-presets';
+import {defaultCatalogSource,nextCatalogSource} from '../../lib/compare-presets';
 import {familyColor} from './ComparisonChart';
 type Props={models:ExplorerModel[];selected:string[];includeHistory:boolean;onToggle:(id:string)=>void;
-  chart:string;
+  chart:string;metricId:string;
   onFamily:(family:string,checked:boolean)=>void;onGroup?:(ids:string[],checked:boolean)=>void;onHistory:(value:boolean)=>void;reasoningEfforts:string[];onReasoning:(value:string)=>void;onClear:()=>void;onReset:()=>void};
-export default function ModelSelector({models,selected,includeHistory,chart,onToggle,onGroup,onHistory,reasoningEfforts,onReasoning,onClear,onReset}:Props){
-  const [limit,setLimit]=useState(80);const [source,setSource]=useState(chart==='price'?'all':'aa');const sourceTouched=useRef(false);
+export default function ModelSelector({models,selected,includeHistory,chart,metricId,onToggle,onGroup,onHistory,reasoningEfforts,onReasoning,onClear,onReset}:Props){
+  const [limit,setLimit]=useState(80);const [source,setSource]=useState(defaultCatalogSource(models,chart,metricId,includeHistory));const sourceTouched=useRef(false);
   useEffect(()=>{if(sourceTouched.current){setSource(previous=>nextCatalogSource(models,previous,includeHistory));return;}
-    setSource(chart==='price'?'all':models.some(model=>model.source==='aa'&&(includeHistory||model.current!==false))?'aa':'all');},[models,includeHistory,chart]);
+    setSource(defaultCatalogSource(models,chart,metricId,includeHistory));},[models,includeHistory,chart,metricId]);
   const [search,setSearch]=useState('');const query=useDeferredValue(search).toLowerCase().trim();
   const browsable=models.filter(model=>includeHistory||model.current!==false);
   const selectedSet=useMemo(()=>new Set(selected),[selected]);
@@ -26,7 +26,7 @@ export default function ModelSelector({models,selected,includeHistory,chart,onTo
   const groupChosen=(group:ExplorerModel[])=>group.every(model=>selectedSet.has(model.id));
   return <div className="model-selector">
     <label className="model-search-label">Find models<input type="search" placeholder="Search models or providers" value={search} onChange={event=>{setSearch(event.target.value);setLimit(80);}}/></label>
-    <label className="catalog-source-label">Catalog source<select value={source} onChange={event=>{setSource(event.target.value);setLimit(80);}}>
+    <label className="catalog-source-label">Catalog source<select value={source} onChange={event=>{sourceTouched.current=true;setSource(event.target.value);setLimit(80);}}>
       <option value="all">All sources ({browsable.length})</option>{Object.entries(EXPLORER_SOURCE_LABELS).filter(([key])=>browsable.some(model=>model.source===key)).map(([key,label])=><option key={key} value={key}>{label} ({browsable.filter(model=>model.source===key).length})</option>)}
     </select></label>
     <div className="selector-heading"><h2>Selected models <span>{chosen.length}</span></h2><button type="button" onClick={onClear}>Clear</button></div>

@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test';
 import { buildExplorerCatalog } from './compare-catalog';
-import { buildCompareSeries } from './compare-series';
+import { buildCompareSeries, chartLabelCandidates, type SeriesPoint } from './compare-series';
 import { parseCompareState } from './compare-state';
-import { buildOverviewSeries, defaultOverviewMetric, overviewCohorts, overviewObservationDate, UNKNOWN_VERSION } from './overview-series';
+import { buildOverviewSeries, defaultOverviewMetric, overviewCohorts, overviewObservationDate, retainAvailableProvider, UNKNOWN_VERSION } from './overview-series';
 
 const aa = (id:string, family:string, extra:Record<string,unknown>={}) => ({
   id, name:family, slug:id, creator_name:'Provider', current_source_member:true,
@@ -54,4 +54,17 @@ test('overview defaults to task cost only when the default measured cohort has t
   expect(defaultOverviewMetric(withCosts)).toBe('task-cost');
   expect(defaultOverviewMetric(withoutCosts)).toBe('cost-intelligence');
   expect(overviewObservationDate(withCosts,'4.3')).toBe('2026-10-14T00:00:00Z');
+});
+
+test('provider filters reset when a selected provider is absent from the new cohort',()=>{
+ expect(retainAvailableProvider('Anthropic',['Google','OpenAI'])).toBe('');
+ expect(retainAvailableProvider('OpenAI',['Google','OpenAI'])).toBe('OpenAI');
+});
+
+test('chart labels are deterministic, prioritize frontier records, and stay sparse',()=>{
+ const points=Array.from({length:30},(_,i)=>({id:'m'+i,label:'Model '+i,family:'Family '+i,reasoning:'unknown',series:'value',source:'aa',x:i,y:i,unit:'score',cohortKey:null,receipt:{source:'AA',sourceUrl:null,observedAt:null,fetchedAt:null,indexVersion:null,conditions:null,snapshotId:null}} as SeriesPoint));
+ const labels=chartLabelCandidates(points,{'cohort':['m20','m21']},8);
+ expect(labels.slice(0,2)).toEqual(['m20','m21']);
+ expect(labels).toHaveLength(8);
+ expect(chartLabelCandidates(points,{'cohort':['m20','m21']},8)).toEqual(labels);
 });

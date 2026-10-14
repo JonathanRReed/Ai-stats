@@ -5,7 +5,7 @@ import {buildCompareSeries,epochScoreKey,type ExplorerModel} from '../../lib/com
 import {epochConditionKey,type EpochObservation} from '../../lib/epoch-observations';
 import {formatChartNumber} from '../../lib/compare-geometry';
 import {seriesCsv,downloadText,downloadChartPng,chartExportCaption} from '../../lib/compare-export';
-import {availableCompareCharts,availableAaMetrics,selectAaBenchmarkModels,buildComparePresets,COMPARE_VIEW_LABELS} from '../../lib/compare-presets';
+import {availableCompareCharts,availableAaMetrics,selectAaBenchmarkModels,buildComparePresets,canonicalChartMenu,COMPARE_VIEW_LABELS} from '../../lib/compare-presets';
 import {expandCatalog,createMeasurementLoader,type CompareDelivery} from '../../lib/compare-delivery';
 import ComparisonChart from './ComparisonChart';
 import ModelSelector from './ModelSelector';
@@ -18,7 +18,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const [loaded,setLoaded]=useState(()=>new Map(initialModels.map(model=>[model.id,model])));
   const loader=useMemo(()=>delivery?createMeasurementLoader(delivery.revision,models,fetch,delivery.assetBase):null,[delivery,models]);
   const [failedMeasurementIds,setFailedMeasurementIds]=useState<string[]>([]);
-  const charts=useMemo(()=>delivery?.charts??availableCompareCharts(models),[delivery,models]);
+  const charts=useMemo(()=>canonicalChartMenu((delivery?.charts??availableCompareCharts(models)).map(chart=>chart.id)),[delivery,models]);
   const presets=useMemo(()=>delivery?.presets??buildComparePresets(models),[delivery,models]);
   const [presetDescription,setPresetDescription]=useState('');
   const defaultChart=charts.some(chart=>chart.id==='task-cost')?'task-cost':'cost-intelligence';
@@ -76,7 +76,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
     const url=new URL(window.location.href);url.search=serializeCompareState(next).toString();window.history.pushState(null,'',url);};
   const toggle=(id:string)=>update({modelIds:state.modelIds.includes(id)?state.modelIds.filter(value=>value!==id):[...state.modelIds,id].slice(0,100)});
   const reset=()=>update(parseCompareState(new URLSearchParams(),models,defaultModelIds,defaultChart));
-  const selectorProps={models:visibleModels,selected:state.modelIds,includeHistory:state.includeHistory,chart:state.chart,onToggle:toggle,
+  const selectorProps={models:visibleModels,selected:state.modelIds,includeHistory:state.includeHistory,chart:state.chart,metricId:state.metricId,onToggle:toggle,
     onFamily:(family:string,checked:boolean)=>update({modelIds:selectFamily(state.modelIds,visibleModels,family,checked,state.includeHistory)}),
     onGroup:(ids:string[],checked:boolean)=>update({modelIds:selectVisibleRecords(state.modelIds,ids,checked)}),
     onHistory:(includeHistory:boolean)=>update({includeHistory}),reasoningEfforts:state.reasoningEfforts,

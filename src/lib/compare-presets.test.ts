@@ -1,5 +1,5 @@
 import {expect,test} from 'bun:test';
-import {buildComparePresets,buildAaBenchmarkSelections,selectAaBenchmarkModels,availableCompareCharts,availableAaMetrics,nextCatalogSource} from './compare-presets';
+import {buildComparePresets,buildAaBenchmarkSelections,selectAaBenchmarkModels,availableCompareCharts,availableAaMetrics,nextCatalogSource,defaultCatalogSource,canonicalChartMenu} from './compare-presets';
 import type {ExplorerModel} from './compare-series';
 const aa=(id:string,extra:Partial<ExplorerModel>={}):ExplorerModel=>({id,name:id,family:id,provider:id,source:'aa',sourceModelId:id,current:true,indexVersion:'4.3',intelligence:50,coding:60,priceBlended:0.5,...extra});
 test('presets use current same-version measured rows with explicit criteria',()=>{
@@ -30,6 +30,20 @@ test('turning off history resets a source that has no current records',()=>{
  const rows=[aa('old',{current:false}),{...aa('or'),source:'openrouter' as const}];
  expect(nextCatalogSource(rows,'aa',false)).toBe('all');
  expect(nextCatalogSource(rows,'aa',true)).toBe('aa');
+});
+test('catalog source follows the chart unless a valid user choice is already active',()=>{
+ const rows=[aa('aa'),{...aa('epoch'),source:'epoch' as const,sourceModelId:'epoch-v1'}];
+ expect(defaultCatalogSource(rows,'benchmark','epoch_simplebench',false)).toBe('epoch');
+ expect(defaultCatalogSource(rows,'benchmark','aa_coding_index',false)).toBe('aa');
+ expect(defaultCatalogSource(rows,'price','aa_intelligence_index',false)).toBe('all');
+ expect(nextCatalogSource([...rows,{...aa('openrouter'),source:'openrouter' as const,sourceModelId:'provider/model'}],'openrouter',false)).toBe('openrouter');
+ expect(nextCatalogSource(rows,'epoch',false)).toBe('epoch');
+ expect(nextCatalogSource(rows,'epoch',true)).toBe('epoch');
+});
+test('older delivery chart order and labels never replace current view definitions',()=>{
+ const menu=canonicalChartMenu(['total-cost','task-cost','price']);
+ expect(menu.map(view=>view.id)).toEqual(['task-cost','price','total-cost']);
+ expect(menu.map(view=>view.label)).toEqual(['Cost per task','Token prices','Evaluation cost']);
 });
 
 test('historical-only AA metrics are not offered as current benchmark choices',()=>{const old={id:'old',name:'Old',family:'Old',source:'aa' as const,sourceModelId:'old',current:false,metrics:{aime:90}};expect(availableAaMetrics([old])).toEqual([]);});

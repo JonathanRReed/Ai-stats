@@ -7,6 +7,10 @@ export const COMPARE_VIEW_LABELS:Array<{id:CompareChart;label:string}>=[
  {id:'speed-intelligence',label:'Speed vs intelligence'},{id:'price',label:'Token prices'},
  {id:'benchmark',label:'Benchmarks'},{id:'total-cost',label:'Evaluation cost'},
 ];
+export function canonicalChartMenu(availableIds:string[]){
+ const available=new Set(availableIds);
+ return COMPARE_VIEW_LABELS.filter(view=>available.has(view.id));
+}
 export function availableCompareCharts(models:ExplorerModel[]){
  const known=(value:string|null|undefined)=>Boolean(value&&/^\d+(?:\.\d+)*$/.test(value));
  return COMPARE_VIEW_LABELS.filter(view=>view.id!=='task-cost'&&view.id!=='total-cost'||models.some(model=>
@@ -19,6 +23,10 @@ export function availableAaMetrics(models:ExplorerModel[],includeHistory=false){
 }
 export function nextCatalogSource(models:ExplorerModel[],source:string,includeHistory:boolean):string{
  return source==='all'||models.some(model=>model.source===source&&(includeHistory||model.current!==false))?source:'all';
+}
+export function defaultCatalogSource(models:ExplorerModel[],chart:string,metricId:string,includeHistory:boolean):string{
+ const preferred=chart==='price'?'all':chart==='benchmark'&&metricId.startsWith('epoch_')?'epoch':'aa';
+ return preferred==='all'||models.some(model=>model.source===preferred&&(includeHistory||model.current!==false))?preferred:'all';
 }
 export type ComparePreset={id:string;label:string;description:string;modelIds:string[];chart:CompareChart;metricId:string};
 const diverse=(models:ExplorerModel[])=>{

@@ -5,6 +5,11 @@ test('exact links retain UUID and free-route identity',()=>{
  expect(identity.compareRecordHref('uuid')).toBe('/compare?m=uuid');
  expect(identity.compareRecordHref('openrouter:lab/model:free','price')).toBe('/compare?m=openrouter%3Alab%2Fmodel%3Afree&chart=price');
 });
+test('homepage leader links request the AA Intelligence measure explicitly',()=>{
+ const url=identity.compareRecordHref('e994a6e0-d36b-4dab-8ae1-c1b469e4d9e2','benchmark',false,'aa_intelligence_index');
+ const state=parseCompareState(new URL(url,'https://example.test').searchParams,[{id:'e994a6e0-d36b-4dab-8ae1-c1b469e4d9e2',source:'aa',sourceModelId:'e994a6e0-d36b-4dab-8ae1-c1b469e4d9e2',name:'Muse Wonder Full (Max)',current:true}]);
+ expect(state).toMatchObject({chart:'benchmark',metricId:'aa_intelligence_index',modelIds:['e994a6e0-d36b-4dab-8ae1-c1b469e4d9e2']});
+});
 test('source-qualified links cannot select another source with the same name',()=>{
  const rows=[{id:'uuid',source:'aa',sourceModelId:'uuid',slug:'model-high',name:'Same',current:true},
  {id:'epoch:model-high',source:'epoch',sourceModelId:'model-high',name:'Same',current:true}];

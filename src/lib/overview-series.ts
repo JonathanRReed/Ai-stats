@@ -4,6 +4,9 @@ import { parseCompareState } from './compare-state';
 export const OVERVIEW_METRICS = ['task-cost', 'cost-intelligence'] as const;
 export type OverviewMetric = typeof OVERVIEW_METRICS[number];
 export const UNKNOWN_VERSION = 'unknown';
+export function retainAvailableProvider(current:string,available:string[]):string{
+  return current&&available.includes(current)?current:'';
+}
 
 const isKnownVersion = (value: string | null | undefined): value is string =>
   Boolean(value && /^\d+(?:\.\d+)*$/.test(value));
