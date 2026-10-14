@@ -62,19 +62,20 @@ test('unknown timing conditions do not establish a compatible speed frontier',()
   expect(series.buildCompareSeries({models:unknown,observations:[]},selection('chart=speed-intelligence')).frontierGroups).toEqual({});
 });
 
-test('variant links require the same source, family, and recorded cohort',()=>{
+test('variant links require the same source, provider, family, and recorded cohort',()=>{
  const {compatibleVariantLines}=series;
- const point=(id:string,source:'aa'|'openrouter',family:string,cohortKey:string,reasoning:'low'|'high')=>({
-  id,modelId:id,label:id,family,reasoning,source,series:'model',x:1,y:2,unit:'AA Index points',cohortKey,
+ const point=(id:string,source:'aa'|'openrouter',family:string,cohortKey:string,reasoning:'low'|'high',provider=family)=>({
+  id,modelId:id,label:id,family,reasoning,source,provider,series:'model',x:1,y:2,unit:'AA Index points',cohortKey,
   receipt:{source:'Artificial Analysis',sourceUrl:null,observedAt:null,fetchedAt:null,indexVersion:'4.3',conditions:null,snapshotId:null},
  });
  const lines=compatibleVariantLines([
-  point('aa-low','aa','Opus','4.3:long','low'),point('aa-high','aa','Opus','4.3:long','high'),
+  point('aa-low','aa','Opus','4.3:long','low','Anthropic'),point('aa-high','aa','Opus','4.3:long','high','Anthropic'),
+  point('other-provider-low','aa','Opus','4.3:long','low','ProxyCo'),point('other-provider-high','aa','Opus','4.3:long','high','ProxyCo'),
   point('route-high','openrouter','Opus','4.3:long','high'),point('cohort-high','aa','Opus','4.2:long','high'),
   point('other-family','aa','Gemini','4.3:long','high'),
  ]);
- expect(lines).toHaveLength(1);
- expect(lines[0].map(row=>row.id)).toEqual(['aa-low','aa-high']);
+ expect(lines).toHaveLength(2);
+ expect(lines.map(group=>group.map(row=>row.id))).toEqual([['aa-low','aa-high'],['other-provider-low','other-provider-high']]);
 });
 
 test('five Opus effort records remain directly aligned at equal prices and share one variant path',()=>{

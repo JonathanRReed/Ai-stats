@@ -20,6 +20,7 @@ const dateModified=manifest.generatedAt;
   <main id="main-content" class="compare-page">
     {unavailableSources.length?<p role="status">Partial catalog. Could not load: {unavailableSources.join(', ')}.</p>:null}
     <CompareLive client:load initial={manifest} />
+    <noscript><p class="compare-noscript">This is the default measured selection. Interactive filters need JavaScript; the exact data and source links remain available.</p></noscript>
   </main>
   <Footer />
 </Layout>

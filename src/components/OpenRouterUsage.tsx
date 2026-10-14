@@ -1,11 +1,9 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {buildUsageSeries,usageModels,usageKeyboardIndex,type UsageSnapshot} from '../lib/openrouter-usage';
+import {usageColors} from '../lib/usage-colors';
 type Props={snapshot:UsageSnapshot|null;receipt?:{fetchedAt:string;publishedAt:string;status:string}|null};
 const label=(key:string)=>key==='other'?'Other (outside daily top 50)':key==='unselected'?'Unselected ranked models':key;
-const colors=['#d88662','#79a9c6','#b4aa78','#a895ba','#75b6a9','#c18e9c','#9daa75','#a4b2c4'];
-const color=(key:string)=>{if(key==='other')return '#636c78';if(key==='unselected')return '#90979e';
- let hash=0;for(const char of key)hash=(hash*31+char.charCodeAt(0))>>>0;return colors[hash%colors.length];};
-const compact=(value:number)=>new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(value);
+const compact=(value:number|bigint)=>new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(value);
 export default function OpenRouterUsage({snapshot,receipt}:Props){
  const models=useMemo(()=>snapshot?usageModels(snapshot):[],[snapshot]);
  const [windowDays,setWindowDays]=useState(30),[mode,setMode]=useState('share');
@@ -14,7 +12,7 @@ export default function OpenRouterUsage({snapshot,receipt}:Props){
  const chartFrame=useRef<HTMLDivElement|null>(null),[chartWidth,setChartWidth]=useState(1000);
  useEffect(()=>{
   if(!chartFrame.current)return;
-  const observer=new ResizeObserver(([entry])=>setChartWidth(Math.max(500,entry.contentRect.width)));
+  const observer=new ResizeObserver(([entry])=>setChartWidth(Math.max(320,entry.contentRect.width)));
   observer.observe(chartFrame.current);return()=>observer.disconnect();
  },[snapshot]);
  const dayRefs=useRef<Array<SVGGElement|null>>([]);
@@ -22,7 +20,16 @@ export default function OpenRouterUsage({snapshot,receipt}:Props){
  if(!snapshot||!series)return <section className="usage-module usage-unavailable" aria-label="OpenRouter traffic">
   <h2>OpenRouter usage</h2><p>Usage history is not available yet.</p></section>;
  const keys=[...series.selectedModels,'unselected','other'];
+ const palette=usageColors(series.selectedModels);
+ const color=(key:string)=>palette.get(key)??'#636c78';
  const active=series.days.find(day=>day.date===activeDate)??series.days.at(-1);
+ const rankedParts=[...(active?.parts??[])].sort((a,b)=>{
+  const aggregate=(key:string)=>key==='unselected'||key==='other';
+  if(aggregate(a.key)!==aggregate(b.key))return aggregate(a.key)?1:-1;
+  if(aggregate(a.key))return a.key===b.key?0:a.key==='unselected'?-1:1;
+  if(a.tokens===null||b.tokens===null)return a.tokens===b.tokens?a.key.localeCompare(b.key):a.tokens===null?1:-1;
+  const left=BigInt(a.tokens),right=BigInt(b.tokens);return left===right?a.key.localeCompare(b.key):left>right?-1:1;
+ });
  const ceiling=mode==='share'?100:Math.max(1,...series.days.map(day=>Number(day.totalTokens??0)));
  const left=72,right=chartWidth-26,top=24,bottom=314,width=(right-left)/Math.max(1,series.days.length);
  const filtered=models.filter(key=>key.toLowerCase().includes(search.toLowerCase())).slice(0,30);
@@ -45,6 +52,7 @@ export default function OpenRouterUsage({snapshot,receipt}:Props){
    <p>{series.availableDays} days available in the requested {windowDays}-day window · UTC</p>
   </div>
   {receipt&&receipt.status!=='healthy'?<p className="usage-warning" role="status">{receipt.status==='failed'?'The latest refresh failed.':'The refresh is overdue.'} Showing the last successful snapshot.</p>:null}
+  <div className="usage-visualization">
   <div className="usage-chart-scroll" ref={chartFrame}>
    <svg viewBox={`0 0 ${chartWidth} 362`} role="group" aria-label={mode==='share'?'Share of all reported OpenRouter traffic by day':'OpenRouter token volume by day'}>
     <title>OpenRouter daily token usage</title>
@@ -67,9 +75,13 @@ export default function OpenRouterUsage({snapshot,receipt}:Props){
     {[0,Math.floor((series.days.length-1)/2),series.days.length-1].filter((value,index,array)=>array.indexOf(value)===index).map(index=><text key={index} x={left+(index+.5)*width} y={340} textAnchor="middle">{series.days[index]?.date.slice(5)}</text>)}
    </svg>
   </div>
-  <div className="usage-legend">{keys.map(key=><span key={key}><i style={{background:color(key)}}/>{label(key)}</span>)}</div>
-  <div className="usage-inspector" aria-live="polite"><strong>{active?.date}</strong><span>{active?.available?active.totalTokens+' total tokens':'No data for this UTC day'}</span>
-   {active?.available?<dl>{active.parts.map(part=><div key={part.key}><dt>{label(part.key)}</dt><dd>{part.tokens===null?'Not in daily top 50':mode==='share'?(part.value===null?'No traffic':part.value.toFixed(2)+'%'):part.tokens+' tokens'}</dd></div>)}</dl>:null}
+  <aside className="usage-inspector" aria-label="Usage on selected day" aria-live="polite">
+   <header><time dateTime={active?.date}>{active?.date}</time><span title={active?.totalTokens??undefined}>{active?.available?compact(BigInt(active.totalTokens!))+' total tokens':'No data for this UTC day'}</span></header>
+   {active?.available?<dl>{rankedParts.map(part=><div key={part.key} className={part.key==='unselected'||part.key==='other'?'usage-aggregate':''}>
+    <dt><i aria-hidden="true" style={{background:color(part.key)}}/><span title={label(part.key)}>{label(part.key)}</span></dt>
+    <dd title={part.tokens===null?'Individual traffic is unknown':part.tokens+' tokens'}>{part.tokens===null?'Not ranked':mode==='share'?(part.value===null?'No traffic':part.value.toFixed(2)+'%'):compact(BigInt(part.tokens))}</dd>
+   </div>)}</dl>:null}
+  </aside>
   </div>
   <p className="usage-caveat">Share uses all reported traffic, including Other. A model missing from a day’s top 50 has unknown individual traffic. Provider tokenizers differ.</p>
   <details className="usage-data"><summary>Exact daily data</summary><div className="usage-table-scroll"><table>

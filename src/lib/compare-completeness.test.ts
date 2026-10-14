@@ -7,6 +7,8 @@ import {parseCompareState} from './compare-state';
 import CompareExplorer from '../components/compare/CompareExplorer';
 import ModelSelector from '../components/compare/ModelSelector';
 import {readFileSync} from 'node:fs';
+const renderModelSelector=(models:ReturnType<typeof buildExplorerCatalog>,selected:string[]=[])=>renderToStaticMarkup(createElement(ModelSelector,{models,selected,suggestedIds:[],includeHistory:false,
+ onHistory:()=>{},reasoningEfforts:[],onReasoning:()=>{},onToggle:()=>{},onToggleFamily:()=>{},onReset:()=>{},onSuggested:()=>{},presets:[],onPreset:()=>{},query:'',onQuery:()=>{}}));
 test('all cached records survive, including free routes and LiteLLM records past 2500',()=>{
  const models=buildExplorerCatalog([],[],{openrouter:[{id:'lab/free',name:'Free',is_free:true,prompt_price_1m:0,completion_price_1m:0}],
  litellm:Array.from({length:3555},(_,i)=>({id:'route/'+i,provider:'Provider',input_price_1m:1,output_price_1m:2})),
@@ -33,15 +35,15 @@ test('unavailable chart links recover and controls follow delivered chart availa
 });
 test('picker shows a bounded, searchable page with source and identity labels',()=>{
  const models=buildExplorerCatalog(Array.from({length:100},(_,i)=>({id:'a'+i,name:'Model '+i,current_source_member:true})),[]);
- const html=renderToStaticMarkup(createElement(ModelSelector,{models,selected:[],includeHistory:false,chart:'cost-intelligence',metricId:'aa_intelligence_index',onToggle:()=>{},onHistory:()=>{},reasoningEfforts:[],onReasoning:()=>{}}));
- expect(html).toContain('Find models'); expect(html).toContain('Matching models'); expect(html).toContain('100 matches');
- expect(html).toContain('Artificial Analysis'); expect(html).not.toContain('<small>a0</small>'); expect(html).not.toContain('Model 12</strong>');
+ const html=renderModelSelector(models);
+ expect(html).toContain('Search families'); expect(html).toContain('Model families'); expect(html).toContain('More families');
+ expect(html).toContain('100'); expect(html).toContain('Artificial Analysis'); expect(html).not.toContain('a0</small>');
 });
 test('picker reveals native IDs when same-provider model names collide',()=>{
  const records=[{id:'same-a',name:'Same model',creator_name:'Lab',current_source_member:true},{id:'same-b',name:'Same model',creator_name:'Lab',current_source_member:true}];
  const models=buildExplorerCatalog(records,[]);
- const html=renderToStaticMarkup(createElement(ModelSelector,{models,selected:[],includeHistory:false,chart:'cost-intelligence',metricId:'aa_intelligence_index',onToggle:()=>{},onHistory:()=>{},reasoningEfforts:[],onReasoning:()=>{}}));
- expect(html).toContain('same-a'); expect(html).toContain('same-b');
+ const html=renderModelSelector(models);
+ expect(html.match(/class="family-variant"/g)).toHaveLength(2); expect(html).not.toContain('same-a');expect(html).not.toContain('same-b');
 });
 test('default comparison stays compact without hiding other variants',()=>{
  const models=buildExplorerCatalog([{id:'high',name:'A (High)',creator_name:'Lab',current_source_member:true,aa_intelligence_index:70,price_1m_blended_3_to_1:2,source_metadata:{intelligence_index_version:'4.3',index_cost:{cost_per_task:{total_cost:1}}}},{id:'low',name:'A (Low)',creator_name:'Lab',current_source_member:true,aa_intelligence_index:60,price_1m_blended_3_to_1:1,source_metadata:{intelligence_index_version:'4.3',index_cost:{cost_per_task:{total_cost:1}}}}],[]);
@@ -82,7 +84,7 @@ test('selection helper only changes rendered records, never hidden same-name sou
  const selector=readFileSync('src/components/compare/ModelSelector.tsx','utf8');
  expect(selector).toContain('key={model.id}');
  expect(selector).toContain('onChange={()=>onToggle(model.id)}');
- expect(selector).toContain('ref={searchRef}');
+ expect(selector).toContain('Search families');
 });
 
 test('AA registry slugs represent all exact UUID variants without duplicate inventory rows',()=>{

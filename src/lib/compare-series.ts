@@ -15,7 +15,7 @@ export function compatibleVariantLines(points:SeriesPoint[]):SeriesPoint[][] {
   const groups=new Map<string,SeriesPoint[]>();
   for(const point of points){
     if(!point.cohortKey||point.reasoning==='unknown')continue;
-    const key=JSON.stringify([point.source,point.family,point.cohortKey]);
+    const key=JSON.stringify([point.source,point.provider??point.family,point.family,point.cohortKey]);
     const group=groups.get(key)??[];group.push(point);groups.set(key,group);
   }
   return [...groups.values()].filter(group=>new Set(group.map(point=>point.reasoning)).size>1);
@@ -27,7 +27,7 @@ export type EvidenceReceipt = {
 };
 export type SeriesPoint = {
   id:string; modelId:string; label:string; family:string; reasoning:string; series:string;
-  source:ExplorerModel['source']; x:number; y:number; unit:string; cohortKey:string|null; receipt:EvidenceReceipt;
+  source:ExplorerModel['source']; provider?:string; x:number; y:number; unit:string; cohortKey:string|null; receipt:EvidenceReceipt;
 };
 export type CompareSeries = {
   available:boolean; unavailableReason:string|null; kind:'scatter'|'bars'; points:SeriesPoint[];
@@ -102,7 +102,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
     conditions:model.performancePrompt?{performancePrompt:model.performancePrompt}:null,snapshotId:null});
   const add=(model:ExplorerModel,x:number,y:number,series:string,unit:string,receipt=receiptFor(model),id=model.id,cohortKey:string|null=null)=>{
     result.points.push({id,modelId:model.id,label:model.name,family:model.family,reasoning:model.reasoning??'unknown',
-      source:model.source,x,y,series,unit,receipt,cohortKey});
+      source:model.source,provider:model.provider??model.family,x,y,series,unit,receipt,cohortKey});
   };
   if(state.chart==='benchmark'&&state.metricId.startsWith('epoch_')){
     const slug=state.metricId.slice(6);

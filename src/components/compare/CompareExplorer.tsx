@@ -1,12 +1,13 @@
 import {validateBenchmarkAsset} from '../../lib/compare-benchmark-asset';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {parseCompareState,serializeCompareState,hasExplicitCompareSelection,usesSuggestedCompareSelection,benchmarkStartingSelection,readBenchmarkCache,AA_METRIC_LABELS,scoreMetricOptions,changeScoreMetric,type CompareState,type CompareChart} from '../../lib/compare-state';
-import {buildCompareSeries,epochScoreKey,EXPLORER_SOURCE_LABELS,type ExplorerModel} from '../../lib/compare-series';
+import {buildCompareSeries,epochScoreKey,type ExplorerModel} from '../../lib/compare-series';
 import {epochConditionKey,type EpochObservation} from '../../lib/epoch-observations';
 import {formatChartNumber} from '../../lib/compare-geometry';
 import {seriesCsv,downloadText,downloadChartPng,chartExportCaption} from '../../lib/compare-export';
 import {availableCompareCharts,availableAaMetrics,selectAaBenchmarkModels,buildComparePresets,canonicalChartMenu,COMPARE_VIEW_LABELS} from '../../lib/compare-presets';
 import {expandCatalog,createMeasurementLoader,type CompareDelivery} from '../../lib/compare-delivery';
+import {toggleCompareFamilySelection} from '../../lib/compare-families';
 import ComparisonChart from './ComparisonChart';
 import ModelSelector from './ModelSelector';
 import ObservationDetails from './ObservationDetails';
@@ -82,16 +83,14 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const toggle=(id:string)=>update({modelIds:state.modelIds.includes(id)?state.modelIds.filter(value=>value!==id):[...state.modelIds,id].slice(0,100)});
   const chooseSuggested=(chart:CompareChart)=>{const ids=delivery?.suggestedModelIds?.[chart];if(ids?.length){setPresetDescription('Measured suggestions for this view.');update({chart,modelIds:ids,missingModelIds:[]},true);}};
   const changeChart=(chart:CompareChart)=>{if(customSelection.current){update({chart});return;}if(chart==='benchmark'){const metric='aa_intelligence_index';const ids=delivery?.aaBenchmarkSelections?.[metric]?.[state.includeHistory?'historical':'current']??selectAaBenchmarkModels(measuredModels,metric,8,state.includeHistory);update({chart,metricId:metric,modelIds:ids,missingModelIds:[]},true);return;}if(delivery?.suggestedModelIds?.[chart]?.length)chooseSuggested(chart);else update({chart});};
-  const selectorProps={models:visibleModels,selected:state.modelIds,includeHistory:state.includeHistory,chart:state.chart,metricId:state.metricId,onToggle:toggle,
-    onHistory:(includeHistory:boolean)=>update({includeHistory}),reasoningEfforts:state.reasoningEfforts,
+  const [familyQuery,setFamilyQuery]=useState('');
+  const selectorProps={models:visibleModels,selected:state.modelIds,suggestedIds:delivery?.suggestedModelIds?.[state.chart]??[],includeHistory:state.includeHistory,
+    onHistory:(includeHistory:boolean)=>update({includeHistory}),reasoningEfforts:state.reasoningEfforts,query:familyQuery,onQuery:setFamilyQuery,
+    presets,onReset:()=>update({modelIds:[],missingModelIds:[]}),onSuggested:()=>chooseSuggested(state.chart),selectionNotice:presetDescription,
+    onPreset:(preset:typeof presets[number])=>{update({modelIds:preset.modelIds,missingModelIds:[],chart:preset.chart,metricId:preset.metricId,includeHistory:false,reasoningEfforts:[],conditionKey:null,scoreMetricKey:null});setPresetDescription(preset.description);},
+    onToggleFamily:(ids:string[],checked:boolean)=>update({modelIds:toggleCompareFamilySelection(state.modelIds,ids,checked)}),onToggle:toggle,
     onReasoning:(value:string)=>update({reasoningEfforts:value==='all'?[]:state.reasoningEfforts.includes(value)
       ?state.reasoningEfforts.filter(reason=>reason!==value):[...state.reasoningEfforts,value]})};
-  const selectedChip=(id:string)=>{const model=visibleModels.find(item=>item.id===id);const name=model?.name??id;
-    const provider=model?.provider??model?.family;
-    const ambiguous=Boolean(model&&visibleModels.some(candidate=>candidate.id!==model.id&&candidate.name===model.name&&(candidate.provider??candidate.family)===provider));
-    const identity=model?[provider,EXPLORER_SOURCE_LABELS[model.source],ambiguous?model.sourceModelId:null].filter(Boolean).join(' · '):id;
-    return <span className="selected-model-chip" key={id} title={identity}><span><strong>{name}</strong></span>
-      <button type="button" aria-label={`Remove ${name} (${identity})`} onClick={()=>toggle(id)}>×</button></span>;};
   const chooseMeasured=()=>update(benchmarkStartingSelection(visibleModels,observations.filter(row=>!state.conditionKey||epochConditionKey(row.conditions)===state.conditionKey),state.scoreMetricKey));
   const chooseBenchmark=(metricId:string)=>{const slug=metricId.startsWith('epoch_')?metricId.slice(6):null;const rows=slug?readBenchmarkCache(benchmarkCache,slug):null;if(!slug){update({metricId,conditionKey:null,scoreMetricKey:null,modelIds:delivery?.aaBenchmarkSelections?.[metricId]?.[state.includeHistory?'historical':'current']??selectAaBenchmarkModels(measuredModels,metricId,8,state.includeHistory),missingModelIds:[]});return;}update({metricId,conditionKey:null,scoreMetricKey:null,...(rows?{...benchmarkStartingSelection(models,rows),missingModelIds:[]}: {})});pendingBenchmarkChoice.current=rows?null:slug;};
   const share=async()=>{try{const url=new URL(window.location.href);url.search=serializeCompareState(state).toString();
@@ -101,19 +100,10 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const exportPng=async()=>{if(!svg.current)return;try{await downloadChartPng(svg.current,chartExportCaption(series.points,metricName));}
     catch{setNotice('Image export is unavailable in this browser. CSV export is still available.');}};
   return <section className="compare-explorer" aria-label="Model comparison explorer">
-    <div className="explorer-title"><h1>Compare models</h1><button type="button" className="add-models-button" ref={filterButton} onClick={()=>setFiltersOpen(true)}>Add models ({state.modelIds.length})</button></div>
-    <div className="selected-model-chips" aria-label="Selected models">{state.modelIds.slice(0,8).map(selectedChip)}
-      {state.modelIds.length>8?<details className="more-selected-models"><summary>{state.modelIds.length-8} more</summary><div>{state.modelIds.slice(8).map(selectedChip)}</div></details>:null}
-      {state.modelIds.length?<button type="button" className="clear-models" onClick={()=>update({modelIds:[]})}>Clear</button>:null}</div>
+    <div className="explorer-title"><h1>Compare models</h1><button type="button" className="add-models-button" ref={filterButton} onClick={()=>setFiltersOpen(true)}>Models · {state.modelIds.length}</button></div>
     <label className="mobile-chart-choice">Compare by<select value={charts.some(chart=>chart.id===state.chart)?state.chart:''} onChange={event=>changeChart(event.target.value as CompareChart)}>{!charts.some(chart=>chart.id===state.chart)?<option value="">Choose a chart</option>:null}{charts.map(chart=><option key={chart.id} value={chart.id}>{chart.label}</option>)}</select></label>
     <nav className="chart-tabs" aria-label="Chart type">{charts.map(chart=><button type="button" key={chart.id}
       aria-pressed={state.chart===chart.id} onClick={()=>changeChart(chart.id)}>{chart.label}</button>)}</nav>
-    {delivery?.suggestedModelIds?.[state.chart]?.length?<button type="button" className="choose-measured" onClick={()=>chooseSuggested(state.chart)}>{state.chart==='price'?'Lowest reported input + output prices':'Suggested models for this view'}</button>:null}
-    <div className="compare-presets" aria-label="Starting selections"><span>Start with</span>{presets.map(preset=><button type="button" key={preset.id} onClick={()=>{
-      update({modelIds:preset.modelIds,missingModelIds:[],chart:preset.chart,metricId:preset.metricId,includeHistory:false,reasoningEfforts:[],conditionKey:null,scoreMetricKey:null});
-      setPresetDescription(preset.description);
-    }}>{preset.label}</button>)}</div>
-    {presetDescription?<p className="preset-criteria" role="status">{presetDescription}</p>:null}
     {!charts.some(chart=>chart.id===state.chart)?<p className="explorer-warning">This saved view has no recorded data. Choose another chart.</p>:null}
     <div className="explorer-workspace"><div className="chart-panel">
       <div className="chart-toolbar">
@@ -144,14 +134,14 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
       {series.scaleNotice?<p className="explorer-warning">{series.scaleNotice}</p>:null}
       {series.mixedConditions?<p className="explorer-warning">These runs used different test settings. Choose conditions for a like-for-like view.</p>:null}
       {epochSlug&&!series.points.length&&observations.length?<button className="choose-measured" type="button" onClick={chooseMeasured}>Select measured models</button>:null}
-      <ComparisonChart series={series} labels={state.labels} activeId={active?.id??null} onPreview={setHovered}
+      <ComparisonChart series={series} labels={state.labels} endpointLane activeId={active?.id??null} onPreview={setHovered}
         onPin={id=>setPinned(pinned===id?null:id)} svgRef={svg}/>
       <ObservationDetails series={series} point={active} pinned={Boolean(pinned)} onPin={()=>setPinned(pinned?null:active?.id??null)} onClose={()=>{setPinned(null);setHovered(null);}}/>
-    </div></div>
-    <div className="source-strip"><span>{visibleModels.filter(model=>state.modelIds.includes(model.id)).length} selected · {series.points.length} plotted observations</span>
-      <span>{[...new Set(series.points.map(point=>point.receipt.source))].join(' · ')||'No measurements selected'}</span>
-      {series.excluded.length?<details><summary>{series.excluded.length} excluded</summary><ul>{series.excluded.map((item,index)=><li key={item.modelId+index}>
-        {models.find(model=>model.id===item.modelId)?.name??item.modelId}: {item.reason}</li>)}</ul></details>:null}</div>
+      <div className="source-strip"><span>{visibleModels.filter(model=>state.modelIds.includes(model.id)).length} selected · {series.points.length} plotted observations</span>
+        <span>{[...new Set(series.points.map(point=>point.receipt.source))].join(' · ')||'No measurements selected'}</span>
+        {series.excluded.length?<details><summary>{series.excluded.length} excluded</summary><ul>{series.excluded.map((item,index)=><li key={item.modelId+index}>
+          {models.find(model=>model.id===item.modelId)?.name??item.modelId}: {item.reason}</li>)}</ul></details>:null}</div>
+    </div><div className="desktop-family-rail"> <ModelSelector {...selectorProps}/></div></div>
     <p className="share-notice" role="status">{notice}</p>
     <details className="explorer-methodology"><summary>Sources and calculations</summary>
       <p>Task cost is Artificial Analysis’s weighted average cost across its Intelligence Index evaluation tasks, including measured input, cache, reasoning, and answer-token charges. It is a benchmark methodology measure, not a universal real-world task price. Total evaluation cost is AA’s separately reported complete evaluation spend. Neither is derived from token price.</p>
@@ -167,9 +157,8 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
         <td>{point.receipt.sourceUrl?<a href={point.receipt.sourceUrl} target="_blank" rel="noreferrer">{point.receipt.source}</a>:point.receipt.source}</td>
         <td>{point.receipt.observedAt?.slice(0,10)??'Not recorded'}</td></tr>)}</tbody></table></div>
       {!series.points.length?<p>No measured rows for this selection.</p>:null}
-      <noscript><p>This is the default measured selection. Interactive filters need JavaScript; the exact data and source links remain available.</p></noscript>
     </details>
     <dialog className="model-filter-dialog" ref={dialog} onCancel={()=>setFiltersOpen(false)} onClose={()=>{setFiltersOpen(false);filterButton.current?.focus();}} aria-labelledby="model-picker-title">
-      <div className="picker-dialog-heading"><h2 id="model-picker-title">Add models</h2><button type="button" onClick={()=>setFiltersOpen(false)}>Done</button></div>{filtersOpen?<ModelSelector {...selectorProps}/>:null}</dialog>
+      <div className="picker-dialog-heading"><h2 id="model-picker-title">Choose model families</h2><button type="button" onClick={()=>setFiltersOpen(false)}>Done</button></div>{filtersOpen?<ModelSelector {...selectorProps}/>:null}</dialog>
   </section>;
 }

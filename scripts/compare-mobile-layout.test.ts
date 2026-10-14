@@ -11,14 +11,16 @@ test('mobile explorer uses a native modal filter drawer and returns focus',()=>{
   expect(component).toContain("querySelector<HTMLInputElement>('input[type=\"search\"]')?.focus()");
   expect(component).toContain('onClose={()=>{setFiltersOpen(false);filterButton.current?.focus();}}');
   const selector=readFileSync('src/components/compare/ModelSelector.tsx','utf8');
-  expect(selector).toContain('ref={searchRef}');
-  expect(selector).toContain('onChange={()=>onToggle(model.id)}');
-  expect(selector).not.toContain('onToggle(model.id);searchRef.current?.focus()');
+  expect(selector).toContain('role="checkbox"');
+  expect(selector).toContain('Search families');
+  expect(selector).toContain('Reasoning levels');
+  expect(component).toContain('className="desktop-family-rail"');
   expect(component).toContain('aria-labelledby="model-picker-title"');
   expect(css).toContain('@media (max-width: 900px)');
-  expect(css).toContain('.explorer-workspace{display:grid;grid-template-columns:minmax(0,1fr)}');
+  expect(css).toContain('.explorer-workspace{grid-template-columns: 1fr}');
   expect(css).toContain('.add-models-button');
-  expect(css).toContain('grid-template-columns:1fr');
+  expect(css).toContain('height:calc(100dvh - 16px)');
+  expect(css).toContain('270px');
 });
 test('chart tabs and tables stay scrollable while reduced motion is respected',()=>{
   expect(css).toContain('overflow-x: auto');
