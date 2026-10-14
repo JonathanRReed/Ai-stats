@@ -1,7 +1,7 @@
 import {validateBenchmarkAsset} from '../../lib/compare-benchmark-asset';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {parseCompareState,serializeCompareState,hasExplicitCompareSelection,usesSuggestedCompareSelection,benchmarkStartingSelection,readBenchmarkCache,AA_METRIC_LABELS,scoreMetricOptions,changeScoreMetric,type CompareState,type CompareChart} from '../../lib/compare-state';
-import {buildCompareSeries,epochScoreKey,type ExplorerModel} from '../../lib/compare-series';
+import {buildCompareSeries,epochScoreKey,EXPLORER_SOURCE_LABELS,type ExplorerModel} from '../../lib/compare-series';
 import {epochConditionKey,type EpochObservation} from '../../lib/epoch-observations';
 import {formatChartNumber} from '../../lib/compare-geometry';
 import {seriesCsv,downloadText,downloadChartPng,chartExportCaption} from '../../lib/compare-export';
@@ -86,6 +86,10 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
     onHistory:(includeHistory:boolean)=>update({includeHistory}),reasoningEfforts:state.reasoningEfforts,
     onReasoning:(value:string)=>update({reasoningEfforts:value==='all'?[]:state.reasoningEfforts.includes(value)
       ?state.reasoningEfforts.filter(reason=>reason!==value):[...state.reasoningEfforts,value]})};
+  const selectedChip=(id:string)=>{const model=visibleModels.find(item=>item.id===id);const name=model?.name??id;
+    const identity=model?[model.provider??model.family,EXPLORER_SOURCE_LABELS[model.source],model.sourceModelId].filter(Boolean).join(' · '):id;
+    return <span className="selected-model-chip" key={id}><span><strong>{name}</strong><small>{identity}</small></span>
+      <button type="button" aria-label={`Remove ${name} (${identity})`} onClick={()=>toggle(id)}>×</button></span>;};
   const chooseMeasured=()=>update(benchmarkStartingSelection(visibleModels,observations.filter(row=>!state.conditionKey||epochConditionKey(row.conditions)===state.conditionKey),state.scoreMetricKey));
   const chooseBenchmark=(metricId:string)=>{const slug=metricId.startsWith('epoch_')?metricId.slice(6):null;const rows=slug?readBenchmarkCache(benchmarkCache,slug):null;if(!slug){update({metricId,conditionKey:null,scoreMetricKey:null,modelIds:delivery?.aaBenchmarkSelections?.[metricId]?.[state.includeHistory?'historical':'current']??selectAaBenchmarkModels(measuredModels,metricId,8,state.includeHistory),missingModelIds:[]});return;}update({metricId,conditionKey:null,scoreMetricKey:null,...(rows?{...benchmarkStartingSelection(models,rows),missingModelIds:[]}: {})});pendingBenchmarkChoice.current=rows?null:slug;};
   const share=async()=>{try{const url=new URL(window.location.href);url.search=serializeCompareState(state).toString();
@@ -96,8 +100,8 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
     catch{setNotice('Image export is unavailable in this browser. CSV export is still available.');}};
   return <section className="compare-explorer" aria-label="Model comparison explorer">
     <div className="explorer-title"><h1>Compare models</h1><button type="button" className="add-models-button" ref={filterButton} onClick={()=>setFiltersOpen(true)}>Add models ({state.modelIds.length})</button></div>
-    <div className="selected-model-chips" aria-label="Selected models">{state.modelIds.slice(0,8).map(id=>{const model=visibleModels.find(item=>item.id===id);return <span className="selected-model-chip" key={id}><span>{model?.name??id}</span><button type="button" aria-label={`Remove ${model?.name??id}`} onClick={()=>toggle(id)}>×</button></span>;})}
-      {state.modelIds.length>8?<details className="more-selected-models"><summary>{state.modelIds.length-8} more</summary><div>{state.modelIds.slice(8).map(id=>{const model=visibleModels.find(item=>item.id===id);return <span className="selected-model-chip" key={id}><span>{model?.name??id}</span><button type="button" aria-label={`Remove ${model?.name??id}`} onClick={()=>toggle(id)}>×</button></span>;})}</div></details>:null}
+    <div className="selected-model-chips" aria-label="Selected models">{state.modelIds.slice(0,8).map(selectedChip)}
+      {state.modelIds.length>8?<details className="more-selected-models"><summary>{state.modelIds.length-8} more</summary><div>{state.modelIds.slice(8).map(selectedChip)}</div></details>:null}
       {state.modelIds.length?<button type="button" className="clear-models" onClick={()=>update({modelIds:[]})}>Clear</button>:null}</div>
     <label className="mobile-chart-choice">Compare by<select value={charts.some(chart=>chart.id===state.chart)?state.chart:''} onChange={event=>changeChart(event.target.value as CompareChart)}>{!charts.some(chart=>chart.id===state.chart)?<option value="">Choose a chart</option>:null}{charts.map(chart=><option key={chart.id} value={chart.id}>{chart.label}</option>)}</select></label>
     <nav className="chart-tabs" aria-label="Chart type">{charts.map(chart=><button type="button" key={chart.id}

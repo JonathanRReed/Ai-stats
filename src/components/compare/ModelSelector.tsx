@@ -13,6 +13,7 @@ export default function ModelSelector({models,selected,includeHistory,chart,metr
  useEffect(()=>{setPage(0);if(sourceTouched.current){setSource(previous=>nextCatalogSource(models,previous,includeHistory));return;}
   setSource(defaultCatalogSource(models,chart,metricId,includeHistory));},[models,includeHistory,chart,metricId]);
  const [search,setSearch]=useState('');
+ const searchRef=useRef<HTMLInputElement>(null);
  const query=useDeferredValue(search);
  const selectedSet=useMemo(()=>new Set(selected),[selected]);
  const results=useMemo(()=>modelPickerPage(models,query,source,includeHistory,page),[models,query,source,includeHistory,page]);
@@ -20,7 +21,7 @@ export default function ModelSelector({models,selected,includeHistory,chart,metr
 
  return <div className="model-selector">
   <div className="picker-controls">
-   <label className="model-search-label">Find models<input type="search" placeholder="Search by model or provider" value={search} onChange={event=>{setSearch(event.target.value);setPage(0);}}/></label>
+   <label className="model-search-label">Find models<input ref={searchRef} type="search" placeholder="Search by model or provider" value={search} onChange={event=>{setSearch(event.target.value);setPage(0);}}/></label>
    <label className="catalog-source-label">Source<select value={source} onChange={event=>{sourceTouched.current=true;setSource(event.target.value);setPage(0);}}>
     <option value="all">All sources</option>{Object.entries(EXPLORER_SOURCE_LABELS).filter(([key])=>browsable.some(model=>model.source===key)).map(([key,label])=><option key={key} value={key}>{label}</option>)}
    </select></label>
@@ -36,7 +37,7 @@ export default function ModelSelector({models,selected,includeHistory,chart,metr
     const sourceLabel=EXPLORER_SOURCE_LABELS[model.source];
     const provider=model.provider??model.family;
     return <label className="model-option" key={model.id} data-selected={selectedSet.has(model.id)}>
-     <input type="checkbox" checked={selectedSet.has(model.id)} disabled={!selectedSet.has(model.id)&&selected.length>=100} onChange={()=>onToggle(model.id)}/>
+     <input type="checkbox" checked={selectedSet.has(model.id)} disabled={!selectedSet.has(model.id)&&selected.length>=100} onChange={()=>{onToggle(model.id);searchRef.current?.focus();}}/>
      <span><strong>{model.name}</strong><small>{provider} · {sourceLabel}</small><small>{model.sourceModelId}</small>
       <small>{model.current===false?'Historical · ':model.source==='aa'&&model.current===null?'Membership unverified · ':''}{model.source==='epoch'?'Benchmark records':model.source==='aa'?'AA measurements':model.hasTokenPrices||typeof model.priceInput==='number'||typeof model.priceOutput==='number'?'Token prices available':'Catalog only · no chart measurements'}</small>
      </span>
