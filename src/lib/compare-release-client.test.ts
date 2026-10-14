@@ -1,7 +1,6 @@
 import {expect,test} from 'bun:test';
-import {fetchNewCompareRelease,inheritCompareSuggestions,shouldApplyRelease} from './compare-release-client';
+import {fetchNewCompareRelease,shouldApplyRelease} from './compare-release-client';
 import {fixture} from './compare-release.fixture';
-import type {CompareReleaseManifest} from './compare-release';
 test('unchanged dataset costs one small request and no manifest download',async()=>{
  const manifest=fixture();let calls=0;
  const result=await fetchNewCompareRelease(manifest.datasetRevision,async()=>{calls++;return Response.json({schemaVersion:1,revision:'a'.repeat(64),datasetRevision:manifest.datasetRevision});});
@@ -25,28 +24,22 @@ test('background updates never interrupt an active inspection',()=>{
  expect(shouldApplyRelease(false,false)).toBe(false);
 });
 
-test('a newer legacy release cannot downgrade publisher-capable pages',async()=>{
- const manifest={...fixture(),schemaVersion:'ai-stats-compare-release.v1'};let calls=0;
+test('a newer pre-capability v2 release cannot replace the dated v3 snapshot',async()=>{
+ const manifest={...fixture(),schemaVersion:'ai-stats-compare-release.v2',delivery:{...fixture().delivery,suggestedModelIds:undefined}};let calls=0;
  const result=await fetchNewCompareRelease('old',async()=>Response.json(++calls===1?{schemaVersion:1,revision:'a'.repeat(64),datasetRevision:manifest.datasetRevision}:manifest));
  expect(result).toBeNull();
 });
 
-test('a populated live refresh keeps compatible build-time chart suggestions and newer measurements',()=>{
- const initial=fixture() as CompareReleaseManifest;
- initial.delivery.suggestedModelIds={'task-cost':['a','b'],'speed-intelligence':['a','b'],'price':['a','b']};
- const updated=fixture() as CompareReleaseManifest;updated.datasetRevision='c'.repeat(64);updated.generatedAt='2026-10-03T12:00:00.000Z';
- // The live publication predates the suggestion map and has removed model b.
- updated.delivery.catalog.rows=updated.delivery.catalog.rows.filter(row=>row[0]!=='b');
- updated.models=updated.models.filter(row=>row.id!=='b');updated.defaultModelIds=['a'];
- const result=inheritCompareSuggestions(initial,updated);
- expect(result.datasetRevision).toBe(updated.datasetRevision);
- expect(result.generatedAt).toBe(updated.generatedAt);
- expect(result.delivery.suggestedModelIds).toEqual({'task-cost':['a'],'speed-intelligence':['a']});
- expect(result.defaultModelIds).toEqual(['a']);
-});
-
-test('live suggestions stay authoritative when the newer publisher provides them',()=>{
- const initial=fixture() as CompareReleaseManifest;initial.delivery.suggestedModelIds={'task-cost':['a','b']};
- const updated=fixture() as CompareReleaseManifest;updated.delivery.suggestedModelIds={'task-cost':['b']};
- expect(inheritCompareSuggestions(initial,updated).delivery.suggestedModelIds?.['task-cost']).toEqual(['b']);
+test('a populated v3 refresh atomically applies its new leader and cohort selection',async()=>{
+ const updated=fixture();updated.datasetRevision='c'.repeat(64);updated.generatedAt='2026-10-03T12:00:00.000Z';
+ // The release includes the replacement cohort leader in both its chart
+ // suggestions and matching seed, so no defaults are borrowed from the page.
+ updated.models=[updated.models[1]];updated.defaultModelIds=['b'];
+ updated.delivery.suggestedModelIds={'task-cost':['b'],'cost-intelligence':['b'],'speed-intelligence':['b'],price:[],'total-cost':['b']};
+ const paths:string[]=[];
+ const result=await fetchNewCompareRelease('old',async url=>{paths.push(url);return Response.json(paths.length===1?{schemaVersion:1,revision:'a'.repeat(64),datasetRevision:updated.datasetRevision}:updated);});
+ expect(result?.manifest.datasetRevision).toBe(updated.datasetRevision);
+ expect(result?.manifest.models.map(model=>model.id)).toEqual(['b']);
+ expect(result?.manifest.defaultModelIds).toEqual(['b']);
+ expect(result?.manifest.delivery.suggestedModelIds?.['task-cost']).toEqual(['b']);
 });

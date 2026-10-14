@@ -10,7 +10,8 @@ const databaseModule=fileURLToPath(import.meta.resolve('@electric-sql/pglite'));
 const migrations=[
  '20261002200437_independent_app_release_cache.sql',
  '20261003024932_app_release_publication_timeout.sql',
- '20261003173339_publisher_release_protocol_v2.sql'
+ '20261003173339_publisher_release_protocol_v2.sql',
+ '20261014140000_app_release_schema_v3.sql'
 ];
 async function validate(cwd=root) {
  const child=Bun.spawn([process.execPath,validator],{

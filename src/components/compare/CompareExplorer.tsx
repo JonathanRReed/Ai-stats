@@ -23,10 +23,9 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const [presetDescription,setPresetDescription]=useState('');
   const defaultChart=charts.some(chart=>chart.id==='task-cost')?'task-cost':'cost-intelligence';
   const defaultIdsFor=(chart:CompareChart,metric:string,history:boolean)=>chart==='benchmark'?delivery?.aaBenchmarkSelections?.[metric]?.[history?'historical':'current']??defaultModelIds:delivery?.suggestedModelIds?.[chart]??defaultModelIds;
-  const initialParams=typeof window==='undefined'?new URLSearchParams():new URLSearchParams(window.location.search);
-  const initialAuto=usesSuggestedCompareSelection(initialParams);
-  const initialDefaults=initialAuto?defaultIdsFor((initialParams.get('chart') as CompareChart|null)??defaultChart,initialParams.get('metric')??'aa_intelligence_index',initialParams.get('history')==='1'):defaultModelIds;
-  const [state,setState]=useState(()=>parseCompareState(initialParams,models,initialDefaults,defaultChart));
+  // Keep server render and hydration byte-for-byte aligned; saved URL state is
+  // applied by the mount effect below after React hydrates this default tree.
+  const [state,setState]=useState(()=>parseCompareState(new URLSearchParams(),models,defaultModelIds,defaultChart));
   const pendingBenchmarkChoice=useRef<string|null>(null);
   const aaMetrics=useMemo(()=>delivery?.aaBenchmarkSelections?Object.entries(delivery.aaBenchmarkSelections).filter(([,groups])=>(state.includeHistory?groups.historical:groups.current).length).map(([key])=>[key,AA_METRIC_LABELS[key]] as [string,string]):delivery?.aaMetrics??availableAaMetrics(models,state.includeHistory),[delivery,models,state.includeHistory]);
   const [benchmarkCache,setBenchmarkCache]=useState<Record<string,EpochObservation[]>>({});
@@ -34,7 +33,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const [hovered,setHovered]=useState<string|null>(null);const [pinned,setPinned]=useState<string|null>(null);
   const [filtersOpen,setFiltersOpen]=useState(false);const dialog=useRef<HTMLDialogElement>(null);
   const filterButton=useRef<HTMLButtonElement>(null);const svg=useRef<SVGSVGElement>(null);
-  const customSelection=useRef(typeof window!=='undefined'&&hasExplicitCompareSelection(new URLSearchParams(window.location.search))&&!usesSuggestedCompareSelection(new URLSearchParams(window.location.search)));
+  const customSelection=useRef(false);
   useEffect(()=>{const read=()=>{pendingBenchmarkChoice.current=null;setPresetDescription('');const params=new URLSearchParams(window.location.search),auto=usesSuggestedCompareSelection(params);if(params.get('auto')==='1'){params.delete('m');params.delete('models');}const defaults=auto?defaultIdsFor((params.get('chart') as CompareChart|null)??defaultChart,params.get('metric')??'aa_intelligence_index',params.get('history')==='1'):defaultModelIds;customSelection.current=hasExplicitCompareSelection(new URLSearchParams(window.location.search))&&!auto;setState(parseCompareState(params,models,defaults,defaultChart));};
     read();window.addEventListener('popstate',read);return()=>window.removeEventListener('popstate',read);},[models,defaultModelIds,defaultChart]);
   const epochSlug=state.chart==='benchmark'&&state.metricId.startsWith('epoch_')?state.metricId.slice(6):null;
