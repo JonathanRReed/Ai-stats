@@ -8,6 +8,7 @@ import {seriesCsv,downloadText,downloadChartPng,chartExportCaption} from '../../
 import {availableCompareCharts,availableAaMetrics,selectAaBenchmarkModels,buildComparePresets,canonicalChartMenu,COMPARE_VIEW_LABELS} from '../../lib/compare-presets';
 import {expandCatalog,createMeasurementLoader,type CompareDelivery} from '../../lib/compare-delivery';
 import {toggleCompareFamilySelection} from '../../lib/compare-families';
+import {frontierReferenceDisplayCount,shouldShowFrontierReference} from '../../lib/compare-frontier-reference';
 import ComparisonChart from './ComparisonChart';
 import ModelSelector from './ModelSelector';
 import ObservationDetails from './ObservationDetails';
@@ -78,7 +79,9 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   },[loader,pendingKey]);
   const measuredModels=useMemo(()=>models.filter(model=>!delivery||!model.detailAvailable||loaded.has(model.id)).map(model=>loaded.get(model.id)??model),[models,loaded,delivery]);
   const series=useMemo(()=>buildCompareSeries({models:measuredModels,observations},state),[measuredModels,observations,state]);
-  const referenceFrontier=useMemo(()=>frontierReferenceIds.length?buildCompareSeries({models:measuredModels,observations},{...state,modelIds:frontierReferenceIds,reasoningEfforts:[],frontier:true}):null,[measuredModels,observations,state,frontierReferenceIds]);
+  const suggestedIdsForChart=delivery?.suggestedModelIds?.[state.chart]??EMPTY_SUGGESTED_IDS;
+  const frontierDisplayCount=frontierReferenceDisplayCount({scatterView,customSelection:customSelection.current,suggestedIds:suggestedIdsForChart,frontierReferenceIds});
+  const referenceFrontier=useMemo(()=>shouldShowFrontierReference(state.frontier,frontierReferenceIds)?buildCompareSeries({models:measuredModels,observations},{...state,modelIds:frontierReferenceIds,reasoningEfforts:[],frontier:true}):null,[measuredModels,observations,state,frontierReferenceIds]);
   const displayedScale=referenceFrontier?.scaleNotice?'linear':series.scale;
   const active=series.points.find(point=>point.id===(pinned??hovered))??null;
   const visibleModels=models;
@@ -142,7 +145,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
       {series.scaleNotice||referenceFrontier?.scaleNotice?<p className="explorer-warning">{series.scaleNotice??'The current frontier includes zero, so the shared axis uses a linear scale.'}</p>:null}
       {series.mixedConditions?<p className="explorer-warning">These runs used different test settings. Choose conditions for a like-for-like view.</p>:null}
       {referenceFrontier?.points.length&&!series.points.length?<p className="explorer-warning">No selected records have measurements for this view. The current frontier is shown for reference.</p>:null}
-      {frontierCoverage?.truncated?<p className="explorer-warning">Current frontier reference is limited to {frontierReferenceIds.length} of {frontierCoverage.total} compatible records by the 100-record selection limit.</p>:null}
+      {frontierCoverage?.truncated?<p className="explorer-warning">Current frontier reference is limited to {frontierDisplayCount} of {frontierCoverage.total} compatible records by the 100-record selection limit.</p>:null}
       {epochSlug&&!series.points.length&&observations.length?<button className="choose-measured" type="button" onClick={chooseMeasured}>Select measured models</button>:null}
       <ComparisonChart series={series} referenceFrontier={referenceFrontier??undefined} scale={displayedScale} labels={state.labels} endpointLane activeId={active?.id??null} onPreview={setHovered}
         onPin={id=>setPinned(pinned===id?null:id)} svgRef={svg}/>
