@@ -7,12 +7,12 @@ import ObservationDetails from './ObservationDetails';
 import '../../styles/compare-explorer.css';
 import '../../styles/overview-explorer.css';
 
-type Props = { models: ExplorerModel[] };
+type Props = { models: ExplorerModel[]; suggestions: Record<string,string[]> };
 const dateLabel = (value: string | null) => value && Number.isFinite(Date.parse(value))
   ? new Intl.DateTimeFormat('en-US', {month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}).format(new Date(value))
   : 'Date unavailable';
 
-export default function OverviewExplorer({ models }: Props) {
+export default function OverviewExplorer({ models,suggestions }: Props) {
   const cohorts = useMemo(() => overviewCohorts(models), [models]);
   const initialMetric = defaultOverviewMetric(models);
   const [metric, setMetric] = useState<OverviewMetric>(initialMetric);
@@ -21,9 +21,13 @@ export default function OverviewExplorer({ models }: Props) {
   const [provider, setProvider] = useState('');
   const [scale, setScale] = useState<'linear'|'log'>('log');
   const [frontierOnly, setFrontierOnly] = useState(false);
+  const [showAllMeasured,setShowAllMeasured]=useState(false);
+  const [selectedIds,setSelectedIds]=useState<string[]>(()=>suggestions[`${defaultOverviewMetric(models)}:${cohorts.find(value=>value!==UNKNOWN_VERSION)??''}`]??[]);
+  const customSelection=useRef(false);
   const [activeId, setActiveId] = useState<string|null>(null);
   const [pinned, setPinned] = useState<string|null>(null);
   const svg = useRef<SVGSVGElement>(null);
+  const suggestionIds=(selectedMetric:OverviewMetric,selectedCohort:string)=>suggestions[`${selectedMetric}:${selectedCohort}`]??[];
 
   const cohortRows = useMemo(() => models.filter(model => model.source === 'aa' && model.current === true &&
     (cohort === UNKNOWN_VERSION ? !model.indexVersion || !/^\d+(?:\.\d+)*$/.test(model.indexVersion) : model.indexVersion === cohort)), [models,cohort]);
@@ -31,7 +35,8 @@ export default function OverviewExplorer({ models }: Props) {
   useEffect(() => { const next=retainAvailableProvider(provider,providers);if(next!==provider)setProvider(next); }, [provider,providers]);
   const matchingRows = useMemo(() => cohortRows.filter(model => (!provider || (model.provider ?? 'Unknown provider') === provider) &&
     (!search || (model.name+' '+model.family+' '+model.provider+' '+model.sourceModelId).toLowerCase().includes(search.toLowerCase().trim()))), [cohortRows,provider,search]);
-  const series = useMemo(() => buildOverviewSeries(matchingRows,metric,cohort,scale), [matchingRows,metric,cohort,scale]);
+  const plotRows=useMemo(()=>showAllMeasured?cohortRows.filter(model=>!provider||(model.provider??'Unknown provider')===provider):cohortRows.filter(model=>selectedIds.includes(model.id)&&(!provider||(model.provider??'Unknown provider')===provider)),[showAllMeasured,cohortRows,provider,selectedIds]);
+  const series = useMemo(() => buildOverviewSeries(plotRows,metric,cohort,scale), [plotRows,metric,cohort,scale]);
   const visiblePoints = useMemo(() => series.points.filter(point => !frontierOnly ||
     Object.values(series.frontierGroups).some(ids => ids.includes(point.id))), [series,frontierOnly]);
   const visibleSeries = useMemo(() => ({...series,points:visiblePoints}), [series,visiblePoints]);
@@ -46,16 +51,16 @@ export default function OverviewExplorer({ models }: Props) {
     </header>
     <div className="overview-chart-controls" aria-label="Overview chart controls">
       <fieldset className="overview-metric-switch"><legend>Horizontal axis</legend>
-        <button type="button" aria-pressed={metric==='task-cost'} disabled={!costAvailable} onClick={()=>{setMetric('task-cost');setActiveId(null);setPinned(null);}}>Cost per task</button>
-        <button type="button" aria-pressed={metric==='cost-intelligence'} onClick={()=>{setMetric('cost-intelligence');setActiveId(null);setPinned(null);}}>Token price vs Intelligence</button>
+        <button type="button" aria-pressed={metric==='task-cost'} disabled={!costAvailable} onClick={()=>{setMetric('task-cost');if(!customSelection.current)setSelectedIds(suggestionIds('task-cost',cohort));setActiveId(null);setPinned(null);}}>Cost per task</button>
+        <button type="button" aria-pressed={metric==='cost-intelligence'} onClick={()=>{setMetric('cost-intelligence');if(!customSelection.current)setSelectedIds(suggestionIds('cost-intelligence',cohort));setActiveId(null);setPinned(null);}}>Token price vs Intelligence</button>
       </fieldset>
-      <label>AA Index version<select value={cohort} onChange={event=>{setCohort(event.target.value);setActiveId(null);setPinned(null);}}>
+      <button type="button" onClick={()=>{customSelection.current=false;setSelectedIds(suggestionIds(metric,cohort));setShowAllMeasured(false);}}>Suggested models</button>
+      <label>AA Index version<select value={cohort} onChange={event=>{setCohort(event.target.value);if(!customSelection.current)setSelectedIds(suggestionIds(metric,event.target.value));setActiveId(null);setPinned(null);}}>
         {!cohorts.length?<option value={UNKNOWN_VERSION}>No recorded version</option>:null}
         {cohorts.map(version=><option key={version} value={version}>{version===UNKNOWN_VERSION?'Unknown version':version}</option>)}
       </select></label>
       <label>Provider<select value={provider} onChange={event=>setProvider(event.target.value)}><option value="">All providers</option>
         {provider&&!providers.includes(provider)?<option value={provider}>Unavailable: {provider}</option>:null}{providers.map(value=><option key={value}>{value}</option>)}</select></label>
-      <label className="overview-search">Find a model<input type="search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search full model name"/></label>
       <div className="overview-scale" role="group" aria-label="Horizontal axis scale">
         <button type="button" aria-pressed={series.scale==='linear'} onClick={()=>setScale('linear')}>Linear</button>
         <button type="button" aria-pressed={series.scale==='log'} onClick={()=>setScale('log')}>Log</button>
@@ -71,13 +76,19 @@ export default function OverviewExplorer({ models }: Props) {
       <div><dt>Plotted for these axes</dt><dd>{series.points.length.toLocaleString('en-US')}</dd></div>
       <div><dt>Latest source observation</dt><dd>{dateLabel(overviewObservationDate(cohortRows,cohort))}</dd></div>
     </dl>
-    <p className="overview-plot-status" aria-live="polite">{visiblePoints.length} of {series.points.length} points{search||provider?' match filters':''}. Recorded zeros stay on a linear axis.</p>
+    <p className="overview-plot-status" aria-live="polite">{visiblePoints.length} of {series.points.length} plotted points · {cohortRows.length} records in this version. Recorded zeros stay on a linear axis.</p>
+    <label className="overview-all-measured"><input type="checkbox" checked={showAllMeasured} onChange={event=>setShowAllMeasured(event.target.checked)}/>Show all measured models</label>
+    <details className="overview-model-picker"><summary>Search, add, or remove models ({selectedIds.length} selected)</summary>
+      <label>Find a model<input type="search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search full model name"/></label>
+      <ul>{matchingRows.slice(0,40).map(model=><li key={model.id}><label><input type="checkbox" checked={selectedIds.includes(model.id)} onChange={()=>{customSelection.current=true;setSelectedIds(old=>old.includes(model.id)?old.filter(id=>id!==model.id):[...old,model.id]);setShowAllMeasured(false);}}/>{model.name} · {model.provider??'Unknown provider'}</label></li>)}</ul>
+      {matchingRows.length>40?<p>Showing first 40 matches. Narrow the search to find a specific record.</p>:null}
+    </details>
     {series.scaleNotice?<p className="explorer-warning" role="status">{series.scaleNotice}</p>:null}
     <div className="overview-chart-layout">
       <div className="overview-chart-wrap">
-        <ComparisonChart series={visibleSeries} labels={false} showFamilyLegend={false} activeId={active?.id??null} onPreview={setActiveId}
+        <ComparisonChart series={visibleSeries} labels={true} showFamilyLegend={false} activeId={active?.id??null} onPreview={setActiveId}
           onPin={id=>setPinned(pinned===id?null:id)} svgRef={svg}/>
-        <p className="overview-inspect-hint">Model names appear when you focus, hover, or select a point. Use arrow keys to inspect nearby records; the full names remain in the exact data table.</p>
+        <p className="overview-inspect-hint">Frontier and selected endpoint names appear when labels fit; focus or select any point for its full details. Use arrow keys to inspect nearby records.</p>
         <ObservationDetails series={series} point={active} pinned={Boolean(pinned)} onPin={()=>setPinned(pinned?null:active?.id??null)} onClose={()=>{setPinned(null);setActiveId(null);}}/>
       </div>
       <aside className="overview-family-key" aria-label="Visible model families">

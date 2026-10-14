@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { buildExplorerCatalog } from './compare-catalog';
-import { buildCompareSeries, chartLabelCandidates, type SeriesPoint } from './compare-series';
+import { buildCompareSeries, chartLabelCandidates, collisionFreeChartLabels, compatibleVariantLines, type SeriesPoint } from './compare-series';
 import { parseCompareState } from './compare-state';
 import { buildOverviewSeries, defaultOverviewMetric, overviewCohorts, overviewObservationDate, retainAvailableProvider, UNKNOWN_VERSION } from './overview-series';
 
@@ -29,6 +29,19 @@ test('overview isolates recorded versions and leaves unknown versions out of kno
   expect(overviewCohorts(models)).toEqual(['4.3.2','4.3',UNKNOWN_VERSION]);
   expect(buildOverviewSeries(models,'task-cost','4.3.2').points.map(point=>point.modelId)).toEqual(['new']);
   expect(buildOverviewSeries(models,'task-cost',UNKNOWN_VERSION).frontierGroups).toEqual({});
+});
+
+test('malformed AA index versions stay outside verified frontier and variant cohorts',()=>{
+ const models=buildExplorerCatalog([
+  aa('bad-a','Malformed family',{source_metadata:{intelligence_index_version:'4.x',performance_prompt:'long',index_cost:{cost_per_task:{total_cost:1}}}}),
+  aa('bad-b','Malformed family',{source_metadata:{intelligence_index_version:'unverified',performance_prompt:'long',index_cost:{cost_per_task:{total_cost:2}}}}),
+ ],[]);
+ const variantModels=models.map((model,index)=>({...model,reasoning:index?'high':'low'}));
+ const state=parseCompareState(new URLSearchParams('chart=task-cost&m=bad-a&m=bad-b'),variantModels,[]);
+ const series=buildCompareSeries({models:variantModels,observations:[]},state);
+ expect(series.points.map(point=>point.cohortKey)).toEqual([null,null]);
+ expect(series.frontierGroups).toEqual({});
+ expect(compatibleVariantLines(series.points)).toEqual([]);
 });
 
 test('overview keeps index values above 100, accepts zero token prices, and excludes null axes',()=>{
@@ -67,4 +80,14 @@ test('chart labels are deterministic, prioritize frontier records, and stay spar
  expect(labels.slice(0,2)).toEqual(['m20','m21']);
  expect(labels).toHaveLength(8);
  expect(chartLabelCandidates(points,{'cohort':['m20','m21']},8)).toEqual(labels);
+});
+
+test('visible chart labels keep frontier endpoints when they fit and skip collisions',()=>{
+ const points=Array.from({length:4},(_,i)=>({id:'p'+i,label:'Model '+i,family:'F'+i,reasoning:'unknown',series:'value',source:'aa',x:i,y:i,unit:'score',cohortKey:null,cx:i<3?80+i*14:350,cy:i<3?100:200,receipt:{source:'AA',sourceUrl:null,observedAt:null,fetchedAt:null,indexVersion:null,conditions:null,snapshotId:null}} as SeriesPoint&{cx:number;cy:number}));
+ const selected=collisionFreeChartLabels(points,{'cohort':['p0','p1','p2','p3']},500,4);
+ expect(selected).toContain('p0');
+ expect(selected).not.toContain('p1');
+ expect(selected).not.toContain('p2');
+ expect(selected).toContain('p3');
+ expect(collisionFreeChartLabels(points,{'cohort':['p0','p1','p2','p3']},500,4)).toEqual(selected);
 });

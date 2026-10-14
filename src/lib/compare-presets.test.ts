@@ -49,13 +49,13 @@ test('older delivery chart order and labels never replace current view definitio
 test('historical-only AA metrics are not offered as current benchmark choices',()=>{const old={id:'old',name:'Old',family:'Old',source:'aa' as const,sourceModelId:'old',current:false,metrics:{aime:90}};expect(availableAaMetrics([old])).toEqual([]);});
 
 test('switching from a publisher benchmark selects measured current AA records',()=>{
- const rows:ExplorerModel[]=[{id:'p',name:'Publisher',family:'P',source:'publisher',sourceModelId:'p',current:true},{id:'a',name:'AA',family:'A',source:'aa',sourceModelId:'a',current:true,intelligence:40,coding:0},{id:'old',name:'Old',family:'Old',source:'aa',sourceModelId:'old',current:false,intelligence:90}];
+ const rows:ExplorerModel[]=[{id:'p',name:'Publisher',family:'P',source:'publisher',sourceModelId:'p',current:true},{id:'a',name:'AA',family:'A',source:'aa',sourceModelId:'a',current:true,intelligence:40,coding:0,indexVersion:'4.3'},{id:'old',name:'Old',family:'Old',source:'aa',sourceModelId:'old',current:false,intelligence:90,indexVersion:'4.3'}];
  expect(selectAaBenchmarkModels(rows,'aa_intelligence_index')).toEqual(['a']);
  expect(selectAaBenchmarkModels(rows,'aa_coding_index')).toEqual(['a']);
  expect(selectAaBenchmarkModels(rows,'aime')).toEqual([]);
 });
 
 test('measurement indexes cover AA models outside the seed and retain historical-only metrics',()=>{
- const rows:ExplorerModel[]=[{id:'seed',name:'Seed',family:'Seed',source:'aa',sourceModelId:'seed',current:true,intelligence:50},{id:'other',name:'Other',family:'Other',source:'aa',sourceModelId:'other',current:true,metrics:{gpqa:.8}},{id:'old',name:'Old',family:'Old',source:'aa',sourceModelId:'old',current:false,metrics:{aime:90}}];
+ const rows:ExplorerModel[]=[{id:'seed',name:'Seed',family:'Seed',source:'aa',sourceModelId:'seed',current:true,intelligence:50,indexVersion:'4.3'},{id:'other',name:'Other',family:'Other',source:'aa',sourceModelId:'other',current:true,indexVersion:'4.3',performancePrompt:'standard',metrics:{gpqa:.8}},{id:'old',name:'Old',family:'Old',source:'aa',sourceModelId:'old',current:false,indexVersion:'4.2',performancePrompt:'standard',metrics:{aime:90}}];
  const index=buildAaBenchmarkSelections(rows);expect(index.gpqa.current).toEqual(['other']);expect(index.aime.current).toEqual([]);expect(index.aime.historical).toEqual(['old']);expect(availableAaMetrics(rows,true).some(([key])=>key==='aime')).toBe(true);
 });

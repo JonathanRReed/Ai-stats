@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState,type RefObject} from 'react';
 import {plotGeometry,formatChartNumber} from '../../lib/compare-geometry';
-import {chartLabelCandidates,compatibleVariantLines,type CompareSeries,type SeriesPoint} from '../../lib/compare-series';
+import {collisionFreeChartLabels,compatibleVariantLines,type CompareSeries,type SeriesPoint} from '../../lib/compare-series';
 const FAMILY_HUES:Array<[RegExp,number]>=[
   [/^Claude/i,1],[/^(GPT|o[1-9])/i,8],[/^(Gemini|Gemma)/i,0],[/^(Muse|Llama)/i,2],
   [/^Grok/i,3],[/^MiMo/i,4],[/^Qwen/i,5],[/^Kimi/i,6],[/^GLM/i,7],[/^DeepSeek/i,5],
@@ -29,7 +29,7 @@ export default function ComparisonChart({series,labels,showFamilyLegend=true,act
   const plot=plotGeometry(series.points,series.kind,series.scale,width,height,Math.min(height*.35,legendY+24));
   const byId=new Map(plot.points.map(point=>[point.id,point]));
   const linked=compatibleVariantLines(series.points);
-  const labeledIds=new Set(labels?chartLabelCandidates(series.points,series.frontierGroups):[]);
+  const labeledIds=new Set(labels?collisionFreeChartLabels(plot.points,series.frontierGroups,width):[]);
   const inspect=(point:SeriesPoint)=>point.label+(point.series==='input'?' · Input tokens':point.series==='output'?' · Output tokens':'')+': '+(series.kind==='scatter'?formatChartNumber(point.x)+' '+series.xLabel+' · ':'')+formatChartNumber(point.y)+' '+point.unit;
   return <div className="comparison-plot" ref={frame}>
     {!series.available?<div className="plot-empty"><h2>Awaiting data access</h2><p>{series.unavailableReason}</p></div>:

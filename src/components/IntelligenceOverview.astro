@@ -5,6 +5,7 @@ import type { AaModel, EpochBenchmark, EpochBenchmarkRun, EpochModel } from "../
 import { hasFiniteMetricValue } from "../lib/metric-values";
 import { buildExplorerCatalog } from "../lib/compare-catalog";
 import OverviewExplorer from "./compare/OverviewExplorer";
+import { suggestedModels } from "../lib/suggested-models";
 
 interface Props {
   models: AaModel[];
@@ -17,6 +18,13 @@ interface Props {
 
 const { models, epochModels, epochRuns, polibench, freshness } = Astro.props;
 const explorerModels = buildExplorerCatalog(models, []);
+const versions=[...new Set(explorerModels.filter(model=>model.source==='aa'&&model.current===true&&model.indexVersion&&/^\d+(?:\.\d+)*$/.test(model.indexVersion)).map(model=>model.indexVersion!))];
+const suggestions = Object.fromEntries(versions.flatMap(version=>(['task-cost','cost-intelligence'] as const).map(metric=>{
+  const rows=explorerModels.filter(model=>model.source==='aa'&&model.current===true&&model.indexVersion===version&&typeof model.intelligence==='number'&&Number.isFinite(model.intelligence)&&
+    typeof (metric==='task-cost'?model.aaTaskCost:model.priceBlended)==='number'&&Number.isFinite(metric==='task-cost'?model.aaTaskCost:model.priceBlended));
+  return [`${metric}:${version}`,suggestedModels(rows.map(model=>({id:model.id,modelId:model.id,x:(metric==='task-cost'?model.aaTaskCost:model.priceBlended)!,y:model.intelligence!,provider:model.provider,family:model.family,
+    indexVersion:model.indexVersion!,cohortKey:model.indexVersion+':'+(model.performancePrompt??'unknown')})))];
+})));
 const aaIntelligenceCount = models.filter(model => hasFiniteMetricValue(model.aa_intelligence_index)).length;
 const aaCodingCount = models.filter(model => hasFiniteMetricValue(model.aa_coding_index) || hasFiniteMetricValue(model.livecodebench)).length;
 const epochModelVersions = new Set(epochRuns.map(run => run.model_version).filter(Boolean));
@@ -34,7 +42,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", { month:"short", day:"num
 ---
 
 <section class="intelligence-overview" aria-label="Model intelligence and cost overview">
-  <OverviewExplorer client:load models={explorerModels} />
+  <OverviewExplorer client:load models={explorerModels} suggestions={suggestions} />
   <section class="overview-data-status" aria-label="Source coverage and status">
     <header class="overview-status-heading"><h2>Coverage and source updates</h2><p>Counts describe records and runs in the current build snapshot.</p></header>
     <div class="overview-status-grid">

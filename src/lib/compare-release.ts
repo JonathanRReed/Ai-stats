@@ -24,7 +24,7 @@ export function readCompareRelease(value:unknown):CompareReleaseManifest{
  ![row[5],row[6],row[7],row[8]].every(nullableText)||!Number.isInteger(row[9])||row[9]<0||row[9]>3)throw new Error('Invalid compact model identity');
  ids.add(row[0]);
  }
- if(!Array.isArray(value.models)||value.models.length<2||value.models.length>100||!Array.isArray(value.defaultModelIds)||
+ if(!Array.isArray(value.models)||value.models.length>100||!Array.isArray(value.defaultModelIds)||
  value.defaultModelIds.length!==value.models.length||new Set(value.defaultModelIds).size!==value.defaultModelIds.length||
  !value.defaultModelIds.every(id=>text(id)&&ids.has(id))||!value.models.every(row=>object(row)&&text(row.id)&&(value.defaultModelIds as unknown[]).includes(row.id))||
  new Set(value.models.map(row=>row.id)).size!==value.models.length)throw new Error('Invalid release seed');
@@ -34,6 +34,13 @@ export function readCompareRelease(value:unknown):CompareReleaseManifest{
   for(const [key,groups] of Object.entries(delivery.aaBenchmarkSelections)){
    if(!Object.hasOwn(AA_METRIC_LABELS,key)||!object(groups))throw new Error('Invalid AA benchmark selections');
    for(const mode of ['current','historical']){const list=groups[mode];if(!Array.isArray(list)||list.length>8||new Set(list).size!==list.length||!list.every(id=>typeof id==='string'&&catalogRows.some(row=>row[0]===id&&row[3]===0&&(mode==='historical'||row[4]!==false))))throw new Error('Invalid AA benchmark selection identity');}
+  }
+ }
+ if(delivery.suggestedModelIds!==undefined){
+  if(!object(delivery.suggestedModelIds))throw new Error('Invalid suggested model selections');
+  const compactRows=catalog.rows as unknown[][];
+  for(const [chart,list] of Object.entries(delivery.suggestedModelIds)){
+   if(!COMPARE_CHARTS.includes(chart as typeof COMPARE_CHARTS[number])||!Array.isArray(list)||list.length>8||new Set(list).size!==list.length||!list.every(id=>typeof id==='string'&&compactRows.some(row=>row[0]===id&&row[4]===true&&(chart==='price'?Boolean(Number(row[9])&1):row[3]===0&&Boolean(Number(row[9])&2)))))throw new Error('Invalid suggested model selection');
   }
  }
  const typed=value as unknown as CompareReleaseManifest,expanded=expandCatalog(typed.delivery.catalog);

@@ -3,10 +3,11 @@
 .overview-chart-heading h2{margin:0;color:var(--ink-0);font-size:var(--text-xl);font-weight:600;letter-spacing:-.02em}
 .overview-chart-heading p{margin:.25rem 0 0;color:var(--ink-2);font-size:var(--text-xs)}
 .overview-chart-controls{display:flex;align-items:flex-end;flex-wrap:wrap;gap:.6rem;margin:.75rem 0}
-.overview-chart-controls>label{display:grid;gap:.25rem;min-width:8rem;color:var(--ink-2);font-size:var(--text-xs)}
-.overview-chart-controls select,.overview-chart-controls input{min-height:40px;padding:0 .6rem;background:var(--surface-0);color:var(--ink-0);border:1px solid var(--line-1);border-radius:var(--radius-md);font:inherit;font-size:var(--text-sm)}
-.overview-chart-controls .overview-search{flex:1 1 12rem}
-.overview-metric-switch{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem;padding:0;margin:0;border:0}
+.overview-chart-controls>*{min-width:0;max-width:100%;box-sizing:border-box}
+.overview-chart-controls>label{display:grid;gap:.25rem;min-width:0;flex:0 1 12rem;color:var(--ink-2);font-size:var(--text-xs)}
+.overview-chart-controls select,.overview-chart-controls input{width:100%;min-width:0;min-height:40px;padding:0 .6rem;background:var(--surface-0);color:var(--ink-0);border:1px solid var(--line-1);border-radius:var(--radius-md);font:inherit;font-size:var(--text-sm)}
+.overview-chart-controls .overview-search{flex:1 1 14rem}
+.overview-metric-switch{display:flex;flex:0 1 19rem;min-width:0;flex-wrap:wrap;align-items:center;gap:.35rem;padding:0;margin:0;border:0}
 .overview-metric-switch legend{width:100%;font-size:var(--text-xs);color:var(--ink-2);margin-bottom:.25rem}
 .overview-metric-switch button,.overview-scale button{min-height:40px;background:var(--surface-0);color:var(--ink-1);border:1px solid var(--line-1);border-radius:3px;padding:.45rem .65rem;font:inherit;font-size:var(--text-xs);cursor:pointer}
 .overview-metric-switch button[aria-pressed=true],.overview-scale button[aria-pressed=true]{border-color:var(--signal);color:var(--ink-0);background:var(--signal-soft)}
@@ -42,5 +43,5 @@
  .overview-summary{grid-template-columns:repeat(3,minmax(0,1fr))}.overview-summary>div{padding:.55rem .45rem}.overview-summary dd{font-size:11px}
 }
 @media(max-width:520px){.overview-chart-controls>label{flex:1 1 calc(50% - .6rem)}.overview-chart-controls .overview-search{flex-basis:100%}
- .overview-metric-switch button{flex:1 1 auto}.overview-summary{grid-template-columns:1fr 1fr}.overview-summary>div:last-child{grid-column:1/-1}
+ .overview-metric-switch{flex:1 1 100%}.overview-metric-switch button{flex:1 1 auto}.overview-summary{grid-template-columns:1fr 1fr}.overview-summary>div:last-child{grid-column:1/-1}
  .overview-explorer .comparison-plot{height:400px}}

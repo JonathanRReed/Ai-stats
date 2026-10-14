@@ -22,7 +22,11 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const presets=useMemo(()=>delivery?.presets??buildComparePresets(models),[delivery,models]);
   const [presetDescription,setPresetDescription]=useState('');
   const defaultChart=charts.some(chart=>chart.id==='task-cost')?'task-cost':'cost-intelligence';
-  const [state,setState]=useState(()=>parseCompareState(new URLSearchParams(),models,defaultModelIds,defaultChart));
+  const defaultIdsFor=(chart:CompareChart,metric:string,history:boolean)=>chart==='benchmark'?delivery?.aaBenchmarkSelections?.[metric]?.[history?'historical':'current']??defaultModelIds:delivery?.suggestedModelIds?.[chart]??defaultModelIds;
+  const initialParams=typeof window==='undefined'?new URLSearchParams():new URLSearchParams(window.location.search);
+  const initialAuto=initialParams.get('auto')==='1'||(!initialParams.has('m')&&!initialParams.has('models'));
+  const initialDefaults=initialAuto?defaultIdsFor((initialParams.get('chart') as CompareChart|null)??defaultChart,initialParams.get('metric')??'aa_intelligence_index',initialParams.get('history')==='1'):defaultModelIds;
+  const [state,setState]=useState(()=>parseCompareState(initialParams,models,initialDefaults,defaultChart));
   const pendingBenchmarkChoice=useRef<string|null>(null);
   const aaMetrics=useMemo(()=>delivery?.aaBenchmarkSelections?Object.entries(delivery.aaBenchmarkSelections).filter(([,groups])=>(state.includeHistory?groups.historical:groups.current).length).map(([key])=>[key,AA_METRIC_LABELS[key]] as [string,string]):delivery?.aaMetrics??availableAaMetrics(models,state.includeHistory),[delivery,models,state.includeHistory]);
   const [benchmarkCache,setBenchmarkCache]=useState<Record<string,EpochObservation[]>>({});
@@ -30,7 +34,8 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const [hovered,setHovered]=useState<string|null>(null);const [pinned,setPinned]=useState<string|null>(null);
   const [filtersOpen,setFiltersOpen]=useState(false);const dialog=useRef<HTMLDialogElement>(null);
   const filterButton=useRef<HTMLButtonElement>(null);const svg=useRef<SVGSVGElement>(null);
-  useEffect(()=>{const read=()=>{pendingBenchmarkChoice.current=null;setPresetDescription('');setState(parseCompareState(new URLSearchParams(window.location.search),models,defaultModelIds,defaultChart));};
+  const customSelection=useRef(typeof window!=='undefined'&&new URLSearchParams(window.location.search).has('m')&&new URLSearchParams(window.location.search).get('auto')!=='1');
+  useEffect(()=>{const read=()=>{pendingBenchmarkChoice.current=null;setPresetDescription('');const params=new URLSearchParams(window.location.search),auto=params.get('auto')==='1'||(!params.has('m')&&!params.has('models'));if(params.get('auto')==='1'){params.delete('m');params.delete('models');}const defaults=auto?defaultIdsFor((params.get('chart') as CompareChart|null)??defaultChart,params.get('metric')??'aa_intelligence_index',params.get('history')==='1'):defaultModelIds;customSelection.current=!auto&&new URLSearchParams(window.location.search).has('m');setState(parseCompareState(params,models,defaults,defaultChart));};
     read();window.addEventListener('popstate',read);return()=>window.removeEventListener('popstate',read);},[models,defaultModelIds,defaultChart]);
   const epochSlug=state.chart==='benchmark'&&state.metricId.startsWith('epoch_')?state.metricId.slice(6):null;
   const observations=epochSlug?readBenchmarkCache(benchmarkCache,epochSlug)??EMPTY_OBSERVATIONS:EMPTY_OBSERVATIONS;
@@ -72,10 +77,12 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const scoreMetrics=useMemo(()=>[...new Set(observations.map(epochScoreKey))].sort(),[observations]);
   const scoreOptions=scoreMetricOptions(scoreMetrics,state.scoreMetricKey);
   const unverifiedMembership=visibleModels.some(model=>model.source==='aa'&&model.current===null);
-  const update=(patch:Partial<CompareState>)=>{if(['modelIds','metricId','scoreMetricKey','conditionKey','chart','includeHistory'].some(key=>Object.hasOwn(patch,key)))pendingBenchmarkChoice.current=null;setPresetDescription('');const next={...state,...patch};setState(next);setPinned(null);setHovered(null);
-    const url=new URL(window.location.href);url.search=serializeCompareState(next).toString();window.history.pushState(null,'',url);};
+  const update=(patch:Partial<CompareState>,automatic=false)=>{if(Object.hasOwn(patch,'modelIds'))customSelection.current=!automatic;if(['modelIds','metricId','scoreMetricKey','conditionKey','chart','includeHistory'].some(key=>Object.hasOwn(patch,key)))pendingBenchmarkChoice.current=null;setPresetDescription('');const next={...state,...patch};setState(next);setPinned(null);setHovered(null);
+    const url=new URL(window.location.href);url.search=serializeCompareState(next).toString();const keepAutomatic=automatic||(!Object.hasOwn(patch,'modelIds')&&!customSelection.current);if(keepAutomatic)url.searchParams.set('auto','1');else url.searchParams.delete('auto');window.history.pushState(null,'',url);};
   const toggle=(id:string)=>update({modelIds:state.modelIds.includes(id)?state.modelIds.filter(value=>value!==id):[...state.modelIds,id].slice(0,100)});
-  const reset=()=>update(parseCompareState(new URLSearchParams(),models,defaultModelIds,defaultChart));
+  const chooseSuggested=(chart:CompareChart)=>{const ids=delivery?.suggestedModelIds?.[chart];if(ids?.length){setPresetDescription('Measured suggestions for this view.');update({chart,modelIds:ids,missingModelIds:[]},true);}};
+  const changeChart=(chart:CompareChart)=>{if(customSelection.current){update({chart});return;}if(chart==='benchmark'){const metric='aa_intelligence_index';const ids=delivery?.aaBenchmarkSelections?.[metric]?.[state.includeHistory?'historical':'current']??selectAaBenchmarkModels(measuredModels,metric,8,state.includeHistory);update({chart,metricId:metric,modelIds:ids,missingModelIds:[]},true);return;}if(delivery?.suggestedModelIds?.[chart]?.length)chooseSuggested(chart);else update({chart});};
+  const reset=()=>update(parseCompareState(new URLSearchParams(),models,defaultModelIds,defaultChart),true);
   const selectorProps={models:visibleModels,selected:state.modelIds,includeHistory:state.includeHistory,chart:state.chart,metricId:state.metricId,onToggle:toggle,
     onFamily:(family:string,checked:boolean)=>update({modelIds:selectFamily(state.modelIds,visibleModels,family,checked,state.includeHistory)}),
     onGroup:(ids:string[],checked:boolean)=>update({modelIds:selectVisibleRecords(state.modelIds,ids,checked)}),
@@ -92,9 +99,10 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
     catch{setNotice('Image export is unavailable in this browser. CSV export is still available.');}};
   return <section className="compare-explorer" aria-label="Model comparison explorer">
     <div className="explorer-title"><h1>Compare models</h1><button type="button" className="mobile-filter-button" ref={filterButton} onClick={()=>setFiltersOpen(true)}>Choose models ({state.modelIds.length})</button></div>
-    <label className="mobile-chart-choice">Compare by<select value={charts.some(chart=>chart.id===state.chart)?state.chart:''} onChange={event=>update({chart:event.target.value as CompareChart})}>{!charts.some(chart=>chart.id===state.chart)?<option value="">Choose a chart</option>:null}{charts.map(chart=><option key={chart.id} value={chart.id}>{chart.label}</option>)}</select></label>
+    <label className="mobile-chart-choice">Compare by<select value={charts.some(chart=>chart.id===state.chart)?state.chart:''} onChange={event=>changeChart(event.target.value as CompareChart)}>{!charts.some(chart=>chart.id===state.chart)?<option value="">Choose a chart</option>:null}{charts.map(chart=><option key={chart.id} value={chart.id}>{chart.label}</option>)}</select></label>
     <nav className="chart-tabs" aria-label="Chart type">{charts.map(chart=><button type="button" key={chart.id}
-      aria-pressed={state.chart===chart.id} onClick={()=>update({chart:chart.id})}>{chart.label}</button>)}</nav>
+      aria-pressed={state.chart===chart.id} onClick={()=>changeChart(chart.id)}>{chart.label}</button>)}</nav>
+    {delivery?.suggestedModelIds?.[state.chart]?.length?<button type="button" className="choose-measured" onClick={()=>chooseSuggested(state.chart)}>{state.chart==='price'?'Lowest reported input + output prices':'Suggested models for this view'}</button>:null}
     <div className="compare-presets" aria-label="Starting selections"><span>Start with</span>{presets.map(preset=><button type="button" key={preset.id} onClick={()=>{
       update({modelIds:preset.modelIds,missingModelIds:[],chart:preset.chart,metricId:preset.metricId,includeHistory:false,reasoningEfforts:[],conditionKey:null,scoreMetricKey:null});
       setPresetDescription(preset.description);

@@ -1,5 +1,6 @@
 import {AA_METRIC_LABELS,type CompareChart} from './compare-state';
 import type {ExplorerModel} from './compare-series';
+import {suggestedModels} from './suggested-models';
 const finite=(value:unknown):value is number=>typeof value==='number'&&Number.isFinite(value);
 const nonnegative=(value:unknown):value is number=>finite(value)&&value>=0;
 export const COMPARE_VIEW_LABELS:Array<{id:CompareChart;label:string}>=[
@@ -62,7 +63,8 @@ export function buildComparePresets(models:ExplorerModel[]):ComparePreset[]{
 
 export function selectAaBenchmarkModels(models:ExplorerModel[],metricId:string,limit=8,includeHistory=false):string[]{
  const value=(model:ExplorerModel)=>metricId==='aa_intelligence_index'?model.intelligence:metricId==='aa_coding_index'?model.coding:model.metrics?.[metricId];
- return models.filter(model=>model.source==='aa'&&(includeHistory||model.current!==false)&&finite(value(model))).sort((a,b)=>Number(value(b))-Number(value(a))||a.id.localeCompare(b.id)).slice(0,limit).map(model=>model.id);
+ const rows=models.filter(model=>model.source==='aa'&&(includeHistory||model.current!==false)&&finite(value(model))&&Boolean(model.indexVersion&&/^\d+(?:\.\d+)*$/.test(model.indexVersion)));
+ return suggestedModels(rows.map(model=>({id:model.id,modelId:model.id,x:0,y:value(model)!,provider:model.provider,family:model.family,indexVersion:model.indexVersion!,cohortKey:model.indexVersion+':'+(model.performancePrompt??'unknown')})),metricId==='epoch_btf3_external'?'min':'max',limit);
 }
 
 export function buildAaBenchmarkSelections(models:ExplorerModel[]){

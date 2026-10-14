@@ -12,3 +12,8 @@ test('malformed compact metadata and absent default identities are rejected',()=
  expect(()=>readCompareRelease({...value,models:[{...value.models[0],observedAt:42},value.models[1]]})).toThrow();
  expect(()=>readCompareRelease({...value,benchmarks:[{slug:'../secret',name:'Invalid'}]})).toThrow();
 });
+test('suggestion maps are optional for older releases and validate measured current identities',()=>{
+ const value=fixture();expect(readCompareRelease(value).delivery.suggestedModelIds).toBeUndefined();
+ expect(readCompareRelease({...value,delivery:{...value.delivery,suggestedModelIds:{'cost-intelligence':['a']}}}).delivery.suggestedModelIds?.['cost-intelligence']).toEqual(['a']);
+ expect(()=>readCompareRelease({...value,delivery:{...value.delivery,suggestedModelIds:{'cost-intelligence':['missing']}}})).toThrow();
+});

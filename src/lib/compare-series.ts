@@ -46,8 +46,25 @@ export function chartLabelCandidates(points:SeriesPoint[],frontierGroups:Record<
  }
  return [...new Set(priorities)].slice(0,Math.max(0,limit));
 }
+export function collisionFreeChartLabels(points:Array<SeriesPoint&{cx:number;cy:number}>,frontierGroups:Record<string,string[]>,width:number,limit=12):string[]{
+ const byId=new Map(points.map(point=>[point.id,point]));
+ const placed:Array<{left:number;right:number;top:number;bottom:number}>=[];
+ const result:string[]=[];
+ for(const id of chartLabelCandidates(points,frontierGroups,limit)){
+  const point=byId.get(id);if(!point)continue;
+  const textWidth=Math.max(24,point.label.length*5.8);
+  const leftAligned=point.cx>width-150;
+  const left=leftAligned?point.cx-8-textWidth:point.cx+8;
+  const box={left,right:left+textWidth,top:point.cy-21,bottom:point.cy-7};
+  if(box.left<4||box.right>width-4)continue;
+  if(placed.some(other=>box.left<other.right+4&&box.right+4>other.left&&box.top<other.bottom+3&&box.bottom+3>other.top))continue;
+  placed.push(box);result.push(id);
+ }
+ return result;
+}
 const finite = (value:unknown):value is number => typeof value==='number'&&Number.isFinite(value);
 const nonnegative = (value:unknown):value is number => finite(value)&&value>=0;
+const verifiedIndexVersion = (value:string|null|undefined):value is string => typeof value==='string'&&/^\d+(?:\.\d+)*$/.test(value);
 const sourceUrl = (value:string|null|undefined):string|null => {
   try {const url=new URL(value??'');return url.protocol==='https:'&&!url.username&&!url.password?url.href:null;}
   catch{return null;}
@@ -117,7 +134,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
     result.xLabel=state.chart==='cost-intelligence'?'USD / 1M tokens (3:1 input/output)':state.chart==='speed-intelligence'?'Output tokens / second':state.chart==='task-cost'?'USD / AA Index task':state.chart==='total-cost'?'USD / complete AA evaluation':'Model';
     result.yLabel=result.kind==='scatter'?'AA Intelligence Index':state.chart==='price'?'USD / 1M tokens':'AA benchmark value';
     models.forEach((model,index)=>{
-      const cohort=model.source==='aa'&&model.indexVersion&&(state.chart!=='speed-intelligence'||model.performancePrompt)?model.indexVersion+':'+(model.performancePrompt??'unknown'):null;
+      const cohort=model.source==='aa'&&verifiedIndexVersion(model.indexVersion)&&(state.chart!=='speed-intelligence'||model.performancePrompt)?model.indexVersion+':'+(model.performancePrompt??'unknown'):null;
       if(state.chart==='price'){
         let count=0;
         if(nonnegative(model.priceInput)){add(model,index,model.priceInput,'input','USD / 1M tokens',receiptFor(model),model.id+':input',cohort);count++;}
