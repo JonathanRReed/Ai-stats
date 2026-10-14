@@ -202,3 +202,13 @@ test("homepage benchmark families filter measured reasoning variants before top-
  expect(dashboardSource).toContain('renderLeaderboard((snapshot.aaModels??[]).filter(model=>model.current_source_member!==false)');
  expect(dashboardSource).not.toContain('FAILSAFE_METRIC_SWAP_MS');
 });
+
+test("empty filtered leaderboards disable Open compare and Epoch mode disables AA family controls on initial render and refresh",()=>{
+ expect(dashboardSource).toContain('setLeaderboardCompareAction(leaderboardCompareLink,panel?.dataset.compareHref||null)');
+ expect(dashboardSource).toContain('compareHref:list.length?`/compare?${params.toString()}`:""');
+ expect(dashboardSource).toContain('disabled={defaultBenchmarkKey.startsWith(\'epoch_\')}');
+ expect(dashboardSource).toContain('setLeaderboardFamilyControlsDisabled(document.getElementById("leaderboard-family-controls"),metricSelect.value.startsWith("epoch_"))');
+ expect(dashboardSource).toContain('setLeaderboardFamilyControlsDisabled(document.getElementById("leaderboard-family-controls"),metric.startsWith("epoch_"))');
+ expect(dashboardSource).toContain("const epochCatalog=list.map(model=>({id:'epoch:'+model.model_version,source:'epoch',sourceModelId:model.model_version}))");
+ expect(dashboardSource).toContain('data-compare-href="${escapeHtml(compareHref)}"');
+});

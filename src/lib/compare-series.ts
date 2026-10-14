@@ -29,6 +29,31 @@ export type SeriesPoint = {
   id:string; modelId:string; label:string; family:string; reasoning:string; series:string;
   source:ExplorerModel['source']; provider?:string; x:number; y:number; unit:string; cohortKey:string|null; receipt:EvidenceReceipt;
 };
+export type BarCategoryLabel={x:number;label:string;title:string;ariaLabel:string};
+/** Short, unique category labels for bar charts; point values and positions are untouched. */
+export function barCategoryLabels(points:SeriesPoint[]):BarCategoryLabel[]{
+ const categories=[...new Map(points.map(point=>[point.x,point])).values()];
+ const familyCounts=new Map<string,number>();
+ categories.forEach(point=>familyCounts.set(point.family,(familyCounts.get(point.family)??0)+1));
+ const reasoningLabel=(value:string)=>value==='none'?'No reasoning':value==='unknown'?'':value==='xhigh'?'Xhigh':value.charAt(0).toUpperCase()+value.slice(1);
+ const base=categories.map(point=>{
+  const compactFamily=point.family.replace(/^Claude\s+/i,'');
+  const family=compactFamily.length>16?compactFamily.slice(0,14)+'…':compactFamily;
+  const effort=reasoningLabel(point.reasoning);
+  return familyCounts.get(point.family)!>1&&effort?`${family} · ${effort}`:family;
+ });
+ const counts=(values:string[])=>values.reduce((map,value)=>map.set(value,(map.get(value)??0)+1),new Map<string,number>());
+ const baseCounts=counts(base);
+ const candidates=categories.map((point,index)=>baseCounts.get(base[index])!>1?`${base[index]} · ${point.provider??point.source}`:base[index]);
+ const candidateCounts=counts(candidates);
+ const named=candidates.map((candidate,index)=>candidateCounts.get(candidate)!>1?`${candidate} · ${categories[index].label}`:candidate);
+ const namedCounts=counts(named);
+ return categories.map((point,index)=>{
+  const label=namedCounts.get(named[index])!>1?`${named[index]} · ${point.modelId.slice(-5)}`:named[index];
+  const full=[point.label,point.provider,EXPLORER_SOURCE_LABELS[point.source]].filter(Boolean).join(' · ');
+  return {x:point.x,label,title:full,ariaLabel:full};
+ });
+}
 export type CompareSeries = {
   available:boolean; unavailableReason:string|null; kind:'scatter'|'bars'; points:SeriesPoint[];
   excluded:Array<{modelId:string;reason:string}>; xLabel:string; yLabel:string;

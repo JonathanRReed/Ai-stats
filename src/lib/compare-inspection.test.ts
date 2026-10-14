@@ -53,6 +53,19 @@ test('endpoint labels obey the Labels control and bar legends never report a non
  const barMarkup=renderToStaticMarkup(createElement(ComparisonChart,{series:bars,labels:true,endpointLane:true,activeId:null,onPreview:()=>{},onPin:()=>{},svgRef:{current:null}}));
  expect(barMarkup).not.toContain('in family rail');expect(barMarkup).not.toContain('more families');
 });
+test('benchmark bar categories distinguish same-family reasoning variants without changing measured coordinates',()=>{
+ const efforts=['max','xhigh','high','medium','low'];
+ const models=efforts.map((reasoning,index)=>({id:'opus-'+reasoning,name:`Claude Opus 5.5 (${reasoning})`,family:'Claude Opus 5.5',provider:'Anthropic',reasoning,source:'aa' as const,sourceModelId:'opus-'+reasoning,current:true,intelligence:42+index}));
+ const series=buildCompareSeries({models,observations:[]},parseCompareState(new URLSearchParams('chart=benchmark&metric=aa_intelligence_index&m='+models.map(row=>row.id).join('&m=')),models));
+ const coordinates=series.points.map(point=>[point.x,point.y]);
+ const html=renderToStaticMarkup(createElement(ComparisonChart,{series,labels:true,activeId:null,onPreview:()=>{},onPin:()=>{},svgRef:{current:null}}));
+ for(const effort of ['Max','Xhigh','High','Medium','Low'])expect(html).toContain(`Opus 5.5 · ${effort}`);
+ for(const model of models){
+  const full=`${model.name} · Anthropic · Artificial Analysis`;
+  expect(html).toContain(`<title>${full}</title>`);expect(html).toContain(`aria-label="${full}"`);
+ }
+ expect(series.points.map(point=>[point.x,point.y])).toEqual(coordinates);
+});
 test('unresolved native identity stays unresolved after sharing',async()=>{
  const {serializeCompareState}=await import('./compare-state');
  const rows=[{id:'huggingface:lab/a',source:'huggingface',sourceModelId:'lab/a'},{id:'duplicate',source:'huggingface',sourceModelId:'lab/a'}];

@@ -433,17 +433,17 @@ function getScoreClass(score: number | null | undefined): string {
                 ))
               }
             </select>
-            <div id="leaderboard-family-controls" class="leaderboard-family-controls">
+            <div id="leaderboard-family-controls" class="leaderboard-family-controls" data-disabled={defaultBenchmarkKey.startsWith('epoch_') ? '' : undefined}>
             <label for="leaderboard-family-search" class="leaderboard-filter-label">Find family</label>
-            <input id="leaderboard-family-search" class="toolbar-control leaderboard-family-search" type="search" placeholder="Search models or providers" autocomplete="off" />
+            <input id="leaderboard-family-search" class="toolbar-control leaderboard-family-search" type="search" placeholder="Search models or providers" autocomplete="off" disabled={defaultBenchmarkKey.startsWith('epoch_')} />
             <label for="leaderboard-family-mode" class="leaderboard-filter-label">Show</label>
-            <select id="leaderboard-family-mode" class="toolbar-control">
+            <select id="leaderboard-family-mode" class="toolbar-control" disabled={defaultBenchmarkKey.startsWith('epoch_')}>
               <option value="families" selected>Families</option>
               <option value="variants">All variants</option>
             </select>
-            <fieldset class="leaderboard-reasoning" aria-label="Reasoning effort">
+            <fieldset class="leaderboard-reasoning" aria-label="Reasoning effort" disabled={defaultBenchmarkKey.startsWith('epoch_')}>
               <legend>Reasoning</legend>
-              {['low','medium','high','xhigh','max','minimal','none'].map((effort) => <label><input type="checkbox" data-leaderboard-reasoning value={effort} /> {effort === 'none' ? 'None' : effort}</label>)}
+              {['low','medium','high','xhigh','max','minimal','none'].map((effort) => <label><input type="checkbox" data-leaderboard-reasoning value={effort} disabled={defaultBenchmarkKey.startsWith('epoch_')} /> {effort === 'none' ? 'None' : effort}</label>)}
             </fieldset>
             </div>
           </div>
@@ -2073,7 +2073,8 @@ function getScoreClass(score: number | null | undefined): string {
   // @ts-nocheck
   import {formatPrice as formatCatalogPrice} from "../lib/format-utils";
 import {rankModelFamilies} from "../lib/model-family-ranking";
-import {setLeaderboardPanel} from "../lib/leaderboard-panels";
+import {setLeaderboardCompareAction,setLeaderboardFamilyControlsDisabled,setLeaderboardPanel} from "../lib/leaderboard-panels";
+import {leaderboardComparisonHref} from "../lib/leaderboard-comparison";
 import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboardBarWidth} from '../lib/benchmark-leaderboard';
   import {preferPublisherBenchmarks} from '../lib/benchmark-catalog';
   import { findAaComparableCoverageLeader } from "../lib/data-integrity";
@@ -2235,7 +2236,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       if (!leaderboardCompareLink || !metricSelect) return;
       const panel = Array.from(leaderboardPanels?.querySelectorAll("[data-metric]") || [])
         .find((candidate) => candidate.dataset.metric === metricSelect.value);
-      leaderboardCompareLink.setAttribute("href", panel?.dataset.compareHref || "/compare");
+      setLeaderboardCompareAction(leaderboardCompareLink,panel?.dataset.compareHref||null);
     };
 
     const escapeHtml = (value) =>
@@ -2933,7 +2934,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       }).join("");
       const params = new URLSearchParams({chart:"benchmark",metric:config.key});
       list.forEach((model) => params.append("m", model.id));
-      return {rows, compareHref:`/compare?${params.toString()}`};
+      return {rows, compareHref:list.length?`/compare?${params.toString()}`:""};
     };
 
     const renderAaLeaderboardPanels = (models) => {
@@ -3073,8 +3074,10 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
             .join("");
 
           const hiddenAttr = config.key === metricSelect.value ? "" : " hidden";
+          const epochCatalog=list.map(model=>({id:'epoch:'+model.model_version,source:'epoch',sourceModelId:model.model_version}));
+          const compareHref=leaderboardComparisonHref(list.map(model=>benchmarkRecordHref(model,model.metric_key??config.key)),epochCatalog);
           return `
-            <div data-metric="${escapeHtml(config.key)}" class="overflow-hidden border border-highlight-low/60"${hiddenAttr}>
+            <div data-metric="${escapeHtml(config.key)}" data-compare-href="${escapeHtml(compareHref)}" class="overflow-hidden border border-highlight-low/60"${hiddenAttr}>
               <ul class="divide-y divide-highlight-low/40">${rows}</ul>
             </div>
           `;
@@ -3093,6 +3096,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       if (!panelKeys.has(metricSelect.value)) {
         metricSelect.value = metricSelect.options[0]?.value ?? "mmlu_pro";
       }
+      setLeaderboardFamilyControlsDisabled(document.getElementById("leaderboard-family-controls"),metricSelect.value.startsWith("epoch_"));
       updateLeaderboardCompareLink();
       renderAttributionText(metricSelect.value);
 
@@ -3608,9 +3612,7 @@ ${allBenchmarks.length ? `
     metricSelect?.addEventListener("change", () => {
       const metric = metricSelect.value;
       setLeaderboardPanel(Array.from(leaderboardPanels?.querySelectorAll("[data-metric]") ?? []),metric);
-      const familyControls = document.getElementById("leaderboard-family-controls");
-      if (familyControls) familyControls.toggleAttribute("data-disabled", metric.startsWith("epoch_"));
-      if (familyControls) familyControls.querySelectorAll("input,select").forEach((control) => { control.disabled = metric.startsWith("epoch_"); });
+      setLeaderboardFamilyControlsDisabled(document.getElementById("leaderboard-family-controls"),metric.startsWith("epoch_"));
       if (!metric.startsWith("epoch_")) renderAaLeaderboardPanels(latestLeaderboardModels);
       updateLeaderboardCompareLink();
       renderAttributionText(metric);

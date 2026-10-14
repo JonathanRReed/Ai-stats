@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState,type RefObject} from 'react';
 import {plotGeometry,formatChartNumber} from '../../lib/compare-geometry';
-import {compatibleVariantLines,type CompareSeries,type SeriesPoint} from '../../lib/compare-series';
+import {barCategoryLabels,compatibleVariantLines,type CompareSeries,type SeriesPoint} from '../../lib/compare-series';
 import {familyColor} from '../../lib/family-color';
 import {EXPLORER_SOURCE_LABELS} from '../../lib/compare-series';
 import {endpointLabels} from '../../lib/endpoint-labels';
@@ -21,7 +21,9 @@ export default function ComparisonChart({series,labels,endpointLane=false,showFa
   const laneWidth=showLane?184:24;
   const plot=plotGeometry(series.points,series.kind,series.scale,width,height,topPadding,laneWidth);
   const byId=new Map(plot.points.map(point=>[point.id,point]));
+  const barPointByX=new Map(plot.points.map(point=>[point.x,point]));
   const linked=compatibleVariantLines(series.points);
+  const barLabels=series.kind==='bars'?barCategoryLabels(plot.points):[];
   const endpointCandidates=plot.points.map(point=>({id:point.id,group:JSON.stringify([point.source,point.provider??point.family,point.family,point.cohortKey??point.id]),label:point.family,cx:point.cx,cy:point.cy}));
   const familyLabels=showLane&&labels?endpointLabels(endpointCandidates,{top:plot.top+8,bottom:plot.bottom-5,gap:19,activeId}):[];
   const hiddenEndpointLabels=showLane&&labels?Math.max(0,new Set(endpointCandidates.map(point=>point.group)).size-familyLabels.length):0;
@@ -74,10 +76,10 @@ export default function ComparisonChart({series,labels,endpointLane=false,showFa
         {labels&&activeId===point.id&&!showLane?<text className="point-label" textAnchor="start"
           x={point.cx+8} y={point.cy-10}>{point.label}</text>:null}
       </g>)}
-      {series.kind==='bars'&&new Set(plot.points.map(point=>point.x)).size<=12?
-        [...new Map(plot.points.map(point=>[point.x,point])).values()].map(point=><text key={'category:'+point.x}
-          className="plot-tick category-label" x={point.cx} y={plot.bottom+20} textAnchor="middle">
-          <title>{point.label}</title>{point.family.length>16?point.family.slice(0,14)+'…':point.family}</text>):null}
+      {series.kind==='bars'&&barLabels.length<=12?
+        barLabels.map(category=>{const point=barPointByX.get(category.x);if(!point)return null;return <text key={'category:'+category.x}
+          className="plot-tick category-label" x={point.cx} y={plot.bottom+20} textAnchor="middle" aria-label={category.ariaLabel}>
+          <title>{category.title}</title>{category.label}</text>}):null}
       <text className="plot-label" x={(plot.left+plot.right)/2} y={height-12} textAnchor="middle">{series.xLabel}</text>
       <text className="plot-label" transform={`translate(17 ${(plot.top+plot.bottom)/2}) rotate(-90)`} textAnchor="middle">{series.yLabel}</text>
     </svg>}
