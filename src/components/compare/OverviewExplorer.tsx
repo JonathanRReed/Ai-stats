@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { logOmissions, logOmissionHeading, plottableSeriesPoints, type ExplorerModel } from '../../lib/compare-series';
-import { buildOverviewSeries, defaultOverviewMetric, overviewCohorts, overviewObservationDate, retainAvailableProvider, UNKNOWN_VERSION, type OverviewMetric } from '../../lib/overview-series';
+import { buildOverviewSeries, overviewSuggestions, defaultOverviewMetric, overviewCohorts, overviewObservationDate, retainAvailableProvider, UNKNOWN_VERSION, type OverviewMetric } from '../../lib/overview-series';
 import ComparisonChart, { familyColor } from './ComparisonChart';
 import ObservationDetails from './ObservationDetails';
 
@@ -21,13 +21,15 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
   const [provider, setProvider] = useState('');
   const [scale, setScale] = useState<'linear'|'log'>('log');
   const [frontierOnly, setFrontierOnly] = useState(false);
+  const [showPareto,setShowPareto]=useState(true);
+  const [showLabels,setShowLabels]=useState(true);
   const [showAllMeasured,setShowAllMeasured]=useState(false);
   const [selectedIds,setSelectedIds]=useState<string[]>(()=>suggestions[`${defaultOverviewMetric(models)}:${cohorts.find(value=>value!==UNKNOWN_VERSION)??''}`]??[]);
   const customSelection=useRef(false);
   const [activeId, setActiveId] = useState<string|null>(null);
   const [pinned, setPinned] = useState<string|null>(null);
   const svg = useRef<SVGSVGElement>(null);
-  const suggestionIds=(selectedMetric:OverviewMetric,selectedCohort:string)=>suggestions[`${selectedMetric}:${selectedCohort}`]??[];
+  const suggestionIds=(selectedMetric:OverviewMetric,selectedCohort:string)=>overviewSuggestions(models,selectedMetric,selectedCohort,provider);
 
   const cohortRows = useMemo(() => models.filter(model => model.source === 'aa' && model.current === true &&
     (cohort === UNKNOWN_VERSION ? !model.indexVersion || !/^\d+(?:\.\d+)*$/.test(model.indexVersion) : model.indexVersion === cohort)), [models,cohort]);
@@ -42,7 +44,7 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
   const frontierFiltered = useMemo(() => series.points.filter(point => !frontierOnly ||
     Object.values(series.frontierGroups).some(ids => ids.includes(point.id))), [series,frontierOnly]);
   const visibleSeries = useMemo(() => {const ids=new Set(frontierFiltered.map(point=>point.id));
-    return {...series,points:frontierFiltered,omittedFromLog:series.omittedFromLog.filter(point=>ids.has(point.id))};}, [series,frontierFiltered]);
+    return {...series,frontierGroups:showPareto?series.frontierGroups:{},points:frontierFiltered,omittedFromLog:series.omittedFromLog.filter(point=>ids.has(point.id))};}, [series,frontierFiltered,showPareto]);
   const plottable = useMemo(() => plottableSeriesPoints(series), [series]);
   const visiblePoints = useMemo(() => plottableSeriesPoints(visibleSeries), [visibleSeries]);
   const omitted = useMemo(() => logOmissions(series.omittedFromLog, series.kind), [series]);
@@ -65,13 +67,15 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
         {!cohorts.length?<option value={UNKNOWN_VERSION}>No recorded version</option>:null}
         {cohorts.map(version=><option key={version} value={version}>{version===UNKNOWN_VERSION?'Unknown version':version}</option>)}
       </select></label>
-      <label>Provider<select value={provider} onChange={event=>setProvider(event.target.value)}><option value="">All providers</option>
+      <label>Provider<select value={provider} onChange={event=>{setProvider(event.target.value);if(!customSelection.current)setSelectedIds(overviewSuggestions(models,metric,cohort,event.target.value));setPinned(null);setActiveId(null);}}><option value="">All providers</option>
         {provider&&!providers.includes(provider)?<option value={provider}>Unavailable: {provider}</option>:null}{providers.map(value=><option key={value}>{value}</option>)}</select></label>
       <div className="overview-scale" role="group" aria-label="Horizontal axis scale">
         <button type="button" aria-pressed={series.scale==='linear'} onClick={()=>setScale('linear')}>Linear</button>
         <button type="button" aria-pressed={series.scale==='log'} onClick={()=>setScale('log')}>Log</button>
       </div>
-      <label className="overview-check"><input type="checkbox" checked={frontierOnly} onChange={event=>setFrontierOnly(event.target.checked)}/>Show frontier only</label>
+      <button type="button" className="pareto-toggle" aria-label="Pareto line" aria-pressed={showPareto} onClick={()=>setShowPareto(!showPareto)}>Pareto line <span aria-hidden="true">{showPareto?'On':'Off'}</span></button>
+      <button type="button" aria-pressed={showLabels} onClick={()=>setShowLabels(!showLabels)}>Labels</button>
+      <label className="overview-check"><input type="checkbox" checked={frontierOnly} onChange={event=>setFrontierOnly(event.target.checked)}/>Show Pareto models only</label>
     </div>
     <p className="overview-axis-definition">X: {series.xLabel} · Y: AA Intelligence Index</p>
     {metric==='task-cost'?<details className="overview-methodology"><summary>How AA task cost is measured</summary>
@@ -96,9 +100,9 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
       <button type="button" className="scale-notice-action" onClick={()=>setScale('linear')}>Show all on Linear</button></div>:null}
     <div className="overview-chart-layout">
       <div className="overview-chart-wrap">
-        <ComparisonChart series={visibleSeries} labels={true} endpointLane activeId={active?.id??null} onPreview={setActiveId}
+        <ComparisonChart series={visibleSeries} labels={showLabels} endpointLane activeId={active?.id??null} onPreview={setActiveId}
           onPin={id=>setPinned(pinned===id?null:id)} svgRef={svg} onShowLinear={()=>setScale('linear')}/>
-        <p className="overview-inspect-hint">Frontier and selected endpoint names appear when labels fit; focus or select any point for its full details. Use arrow keys to inspect nearby records.</p>
+        <p className="overview-inspect-hint">Select a point for its model, measurements, and source. Arrow keys move between points.</p>
         <ObservationDetails series={series} point={active} pinned={Boolean(pinned)} onPin={()=>setPinned(pinned?null:active?.id??null)} onClose={()=>{setPinned(null);setActiveId(null);}}/>
       </div>
       <aside className="overview-family-key" aria-label="Visible model families">

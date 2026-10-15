@@ -7,7 +7,7 @@ import {
   formatTTFT,
 } from "../lib/format-utils";
 
-import {hasFiniteMetricValue} from "../lib/metric-values";
+import {hasFiniteMetricValue,parseFiniteMetricValue} from "../lib/metric-values";
 
 interface Props {
   model: any;
@@ -206,13 +206,14 @@ const formatCompactNumber = (value: number | null | undefined): string => {
   data-card-label={`${model.name ?? "Unknown model"}, ${providerName}`}
   data-name={(model.name ?? "").toLowerCase()}
   data-company={(model.company_name ?? "").toLowerCase()}
-  data-mmlu={Number(model.mmlu_pro) || 0}
-  data-gpqa={Number(model.gpqa) || 0}
-  data-hle={Number(model.hle) || 0}
-  data-aime={Number(model.aime) || 0}
-  data-input-price={Number(model.price_1m_input_tokens) || 0}
-  data-output-price={Number(model.price_1m_output_tokens) || 0}
-  data-tps={Number(model.median_output_tokens_per_second) || 0}
+  data-intelligence={parseFiniteMetricValue(model.aa_intelligence_index) ?? ''}
+  data-mmlu={parseFiniteMetricValue(model.mmlu_pro) ?? ''}
+  data-gpqa={parseFiniteMetricValue(model.gpqa) ?? ''}
+  data-hle={parseFiniteMetricValue(model.hle) ?? ''}
+  data-aime={parseFiniteMetricValue(model.aime) ?? ''}
+  data-input-price={parseFiniteMetricValue(model.price_1m_input_tokens) ?? ''}
+  data-output-price={parseFiniteMetricValue(model.price_1m_output_tokens) ?? ''}
+  data-tps={parseFiniteMetricValue(model.median_output_tokens_per_second) ?? ''}
   class="model-card brutalist-card group px-4 py-4 text-sm stagger-item"
 >
   <header class="flex items-start justify-between gap-2">

@@ -23,6 +23,7 @@ import {
   getEpochBenchmarkAttribution,
 } from "../lib/benchmark-catalog";
 import {getModelCatalogData} from "../lib/model-catalog-data";
+import {selectBrowserModels} from "../lib/model-browser";
 import CatalogCoverage from "./CatalogCoverage.astro";
 import { getDataFreshness } from "../lib/data-freshness";
 import ModelCard from "./ModelCard.astro";
@@ -128,23 +129,10 @@ epochBenchmarksWithRuns.forEach((benchmark) => {
 });
 const clientBenchmarkAttributions = benchmarkAttributions;
 
-const validModels = currentMeasuredModels.filter((model: any) => {
-  const inputPrice = Number(model.price_1m_input_tokens);
-  const outputPrice = Number(model.price_1m_output_tokens);
-  return inputPrice > 0 && outputPrice > 0;
-});
-
+const validModels = selectBrowserModels(models);
 const totalModels = validModels.length;
 const INITIAL_VISIBLE_MODELS = Math.min(8, totalModels);
-const curatedInitialModels = selectBenchmarkSnapshotModels(
-  validModels,
-  INITIAL_VISIBLE_MODELS,
-);
-const curatedInitialIds = new Set(curatedInitialModels.map((model) => model.id));
-const initialModels = [
-  ...curatedInitialModels,
-  ...validModels.filter((model) => !curatedInitialIds.has(model.id)),
-].slice(0, INITIAL_VISIBLE_MODELS);
+const initialModels = validModels.slice(0, INITIAL_VISIBLE_MODELS);
 
 // Hard facts for the definition block below the h1. Counted from the same
 // payloads the bento and the model table render, and each clause is dropped
@@ -610,6 +598,8 @@ function getScoreClass(score: number | null | undefined): string {
         </p>
       </header>
 
+      <p id="model-browser-load-status" role="status" class="text-xs text-subtle" hidden></p>
+      <button id="model-browser-retry" type="button" class="brutalist-button" hidden>Retry model list</button>
       <div id="model-toolbar-sentinel" aria-hidden="true" class="h-px w-full"></div>
 
       <div
@@ -644,6 +634,7 @@ function getScoreClass(score: number | null | undefined): string {
                 id="model-sort"
                 class="toolbar-control w-full px-3 py-2 text-sm text-text"
               >
+                <option value="intelligence">AA Intelligence Index</option>
                 <option value="mmlu">MMLU Pro</option>
                 <option value="gpqa">GPQA</option>
                 <option value="hle">HLE</option>
@@ -773,6 +764,7 @@ function getScoreClass(score: number | null | undefined): string {
             <tr>
               <th scope="col" class="px-4 py-3 font-semibold">Model</th>
               <th scope="col" class="px-4 py-3 font-semibold">Provider</th>
+              <th scope="col" class="px-4 py-3 font-semibold text-right">AA Index</th>
               <th scope="col" class="px-4 py-3 font-semibold text-right">Context</th>
               <th scope="col" class="px-4 py-3 font-semibold text-right">Input</th>
               <th scope="col" class="px-4 py-3 font-semibold text-right">Output</th>
@@ -797,16 +789,20 @@ function getScoreClass(score: number | null | undefined): string {
                   data-model-id={model.id}
                   data-name={(model.name ?? "").toLowerCase()}
                   data-company={(model.company_name ?? "").toLowerCase()}
-                  data-mmlu={Number(model.mmlu_pro) || 0}
-                  data-gpqa={Number(model.gpqa) || 0}
-                  data-input-price={Number(model.price_1m_input_tokens) || 0}
-                  data-output-price={Number(model.price_1m_output_tokens) || 0}
-                  data-tps={Number(model.median_output_tokens_per_second) || 0}
+                  data-intelligence={parseFiniteMetricValue(model.aa_intelligence_index) ?? ''}
+                  data-hle={parseFiniteMetricValue(model.hle) ?? ''}
+                  data-aime={parseFiniteMetricValue(model.aime) ?? ''}
+                  data-mmlu={parseFiniteMetricValue(model.mmlu_pro) ?? ''}
+                  data-gpqa={parseFiniteMetricValue(model.gpqa) ?? ''}
+                  data-input-price={parseFiniteMetricValue(model.price_1m_input_tokens) ?? ''}
+                  data-output-price={parseFiniteMetricValue(model.price_1m_output_tokens) ?? ''}
+                  data-tps={parseFiniteMetricValue(model.median_output_tokens_per_second) ?? ''}
                 >
                   <td class="px-4 py-3 font-medium text-text">{model.name}</td>
                   <td class="px-4 py-3 text-subtle">
                     {model.company_name ?? "-"}
                   </td>
+                  <td class="px-4 py-3 text-right font-mono text-text">{formatIndex(model.aa_intelligence_index)}</td>
                   <td class="px-4 py-3 text-right font-mono text-text">
                     {formatContextLength(model.openrouter_context_length)}
                   </td>
@@ -2085,6 +2081,7 @@ function getScoreClass(score: number | null | undefined): string {
 <script>
   // @ts-nocheck
   import {formatPrice as formatCatalogPrice} from "../lib/format-utils";
+  import {validateBrowserPayload,selectBrowserModels,browserPage} from "../lib/model-browser";
   import {bindDashboardLifecycle} from "../lib/dashboard-lifecycle";
   import {nextLeaderboardLimit,visibleLeaderboardRows} from "../lib/leaderboard-pagination";
   import {resolveEpochLeaderboardRunNames} from "../lib/epoch-model-display-name";
@@ -2097,6 +2094,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
   import { findAaComparableCoverageLeader } from "../lib/data-integrity";
   import {
     hasFiniteMetricValue,
+    compareOptionalMetricValues,
     parseFiniteMetricValue,
   } from "../lib/metric-values";
 
@@ -2216,6 +2214,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       "sort-direction-indicator",
     );
 
+    let browserModels=null;
     let currentVisible = PAGE_SIZE;
     let matchedTotal = 0;
     let currentView = "cards";
@@ -2502,6 +2501,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
     };
 
     const sortAttrMap = {
+      intelligence: "intelligence",
       mmlu: "mmlu",
       gpqa: "gpqa",
       hle: "hle",
@@ -2516,12 +2516,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
     const getTableRows = () =>
       Array.from(document.querySelectorAll("[data-table-row]"));
 
-    const getValidModels = (models) =>
-      (models ?? []).filter((model) => {
-        const input = Number(model.price_1m_input_tokens);
-        const output = Number(model.price_1m_output_tokens);
-        return input > 0 && output > 0;
-      });
+    const getValidModels = (models) => selectBrowserModels(models ?? []);
 
     const getOpenRouterProvider = (model) => {
       const idProvider = String(model?.openrouter_id || "")
@@ -3276,13 +3271,14 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
           data-card-label="${name}, ${company}"
           data-name="${escapeHtml(String(model.name ?? "").toLowerCase())}"
           data-company="${escapeHtml(String(model.company_name ?? "").toLowerCase())}"
-          data-mmlu="${Number(model.mmlu_pro) || 0}"
-          data-gpqa="${Number(model.gpqa) || 0}"
-          data-hle="${Number(model.hle) || 0}"
-          data-aime="${Number(model.aime) || 0}"
-          data-input-price="${Number(model.price_1m_input_tokens) || 0}"
-          data-output-price="${Number(model.price_1m_output_tokens) || 0}"
-          data-tps="${Number(model.median_output_tokens_per_second) || 0}"
+          data-intelligence="${parseFiniteMetricValue(model.aa_intelligence_index) ?? ''}"
+          data-mmlu="${parseFiniteMetricValue(model.mmlu_pro) ?? ''}"
+          data-gpqa="${parseFiniteMetricValue(model.gpqa) ?? ''}"
+          data-hle="${parseFiniteMetricValue(model.hle) ?? ''}"
+          data-aime="${parseFiniteMetricValue(model.aime) ?? ''}"
+          data-input-price="${parseFiniteMetricValue(model.price_1m_input_tokens) ?? ''}"
+          data-output-price="${parseFiniteMetricValue(model.price_1m_output_tokens) ?? ''}"
+          data-tps="${parseFiniteMetricValue(model.median_output_tokens_per_second) ?? ''}"
           class="model-card brutalist-card group px-4 py-4 text-sm stagger-item"
         >
           <header class="flex items-start justify-between gap-2">
@@ -3350,14 +3346,18 @@ ${allBenchmarks.length ? `
         data-model-id="${escapeHtml(model.id)}"
         data-name="${escapeHtml(String(model.name ?? "").toLowerCase())}"
         data-company="${escapeHtml(String(model.company_name ?? "").toLowerCase())}"
-        data-mmlu="${Number(model.mmlu_pro) || 0}"
-        data-gpqa="${Number(model.gpqa) || 0}"
-        data-input-price="${Number(model.price_1m_input_tokens) || 0}"
-        data-output-price="${Number(model.price_1m_output_tokens) || 0}"
-        data-tps="${Number(model.median_output_tokens_per_second) || 0}"
+        data-intelligence="${parseFiniteMetricValue(model.aa_intelligence_index) ?? ''}"
+          data-mmlu="${parseFiniteMetricValue(model.mmlu_pro) ?? ''}"
+        data-gpqa="${parseFiniteMetricValue(model.gpqa) ?? ''}"
+        data-hle="${parseFiniteMetricValue(model.hle) ?? ''}"
+        data-aime="${parseFiniteMetricValue(model.aime) ?? ''}"
+        data-input-price="${parseFiniteMetricValue(model.price_1m_input_tokens) ?? ''}"
+        data-output-price="${parseFiniteMetricValue(model.price_1m_output_tokens) ?? ''}"
+        data-tps="${parseFiniteMetricValue(model.median_output_tokens_per_second) ?? ''}"
       >
         <td class="px-4 py-3 font-medium text-text">${escapeHtml(toDisplayName(model.name))}</td>
         <td class="px-4 py-3 text-subtle">${escapeHtml(toDisplayName(model.company_name, "-"))}</td>
+        <td class="px-4 py-3 text-right font-mono text-text">${formatIndex(model.aa_intelligence_index)}</td>
         <td class="px-4 py-3 text-right font-mono text-text">${formatContextLength(model.openrouter_context_length)}</td>
         <td class="px-4 py-3 text-right font-mono text-text">${formatPrice(model.price_1m_input_tokens, 3)}</td>
         <td class="px-4 py-3 text-right font-mono text-text">${formatPrice(model.price_1m_output_tokens, 3)}</td>
@@ -3519,6 +3519,16 @@ ${allBenchmarks.length ? `
     const applySearch = (resetVisible = false) => {
       if (resetVisible) currentVisible = PAGE_SIZE;
       const q = (searchInput?.value || "").toLowerCase().trim();
+      if(browserModels&&grid&&tableBody){
+        const page=browserPage(browserModels,q,sortSelect?.value??'intelligence',sortDirectionSelect?.value??'desc',currentVisible);
+        matchedTotal=page.total;
+        if(totalCountEl)totalCountEl.textContent=String(page.total);
+        grid.innerHTML=page.rows.map(createCardMarkup).join('');
+        tableBody.innerHTML=page.rows.map(createTableRowMarkup).join('');
+        getCards().forEach(card=>{card.dataset.match='true';});
+        bindCardFocus();bindTableRows();updateVisibility();
+        return;
+      }
       matchedTotal = 0;
 
       getCards().forEach((card) => {
@@ -3535,28 +3545,25 @@ ${allBenchmarks.length ? `
 
     const sortCards = () => {
       if (!grid) return;
-      const metric = sortSelect?.value || "mmlu";
+      const metric = sortSelect?.value || "intelligence";
       const direction = sortDirectionSelect?.value || "desc";
-      const attr = sortAttrMap[metric] ?? "mmlu";
+      const attr = sortAttrMap[metric] ?? "intelligence";
 
       // Reflect the active sort direction in the rotating glyph.
       sortDirectionIndicator?.classList.toggle("is-asc", direction === "asc");
+      if(browserModels){applySearch(true);return;}
 
       const cards = getCards();
       cards.sort((a, b) => {
-        const valA = Number(a.dataset[attr]) || 0;
-        const valB = Number(b.dataset[attr]) || 0;
-        if (valA === valB) return 0;
-        return direction === "desc" ? valB - valA : valA - valB;
+        return compareOptionalMetricValues(a.dataset[attr], b.dataset[attr], direction)
+          || (a.dataset.name ?? '').localeCompare(b.dataset.name ?? '');
       });
       cards.forEach((card) => grid.appendChild(card));
 
       const rows = getTableRows();
       rows.sort((a, b) => {
-        const valA = Number(a.dataset[attr]) || 0;
-        const valB = Number(b.dataset[attr]) || 0;
-        if (valA === valB) return 0;
-        return direction === "desc" ? valB - valA : valA - valB;
+        return compareOptionalMetricValues(a.dataset[attr], b.dataset[attr], direction)
+          || (a.dataset.name ?? '').localeCompare(b.dataset.name ?? '');
       });
       rows.forEach((row) => tableBody?.appendChild(row));
 
@@ -3634,7 +3641,7 @@ ${allBenchmarks.length ? `
       viewCardsBtn?.setAttribute("aria-pressed", "false");
       viewTableBtn?.classList.add("active");
       viewTableBtn?.setAttribute("aria-pressed", "true");
-      if (loadMoreBtn) loadMoreBtn.style.display = "none";
+      if (loadMoreBtn) loadMoreBtn.style.display = browserModels ? "" : "none";
       applyTableSearch();
     };
 
@@ -3665,11 +3672,8 @@ ${allBenchmarks.length ? `
 
     const renderModels = (models) => {
       if (!grid || !tableBody) return;
+      browserModels=models;
       registerDrawerModels(models);
-      grid.innerHTML = models.map(createCardMarkup).join("");
-      tableBody.innerHTML = models.map(createTableRowMarkup).join("");
-      bindCardFocus();
-      bindTableRows();
       sortCards();
       setView(currentView);
     };
@@ -3728,7 +3732,7 @@ ${allBenchmarks.length ? `
 
     loadMoreBtn?.addEventListener("click", () => {
       currentVisible = Math.min(currentVisible + PAGE_SIZE, matchedTotal);
-      updateVisibility();
+      if(browserModels)applySearch();else updateVisibility();
     });
 
     sortSelect?.addEventListener("change", sortCards);
@@ -3839,6 +3843,32 @@ ${allBenchmarks.length ? `
       observers.add(catalogObserver);
       catalogObserver.observe(catalogSection);
     };
+
+    let browserLoaded=false,browserLoading=false;
+    const browserStatus=document.getElementById('model-browser-load-status');
+    const browserRetry=document.getElementById('model-browser-retry');
+    const browserDisclosure=document.getElementById('model-browser')?.closest('details');
+    const loadFullModelBrowser=async()=>{
+      if(browserLoaded||browserLoading)return;
+      browserLoading=true;
+      if(browserStatus){browserStatus.hidden=false;browserStatus.textContent='Loading the full model list…';}
+      if(browserRetry)browserRetry.hidden=true;
+      try{
+        const response=await fetch('/api/model-browser.json',{signal:lifecycle.signal});
+        if(!response.ok)throw new Error('Model list unavailable');
+        const rows=validateBrowserPayload(await response.json());
+        if(!isCurrentDashboard())return;
+        updateModelCounts(rows);renderModels(rows);browserLoaded=true;
+        if(browserStatus)browserStatus.hidden=true;
+      }catch{
+        if(lifecycle.signal.aborted)return;
+        if(browserStatus)browserStatus.textContent='The full model list could not load. Only the initial preview is shown.';
+        if(browserRetry)browserRetry.hidden=false;
+      }finally{browserLoading=false;}
+    };
+    browserDisclosure?.addEventListener('toggle',()=>{if(browserDisclosure.open)void loadFullModelBrowser();},lifecycle);
+    browserRetry?.addEventListener('click',()=>void loadFullModelBrowser(),lifecycle);
+    if(browserDisclosure?.open)void loadFullModelBrowser();
 
     bindCardFocus();
     bindTableRows();

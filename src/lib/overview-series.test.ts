@@ -92,3 +92,15 @@ test('visible chart labels keep frontier endpoints when they fit and skip collis
  expect(selected).toContain('p3');
  expect(collisionFreeChartLabels(points,{'cohort':['p0','p1','p2','p3']},500,4)).toEqual(selected);
 });
+test('homepage suggestions share the nonfree comparison policy, including after provider filtering',async()=>{
+ const {overviewSuggestions}=await import('./overview-series');
+ const rows=buildExplorerCatalog([
+  aa('free','Free',{price_1m_blended_3_to_1:0}),
+  aa('paid','Paid',{creator_name:'Provider A',price_1m_blended_3_to_1:2}),
+  aa('other','Other',{creator_name:'Provider B',price_1m_blended_3_to_1:3,aa_intelligence_index:30}),
+  aa('zero-task','Zero task',{price_1m_blended_3_to_1:1,source_metadata:{intelligence_index_version:'4.3',index_cost:{cost_per_task:{total_cost:0}}}}),
+ ],[]);
+ expect(overviewSuggestions(rows,'task-cost','4.3')).toEqual(['paid']);
+ expect(overviewSuggestions(rows,'task-cost','4.3','Provider B')).toEqual(['other']);
+ expect(overviewSuggestions(rows,'cost-intelligence','4.3')).not.toContain('free');
+});

@@ -115,7 +115,7 @@ const workbenchPayloadJson = JSON.stringify({
   </form>
 
   <section class="reasoning-evidence" data-reasoning-evidence hidden aria-label="Reasoning benchmark results">
-    <p>Alphabetical sample of Epoch results with one run per variant. View repeated runs in Compare. The budget filter applies to AA results only.</p>
+    <p>Recent model releases with one unambiguous run per variant. Open Compare for all results. The budget filter applies to AA results only.</p>
     <div class="reasoning-benchmarks">
       {reasoningHighlights.map(benchmark => (
         <article>
@@ -125,13 +125,13 @@ const workbenchPayloadJson = JSON.stringify({
             <ol>
               {benchmark.rows.map(row => (
                 <li>
-                  <div><strong>{row.name}</strong><small>{row.version}</small></div>
+                  <div><strong>{row.name}</strong><small title={row.version}>{row.releaseDate ? `Released ${row.releaseDate.slice(0,10)}` : row.version}</small></div>
                   <span>{row.score.toFixed(1)}{row.unit === 'percent' ? '%' : ` ${row.metric}`}</span>
                 </li>
               ))}
             </ol>
           ) : <p>No valid results in the current source snapshot.</p>}
-          <a href={`/compare?metric=epoch_${benchmark.slug}`}>Compare this benchmark</a>
+          <a href={`/compare?chart=benchmark&metric=epoch_${benchmark.slug}&auto=1`}>Compare this benchmark</a>
         </article>
       ))}
     </div>

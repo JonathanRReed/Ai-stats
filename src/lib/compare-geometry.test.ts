@@ -84,3 +84,22 @@ test('log bars sit on the bottom baseline and tiny positive bars stay visible',(
   expect(plot.points.every(point=>Number.isFinite(point.cy)&&point.cy<=plot.bottom&&point.cy>=plot.top)).toBe(true);
   expect(plot.points[0].cy).toBeLessThan(plot.bottom);
 });
+
+test('speed log axes use nearby readable bounds instead of an empty extra decade',()=>{
+ const plot=geometry.plotGeometry([{id:'slow',x:45,y:50},{id:'fast',x:1430.58,y:6}],'scatter','log');
+ expect(plot.points[1].cx).toBeGreaterThan(plot.left+(plot.right-plot.left)*.8);
+ expect(plot.xTicks.every(tick=>tick.position>=plot.left-.001&&tick.position<=plot.right+.001)).toBe(true);
+});
+test('a lone non-power-of-ten log value retains a finite nonzero domain',()=>{
+ const plot=geometry.plotGeometry([{id:'one',x:2,y:70}],'scatter','log');
+ expect(Number.isFinite(plot.points[0].cx)).toBe(true);
+ expect(plot.points[0].cx).toBeGreaterThan(plot.left);
+ expect(plot.points[0].cx).toBeLessThan(plot.right);
+});
+test('extreme narrow log ranges keep readable exponent labels and finite geometry',()=>{
+ for(const values of [[1e308,Number.MAX_VALUE],[1e-310,2e-310]]){
+  const plot=geometry.plotGeometry(values.map((x,i)=>({id:String(i),x,y:i+1})),'scatter','log');
+  expect(plot.points.every(point=>Number.isFinite(point.cx))).toBe(true);
+  expect(plot.xTicks.every(tick=>!tick.label.includes('.')&&tick.label.length<12)).toBe(true);
+ }
+});

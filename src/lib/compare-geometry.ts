@@ -11,7 +11,7 @@ export function plotGeometry<T extends PlotPoint>(points:T[],kind:'scatter'|'bar
     const power=10**Math.floor(Math.log10(rough));const ratio=rough/power;
     return (ratio<=1.5?1:ratio<=3?2:ratio<=7?5:10)*power;
   };
-  // Linear axes use value-space domains. Log axes use whole-decade EXPONENT domains, so every
+  // Linear axes use value-space domains. Log axes use EXPONENT domains, so every
   // finite positive double (including subnormals and values near Number.MAX_VALUE) maps
   // exactly, with no epsilon or 1e±300 clamp and no overflow when forming 10**exponent.
   const linearDomain=(values:number[]):[number,number]=>{
@@ -28,6 +28,14 @@ export function plotGeometry<T extends PlotPoint>(points:T[],kind:'scatter'|'bar
     if(!usable.length)return [0,1];
     let low=Math.floor(Math.log10(Math.min(...usable))),high=Math.ceil(Math.log10(Math.max(...usable)));
     if(low===high){low-=1;high+=1;}
+    else if(high-low<=12&&low>=-300&&high<=300&&Math.min(...usable)!==Math.max(...usable)){
+      const min=Math.log10(Math.min(...usable)),max=Math.log10(Math.max(...usable));
+      const steps=[0,Math.log10(2),Math.log10(5)];
+      const candidates=[];
+      for(let exponent=low;exponent<=high;exponent++)for(const step of steps)candidates.push(exponent+step);
+      low=Math.max(...candidates.filter(value=>value<=min));
+      high=Math.min(...candidates.filter(value=>value>=max));
+    }
     return [low,high];
   };
   const xDomain=logX?logDomain(finite.map(point=>point.x)):linearDomain(finite.map(point=>point.x));
@@ -52,7 +60,16 @@ export function plotGeometry<T extends PlotPoint>(points:T[],kind:'scatter'|'bar
   const ticks=(range:[number,number],log:boolean,axis:'x'|'y')=>{
     if(log){
       const step=Math.max(1,Math.ceil((range[1]-range[0])/10)),result=[];
-      for(let exponent=range[0];exponent<=range[1];exponent+=step){
+      const exponents:number[]=[];
+      if(range[1]-range[0]<=12){
+        for(let exponent=Math.floor(range[0]);exponent<=Math.ceil(range[1]);exponent++){
+          for(const multiplier of (range[1]-range[0]<3&&(range[1]-range[0]<2||range.some(value=>!Number.isInteger(value)))&&range[0]>=-300&&range[1]<=300?[1,2,5]:[1])){
+            const value=exponent+Math.log10(multiplier);
+            if(value>=range[0]-1e-12&&value<=range[1]+1e-12)exponents.push(value);
+          }
+        }
+      }else for(let exponent=range[0];exponent<=range[1];exponent+=step)exponents.push(exponent);
+      for(const exponent of exponents){
         const at=exponentFraction(exponent,range);
         result.push({value:10**exponent,label:Math.abs(exponent)>300?'1e'+exponent:formatChartNumber(10**exponent),
           position:axis==='x'?left+at*(right-left):bottom-at*(bottom-top)});

@@ -57,3 +57,9 @@ test('PNG encoding produces a binary Blob and rejects a failed browser encoder',
  expect(await exporter.canvasPngBlob({toBlob:callback=>callback(blob)})).toBe(blob);
  await expect(exporter.canvasPngBlob({toBlob:callback=>callback(null)})).rejects.toThrow('Image encoding failed');
 });
+test('PNG export preserves text halos and dashed Pareto lines',async()=>{
+ const source=await Bun.file(new URL('./compare-export.ts',import.meta.url)).text();
+ expect(source).toContain("'paint-order'");
+ expect(source).toContain("'stroke-dasharray'");
+ expect(source).toContain("'stroke-linejoin'");
+});
