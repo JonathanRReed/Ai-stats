@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { type ExplorerModel } from '../../lib/compare-series';
+import { logOmissions, logOmissionHeading, plottableSeriesPoints, type ExplorerModel } from '../../lib/compare-series';
 import { buildOverviewSeries, defaultOverviewMetric, overviewCohorts, overviewObservationDate, retainAvailableProvider, UNKNOWN_VERSION, type OverviewMetric } from '../../lib/overview-series';
 import ComparisonChart, { familyColor } from './ComparisonChart';
 import ObservationDetails from './ObservationDetails';
@@ -37,9 +37,15 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
     (!search || (model.name+' '+model.family+' '+model.provider+' '+model.sourceModelId).toLowerCase().includes(search.toLowerCase().trim()))), [cohortRows,provider,search]);
   const plotRows=useMemo(()=>showAllMeasured?cohortRows.filter(model=>!provider||(model.provider??'Unknown provider')===provider):cohortRows.filter(model=>selectedIds.includes(model.id)&&(!provider||(model.provider??'Unknown provider')===provider)),[showAllMeasured,cohortRows,provider,selectedIds]);
   const series = useMemo(() => buildOverviewSeries(plotRows,metric,cohort,scale), [plotRows,metric,cohort,scale]);
-  const visiblePoints = useMemo(() => series.points.filter(point => !frontierOnly ||
+  // The chart receives every measured record (it drops only nonplottable geometry itself), so an
+  // all-zero Log view says "Nothing to plot on Log" instead of "no measurements selected".
+  const frontierFiltered = useMemo(() => series.points.filter(point => !frontierOnly ||
     Object.values(series.frontierGroups).some(ids => ids.includes(point.id))), [series,frontierOnly]);
-  const visibleSeries = useMemo(() => ({...series,points:visiblePoints}), [series,visiblePoints]);
+  const visibleSeries = useMemo(() => {const ids=new Set(frontierFiltered.map(point=>point.id));
+    return {...series,points:frontierFiltered,omittedFromLog:series.omittedFromLog.filter(point=>ids.has(point.id))};}, [series,frontierFiltered]);
+  const plottable = useMemo(() => plottableSeriesPoints(series), [series]);
+  const visiblePoints = useMemo(() => plottableSeriesPoints(visibleSeries), [visibleSeries]);
+  const omitted = useMemo(() => logOmissions(series.omittedFromLog, series.kind), [series]);
   const visibleFamilies = useMemo(() => [...new Set(visiblePoints.map(point=>point.family))].sort((a,b)=>a.localeCompare(b)), [visiblePoints]);
   const active = series.points.find(point => point.id === (pinned ?? activeId)) ?? null;
   const costAvailable = cohort !== UNKNOWN_VERSION && buildOverviewSeries(models,'task-cost',cohort).points.length>0;
@@ -73,10 +79,10 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
     </details>:<p className="overview-methodology-note">Token prices use the recorded 3:1 input/output blend. Zero is a measured price when the source reports it.</p>}
     <dl className="overview-summary" aria-label="Selected cohort summary">
       <div><dt>AA records in cohort</dt><dd>{cohortRows.length.toLocaleString('en-US')}</dd></div>
-      <div><dt>Plotted for these axes</dt><dd>{series.points.length.toLocaleString('en-US')}</dd></div>
+      <div><dt>Plotted for these axes</dt><dd>{plottable.length.toLocaleString('en-US')}</dd></div>
       <div><dt>Latest source observation</dt><dd>{dateLabel(overviewObservationDate(cohortRows,cohort))}</dd></div>
     </dl>
-    <p className="overview-plot-status" aria-live="polite">{visiblePoints.length} of {series.points.length} plotted points · {cohortRows.length} records in this version. Recorded zeros stay on a linear axis.</p>
+    <p className="overview-plot-status" aria-live="polite">{visiblePoints.length} of {plottable.length} plotted points · {cohortRows.length} records in this version.{omitted.length?` ${omitted.length} measured ${omitted.length===1?'record is':'records are'} not plotted on Log.`:''}</p>
     <label className="overview-all-measured"><input type="checkbox" checked={showAllMeasured} onChange={event=>setShowAllMeasured(event.target.checked)}/>Show all measured models</label>
     <details className="overview-model-picker"><summary>Search, add, or remove models ({selectedIds.length} selected)</summary>
       <label>Find a model<input type="search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search full model name"/></label>
@@ -84,18 +90,21 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
       {!matchingRows.length?<p>No matching models.</p>:null}
       {matchingRows.length>40?<p>Showing first 40 matches. Narrow the search to find a specific record.</p>:null}
     </details>
-    {series.scaleNotice?<p className="explorer-warning" role="status">{series.scaleNotice}</p>:null}
+    {omitted.length?<div className="explorer-warning" role="status"><p>{logOmissionHeading(omitted,series.xLabel)}:</p>
+      <ul className="omitted-log-list" aria-label="Records not plotted on Log">{omitted.slice(0,12).map(item=><li key={item.id}>{item.label}: {item.valueLabel}</li>)}</ul>
+      {omitted.length>12?<p>{omitted.length-12} more are listed in the exact chart data.</p>:null}
+      <button type="button" className="scale-notice-action" onClick={()=>setScale('linear')}>Show all on Linear</button></div>:null}
     <div className="overview-chart-layout">
       <div className="overview-chart-wrap">
         <ComparisonChart series={visibleSeries} labels={true} endpointLane activeId={active?.id??null} onPreview={setActiveId}
-          onPin={id=>setPinned(pinned===id?null:id)} svgRef={svg}/>
+          onPin={id=>setPinned(pinned===id?null:id)} svgRef={svg} onShowLinear={()=>setScale('linear')}/>
         <p className="overview-inspect-hint">Frontier and selected endpoint names appear when labels fit; focus or select any point for its full details. Use arrow keys to inspect nearby records.</p>
         <ObservationDetails series={series} point={active} pinned={Boolean(pinned)} onPin={()=>setPinned(pinned?null:active?.id??null)} onClose={()=>{setPinned(null);setActiveId(null);}}/>
       </div>
       <aside className="overview-family-key" aria-label="Visible model families">
         <h3>Families</h3>
         {visibleFamilies.slice(0,12).map(family=><span key={family} title={family}><i style={{background:familyColor(family)}}/>{family}</span>)}
-        {!visibleFamilies.length?<p>No points match this cohort and metric.</p>:null}
+        {!visibleFamilies.length?<p>{frontierFiltered.length&&series.scale==='log'?'None of these records can be drawn on Log.':'No points match this cohort and metric.'}</p>:null}
         {visibleFamilies.length>12?<p>{visibleFamilies.length-12} more appear in the exact data table.</p>:null}
       </aside>
     </div>

@@ -1,21 +1,25 @@
 import type {ExplorerModel} from './compare-series';
 import type {CompareChart} from './compare-state';
 import type {ComparePreset} from './compare-presets';
+import {buildBrowseRanks,type BrowseRanks} from './compare-browse-rank';
 const SOURCES:ExplorerModel['source'][]=['aa','epoch','openrouter','huggingface','litellm','catalog','publisher'];
 type CompactRow=[string,string,number,number,boolean|null,string|null,string|null,string|null,string|null,number];
-export type CompactCatalog={providers:string[];rows:CompactRow[]};
-export type CompareDelivery={frontierPolicy?:'compatible-cohort-frontier.v1';suggestedModelIds?:Partial<Record<CompareChart,string[]>>;suggestionFrontierCounts?:Partial<Record<CompareChart,{total:number;truncated:boolean}>>;aaBenchmarkSelections?:Record<string,{current:string[];historical:string[]}>;assetBase?:string;benchmarkBase?:string;catalog:CompactCatalog;revision:string;presets:ComparePreset[];charts:Array<{id:CompareChart;label:string}>;aaMetrics:Array<[string,string]>};
+export type CompactCatalog={providers:string[];rows:CompactRow[];browseRanks?:BrowseRanks};
+export type CompareDelivery={automaticSelectionPolicy?:string;frontierPolicy?:'compatible-cohort-frontier.v1';suggestedModelIds?:Partial<Record<CompareChart,string[]>>;suggestionFrontierCounts?:Partial<Record<CompareChart,{total:number;truncated:boolean}>>;aaBenchmarkSelections?:Record<string,{current:string[];historical:string[]}>;assetBase?:string;benchmarkBase?:string;catalog:CompactCatalog;revision:string;presets:ComparePreset[];charts:Array<{id:CompareChart;label:string}>;aaMetrics:Array<[string,string]>};
 const finite=(value:unknown):value is number=>typeof value==='number'&&Number.isFinite(value);
 const metricKeys=['intelligence','coding','priceInput','priceOutput','priceBlended','outputSpeed','latency','aaTaskCost','aaEvaluationCost'] as const;
 export function compactCatalog(models:ExplorerModel[]):CompactCatalog{
  const providers=[...new Set(models.map(model=>model.provider??'Unknown'))];
- return {providers,rows:models.map(model=>{
+ const catalog:CompactCatalog={providers,rows:models.map(model=>{
  const native=model.source==='aa'?model.id:model.id.slice(model.source.length+1);
  const prices=finite(model.priceInput)||finite(model.priceOutput);
  const detail=metricKeys.some(key=>finite(model[key]))||Object.values(model.metrics??{}).some(finite);
  return [model.id,model.name,providers.indexOf(model.provider??'Unknown'),SOURCES.indexOf(model.source),model.current,
  model.family===model.name?null:model.family,model.reasoning&&model.reasoning!=='unknown'?model.reasoning:null,model.slug??null,
  native===model.sourceModelId?null:model.sourceModelId,(prices?1:0)|(detail?2:0)];})};
+ // Always carried (even when empty) so a release states its rank contract explicitly.
+ catalog.browseRanks=buildBrowseRanks(models);
+ return catalog;
 }
 export function expandCatalog(catalog:CompactCatalog):ExplorerModel[]{
  return catalog.rows.map(([id,name,provider,sourceIndex,current,family,reasoning,slug,native,flags])=>{

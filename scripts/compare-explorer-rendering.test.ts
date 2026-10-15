@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import {expect,test} from 'bun:test';
 import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
@@ -44,4 +45,11 @@ test('unknown AA membership is visibly disclosed and failed loads have a retry p
  expect(source).toContain('Retry benchmark');
  expect(source).toContain('retryAttempt');
  expect(source).toContain('Score metric');
+});
+
+test('bar views always expose scale controls and export explains a chartless state',()=>{
+ const source=readFileSync('src/components/compare/CompareExplorer.tsx','utf8');
+ expect(source).not.toContain("{series.kind==='scatter'?<div className=\"scale-buttons\"");
+ expect(source).toContain('No chart can be exported in this state.');
+ expect(source).toContain('...logNotice.selected,...logNotice.reference');
 });

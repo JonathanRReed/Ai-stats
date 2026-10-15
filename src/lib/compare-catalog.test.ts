@@ -21,7 +21,7 @@ test('default selection excludes history and missing measurements without invent
   const models:ExplorerModel[]=[{id:'old',name:'Old',family:'Old',source:'aa',sourceModelId:'old',current:false,intelligence:100,priceBlended:1},
     {id:'a',name:'A',family:'A',source:'aa',sourceModelId:'a',current:true,intelligence:70,priceBlended:0,aaTaskCost:.5,indexVersion:'4.3'},
     {id:'b',name:'B',family:'B',source:'aa',sourceModelId:'b',current:true,intelligence:60,priceBlended:1,aaTaskCost:.8,indexVersion:'4.3'}];
-  expect(catalog.defaultExplorerSelection?.(models)).toEqual(['a','b']);
+  expect(catalog.defaultExplorerSelection?.(models)).toEqual(['b']);
 });
 test('recorded date labels stay in family names and unknown reasoning is not called none',()=>{
   expect(catalog.modelDisplayFacets?.('Model (Jan 2025)')).toEqual({family:'Model (Jan 2025)',reasoning:'unknown'});

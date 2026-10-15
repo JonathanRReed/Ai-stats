@@ -23,7 +23,9 @@ export function compareFamilyKey(model:Pick<ExplorerModel,'source'|'provider'|'f
  return JSON.stringify([model.source,model.provider??model.family,model.family]);
 }
 
-export function groupCompareFamilies(models:ExplorerModel[],selectedIds:string[],query='',suggestedIds:string[]=[]):CompareFamily[]{
+export type FamilyBrowseSort='recommend'|'alpha';
+
+export function groupCompareFamilies(models:ExplorerModel[],selectedIds:string[],query='',suggestedIds:string[]=[],options:{sort?:FamilyBrowseSort;browseOrder?:readonly string[]|null}={}):CompareFamily[]{
  const selected=new Set(selectedIds),suggested=new Set(suggestedIds),term=query.trim().toLocaleLowerCase('en-US');
  const groups=new Map<string,CompareFamily>();
  for(const model of models){
@@ -33,8 +35,26 @@ export function groupCompareFamilies(models:ExplorerModel[],selectedIds:string[]
   if(selected.has(model.id))group.selectedIds.push(model.id);
   if(suggested.has(model.id))group.suggested=true;
  }
+ const rank=new Map((options.browseOrder??[]).map((key,index)=>[key,index]));
+ const alpha=(a:CompareFamily,b:CompareFamily)=>a.family.localeCompare(b.family,'en',{numeric:true})||a.provider.localeCompare(b.provider,'en')||a.source.localeCompare(b.source);
+ const searchBoost=(group:CompareFamily)=>{
+  if(!term)return 0;
+  if(group.family.toLocaleLowerCase('en-US')===term||group.records.some(model=>model.name.toLocaleLowerCase('en-US')===term))return 3;
+  if(group.family.toLocaleLowerCase('en-US').startsWith(term)||group.records.some(model=>model.name.toLocaleLowerCase('en-US').startsWith(term)))return 2;
+  return 0;
+ };
+ const recommend=(a:CompareFamily,b:CompareFamily)=>{
+  const boost=searchBoost(b)-searchBoost(a);if(boost)return boost;
+  // Recommended order comes only from release rank metadata (never from whichever
+  // measurement chunks happen to be loaded). Unranked families follow alphabetically.
+  if(options.sort!=='alpha'&&rank.size){
+   const aPos=rank.get(a.key)??Number.POSITIVE_INFINITY,bPos=rank.get(b.key)??Number.POSITIVE_INFINITY;
+   if(aPos!==bPos)return aPos-bPos;
+  }
+  return alpha(a,b);
+ };
  return [...groups.values()].filter(group=>!term||[group.family,group.provider,group.source,...group.records.map(model=>model.name+' '+(model.reasoning??'')+' '+model.sourceModelId)].join(' ').toLocaleLowerCase('en-US').includes(term))
-  .sort((a,b)=>Number(b.selectedIds.length>0)-Number(a.selectedIds.length>0)||a.family.localeCompare(b.family,'en',{numeric:true})||a.provider.localeCompare(b.provider,'en')||a.source.localeCompare(b.source));
+  .sort((a,b)=>Number(b.selectedIds.length>0)-Number(a.selectedIds.length>0)||recommend(a,b));
 }
 
 export function toggleCompareFamilySelection(selectedIds:string[],familyIds:string[],checked:boolean,limit=100):string[]{

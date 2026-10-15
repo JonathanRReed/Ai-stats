@@ -1,5 +1,6 @@
 import type {CompareState} from './compare-state';
 import {epochConditionKey,type EpochObservation} from './epoch-observations';
+import {formatChartNumber} from './compare-geometry';
 
 export type ExplorerModel = {
   id:string; name:string; slug?:string; family:string; provider?:string; reasoning?:string;
@@ -57,9 +58,51 @@ export function barCategoryLabels(points:SeriesPoint[]):BarCategoryLabel[]{
 export type CompareSeries = {
   available:boolean; unavailableReason:string|null; kind:'scatter'|'bars'; points:SeriesPoint[];
   excluded:Array<{modelId:string;reason:string}>; xLabel:string; yLabel:string;
-  scale:'linear'|'log'; scaleNotice:string|null; mixedConditions:boolean;
+  scale:'linear'|'log'; scaleNotice:string|null; omittedFromLog:SeriesPoint[]; mixedConditions:boolean;
   frontierGroups:Record<string,string[]>; higherXIsBetter:boolean;
 };
+/** Axis value used for log eligibility (scatter X, bar Y). */
+export const seriesLogCoordinate=(point:Pick<SeriesPoint,'x'|'y'>,kind:'scatter'|'bars')=>kind==='scatter'?point.x:point.y;
+/** Points that may reach log geometry; nonpositive values stay in series.points for CSV/details. */
+export function plottableSeriesPoints(series:Pick<CompareSeries,'points'|'kind'|'scale'|'omittedFromLog'>):SeriesPoint[]{
+  if(series.scale!=='log')return series.points;
+  const omitted=new Set((series.omittedFromLog??[]).map(point=>point.id));
+  return series.points.filter(point=>!omitted.has(point.id)&&seriesLogCoordinate(point,series.kind)>0);
+}
+export type LogOmission={id:string;modelId:string;label:string;value:number;valueLabel:string;sign:'zero'|'negative'};
+const omissionValue=(value:number)=>value===0?'0':value<0?'−'+formatChartNumber(Math.abs(value)):formatChartNumber(value);
+/** Named, de-duplicated identities for records that cannot sit on a log axis. */
+export function logOmissions(points:SeriesPoint[],kind:'scatter'|'bars'):LogOmission[]{
+  const unique=[...new Map(points.filter(point=>!(seriesLogCoordinate(point,kind)>0)).map(point=>[point.id,point])).values()];
+  const baseLabel=(point:SeriesPoint)=>point.label+(point.series==='input'?' · Input tokens':point.series==='output'?' · Output tokens':'');
+  const counts=new Map<string,number>();unique.forEach(point=>counts.set(baseLabel(point),(counts.get(baseLabel(point))??0)+1));
+  return unique.map(point=>{
+    const value=seriesLogCoordinate(point,kind);
+    const label=counts.get(baseLabel(point))!>1?`${baseLabel(point)} · ${point.reasoning!=='unknown'?point.reasoning:point.provider??point.modelId}`:baseLabel(point);
+    return {id:point.id,modelId:point.modelId,label,value,valueLabel:omissionValue(value),sign:value===0?'zero':'negative'};
+  });
+}
+const signWords=(items:LogOmission[])=>items.every(item=>item.sign==='zero')?'zero':items.every(item=>item.sign==='negative')?'negative':'zero or negative';
+/** Heading for an omission list, e.g. "1 selected observation is not plotted on Log (zero USD / AA Index task)". */
+export function logOmissionHeading(items:LogOmission[],axisLabel:string,scope:'selected'|'reference'='selected'):string{
+  const n=items.length;
+  const who=scope==='selected'?`${n} selected ${n===1?'observation is':'observations are'}`:`${n} current frontier reference ${n===1?'record is':'records are'}`;
+  return `${who} not plotted on Log (${signWords(items)} ${axisLabel})`;
+}
+/** Accessible notice text naming each omitted record and its value. */
+export function logOmissionNotice(items:LogOmission[],axisLabel:string,scope:'selected'|'reference'='selected',limit=8):string|null{
+  if(!items.length)return null;
+  const listed=items.slice(0,limit).map(item=>`${item.label} (${item.valueLabel})`).join(', ');
+  return `${logOmissionHeading(items,axisLabel,scope)}: ${listed}${items.length>limit?`, and ${items.length-limit} more`:''}.`;
+}
+/** Selected omissions first, then reference-frontier omissions not already in the selection (never listed twice). */
+export function combinedLogOmissions(series:CompareSeries,reference?:CompareSeries|null){
+  if(series.scale!=='log')return null;
+  const selected=logOmissions(series.omittedFromLog,series.kind);
+  const selectedIds=new Set(series.points.map(point=>point.id));
+  const others=logOmissions((reference?.omittedFromLog??[]).filter(point=>!selectedIds.has(point.id)),series.kind);
+  return selected.length||others.length?{selected,reference:others,axis:series.kind==='scatter'?series.xLabel:series.yLabel}:null;
+}
 export function chartLabelCandidates(points:SeriesPoint[],frontierGroups:Record<string,string[]>,limit=12):string[]{
  const priorities:string[]=[];
  for(const ids of Object.values(frontierGroups))priorities.push(...ids);
@@ -106,10 +149,17 @@ export function paretoFrontiers<T extends {id:string;x:number;y:number;cohortKey
     !group.some(other=>other.id!==point.id&&(direction==='min'?other.x<=point.x:other.x>=point.x)&&other.y>=point.y&&
       (other.x!==point.x||other.y!==point.y))).sort((a,b)=>a.x-b.x||a.id.localeCompare(b.id)).map(point=>point.id)]));
 }
+/** Split a frontier into drawable runs; never bridge across a member that has no plotted position. */
+export function frontierSegments<T>(ids:string[],positions:Map<string,T>):T[][]{
+  const runs:T[][]=[];let run:T[]=[];
+  for(const id of ids){const position=positions.get(id);if(position)run.push(position);else{if(run.length)runs.push(run);run=[];}}
+  if(run.length)runs.push(run);
+  return runs;
+}
 export const epochScoreKey=(row:Pick<EpochObservation,'metricKey'|'unit'|'benchmarkVersion'>)=>JSON.stringify([row.metricKey??'Unknown metric',row.unit==='fraction'?'percent':row.unit,...(row.benchmarkVersion?[row.benchmarkVersion]:[])]);
 export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState):CompareSeries {
   const result:CompareSeries={available:true,unavailableReason:null,kind:['cost-intelligence','speed-intelligence','task-cost','total-cost'].includes(state.chart)?'scatter':'bars',
-    points:[],excluded:[],xLabel:'Model',yLabel:'Value',scale:state.scale,scaleNotice:null,mixedConditions:false,
+    points:[],excluded:[],xLabel:'Model',yLabel:'Value',scale:state.scale,scaleNotice:null,omittedFromLog:[],mixedConditions:false,
     frontierGroups:{},higherXIsBetter:state.chart==='speed-intelligence'};
   const selected=new Set(state.modelIds);
   const models=evidence.models.filter(model=>{
@@ -122,6 +172,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
     if(reason){result.excluded.push({modelId:model.id,reason});return false;}
     return true;
   });
+  models.sort((a,b)=>state.modelIds.indexOf(a.id)-state.modelIds.indexOf(b.id));
   const receiptFor=(model:ExplorerModel):EvidenceReceipt=>({source:EXPLORER_SOURCE_LABELS[model.source],
     sourceUrl:sourceUrl(model.sourceUrl),observedAt:model.observedAt??null,fetchedAt:model.fetchedAt??null,indexVersion:model.indexVersion??null,
     conditions:model.performancePrompt?{performancePrompt:model.performancePrompt}:null,snapshotId:null});
@@ -142,7 +193,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
     }
     const conditions=new Set(rows.map(row=>epochConditionKey(row.conditions)));
     result.mixedConditions=conditions.size>1;
-    rows.sort((a,b)=>a.modelVersion.localeCompare(b.modelVersion)||a.id.localeCompare(b.id)).forEach((row,index)=>{
+    rows.sort((a,b)=>state.modelIds.indexOf(versions.get(a.modelVersion)!.id)-state.modelIds.indexOf(versions.get(b.modelVersion)!.id)||a.id.localeCompare(b.id)).forEach((row,index)=>{
       const model=versions.get(row.modelVersion)!;
       const unit=row.unit==='fraction'||row.unit==='percent'?'percent':row.metricKey??'Source-native score';
       add(model,index,row.value!*(row.unit==='fraction'?100:1),'observation',unit,
@@ -176,9 +227,17 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
       }
     });
   }
-  if(state.scale==='log'&&result.points.some(point=>(result.kind==='scatter'?point.x:point.y)<=0)){
-    result.scale='linear';result.scaleNotice='A zero or negative value requires a linear scale.';
+  if(state.scale==='log'){
+    const omitted=result.points.filter(point=>!(seriesLogCoordinate(point,result.kind)>0));
+    if(omitted.length){
+      // Keep scale='log' so positive measurements stay on a logarithmic axis; omitted
+      // records stay in points for CSV, details and counts.
+      result.omittedFromLog=omitted;
+      result.scaleNotice=logOmissionNotice(logOmissions(omitted,result.kind),result.kind==='scatter'?result.xLabel:result.yLabel);
+    }
   }
+  // Dominance is a property of the measurements, not of the axis: compute it from every
+  // compatible raw point so a zero-cost record still dominates on Log, where it is omitted.
   if(state.frontier&&result.kind==='scatter')result.frontierGroups=paretoFrontiers(result.points,result.higherXIsBetter?'max':'min');
   return result;
 }

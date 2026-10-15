@@ -41,3 +41,46 @@ test('negative-only bar values retain a visible zero baseline inside the plot',(
  expect(plot.baseline).toBeLessThanOrEqual(plot.bottom);
  for(const point of plot.points){expect(point.cy).toBeGreaterThanOrEqual(plot.top);expect(point.cy).toBeLessThanOrEqual(plot.bottom);}
 });
+
+test('log geometry omits nonpositive coordinates instead of clamping to Number.MIN_VALUE',()=>{
+  const plot=geometry.plotGeometry([{id:'zero',x:0,y:10},{id:'neg',x:-5,y:10},{id:'pos',x:10,y:10}],'scatter','log');
+  expect(plot.points.map(point=>point.id)).toEqual(['pos']);
+  expect(plot.points[0].cx).toBeGreaterThan(70);
+  expect(Number.isFinite(plot.points[0].cx)).toBe(true);
+});
+
+test('all-nonpositive log input yields an empty plot with finite empty-domain ticks',()=>{
+  const plot=geometry.plotGeometry([{id:'zero',x:0,y:1},{id:'neg',x:-1,y:2}],'scatter','log');
+  expect(plot.points).toEqual([]);
+  expect(plot.xTicks.every(tick=>Number.isFinite(tick.position))).toBe(true);
+});
+
+test('extreme finite positive log values map exactly without a 1e±300 clamp',()=>{
+  const values=[Number.MIN_VALUE,1e-310,1e-305,1e-301,1,1e301,1e305,Number.MAX_VALUE];
+  const plot=geometry.plotGeometry(values.map((x,index)=>({id:String(index),x,y:1})),'scatter','log');
+  const cx=plot.points.map(point=>point.cx);
+  expect(cx.every(Number.isFinite)).toBe(true);
+  // Strictly increasing: distinct finite positives are never collapsed onto a clamp boundary.
+  for(let index=1;index<cx.length;index++)expect(cx[index]).toBeGreaterThan(cx[index-1]);
+  for(const value of cx){expect(value).toBeGreaterThanOrEqual(plot.left);expect(value).toBeLessThanOrEqual(plot.right);}
+  // Positions are proportional to log10 distance across the full double range.
+  const span=plot.right-plot.left,decades=Math.ceil(Math.log10(Number.MAX_VALUE))-Math.floor(Math.log10(Number.MIN_VALUE));
+  expect(cx[4]-plot.left).toBeCloseTo((0-Math.floor(Math.log10(Number.MIN_VALUE)))/decades*span,6);
+  expect(plot.xTicks.length).toBeLessThanOrEqual(12);
+  expect(plot.xTicks.every(tick=>Number.isFinite(tick.position)&&tick.label.length>0)).toBe(true);
+  expect(plot.xTicks[0].label).toBe('1e-324');
+  expect(new Set(plot.xTicks.map(tick=>tick.label)).size).toBe(plot.xTicks.length);
+});
+
+test('a single log decade keeps its point inside a one-decade-padded domain',()=>{
+  const plot=geometry.plotGeometry([{id:'a',x:100,y:1}],'scatter','log');
+  expect(plot.xTicks.map(tick=>tick.label)).toEqual(['10','100','1,000']);
+  expect(plot.points[0].cx).toBeCloseTo((plot.left+plot.right)/2,6);
+});
+
+test('log bars sit on the bottom baseline and tiny positive bars stay visible',()=>{
+  const plot=geometry.plotGeometry([{id:'tiny',x:0,y:1e-320},{id:'big',x:1,y:1e300}],'bars','log',600,420);
+  expect(plot.baseline).toBe(plot.bottom);
+  expect(plot.points.every(point=>Number.isFinite(point.cy)&&point.cy<=plot.bottom&&point.cy>=plot.top)).toBe(true);
+  expect(plot.points[0].cy).toBeLessThan(plot.bottom);
+});

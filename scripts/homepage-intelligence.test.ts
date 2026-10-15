@@ -213,7 +213,7 @@ test("empty filtered leaderboards disable Open compare and Epoch mode disables A
  expect(dashboardSource).toContain('disabled={defaultBenchmarkKey.startsWith(\'epoch_\')}');
  expect(dashboardSource).toContain('setLeaderboardFamilyControlsDisabled(document.getElementById("leaderboard-family-controls"),metricSelect.value.startsWith("epoch_"))');
  expect(dashboardSource).toContain('setLeaderboardFamilyControlsDisabled(document.getElementById("leaderboard-family-controls"),metric.startsWith("epoch_"))');
- expect(dashboardSource).toContain("const epochCatalog=visibleList.map(model=>({id:'epoch:'+model.model_version,source:'epoch',sourceModelId:model.model_version}))");
+ expect(dashboardSource).toContain('const epochCatalog=visibleList.map(leaderboardRunCatalogRecord)');
  expect(dashboardSource).toContain('data-compare-href="${escapeHtml(compareHref)}"');
 });
 
@@ -221,8 +221,10 @@ test("AA and Epoch leaderboards both use the progressive 5/20/50/all row windows
  expect(dashboardSource).toContain('visibleLeaderboardRows(allList, leaderboardVisibleCounts.get(config.key) ?? 5)');
  expect(dashboardSource).toContain('const visibleList = visibleLeaderboardRows(allList, leaderboardVisibleCounts.get(config.key) ?? 5)');
  expect(dashboardSource).toContain('nextLeaderboardLimit(leaderboardVisibleCounts.get(key) ?? 5)');
- expect(dashboardSource).toContain('if (key.startsWith("aa_")) renderAaLeaderboardPanels(latestLeaderboardModels)');
- expect(dashboardSource).toContain('else renderLeaderboard(latestLeaderboardModels, latestEpochBenchmarks, latestEpochRuns)');
+ expect(dashboardSource).toContain('if (key.startsWith("aa_"))');
+ expect(dashboardSource).toContain('renderAaLeaderboardPanels(latestLeaderboardModels)');
+ expect(dashboardSource).toContain('epochRanking.ensureComplete(lifecycle.signal)');
+ expect(dashboardSource).toContain('renderLeaderboard(latestLeaderboardModels, latestEpochBenchmarks, latestEpochRuns)');
  expect(readFileSync('src/lib/leaderboard-pagination.ts','utf8')).toContain('20');
  expect(readFileSync('src/lib/leaderboard-pagination.ts','utf8')).toContain('50');
  expect(readFileSync('src/lib/leaderboard-pagination.ts','utf8')).toContain('Number.POSITIVE_INFINITY');

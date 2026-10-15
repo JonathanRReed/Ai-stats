@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { EXPLORER_SOURCE_LABELS, type ExplorerModel } from '../../lib/compare-series';
-import { compareCatalogScope, familySelectionState, groupCompareFamilies, type CompareFamily } from '../../lib/compare-families';
+import { compareCatalogScope, familySelectionState, groupCompareFamilies, type CompareFamily, type FamilyBrowseSort } from '../../lib/compare-families';
 import { compareFamilyPage } from '../../lib/compare-family-pages';
 import { familyColor } from '../../lib/family-color';
 import type { ComparePreset } from '../../lib/compare-presets';
@@ -24,6 +24,11 @@ type Props = {
   query: string;
   onQuery: (value: string) => void;
   selectionNotice?: string;
+  /** Ranked family keys for the active view; null/undefined means no honest ranking exists here. */
+  browseOrder?: readonly string[] | null;
+  browseBasis?: string;
+  browseSort?: FamilyBrowseSort;
+  onBrowseSort?: (value: FamilyBrowseSort) => void;
 };
 
 const reasoningLevels = ['none', 'low', 'medium', 'high', 'xhigh', 'minimal', 'max', 'unknown'];
@@ -47,9 +52,21 @@ export default function ModelSelector({
   query,
   onQuery,
   selectionNotice,
+  browseOrder,
+  browseBasis,
+  browseSort: requestedSort,
+  onBrowseSort,
 }: Props) {
   const resultsId = useId();
   const [page, setPage] = useState(0);
+  // Sort choice is owned by the explorer so the desktop rail and the mobile dialog agree;
+  // an uncontrolled selector (tests, other pages) keeps local state.
+  const [localSort, setLocalSort] = useState<FamilyBrowseSort>('recommend');
+  const chosenSort = requestedSort ?? localSort;
+  const setBrowseSort = (value: FamilyBrowseSort) => { if (onBrowseSort) onBrowseSort(value); else setLocalSort(value); };
+  const rankingAvailable = Boolean(browseOrder);
+  // Never claim "Recommended" while showing an alphabetical list.
+  const browseSort: FamilyBrowseSort = rankingAvailable ? chosenSort : 'alpha';
   const resultsRef = useRef<HTMLDivElement>(null);
   const [allCatalog, setAllCatalog] = useState(false);
   const selectedKey = JSON.stringify(selected);
@@ -63,13 +80,17 @@ export default function ModelSelector({
     ),
     [models, chart, metricId, stableSelected, allCatalog, includeHistory, selectedSet],
   );
+  const orderOptions = useMemo(
+    () => ({ sort: browseSort, browseOrder }),
+    [browseSort, browseOrder],
+  );
   const groups = useMemo(
-    () => groupCompareFamilies(searchable, stableSelected, query, stableSuggestedIds),
-    [searchable, stableSelected, query, stableSuggestedIds],
+    () => groupCompareFamilies(searchable, stableSelected, query, stableSuggestedIds, orderOptions),
+    [searchable, stableSelected, query, stableSuggestedIds, orderOptions],
   );
   const allGroups = useMemo(
-    () => groupCompareFamilies(searchable, stableSelected, '', stableSuggestedIds),
-    [searchable, stableSelected, stableSuggestedIds],
+    () => groupCompareFamilies(searchable, stableSelected, '', stableSuggestedIds, orderOptions),
+    [searchable, stableSelected, stableSuggestedIds, orderOptions],
   );
   const hasQuery = query.trim().length > 0;
   const chosen = allGroups.filter(group => group.selectedIds.length > 0);
@@ -82,7 +103,7 @@ export default function ModelSelector({
   useEffect(() => {
     setPage(0);
     if (resultsRef.current) resultsRef.current.scrollTop = 0;
-  }, [query, allCatalog, chart, metricId]);
+  }, [query, allCatalog, chart, metricId, browseSort]);
 
   const atLimit = selected.length >= 100;
   const groupRow = (group: CompareFamily) => {
@@ -166,6 +187,18 @@ export default function ModelSelector({
         />
       </label>
       <div className="family-browser-toolbar">
+        <label className="family-search-label" htmlFor={`${resultsId}-sort`}>
+          Browse order
+          <select
+            id={`${resultsId}-sort`}
+            value={browseSort}
+            aria-describedby={browseBasis ? `${resultsId}-sort-basis` : undefined}
+            onChange={event => setBrowseSort(event.target.value as FamilyBrowseSort)}
+          >
+            <option value="recommend" disabled={!rankingAvailable}>{rankingAvailable ? 'Recommended' : 'Recommended (unavailable here)'}</option>
+            <option value="alpha">Alphabetical</option>
+          </select>
+        </label>
         <details className="family-filter-options">
           <summary>Filters{reasoningEfforts.length ? ` · ${reasoningEfforts.length}` : ''}</summary>
           <div>
@@ -210,6 +243,9 @@ export default function ModelSelector({
             ? <button type="button" className="rail-action" onClick={onSuggested}>Use suggestions</button>
             : null}
       </div>
+      {browseBasis
+        ? <p className="browse-order-basis" id={`${resultsId}-sort-basis`}>{browseSort === 'alpha' && rankingAvailable ? 'Alphabetical order.' : browseBasis}</p>
+        : null}
       <div className="family-results-scroll" ref={resultsRef} id={resultsId}>
         {hasQuery
           ? <section className="family-section" aria-label="Search results">

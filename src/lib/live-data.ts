@@ -19,6 +19,11 @@ export type LiveSnapshot = {
   epochModels: EpochModel[];
   epochBenchmarks: EpochBenchmark[];
   epochRuns: EpochBenchmarkRun[];
+  /** Epoch rows only; publisher evidence is never part of a live snapshot. */
+  epochSource: 'epoch';
+  /** True only when the Epoch rows are the whole corpus (not cut by the per-table row cap). */
+  epochComplete: boolean;
+  epochFetchedAt: string | null;
 };
 
 export type IntelligenceRefreshSource = {
@@ -382,11 +387,14 @@ const normalizeEpochRun = (
   };
 };
 
+type PagedRows = { rows: Record<string, unknown>[]; truncated: boolean };
+
 const fetchPagedJson = async (
   url: URL,
   headers: Record<string, string>,
-): Promise<Record<string, unknown>[]> => {
+): Promise<PagedRows> => {
   const rows: Record<string, unknown>[] = [];
+  let truncated = false;
 
   for (
     let offset = 0;
@@ -412,15 +420,15 @@ const fetchPagedJson = async (
     }
     const page = payload as Record<string, unknown>[];
     rows.push(...page.slice(0, requestLimit));
-    if (
-      page.length < requestLimit ||
-      rows.length >= SUPABASE_MAX_ROWS_PER_TABLE
-    ) {
+    if (page.length < requestLimit) break;
+    if (rows.length >= SUPABASE_MAX_ROWS_PER_TABLE) {
+      // A full page at the cap may hide more rows, so the result cannot claim completeness.
+      truncated = true;
       break;
     }
   }
 
-  return rows;
+  return { rows, truncated };
 };
 
 const fetchPublicEpochSnapshot = async (): Promise<{
@@ -451,6 +459,16 @@ const fetchPublicEpochSnapshot = async (): Promise<{
     return null;
   }
 };
+
+/** The published Epoch file is the whole Epoch corpus, so it may replace Epoch rows. */
+const publicSnapshotFields = (snapshot: NonNullable<Awaited<ReturnType<typeof fetchPublicEpochSnapshot>>>) => ({
+  epochModels: snapshot.epochModels,
+  epochBenchmarks: snapshot.epochBenchmarks,
+  epochRuns: snapshot.epochRuns,
+  epochSource: 'epoch' as const,
+  epochComplete: true,
+  epochFetchedAt: snapshot.fetchedAt,
+});
 
 export async function fetchLiveSnapshot(opts: FetchOpts = {}): Promise<LiveSnapshot | null> {
   const supabaseUrl = opts.supabaseUrl ?? import.meta.env.PUBLIC_SUPABASE_URL;
@@ -496,10 +514,10 @@ export async function fetchLiveSnapshot(opts: FetchOpts = {}): Promise<LiveSnaps
   );
 
   try {
-    const aaModelsRaw = await fetchPagedJson(aaModelsUrl, headers);
+    const aaModelsRaw = (await fetchPagedJson(aaModelsUrl, headers)).rows;
     const aaModels = dedupeAaModelsBySlug(aaModelsRaw.map(normalizeAaModel));
     if (!includeEpoch) {
-      return { aaModels, epochModels: [], epochBenchmarks: [], epochRuns: [] };
+      return { aaModels, epochModels: [], epochBenchmarks: [], epochRuns: [], epochSource: 'epoch', epochComplete: false, epochFetchedAt: null };
     }
 
     const epochReceiptUrl = new URL('/rest/v1/epoch_data_files', supabaseUrl);
@@ -510,14 +528,14 @@ export async function fetchLiveSnapshot(opts: FetchOpts = {}): Promise<LiveSnaps
     ]);
     const databaseFetchedAt = epochReceipt?.[0]?.fetched_at ?? null;
     if (publicEpochSnapshot && preferPublishedEpoch(publicEpochSnapshot, databaseFetchedAt, databaseFetchedAt ? 1 : 0)) {
-      return { aaModels, ...publicEpochSnapshot };
+      return { aaModels, ...publicSnapshotFields(publicEpochSnapshot) };
     }
 
     const [epochModelsRaw, epochBenchmarksRaw] = await Promise.all([
       fetchPagedJson(epochModelsUrl, headers),
       fetchPagedJson(epochBenchmarksUrl, headers),
     ]);
-    let epochRunsRaw: Record<string, unknown>[];
+    let epochRunsRaw: PagedRows;
     try {
       epochRunsRaw = await fetchPagedJson(epochRunsUrl, headers);
     } catch (error) {
@@ -527,27 +545,26 @@ export async function fetchLiveSnapshot(opts: FetchOpts = {}): Promise<LiveSnaps
       }
       epochRunsRaw = await fetchPagedJson(epochRunsFallbackUrl, headers);
     }
-    const epochBenchmarks = epochBenchmarksRaw.map(normalizeEpochBenchmark);
+    const epochBenchmarks = epochBenchmarksRaw.rows.map(normalizeEpochBenchmark);
     const benchmarkMap = new Map(epochBenchmarks.map((benchmark) => [benchmark.id, benchmark]));
-    const epochRuns = epochRunsRaw.map((row) => normalizeEpochRun(row, benchmarkMap));
-    let epochModels = hydrateEpochModelsFromRuns(
-      epochModelsRaw.map(normalizeEpochModel),
+    const epochRuns = epochRunsRaw.rows.map((row) => normalizeEpochRun(row, benchmarkMap));
+    const epochModels = hydrateEpochModelsFromRuns(
+      epochModelsRaw.rows.map(normalizeEpochModel),
       epochRuns,
     );
-    let selectedEpochBenchmarks = epochBenchmarks;
-    let selectedEpochRuns = epochRuns;
 
-    if (publicEpochSnapshot && preferPublishedEpoch(publicEpochSnapshot, databaseFetchedAt, selectedEpochRuns.length)) {
-      selectedEpochBenchmarks = publicEpochSnapshot.epochBenchmarks;
-      selectedEpochRuns = publicEpochSnapshot.epochRuns;
-      epochModels = publicEpochSnapshot.epochModels;
+    if (publicEpochSnapshot && preferPublishedEpoch(publicEpochSnapshot, databaseFetchedAt, epochRuns.length)) {
+      return { aaModels, ...publicSnapshotFields(publicEpochSnapshot) };
     }
 
     return {
       aaModels,
       epochModels,
-      epochBenchmarks: selectedEpochBenchmarks,
-      epochRuns: selectedEpochRuns,
+      epochBenchmarks,
+      epochRuns,
+      epochSource: 'epoch',
+      epochComplete: !epochModelsRaw.truncated && !epochBenchmarksRaw.truncated && !epochRunsRaw.truncated,
+      epochFetchedAt: databaseFetchedAt,
     };
   } catch (error) {
     console.warn('[live-data] Failed to fetch live snapshot; using server snapshot.', error);

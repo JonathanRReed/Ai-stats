@@ -1,6 +1,7 @@
 import {COMPARE_CHARTS,AA_METRIC_LABELS} from './compare-state';
 import {expandCatalog,measurementBucket,validateMeasurementChunk,type CompareDelivery} from './compare-delivery';
 import type {ExplorerModel} from './compare-series';
+import {validateBrowseRanks} from './compare-browse-rank';
 export const RELEASE_SCHEMA='ai-stats-compare-release.v4';
 export const LEGACY_RELEASE_SCHEMA='ai-stats-compare-release.v1';
 const ACCEPTED_SCHEMAS=[RELEASE_SCHEMA,'ai-stats-compare-release.v3','ai-stats-compare-release.v2',LEGACY_RELEASE_SCHEMA] as const;
@@ -63,6 +64,9 @@ export function readCompareRelease(value:unknown):CompareReleaseManifest{
   }
  }
  const typed=value as unknown as CompareReleaseManifest,expanded=expandCatalog(typed.delivery.catalog);
+ // Rank metadata is optional for older v4 releases, but when present it must be a valid,
+ // catalog-consistent contract; a malformed rank list never reaches the family browser.
+ if(catalog.browseRanks!==undefined)validateBrowseRanks(catalog.browseRanks,expanded);
  for(const bucket of new Set(typed.models.map(model=>measurementBucket(model.id)))){
  const rows=typed.models.filter(model=>measurementBucket(model.id)===bucket);
  validateMeasurementChunk({schemaVersion:1,revision:delivery.revision,bucket,records:rows},String(delivery.revision),bucket,expanded.filter(model=>typed.defaultModelIds.includes(model.id)));

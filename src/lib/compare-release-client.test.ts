@@ -1,5 +1,8 @@
 import {expect,test} from 'bun:test';
-import {fetchNewCompareRelease,shouldApplyRelease} from './compare-release-client';
+import {fetchNewCompareRelease,isCompatibleLiveRelease,shouldApplyRelease} from './compare-release-client';
+import {readCompareRelease} from './compare-release';
+import {BROWSE_RANK_POLICY} from './compare-browse-rank';
+import {releaseDatasetRevision} from '../../scripts/app-release.mjs';
 import {fixture} from './compare-release.fixture';
 test('unchanged dataset costs one small request and no manifest download',async()=>{
  const manifest=fixture();let calls=0;
@@ -43,4 +46,37 @@ test('a populated v4 refresh atomically applies its new leader and cohort select
  expect(result?.manifest.models.map(model=>model.id)).toEqual(['b']);
  expect(result?.manifest.defaultModelIds).toEqual(['b']);
  expect(result?.manifest.delivery.suggestedModelIds?.['task-cost']).toEqual(['b']);
+});
+
+const pointer=(datasetRevision:string)=>({schemaVersion:1,revision:'a'.repeat(64),datasetRevision});
+const serve=(manifest:unknown)=>{let calls=0;return async()=>Response.json(++calls===1?pointer((manifest as {datasetRevision:string}).datasetRevision):manifest);};
+test('an older-contract v4 release without browse ranks never replaces the ranked page',async()=>{
+ // Reproduces the preview regression: production's live v4 release predates browse ranks,
+ // has a different dataset revision and newer generatedAt, and used to wipe the ranking.
+ const base=fixture(),catalog={...base.delivery.catalog};delete catalog.browseRanks;
+ const legacy={...base,generatedAt:'2026-10-05T00:00:00.000Z',delivery:{...base.delivery,catalog}};
+ legacy.datasetRevision=releaseDatasetRevision(legacy,[]);
+ expect(readCompareRelease(legacy).delivery.catalog.browseRanks).toBeUndefined();
+ expect(isCompatibleLiveRelease(readCompareRelease(legacy))).toBe(false);
+ expect(await fetchNewCompareRelease('old',serve(legacy))).toBeNull();
+});
+test('a compatible newer release with valid ranks still refreshes live',async()=>{
+ const updated=fixture();updated.generatedAt='2026-10-05T00:00:00.000Z';updated.datasetRevision=releaseDatasetRevision(updated,[]);
+ const result=await fetchNewCompareRelease('old',serve(updated),undefined,false,'2026-10-02T12:00:00.000Z');
+ expect(result?.manifest.delivery.catalog.browseRanks?.policy).toBe(BROWSE_RANK_POLICY);
+});
+test('a release generated before the rendered page is not applied',async()=>{
+ const older=fixture();older.generatedAt='2026-10-01T00:00:00.000Z';older.datasetRevision=releaseDatasetRevision(older,[]);
+ expect(await fetchNewCompareRelease('old',serve(older),undefined,false,'2026-10-02T12:00:00.000Z')).toBeNull();
+});
+test('malformed rank metadata is rejected before it can reach the family browser',async()=>{
+ const bad=fixture();bad.delivery.catalog.browseRanks={policy:BROWSE_RANK_POLICY,ranks:{'task-cost':['4.3','0.0']}};bad.datasetRevision=releaseDatasetRevision(bad,[]);
+ expect(()=>readCompareRelease(bad)).toThrow(/browse rank/);
+ await expect(fetchNewCompareRelease('old',serve(bad))).rejects.toThrow();
+});
+
+test('a live release with old free-model defaults cannot overwrite non-free automatic selections',async()=>{
+ const old=readCompareRelease(fixture());delete old.delivery.automaticSelectionPolicy;
+ expect(isCompatibleLiveRelease(old)).toBe(false);
+ expect(await fetchNewCompareRelease('old',serve(old))).toBeNull();
 });

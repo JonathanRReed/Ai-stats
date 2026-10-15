@@ -22,6 +22,7 @@
 .scale-buttons button{border-radius:0;min-width:45px}
 .scale-buttons button:first-child{border-radius:3px 0 0 3px}
 .scale-buttons button:last-child{border-radius:0 3px 3px 0}
+.scale-notice-action{margin-left:.35rem;text-decoration:underline;background:none;border:0;color:inherit;cursor:pointer;font:inherit;padding:0}
 .toolbar-check{display:flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap}
 .compare-explorer input[type="checkbox"]{accent-color:var(--signal);width:15px;height:15px;flex-shrink:0}
 .comparison-plot{height:520px;min-width:0}
@@ -257,3 +258,13 @@
 .release-refresh button{min-height:44px;padding:.5rem .8rem;border:1px solid var(--line-1);border-radius:4px;background:var(--surface-1);color:var(--ink-0);cursor:pointer}
 
 @media (max-width: 900px) and (max-height: 480px){.model-filter-dialog{height:calc(100dvh - 16px);max-height:calc(100dvh - 16px);overflow-y:auto;overscroll-behavior:contain}.picker-dialog-heading{position:sticky;top:-12px;z-index:10;padding:6px 0;background:var(--surface-0)}.model-filter-dialog>.model-selector{height:auto;min-height:0;overflow:visible}.model-filter-dialog .family-search-label{position:sticky;top:38px;z-index:9;padding:4px 0;background:var(--surface-0)}.model-filter-dialog .family-rail{height:auto;min-height:0;overflow:visible}.model-filter-dialog .family-results-scroll{flex:0 1 auto;min-height:64px;max-height:32dvh;overflow-y:auto}.model-filter-dialog .family-rail-footer{position:sticky;bottom:-12px;z-index:5;padding:8px 0;background:var(--surface-0)}}
+
+.browse-order-basis{margin:4px 0 8px;font-size:11px;line-height:1.35;color:var(--ink-2)}
+.omitted-log-list{margin:5px 0 5px 18px;padding:0}
+.omitted-log-list li{margin:2px 0}
+
+.comparison-plot.horizontal-bars{height:auto;max-height:680px;overflow:auto;scrollbar-gutter:stable}
+.comparison-plot.horizontal-bars svg{height:auto;overflow:visible}
+.bar-identity{font-size:12px;fill:var(--ink-0);font-family:var(--font-body, sans-serif)}
+.bar-value{font-size:11px;fill:var(--ink-0);font-variant-numeric:tabular-nums}
+.zero-price-note{font-size:13px;color:var(--ink-1);padding:8px 12px}

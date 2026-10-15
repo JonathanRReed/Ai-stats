@@ -1,8 +1,9 @@
 ---
 import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboardBarWidth} from '../lib/benchmark-leaderboard';
-import {buildInitialEpochLeaderboardData} from '../lib/epoch-leaderboard-initial';
+import {assertInitialEpochLeaderboardBudget,buildInitialEpochLeaderboardData} from '../lib/epoch-leaderboard-initial';
+import {getEpochLeaderboardSource} from '../lib/epoch-leaderboard-server';
 import {resolveEpochLeaderboardRunNames} from '../lib/epoch-model-display-name';
-import {leaderboardComparisonHref} from '../lib/leaderboard-comparison';
+import {leaderboardComparisonHref,leaderboardRunCatalogRecord} from '../lib/leaderboard-comparison';
 import {rankModelFamilies} from '../lib/model-family-ranking';
 import {modelDisplayFacets} from '../lib/compare-catalog';
 import OpenRouterUsage from './OpenRouterUsage';
@@ -20,9 +21,6 @@ import {
   VALUABLE_FREE_BENCHMARK_SLUGS,
   AA_BENCHMARK_ATTRIBUTION,
   getEpochBenchmarkAttribution,
-  getEpochBenchmarksWithRuns,
-  getEpochBenchmarkLabel,
-  preferPublisherBenchmarks,
 } from "../lib/benchmark-catalog";
 import {getModelCatalogData} from "../lib/model-catalog-data";
 import CatalogCoverage from "./CatalogCoverage.astro";
@@ -59,7 +57,7 @@ const {
   openRouterEmbeddingModels,
   openRouterEndpointSummaries,
 } = publicCatalogs;
-const { epochBenchmarks, epochRuns, epochModels } = catalog.benchmarks;
+const { epochRuns, epochModels } = catalog.benchmarks;
 const models = enrichModelsWithPublicCatalogData(baseModels, publicCatalogs, catalog.bindings);
 const publicPoliBenchSnapshot = await getPublicPoliBenchSnapshot();
 const dailyUsage = await getOpenRouterUsageSnapshot();
@@ -96,30 +94,19 @@ const workbenchModels = currentMeasuredModels.map((model) => ({
 
 const dataFreshness = await getDataFreshness();
 
-const epochBenchmarksWithRuns = preferPublisherBenchmarks(getEpochBenchmarksWithRuns(
-  epochBenchmarks,
-  epochRuns,
-));
+const epochLeaderboard = await getEpochLeaderboardSource();
+const {benchmarks: epochBenchmarksWithRuns, labels: epochBenchmarkNames, modelNames: benchmarkModelNameRecord} = epochLeaderboard;
 const preferredEpochBenchmarkSlugs = [...VALUABLE_FREE_BENCHMARK_SLUGS];
-
-const benchmarkModelNames = new Map([
- ...epochModels.flatMap(model=>{const name=model.display_name?.trim()||model.model_name?.trim();return name?[[model.model_version,name] as const]:[];}),
- ...catalog.publishers.snapshots.flatMap(snapshot=>snapshot.records.map(row=>[row.systemId,row.label] as const)),
-]);
-
-
-// Get benchmark name mapping
-const epochBenchmarkNames: Record<string, string> = {};
-epochBenchmarks.forEach((b) => {
-  epochBenchmarkNames[b.slug] = getEpochBenchmarkLabel(b);
-});
-const benchmarkModelNameRecord = Object.fromEntries(benchmarkModelNames);
 const initialEpochLeaderboard = buildInitialEpochLeaderboardData(
   epochBenchmarksWithRuns,
   epochRuns,
   epochBenchmarkNames,
   benchmarkModelNameRecord,
 );
+// Build gate: rendering fails when the real inlined payload exceeds 400,000 UTF-8 bytes.
+assertInitialEpochLeaderboardBudget(initialEpochLeaderboard);
+const epochRankingRevision = epochLeaderboard.revision;
+const epochCorpusFetchedAt = catalog.epoch.fetchedAt ?? null;
 const benchmarkAttributions: Record<string, any> = {
   mmlu_pro: AA_BENCHMARK_ATTRIBUTION,
   gpqa: AA_BENCHMARK_ATTRIBUTION,
@@ -495,7 +482,7 @@ function getScoreClass(score: number | null | undefined): string {
               return (
                 <div
                   data-metric={key}
-                  data-compare-href={leaderboardComparisonHref(list.map(model=>isEpoch?epochRunHref(model,key):'/compare?'+new URLSearchParams({chart:'benchmark',metric:key,m:model.id}).toString()),catalog.records)}
+                  data-compare-href={leaderboardComparisonHref(list.map(model=>isEpoch?epochRunHref(model,key):'/compare?'+new URLSearchParams({chart:'benchmark',metric:key,m:model.id}).toString()),isEpoch?list.map(leaderboardRunCatalogRecord):catalog.records)}
                   class="overflow-hidden border border-highlight-low/60"
                   hidden={key !== defaultBenchmarkKey}
                 >
@@ -2075,7 +2062,7 @@ function getScoreClass(score: number | null | undefined): string {
   }
 </style>
 
-<script is:inline define:vars={{ preferredEpochBenchmarkSlugs, benchmarkAttributions: clientBenchmarkAttributions, initialLeaderboardModels, initialEpochLeaderboard }}>
+<script is:inline define:vars={{ preferredEpochBenchmarkSlugs, benchmarkAttributions: clientBenchmarkAttributions, initialLeaderboardModels, initialEpochLeaderboard, epochRankingRevision, epochCorpusFetchedAt }}>
   window.__aistatsCatalogDataUrl = "/api/public-catalogs.json";
   window.__aistatsOpenRouterModels = [];
   window.__aistatsHuggingFaceModels = [];
@@ -2090,6 +2077,9 @@ function getScoreClass(score: number | null | undefined): string {
   window.__epochInitialBenchmarks = initialEpochLeaderboard.benchmarks;
   window.__epochInitialRuns = initialEpochLeaderboard.runs;
   window.__epochModelNames = initialEpochLeaderboard.modelNames;
+  window.__epochLeaderboardTotals = initialEpochLeaderboard.totals;
+  window.__epochRankingRevision = epochRankingRevision;
+  window.__epochCorpusFetchedAt = epochCorpusFetchedAt;
 </script>
 
 <script>
@@ -2100,9 +2090,10 @@ function getScoreClass(score: number | null | undefined): string {
   import {resolveEpochLeaderboardRunNames} from "../lib/epoch-model-display-name";
 import {rankModelFamilies} from "../lib/model-family-ranking";
 import {setLeaderboardCompareAction,setLeaderboardFamilyControlsDisabled,setLeaderboardPanel} from "../lib/leaderboard-panels";
-import {leaderboardComparisonHref} from "../lib/leaderboard-comparison";
+import {leaderboardComparisonHref,leaderboardRunCatalogRecord} from "../lib/leaderboard-comparison";
 import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboardBarWidth} from '../lib/benchmark-leaderboard';
   import {preferPublisherBenchmarks} from '../lib/benchmark-catalog';
+  import {createEpochRankingController,epochLiveSnapshotFrom,visibleCountAfterExpansion} from '../lib/epoch-leaderboard-ranking';
   import { findAaComparableCoverageLeader } from "../lib/data-integrity";
   import {
     hasFiniteMetricValue,
@@ -2234,6 +2225,27 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
     let latestEpochBenchmarks = window.__epochInitialBenchmarks || [];
     let latestEpochRuns = window.__epochInitialRuns || [];
     let latestEpochModelNames = window.__epochModelNames || {};
+    let epochLeaderboardTotals = { ...(window.__epochLeaderboardTotals || {}) };
+    const epochRanking = createEpochRankingController({
+      revision: window.__epochRankingRevision,
+      benchmarks: latestEpochBenchmarks,
+      runs: latestEpochRuns,
+      modelNames: latestEpochModelNames,
+      totals: epochLeaderboardTotals,
+      fetchedAt: window.__epochCorpusFetchedAt ?? null,
+    });
+    const syncEpochRankingView = () => {
+      const view = epochRanking.view();
+      latestEpochBenchmarks = preferPublisherBenchmarks(view.benchmarks);
+      latestEpochRuns = view.runs;
+      latestEpochModelNames = view.modelNames;
+      epochLeaderboardTotals = { ...view.totals };
+    };
+    const epochRankingNotice = () => ({
+      loading: "Loading full benchmark ranking…",
+      failed: "Full benchmark ranking could not load. Retry Show more.",
+    })[epochRanking.status()] ?? "";
+    const epochRankingTotal = (key, available) => Math.max(available, Number(epochLeaderboardTotals[key]) || 0);
 
     const loadPublicCatalogData = () => {
       if (window.__aistatsPublicCatalogLoaded) return Promise.resolve();
@@ -3117,11 +3129,16 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
             .join("");
 
           const hiddenAttr = config.key === metricSelect.value ? "" : " hidden";
-          const epochCatalog=visibleList.map(model=>({id:'epoch:'+model.model_version,source:'epoch',sourceModelId:model.model_version}));
+          const epochCatalog=visibleList.map(leaderboardRunCatalogRecord);
           const compareHref=leaderboardComparisonHref(visibleList.slice(0,100).map(model=>benchmarkRecordHref(model,model.metric_key??config.key)),epochCatalog);
+          const totalCount = epochRankingTotal(config.key, allList.length);
+          const rankingStatus = epochRankingNotice();
+          const rankingNotice = config.key === metricSelect.value && rankingStatus
+            ? `<p class="px-3 py-2 text-xs text-muted" role="status">${escapeHtml(rankingStatus)}</p>`
+            : "";
           return `
             <div data-metric="${escapeHtml(config.key)}" data-compare-href="${escapeHtml(compareHref)}" class="overflow-hidden border border-highlight-low/60"${hiddenAttr}>
-              <ul class="divide-y divide-highlight-low/40">${rows}</ul>${leaderboardFooter(config.key,visibleList.length,allList.length)}
+              <ul class="divide-y divide-highlight-low/40">${rows}</ul>${rankingNotice}${leaderboardFooter(config.key,visibleList.length,totalCount)}
             </div>
           `;
         })
@@ -3675,10 +3692,34 @@ ${allBenchmarks.length ? `
       if (!button) return;
       const key = button.dataset.leaderboardMore ?? button.dataset.leaderboardLess;
       if (!key) return;
-      if (button.hasAttribute("data-leaderboard-less")) leaderboardVisibleCounts.delete(key);
+      const expand = !button.hasAttribute("data-leaderboard-less");
+      if (!expand) leaderboardVisibleCounts.delete(key);
       else leaderboardVisibleCounts.set(key, nextLeaderboardLimit(leaderboardVisibleCounts.get(key) ?? 5));
-      if (key.startsWith("aa_")) renderAaLeaderboardPanels(latestLeaderboardModels);
-      else renderLeaderboard(latestLeaderboardModels, latestEpochBenchmarks, latestEpochRuns);
+      if (key.startsWith("aa_")) {
+        renderAaLeaderboardPanels(latestLeaderboardModels);
+        return;
+      }
+      const desired = leaderboardVisibleCounts.get(key) ?? 5;
+      const available = (buildTopByBenchmark(latestLeaderboardModels, latestEpochBenchmarks, latestEpochRuns).topByBenchmark[key] ?? []).length;
+      const total = epochRankingTotal(key, available);
+      if (expand && desired > available && available < total) {
+        void epochRanking.ensureComplete(lifecycle.signal).then((loaded) => {
+          if (!isCurrentDashboard()) return;
+          syncEpochRankingView();
+          const clamped = visibleCountAfterExpansion({
+            key,
+            desired,
+            loaded,
+            available: (buildTopByBenchmark(latestLeaderboardModels, latestEpochBenchmarks, latestEpochRuns).topByBenchmark[key] ?? []).length,
+            visibleCounts: leaderboardVisibleCounts,
+          });
+          if (clamped !== undefined) leaderboardVisibleCounts.set(key, clamped);
+          renderLeaderboard(latestLeaderboardModels, latestEpochBenchmarks, latestEpochRuns);
+        });
+        renderLeaderboard(latestLeaderboardModels, latestEpochBenchmarks, latestEpochRuns);
+        return;
+      }
+      renderLeaderboard(latestLeaderboardModels, latestEpochBenchmarks, latestEpochRuns);
     }, lifecycle);
 
     openRouterRankSelect?.addEventListener("change", () => {
@@ -3817,15 +3858,10 @@ ${allBenchmarks.length ? `
 
       const liveModels = getValidModels(snapshot.aaModels ?? []);
       latestLeaderboardModels = (snapshot.aaModels ?? []).filter((model) => model.current_source_member !== false);
-      const epochBenchmarks = snapshot.epochBenchmarks ?? [];
-      const epochRuns = snapshot.epochRuns ?? [];
-      latestEpochModelNames = {
-        ...latestEpochModelNames,
-        ...Object.fromEntries((snapshot.epochModels ?? []).flatMap(model => {
-          const name = model.display_name?.trim() || model.model_name?.trim();
-          return name ? [[model.model_version, name]] : [];
-        })),
-      };
+      // Live snapshots are Epoch-only and may be row-capped: only a declared-complete Epoch corpus
+      // replaces Epoch rows; publisher rows and the build ranking stay otherwise.
+      const liveEpoch = epochLiveSnapshotFrom(snapshot);
+      if (liveEpoch && epochRanking.applyLiveSnapshot(liveEpoch)) syncEpochRankingView();
 
       updateModelCounts(liveModels);
       updateDataFreshness(liveModels);
@@ -3833,11 +3869,11 @@ ${allBenchmarks.length ? `
       updateTopStrip(
         liveModels,
         snapshot.epochModels ?? [],
-        epochBenchmarks,
-        epochRuns,
+        latestEpochBenchmarks,
+        latestEpochRuns,
       );
       renderOpenRouterProviderLeaderboard();
-      renderLeaderboard((snapshot.aaModels??[]).filter(model=>model.current_source_member!==false), epochBenchmarks, epochRuns);
+      renderLeaderboard((snapshot.aaModels??[]).filter(model=>model.current_source_member!==false), latestEpochBenchmarks, latestEpochRuns);
       renderModels(liveModels);
     }, lifecycle);
   };

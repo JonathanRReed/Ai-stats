@@ -8,7 +8,7 @@ export default function CompareLive({initial}:{initial:CompareReleaseManifest}){
  const manualRefresh=useRef(false);
  const requestVersion=useRef(0),mounted=useRef(true);
  const [pending,setPending]=useState<ReleaseCandidate|null>(null);
- const interacted=useRef(false),currentDataset=useRef(initial.datasetRevision);
+ const interacted=useRef(false),currentDataset=useRef(initial.datasetRevision),currentGenerated=useRef(initial.generatedAt);
  useEffect(()=>{
  mounted.current=true;
  let cancelled=false,inFlight=false,firstCheck=true,lastCheck=0,controller:AbortController|undefined;
@@ -16,10 +16,10 @@ export default function CompareLive({initial}:{initial:CompareReleaseManifest}){
  if(cancelled||inFlight||manualRefresh.current||document.hidden||Date.now()-lastCheck<60000)return;
  inFlight=true;lastCheck=Date.now();controller=new AbortController();const version=++requestVersion.current;
  try{
- const candidate=await fetchNewCompareRelease(currentDataset.current,fetch,controller.signal);
+ const candidate=await fetchNewCompareRelease(currentDataset.current,fetch,controller.signal,false,currentGenerated.current);
  if(cancelled||version!==requestVersion.current)return;
  if(candidate){
- if(shouldApplyRelease(firstCheck,interacted.current)){currentDataset.current=candidate.manifest.datasetRevision;setActive(candidate);setPending(null);}
+ if(shouldApplyRelease(firstCheck,interacted.current)){currentDataset.current=candidate.manifest.datasetRevision;currentGenerated.current=candidate.manifest.generatedAt;setActive(candidate);setPending(null);}
  else setPending(candidate);
  }else setPending(null);
  }catch{ /* Keep the dated static or previously validated data. */ }
@@ -32,9 +32,9 @@ export default function CompareLive({initial}:{initial:CompareReleaseManifest}){
  const refresh=async()=>{
  if(manualRefresh.current)return;manualRefresh.current=true;setRefreshing(true);const version=++requestVersion.current;
  try{
- const candidate=await fetchNewCompareRelease(currentDataset.current,fetch,undefined,true);
+ const candidate=await fetchNewCompareRelease(currentDataset.current,fetch,undefined,true,currentGenerated.current);
  if(!mounted.current||version!==requestVersion.current)return;
- if(candidate){currentDataset.current=candidate.manifest.datasetRevision;setActive(candidate);}
+ if(candidate){currentDataset.current=candidate.manifest.datasetRevision;currentGenerated.current=candidate.manifest.generatedAt;setActive(candidate);}
  setPending(null);
  }catch{ /* Leave the current comparison intact and allow another explicit retry. */ }
  finally{manualRefresh.current=false;if(mounted.current)setRefreshing(false);}

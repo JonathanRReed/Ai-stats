@@ -37,3 +37,23 @@ test('exports identify the benchmark and distinguish retrieved dates from observ
  const caption=exporter.chartExportCaption?.([point],options.metricName);
  expect(caption).toContain('Aider Polyglot');expect(caption).toContain('retrieved 2026-10-02');expect(caption).not.toContain('observed 2026-10-02');
 });
+
+test('CSV and PNG caption state the axis scale and which records Log could not draw',()=>{
+ const receipt={source:'AA',sourceUrl:null,observedAt:'2026-10-01',fetchedAt:null,indexVersion:'4.3',conditions:null,snapshotId:null};
+ const points=[{id:'k2',modelId:'k2',label:'K2 Horizon 375B A23B',x:0,y:72,unit:'AA Index points',receipt},{id:'paid',modelId:'paid',label:'Paid',x:2,y:60,unit:'AA Index points',receipt}];
+ const csv=exporter.seriesCsv(points,{includeX:true,xLabel:'USD / AA Index task',scale:'log',omittedIds:['k2']});
+ const [header,k2,paid]=csv.trim().split('\r\n');
+ expect(header).toContain('"Axis scale","Plotted on chart"');
+ expect(k2).toContain('"log","No: zero or negative value cannot be drawn on Log"');
+ expect(paid).toContain('"log","Yes"');
+ const caption=exporter.chartExportCaption(points,'Cost per task',{scale:'log',axisLabel:'USD / AA Index task',omitted:[{id:'k2',modelId:'k2',label:'K2 Horizon 375B A23B',value:0,valueLabel:'0',sign:'zero'}]});
+ expect(caption).toContain('Log scale (USD / AA Index task)');
+ expect(caption).toContain('Not plotted on Log: K2 Horizon 375B A23B (0)');
+ expect(exporter.chartExportCaption(points,'Cost per task',{scale:'linear',omitted:[]})).toContain('Linear scale');
+});
+
+test('PNG encoding produces a binary Blob and rejects a failed browser encoder',async()=>{
+ const blob=new Blob(['png-fixture'],{type:'image/png'});
+ expect(await exporter.canvasPngBlob({toBlob:callback=>callback(blob)})).toBe(blob);
+ await expect(exporter.canvasPngBlob({toBlob:callback=>callback(null)})).rejects.toThrow('Image encoding failed');
+});
