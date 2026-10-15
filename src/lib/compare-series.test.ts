@@ -250,3 +250,9 @@ test('selected and reference Log omissions are labelled accurately without dupli
   expect(series.logOmissionHeading(negativeNotice.reference,negativeNotice.axis,'reference')).toContain('(negative USD / AA Index task)');
   expect(series.combinedLogOmissions({...selected,scale:'linear'},reference)).toBeNull();
 });
+
+test('bar order follows the ranked or explicitly chosen model order, not catalog storage order',()=>{
+ const models=[{id:'a',name:'A',family:'A',source:'aa' as const,sourceModelId:'a',current:true,intelligence:40},{id:'b',name:'B',family:'B',source:'aa' as const,sourceModelId:'b',current:true,intelligence:80}];
+ const state=parseCompareState(new URLSearchParams('chart=benchmark&m=b&m=a'),models);
+ expect(series.buildCompareSeries({models,observations:[]},state).points.map(p=>p.modelId)).toEqual(['b','a']);
+});

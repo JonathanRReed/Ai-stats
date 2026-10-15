@@ -25,3 +25,9 @@ test('token default prices must include a positive charge; explicit free preset 
  expect(selectTokenPriceModels(rows)).toEqual(['paid']);
  expect(buildComparePresets(rows).find(p=>p.id==='free')?.modelIds).toEqual(['or:free']);
 });
+test('token-price defaults compare current text-model leaders, not cheap image or embedding routes',()=>{
+ const rows=[model('opus-high',{family:'Opus',intelligence:70,priceInput:5,priceOutput:25}),model('opus-low',{family:'Opus',intelligence:60,priceInput:5,priceOutput:25}),
+ model('sol',{family:'Sol',intelligence:65,priceInput:2,priceOutput:8}),model('image',{source:'litellm',priceInput:.001,priceOutput:.001}),
+ model('embedding',{source:'openrouter',priceInput:.001,priceOutput:0,inputModalities:['text'],outputModalities:['embedding']})];
+ expect(selectTokenPriceModels(rows)).toEqual(['opus-high','sol']);
+});

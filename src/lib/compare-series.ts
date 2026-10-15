@@ -172,6 +172,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
     if(reason){result.excluded.push({modelId:model.id,reason});return false;}
     return true;
   });
+  models.sort((a,b)=>state.modelIds.indexOf(a.id)-state.modelIds.indexOf(b.id));
   const receiptFor=(model:ExplorerModel):EvidenceReceipt=>({source:EXPLORER_SOURCE_LABELS[model.source],
     sourceUrl:sourceUrl(model.sourceUrl),observedAt:model.observedAt??null,fetchedAt:model.fetchedAt??null,indexVersion:model.indexVersion??null,
     conditions:model.performancePrompt?{performancePrompt:model.performancePrompt}:null,snapshotId:null});

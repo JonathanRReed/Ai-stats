@@ -79,8 +79,14 @@ export function selectAaBenchmarkModels(models:ExplorerModel[],metricId:string,l
 }
 
 export function selectTokenPriceModels(models:ExplorerModel[],limit=8):string[]{
- return models.filter(model=>model.current===true&&isAutomaticCandidate(model)&&nonnegative(model.priceInput)&&nonnegative(model.priceOutput)&&(model.priceInput+model.priceOutput)>0)
-  .sort((a,b)=>(a.priceInput!+a.priceOutput!)-(b.priceInput!+b.priceOutput!)||a.id.localeCompare(b.id))
+ const priced=models.filter(model=>model.current===true&&isAutomaticCandidate(model)&&nonnegative(model.priceInput)&&nonnegative(model.priceOutput)&&(model.priceInput+model.priceOutput)>0);
+ const ranked=new Set(selectAaBenchmarkModels(priced,'aa_intelligence_index',priced.length));
+ const leaders=priced.filter(model=>ranked.has(model.id)).sort((a,b)=>b.intelligence!-a.intelligence!||
+  (a.priceInput!+a.priceOutput!)-(b.priceInput!+b.priceOutput!)||a.id.localeCompare(b.id));
+ const candidates=leaders.length?leaders:priced.filter(model=>model.source==='openrouter'&&model.inputModalities?.includes('text')&&model.outputModalities?.includes('text'))
+  .sort((a,b)=>(a.priceInput!+a.priceOutput!)-(b.priceInput!+b.priceOutput!)||a.id.localeCompare(b.id));
+ const families=new Set<string>();
+ return candidates.filter(model=>{const key=JSON.stringify([model.source,model.provider,model.family]);if(families.has(key))return false;families.add(key);return true;})
   .slice(0,Math.max(0,limit)).map(model=>model.id);
 }
 
