@@ -36,3 +36,8 @@ test('different recorded conditions for one exact variant remain ambiguous',()=>
   expect(result.rows).toEqual([]);
   expect(result.ambiguousModelCount).toBe(1);
 });
+test('recent measured releases precede alphabetically early legacy models without mixing their scores',()=>{
+ const old={...run('old','aaa-old',.99),release_date:'2023-01-01'};
+ const recent={...run('new','zzz-new',.8),release_date:'2026-10-01'};
+ expect(buildReasoningHighlights([old,recent],[])[0].rows.map(row=>row.version)).toEqual(['zzz-new','aaa-old']);
+});

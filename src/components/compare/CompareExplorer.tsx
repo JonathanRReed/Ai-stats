@@ -39,20 +39,23 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const [filtersOpen,setFiltersOpen]=useState(false);const dialog=useRef<HTMLDialogElement>(null);
   const filterButton=useRef<HTMLButtonElement>(null);const svg=useRef<SVGSVGElement>(null);
   const customSelection=useRef(false);
-  useEffect(()=>{const read=()=>{pendingBenchmarkChoice.current=null;setPresetDescription('');const params=new URLSearchParams(window.location.search),auto=usesSuggestedCompareSelection(params);if(params.get('auto')==='1'){params.delete('m');params.delete('models');}const defaults=auto?defaultIdsFor((params.get('chart') as CompareChart|null)??defaultChart,params.get('metric')??'aa_intelligence_index',params.get('history')==='1'):defaultModelIds;customSelection.current=hasExplicitCompareSelection(new URLSearchParams(window.location.search))&&!auto;setState(parseCompareState(params,models,defaults,defaultChart));};
+  useEffect(()=>{const read=()=>{pendingBenchmarkChoice.current=null;setPresetDescription('');const params=new URLSearchParams(window.location.search),auto=usesSuggestedCompareSelection(params);if(params.get('auto')==='1'){params.delete('m');params.delete('models');}const defaults=auto?defaultIdsFor((params.get('chart') as CompareChart|null)??defaultChart,params.get('metric')??'aa_intelligence_index',params.get('history')==='1'):defaultModelIds;customSelection.current=hasExplicitCompareSelection(new URLSearchParams(window.location.search))&&!auto;if(auto&&params.get('chart')==='benchmark'&&params.get('metric')?.startsWith('epoch_'))pendingBenchmarkChoice.current=params.get('metric')!.slice(6);setState(parseCompareState(params,models,defaults,defaultChart));};
     read();window.addEventListener('popstate',read);return()=>window.removeEventListener('popstate',read);},[models,defaultModelIds,defaultChart]);
   const epochSlug=state.chart==='benchmark'&&state.metricId.startsWith('epoch_')?state.metricId.slice(6):null;
   const observations=epochSlug?readBenchmarkCache(benchmarkCache,epochSlug)??EMPTY_OBSERVATIONS:EMPTY_OBSERVATIONS;
   useEffect(()=>{
     setLoadFailed(false);
-    if(!epochSlug||readBenchmarkCache(benchmarkCache,epochSlug)){setLoadState('');return;}
+    if(!epochSlug){setLoadState('');return;}
+    const selectPending=(verified:typeof observations)=>{if(pendingBenchmarkChoice.current===epochSlug){pendingBenchmarkChoice.current=null;customSelection.current=true;setState(previous=>{if(previous.metricId!=='epoch_'+epochSlug)return previous;const next={...previous,...benchmarkStartingSelection(models,verified),missingModelIds:[]};const url=new URL(window.location.href);url.search=serializeCompareState(next).toString();url.searchParams.delete('auto');window.history.replaceState(null,'',url);return next;});}};
+    const cached=readBenchmarkCache(benchmarkCache,epochSlug);
+    if(cached){setLoadState('');selectPending(cached);return;}
     if(!benchmarks.some(benchmark=>benchmark.slug===epochSlug)){setLoadState('Unknown benchmark in this link.');return;}
     const controller=new AbortController();setLoadState('Loading benchmark observations…');
     fetch((delivery?.benchmarkBase??'/api/compare-benchmarks')+'/'+encodeURIComponent(epochSlug)+'.json',{signal:controller.signal})
       .then(response=>{if(!response.ok)throw new Error('unavailable');return response.json();})
       .then(payload=>{const verified=validateBenchmarkAsset(payload,epochSlug);
         setBenchmarkCache(previous=>({...previous,[epochSlug]:verified}));setLoadState('');
-        if(pendingBenchmarkChoice.current===epochSlug){pendingBenchmarkChoice.current=null;customSelection.current=true;setState(previous=>{if(previous.metricId!=='epoch_'+epochSlug)return previous;const next={...previous,...benchmarkStartingSelection(models,verified),missingModelIds:[]};const url=new URL(window.location.href);url.search=serializeCompareState(next).toString();url.searchParams.delete('auto');window.history.replaceState(null,'',url);return next;});}})
+        selectPending(verified);})
       .catch(error=>{if(error.name!=='AbortError'){setLoadFailed(true);setLoadState('Benchmark data could not load. The other views still work.');}});
     return()=>controller.abort();
   },[epochSlug,benchmarkCache,benchmarks,retryAttempt,delivery?.benchmarkBase]);

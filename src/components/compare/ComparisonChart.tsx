@@ -1,3 +1,4 @@
+import {inlineChartLabel} from '../../lib/inline-chart-label';
 import HorizontalBars from './HorizontalBars';
 import {useEffect,useRef,useState,type RefObject} from 'react';
 import {plotGeometry,formatChartNumber} from '../../lib/compare-geometry';
@@ -22,8 +23,8 @@ export default function ComparisonChart({series,referenceFrontier,scale,labels,e
   const showLane=endpointLane&&series.kind==='scatter'&&width>=600;
   const groups=[...new Map(series.points.map(point=>[JSON.stringify([point.source,point.provider??point.family,point.family]),point])).values()];
   const compactLegend=showFamilyLegend||endpointLane&&width<600?groups.slice(0,6):[];
-  const mobileLegendRows=Math.ceil(compactLegend.length/3);
   const legendOverflow=compactLegend.length?Math.max(0,groups.length-compactLegend.length):0;
+  const mobileLegendRows=Math.ceil(compactLegend.length/3)+(legendOverflow?1:0);
   // Only frontier members that can actually be drawn on this axis count as visible reference geometry.
   const referencePlottableIds=new Set(referencePlottable.map(point=>point.id));
   const currentFrontierIds=new Set(Object.values(displayReference?.frontierGroups??{}).flat().filter(id=>referencePlottableIds.has(id)));
@@ -61,7 +62,7 @@ export default function ComparisonChart({series,referenceFrontier,scale,labels,e
         return <g key={JSON.stringify([point.source,point.provider,point.family])}>
          <circle cx={x+3} cy={y-3} r="3" fill={familyColor(point.family)}/><text className="plot-legend" x={x+10} y={y}><title>{`${point.source} · ${point.provider} · ${point.family}`}</title>{label}</text>
         </g>;})}
-      {legendOverflow?<text className="plot-legend" x={width-24} y={legendStartY} textAnchor="end">+{legendOverflow} in family rail</text>:null}
+      {legendOverflow?<text className="plot-legend" x={width-24} y={legendStartY+Math.ceil(compactLegend.length/3)*14} textAnchor="end">+{legendOverflow} in Models</text>:null}
       {plot.yTicks.map(tick=><g key={tick.label+":"+tick.position}><line className="plot-grid" x1={plot.left} x2={plot.right} y1={tick.position} y2={tick.position}/>
         <text className="plot-tick" x={plot.left-12} y={tick.position+4} textAnchor="end">{tick.label}</text></g>)}
       {series.kind==='scatter'?plot.xTicks.map(tick=><g key={tick.label+":"+tick.position}><line className="plot-grid" x1={tick.position} x2={tick.position} y1={plot.top} y2={plot.bottom}/>
@@ -101,8 +102,8 @@ export default function ComparisonChart({series,referenceFrontier,scale,labels,e
           r={activeId===point.id?6:4.5} fill={familyColor(point.family)}/></>:<rect className="point-mark" x={point.cx-point.visibleBarWidth/2}
           y={Math.min(point.cy,plot.baseline)} width={point.visibleBarWidth} height={Math.max(1,Math.abs(plot.baseline-point.cy))}
           fill={familyColor(point.family)} opacity={point.series==='input'?.55:1}/>}
-        {labels&&activeId===point.id&&!showLane?<text className="point-label" textAnchor="start"
-          x={point.cx+8} y={point.cy-10}>{point.label}</text>:null}
+        {labels&&activeId===point.id&&!showLane?(()=>{const label=inlineChartLabel(point.family,point.cx,point.cy,plot);return <text className="point-label" textAnchor="start"
+          x={label.x} y={label.y}><title>{point.label}</title>{label.text}</text>;})():null}
       </g>)}
       {series.kind==='bars'&&barLabels.length<=12?
         barLabels.map(category=>{const point=barPointByX.get(category.x);if(!point)return null;return <text key={'category:'+category.x}

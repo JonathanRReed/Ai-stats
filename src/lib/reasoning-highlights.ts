@@ -30,8 +30,9 @@ export function buildReasoningHighlights(runs: EpochBenchmarkRun[], models: Epoc
         score: run.score! * (run.score_unit === 'fraction' ? 100 : 1),
         unit, metric: run.score_metric ?? 'Source score', runId: run.id,
         conditions: run.conditions ?? null, evaluationDate: run.evaluation_date ?? null,
+        releaseDate: model?.release_date ?? run.release_date ?? null,
       }];
-    }).sort((a, b) => a.version.localeCompare(b.version)).slice(0, 3);
+    }).sort((a, b) => (Date.parse(b.releaseDate ?? '') || 0) - (Date.parse(a.releaseDate ?? '') || 0) || a.version.localeCompare(b.version)).slice(0, 3);
     return { ...benchmark, runCount: measured.length, ambiguousModelCount, rows };
   });
 }

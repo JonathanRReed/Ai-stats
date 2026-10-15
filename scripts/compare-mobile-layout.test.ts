@@ -23,8 +23,10 @@ test('mobile explorer uses a native modal filter drawer and returns focus',()=>{
   expect(css).toContain('height:calc(100dvh - 16px)');
   expect(css).toContain('270px');
   expect(css).toContain('@media (max-width: 900px) and (max-height: 480px)');
-  expect(css).toContain('overflow-y:auto;overscroll-behavior:contain');
-  expect(css).toContain('.model-filter-dialog>.model-selector{height:auto;min-height:0;overflow:visible}');
+  expect(css.replace(/\s+/g,'')).toContain('overflow-y:auto;overscroll-behavior:contain');
+  expect(css.replace(/\s+/g,'')).toContain('.model-filter-dialog>.model-selector{height:auto;min-height:0;overflow:visible;}');
+  expect(css).toContain('.model-filter-dialog .family-rail-footer { position:static;');
+  expect(css).toContain('max-height:none; overflow:visible;');
 });
 test('chart tabs and tables stay scrollable while reduced motion is respected',()=>{
   expect(css).toContain('overflow-x: auto');

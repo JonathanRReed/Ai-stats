@@ -78,7 +78,7 @@ const formatObserved = (value: Date | null): string =>
         <p class="status-label eco-status" data-state={statusState[source.status]}>
           <span aria-hidden="true" />
           {statusLabels[source.status]}
-          {source.ageDays !== null ? `, ${source.ageDays}d since last successful check` : ""}
+          {source.ageDays !== null ? `, ${source.ageDays === 0 ? "less than 1 day" : `${source.ageDays}d`} since last successful check` : ""}
         </p>
         <dl>
           <div>

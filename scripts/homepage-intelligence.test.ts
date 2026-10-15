@@ -56,7 +56,7 @@ test("the homepage is prerendered and the model drawer API is cacheable", () => 
 
 test("the first-screen overview uses the same curated measured-model cohort", () => {
   expect(dashboardSource).toContain("models={currentMeasuredModels}");
-  expect(dashboardSource).toContain("const validModels = currentMeasuredModels.filter");
+  expect(dashboardSource).toContain("const validModels = selectBrowserModels(models)");
   expect(dashboardSource).not.toContain("<IntelligenceOverview\n        models={models}");
 });
 
@@ -241,4 +241,16 @@ test("model picker puts bounded query results first without losing selected exac
  expect(selector).toContain('aria-label="Selected families"');
  expect(selector).toContain('setPage(0)');
  expect(selector).toContain('setPage(currentPage + 1)');
+});
+
+test('catalog sort names its default and keeps missing measurements distinct from zero',()=>{
+ const dashboard=readFileSync('src/components/Dashboard.astro','utf8');
+ const card=readFileSync('src/components/ModelCard.astro','utf8');
+ expect(dashboard).toContain('<option value="intelligence">AA Intelligence Index</option>');
+ expect(dashboard).toContain('compareOptionalMetricValues(a.dataset[attr], b.dataset[attr], direction)');
+ expect(dashboard).not.toContain('Number(a.dataset[attr]) || 0');
+ for(const source of [dashboard,card]){
+  expect(source).toContain('data-intelligence=');
+  expect(source).not.toContain('Number(model.price_1m_input_tokens) || 0');
+ }
 });
