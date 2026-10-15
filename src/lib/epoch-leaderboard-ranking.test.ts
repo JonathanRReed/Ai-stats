@@ -5,6 +5,7 @@ import {
  epochRankingUrl,
  parseEpochRankingPayload,
  visibleCountAfterExpansion,
+ type EpochLiveSnapshot,
  type EpochRankingPayload,
 } from './epoch-leaderboard-ranking';
 import type {EpochBenchmark,EpochBenchmarkRun} from './supabase';
@@ -31,6 +32,7 @@ function deferredFetch(){
 }
 const page=()=>({revision:R1,benchmarks:[benchmark],runs:topFive,modelNames:{}});
 const flush=()=>new Promise(resolve=>setTimeout(resolve,0));
+const liveEpoch=(rows:EpochBenchmarkRun[],extra:Partial<EpochLiveSnapshot>={}):EpochLiveSnapshot=>({source:'epoch',complete:true,fetchedAt:'2026-10-14T00:00:00.000Z',benchmarks:[benchmark],runs:rows,modelNames:{},...extra});
 
 test('the full ranking payload carries every ranked row and its page revision',()=>{
  const payload=corpus(R1,fullRows);
@@ -57,19 +59,19 @@ test('concurrent expansions share one request for the page revision and adopt th
  expect(network.calls).toHaveLength(1);
 });
 
-test('a late page-revision response cannot overwrite newer live rows or resurrect withdrawn ones',async()=>{
+test('a late page-revision response cannot overwrite newer live Epoch rows or resurrect withdrawn ones',async()=>{
  const network=deferredFetch();
  const ranking=createEpochRankingController(page(),{fetch:network.fetch});
  const pending=ranking.ensureComplete();
  await flush();
- // Newer data arrives mid-load: r0 is rescored and r1 is withdrawn.
+ // A complete Epoch corpus arrives mid-load: r0 is rescored and r1 is withdrawn.
  const liveRows=[run('r0',99),...fullRows.slice(2)];
- expect(ranking.applyLiveSnapshot({benchmarks:[benchmark],runs:liveRows,modelNames:{}})).toBe(true);
+ expect(ranking.applyLiveSnapshot(liveEpoch(liveRows))).toBe(true);
  network.calls[0].resolve(Response.json(corpus(R1,fullRows)));
  expect(await pending).toBe(true);
  expect(ids(ranking.view().runs)).toEqual(['r0','r2','r3','r4','r5','r6','r7']);
  expect(scores(ranking.view().runs).r0).toBe(99);
- // Retrying after the invalidation keeps the live rows and does not refetch the old revision.
+ // Once complete, a retry neither refetches nor brings back the withdrawn row.
  expect(await ranking.ensureComplete()).toBe(true);
  expect(network.calls).toHaveLength(1);
  expect(ids(ranking.view().runs)).toEqual(['r0','r2','r3','r4','r5','r6','r7']);
@@ -116,7 +118,7 @@ test('a failed expansion keeps the current rows and a retry fetches again',async
 
 test('an empty live snapshot does not blank the leaderboard',()=>{
  const ranking=createEpochRankingController(page(),{fetch:deferredFetch().fetch});
- expect(ranking.applyLiveSnapshot({benchmarks:[benchmark],runs:[],modelNames:{}})).toBe(false);
+ expect(ranking.applyLiveSnapshot(liveEpoch([]))).toBe(false);
  expect(ids(ranking.view().runs)).toEqual(['r0','r1','r2','r3','r4']);
  expect(ranking.view().revision).toBe(R1);
 });

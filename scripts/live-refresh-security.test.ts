@@ -78,6 +78,9 @@ test("the diagnostic live snapshot helper caps oversized table responses", async
   expect(snapshot?.epochModels).toHaveLength(250);
   expect(snapshot?.epochBenchmarks).toHaveLength(250);
   expect(snapshot?.epochRuns).toHaveLength(250);
+  // Capped tables cannot claim to be the whole Epoch corpus.
+  expect(snapshot?.epochSource).toBe("epoch");
+  expect(snapshot?.epochComplete).toBe(false);
 });
 
 test("the diagnostic live snapshot helper preserves a normal short response", async () => {
@@ -105,6 +108,7 @@ test("the diagnostic live snapshot helper preserves a normal short response", as
   expect(snapshot?.epochModels).toHaveLength(2);
   expect(snapshot?.epochBenchmarks).toHaveLength(2);
   expect(snapshot?.epochRuns).toHaveLength(2);
+  expect(snapshot?.epochComplete).toBe(true);
 });
 
 test('a current published Epoch snapshot avoids all large Epoch database requests', async () => {
@@ -125,6 +129,7 @@ test('a current published Epoch snapshot avoids all large Epoch database request
   const snapshot = await fetchLiveSnapshot({ supabaseUrl: 'https://public-project.supabase.co', supabaseAnonKey: 'public-anon-key' });
   expect(snapshot?.epochRuns).toHaveLength(1);
   expect(snapshot?.epochRuns[0]?.score).toBe(0);
+  expect(snapshot).toMatchObject({ epochSource: 'epoch', epochComplete: true, epochFetchedAt: '2026-09-02T12:00:00Z' });
   expect(calls).toHaveLength(3);
 });
 
@@ -144,4 +149,5 @@ test('a newer database receipt with empty runs retains usable published Epoch ev
   const snapshot = await fetchLiveSnapshot({ supabaseUrl: 'https://public-project.supabase.co', supabaseAnonKey: 'public-anon-key' });
   expect(snapshot?.epochRuns).toHaveLength(1);
   expect(snapshot?.epochModels[0]?.model_version).toBe('retained-model');
+  expect(snapshot?.epochComplete).toBe(true);
 });

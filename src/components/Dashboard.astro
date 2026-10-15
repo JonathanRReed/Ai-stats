@@ -106,6 +106,7 @@ const initialEpochLeaderboard = buildInitialEpochLeaderboardData(
 // Build gate: rendering fails when the real inlined payload exceeds 400,000 UTF-8 bytes.
 assertInitialEpochLeaderboardBudget(initialEpochLeaderboard);
 const epochRankingRevision = epochLeaderboard.revision;
+const epochCorpusFetchedAt = catalog.epoch.fetchedAt ?? null;
 const benchmarkAttributions: Record<string, any> = {
   mmlu_pro: AA_BENCHMARK_ATTRIBUTION,
   gpqa: AA_BENCHMARK_ATTRIBUTION,
@@ -2061,7 +2062,7 @@ function getScoreClass(score: number | null | undefined): string {
   }
 </style>
 
-<script is:inline define:vars={{ preferredEpochBenchmarkSlugs, benchmarkAttributions: clientBenchmarkAttributions, initialLeaderboardModels, initialEpochLeaderboard, epochRankingRevision }}>
+<script is:inline define:vars={{ preferredEpochBenchmarkSlugs, benchmarkAttributions: clientBenchmarkAttributions, initialLeaderboardModels, initialEpochLeaderboard, epochRankingRevision, epochCorpusFetchedAt }}>
   window.__aistatsCatalogDataUrl = "/api/public-catalogs.json";
   window.__aistatsOpenRouterModels = [];
   window.__aistatsHuggingFaceModels = [];
@@ -2078,6 +2079,7 @@ function getScoreClass(score: number | null | undefined): string {
   window.__epochModelNames = initialEpochLeaderboard.modelNames;
   window.__epochLeaderboardTotals = initialEpochLeaderboard.totals;
   window.__epochRankingRevision = epochRankingRevision;
+  window.__epochCorpusFetchedAt = epochCorpusFetchedAt;
 </script>
 
 <script>
@@ -2091,7 +2093,7 @@ import {setLeaderboardCompareAction,setLeaderboardFamilyControlsDisabled,setLead
 import {leaderboardComparisonHref,leaderboardRunCatalogRecord} from "../lib/leaderboard-comparison";
 import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboardBarWidth} from '../lib/benchmark-leaderboard';
   import {preferPublisherBenchmarks} from '../lib/benchmark-catalog';
-  import {createEpochRankingController,visibleCountAfterExpansion} from '../lib/epoch-leaderboard-ranking';
+  import {createEpochRankingController,epochLiveSnapshotFrom,visibleCountAfterExpansion} from '../lib/epoch-leaderboard-ranking';
   import { findAaComparableCoverageLeader } from "../lib/data-integrity";
   import {
     hasFiniteMetricValue,
@@ -2229,12 +2231,15 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       benchmarks: latestEpochBenchmarks,
       runs: latestEpochRuns,
       modelNames: latestEpochModelNames,
+      totals: epochLeaderboardTotals,
+      fetchedAt: window.__epochCorpusFetchedAt ?? null,
     });
     const syncEpochRankingView = () => {
       const view = epochRanking.view();
       latestEpochBenchmarks = preferPublisherBenchmarks(view.benchmarks);
       latestEpochRuns = view.runs;
       latestEpochModelNames = view.modelNames;
+      epochLeaderboardTotals = { ...view.totals };
     };
     const epochRankingNotice = () => ({
       loading: "Loading full benchmark ranking…",
@@ -3853,19 +3858,10 @@ ${allBenchmarks.length ? `
 
       const liveModels = getValidModels(snapshot.aaModels ?? []);
       latestLeaderboardModels = (snapshot.aaModels ?? []).filter((model) => model.current_source_member !== false);
-      const epochBenchmarks = snapshot.epochBenchmarks ?? [];
-      const epochRuns = snapshot.epochRuns ?? [];
-      const benchmarkBySlug = new Map(latestEpochBenchmarks.map((benchmark) => [benchmark.slug, benchmark]));
-      for (const benchmark of epochBenchmarks) benchmarkBySlug.set(benchmark.slug, benchmark);
-      // A live snapshot replaces the page revision, so a late page-revision ranking can no longer apply.
-      if (epochRanking.applyLiveSnapshot({
-        benchmarks: [...benchmarkBySlug.values()],
-        runs: epochRuns,
-        modelNames: Object.fromEntries((snapshot.epochModels ?? []).flatMap(model => {
-          const name = model.display_name?.trim() || model.model_name?.trim();
-          return name ? [[model.model_version, name]] : [];
-        })),
-      })) syncEpochRankingView();
+      // Live snapshots are Epoch-only and may be row-capped: only a declared-complete Epoch corpus
+      // replaces Epoch rows; publisher rows and the build ranking stay otherwise.
+      const liveEpoch = epochLiveSnapshotFrom(snapshot);
+      if (liveEpoch && epochRanking.applyLiveSnapshot(liveEpoch)) syncEpochRankingView();
 
       updateModelCounts(liveModels);
       updateDataFreshness(liveModels);

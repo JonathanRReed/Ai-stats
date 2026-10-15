@@ -55,7 +55,8 @@ test('serialized Epoch picker inputs retain only the initial top rows and requir
  expect(dashboard).toContain('resolveEpochLeaderboardRunNames(cohort.runs, benchmarkModelNameRecord)');
  expect(dashboard).toContain('resolveEpochLeaderboardRunNames(cohort.runs, epochModelNames)');
  expect(dashboard).toContain('name: run.name,');
- expect(dashboard).toContain('Object.fromEntries((snapshot.epochModels ?? []).flatMap');
+ // Live snapshot names are mapped by epochLiveSnapshotFrom (covered in epoch-leaderboard-live.test.ts).
+ expect(dashboard).toContain('const liveEpoch = epochLiveSnapshotFrom(snapshot);');
  expect(dashboard).toContain('window.__epochBenchmarkLabels = initialEpochLeaderboard.labels');
 });
 
