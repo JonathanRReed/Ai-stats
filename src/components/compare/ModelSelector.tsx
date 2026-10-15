@@ -24,7 +24,11 @@ type Props = {
   query: string;
   onQuery: (value: string) => void;
   selectionNotice?: string;
-  browseOrder?: readonly string[];
+  /** Ranked family keys for the active view; null/undefined means no honest ranking exists here. */
+  browseOrder?: readonly string[] | null;
+  browseBasis?: string;
+  browseSort?: FamilyBrowseSort;
+  onBrowseSort?: (value: FamilyBrowseSort) => void;
 };
 
 const reasoningLevels = ['none', 'low', 'medium', 'high', 'xhigh', 'minimal', 'max', 'unknown'];
@@ -49,10 +53,20 @@ export default function ModelSelector({
   onQuery,
   selectionNotice,
   browseOrder,
+  browseBasis,
+  browseSort: requestedSort,
+  onBrowseSort,
 }: Props) {
   const resultsId = useId();
   const [page, setPage] = useState(0);
-  const [browseSort, setBrowseSort] = useState<FamilyBrowseSort>('recommend');
+  // Sort choice is owned by the explorer so the desktop rail and the mobile dialog agree;
+  // an uncontrolled selector (tests, other pages) keeps local state.
+  const [localSort, setLocalSort] = useState<FamilyBrowseSort>('recommend');
+  const chosenSort = requestedSort ?? localSort;
+  const setBrowseSort = (value: FamilyBrowseSort) => { if (onBrowseSort) onBrowseSort(value); else setLocalSort(value); };
+  const rankingAvailable = Boolean(browseOrder);
+  // Never claim "Recommended" while showing an alphabetical list.
+  const browseSort: FamilyBrowseSort = rankingAvailable ? chosenSort : 'alpha';
   const resultsRef = useRef<HTMLDivElement>(null);
   const [allCatalog, setAllCatalog] = useState(false);
   const selectedKey = JSON.stringify(selected);
@@ -67,8 +81,8 @@ export default function ModelSelector({
     [models, chart, metricId, stableSelected, allCatalog, includeHistory, selectedSet],
   );
   const orderOptions = useMemo(
-    () => ({ sort: browseSort, browseOrder, chart, metricId }),
-    [browseSort, browseOrder, chart, metricId],
+    () => ({ sort: browseSort, browseOrder }),
+    [browseSort, browseOrder],
   );
   const groups = useMemo(
     () => groupCompareFamilies(searchable, stableSelected, query, stableSuggestedIds, orderOptions),
@@ -178,9 +192,10 @@ export default function ModelSelector({
           <select
             id={`${resultsId}-sort`}
             value={browseSort}
+            aria-describedby={browseBasis ? `${resultsId}-sort-basis` : undefined}
             onChange={event => setBrowseSort(event.target.value as FamilyBrowseSort)}
           >
-            <option value="recommend">Recommended</option>
+            <option value="recommend" disabled={!rankingAvailable}>{rankingAvailable ? 'Recommended' : 'Recommended (unavailable here)'}</option>
             <option value="alpha">Alphabetical</option>
           </select>
         </label>
@@ -228,6 +243,9 @@ export default function ModelSelector({
             ? <button type="button" className="rail-action" onClick={onSuggested}>Use suggestions</button>
             : null}
       </div>
+      {browseBasis
+        ? <p className="browse-order-basis" id={`${resultsId}-sort-basis`}>{browseSort === 'alpha' && rankingAvailable ? 'Alphabetical order.' : browseBasis}</p>
+        : null}
       <div className="family-results-scroll" ref={resultsRef} id={resultsId}>
         {hasQuery
           ? <section className="family-section" aria-label="Search results">

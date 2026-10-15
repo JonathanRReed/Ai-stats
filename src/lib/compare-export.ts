@@ -1,17 +1,20 @@
-import type {EvidenceReceipt} from './compare-series';
+import type {EvidenceReceipt,LogOmission} from './compare-series';
 type CsvPoint={id?:string;modelId?:string;series?:string;label:string;reasoning?:string;x:number;y:number;unit:string;receipt:EvidenceReceipt};
 const cell=(value:unknown)=>{
   let text=value===null||value===undefined?'':String(value);
   if(typeof value!=='number'&&/^[\s]*[=+@-]/.test(text))text="'"+text;
   return '"'+text.replaceAll('"','""')+'"';
 };
-export function seriesCsv(points:CsvPoint[],options:{includeX?:boolean;xLabel?:string;yLabel?:string;metricId?:string;metricName?:string}={}):string{
+/** When `scale` is given, every row states the axis scale and whether it is drawn (Log omits zero/negative values). */
+export function seriesCsv(points:CsvPoint[],options:{includeX?:boolean;xLabel?:string;yLabel?:string;metricId?:string;metricName?:string;scale?:'linear'|'log';omittedIds?:string[]}={}):string{
   const includeX=options.includeX!==false;
   const rows:Array<Array<string|number>>=[['Metric','Metric ID','Model','Model ID','Observation ID','Series','Index version','Reasoning',...(includeX?[options.xLabel??'X']:[]),
-    options.yLabel??'Value','Unit','Source','Observed','Retrieved','Conditions','Source URL','Snapshot']];
+    options.yLabel??'Value','Unit','Source','Observed','Retrieved','Conditions','Source URL','Snapshot',...(options.scale?['Axis scale','Plotted on chart']:[])]];
+  const omitted=new Set(options.omittedIds??[]);
   for(const point of points)rows.push([options.metricName??'',options.metricId??'',point.label,point.modelId??'',point.id??'',point.series??'',point.receipt.indexVersion??'',point.reasoning??'unknown',...(includeX?[point.x]:[]),point.y,point.unit,
     point.receipt.source,point.receipt.observedAt??'',point.receipt.fetchedAt??'',
-    point.receipt.conditions?JSON.stringify(point.receipt.conditions):'unknown',point.receipt.sourceUrl??'',point.receipt.snapshotId??'']);
+    point.receipt.conditions?JSON.stringify(point.receipt.conditions):'unknown',point.receipt.sourceUrl??'',point.receipt.snapshotId??'',
+    ...(options.scale?[options.scale,options.scale==='log'&&point.id!==undefined&&omitted.has(point.id)?'No: zero or negative value cannot be drawn on Log':'Yes']:[])]);
   return rows.map(row=>row.map(cell).join(',')).join('\r\n')+'\r\n';
 }
 export function downloadText(text:string,filename:string,type='text/csv;charset=utf-8'){
@@ -19,11 +22,13 @@ export function downloadText(text:string,filename:string,type='text/csv;charset=
   const link=document.createElement('a');link.href=url;link.download=filename;link.click();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-export function chartExportCaption(points:CsvPoint[],metricName:string):string {
+export function chartExportCaption(points:CsvPoint[],metricName:string,context:{scale?:'linear'|'log';axisLabel?:string;omitted?:LogOmission[]}={}):string {
   const sources=[...new Set(points.map(point=>point.receipt.source+' · '+
     (point.receipt.observedAt?'observed '+point.receipt.observedAt.slice(0,10):
       point.receipt.fetchedAt?'retrieved '+point.receipt.fetchedAt.slice(0,10):'date not recorded')))];
-  return 'AI Stats · '+metricName+' · '+sources.join(' · ');
+  const scale=context.scale?' · '+(context.scale==='log'?'Log':'Linear')+' scale'+(context.axisLabel?' ('+context.axisLabel+')':''):'';
+  const omitted=context.scale==='log'&&context.omitted?.length?' · Not plotted on Log: '+context.omitted.map(item=>item.label+' ('+item.valueLabel+')').join(', '):'';
+  return 'AI Stats · '+metricName+scale+' · '+sources.join(' · ')+omitted;
 }
 export async function downloadChartPng(svg:SVGSVGElement,caption:string){
   const clone=svg.cloneNode(true) as SVGSVGElement;

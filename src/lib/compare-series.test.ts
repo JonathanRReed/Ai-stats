@@ -18,8 +18,7 @@ test('cost scatter retains free models, excludes missing price, and keeps Log wh
   expect(result?.points[0]).toMatchObject({x:0,y:80});
   expect(result?.scale).toBe('log');
   expect(result?.omittedFromLog?.map((p:{modelId:string})=>p.modelId)).toEqual(['a']);
-  expect(result?.scaleNotice).toContain('zero');
-  expect(result?.scaleNotice).toContain('Show all on Linear');
+  expect(result?.scaleNotice).toBe('1 selected observation is not plotted on Log (zero USD / 1M tokens (3:1 input/output)): A high (0).');
   expect(series.plottableSeriesPoints(result!)).toEqual([]);
   expect(result?.excluded).toContainEqual({modelId:'b',reason:'Missing price or intelligence'});
 });
@@ -35,7 +34,8 @@ test('log keeps positive points plotted when a selected zero is omitted',()=>{
   expect(result.points).toHaveLength(2);
   expect(result.omittedFromLog.map(p=>p.modelId)).toEqual(['free']);
   expect(series.plottableSeriesPoints(result).map(p=>p.modelId)).toEqual(['paid']);
-  expect(result.frontierGroups).toEqual({'4.2:long':['paid']});
+  // Free (x=0, y=80) dominates Paid (x=2, y=70); omitting Free from Log geometry must not promote Paid.
+  expect(result.frontierGroups).toEqual({'4.2:long':['free']});
 });
 
 test('reference-only zeros omit from log without forcing selected positives linear',()=>{
@@ -59,7 +59,7 @@ test('all-zero log selection keeps records for CSV and exposes an empty plottabl
   expect(result.points).toHaveLength(2);
   expect(result.omittedFromLog).toHaveLength(2);
   expect(series.plottableSeriesPoints(result)).toEqual([]);
-  expect(result.scaleNotice).toContain('Show all on Linear');
+  expect(result.scaleNotice).toContain('2 selected observations are not plotted on Log (zero USD / AA Index task)');
 });
 
 test('negative bar scores are omitted on log without clamping into geometry',()=>{
@@ -187,4 +187,66 @@ test('CSV keeps zero rows while plottable log points omit them',async()=>{
   expect(csv).toContain('"0"');
   expect(result.points[0].x).toBe(0);
   expect(series.plottableSeriesPoints(result)).toEqual([]);
+});
+
+test('zero-cost high score dominates a positive-cost lower score on every scale',()=>{
+  const rows:ExplorerModel[]=[
+    {...models[0],id:'k2',name:'K2 Horizon 375B A23B',family:'K2 Horizon',aaTaskCost:0,intelligence:72},
+    {...models[0],id:'dominated',name:'Dominated',family:'D',aaTaskCost:3,intelligence:60},
+    {...models[0],id:'strong',name:'Strong',family:'S',aaTaskCost:9,intelligence:90},
+  ];
+  const build=(scale:'linear'|'log')=>series.buildCompareSeries({models:rows,observations:[]},parseCompareState(new URLSearchParams(`chart=task-cost&scale=${scale}&m=k2&m=dominated&m=strong`),rows));
+  const linear=build('linear'),log=build('log');
+  expect(linear.frontierGroups).toEqual({'4.2:long':['k2','strong']});
+  // Toggling scale never changes Pareto membership; Log only omits K2's geometry.
+  expect(log.frontierGroups).toEqual(linear.frontierGroups);
+  expect(Object.values(log.frontierGroups).flat()).not.toContain('dominated');
+  expect(series.plottableSeriesPoints(log).map(point=>point.modelId)).toEqual(['dominated','strong']);
+});
+
+test('frontier segments never bridge across an omitted member',()=>{
+  const at=new Map([['a',{x:1}],['c',{x:3}],['d',{x:4}]]);
+  expect(series.frontierSegments(['a','b','c','d'],at)).toEqual([[{x:1}],[{x:3},{x:4}]]);
+  expect(series.frontierSegments(['zero','c','d'],at)).toEqual([[{x:3},{x:4}]]);
+  expect(series.frontierSegments(['zero'],at)).toEqual([]);
+});
+
+test('Log omission notices name each record, its value and sign without duplicate labels',()=>{
+  const rows:ExplorerModel[]=[
+    {...models[0],id:'k2',name:'K2 Horizon 375B A23B',family:'K2',reasoning:'high',aaTaskCost:0,intelligence:72},
+    {...models[0],id:'k2-low',name:'K2 Horizon 375B A23B',family:'K2',reasoning:'low',aaTaskCost:0,intelligence:70},
+    {...models[0],id:'paid',name:'Paid',family:'P',aaTaskCost:2,intelligence:60},
+  ];
+  const result=series.buildCompareSeries({models:rows,observations:[]},parseCompareState(new URLSearchParams('chart=task-cost&scale=log&m=k2&m=k2-low&m=paid'),rows));
+  const items=series.logOmissions(result.omittedFromLog,result.kind);
+  expect(items.map(item=>item.label)).toEqual(['K2 Horizon 375B A23B · high','K2 Horizon 375B A23B · low']);
+  expect(items.every(item=>item.sign==='zero'&&item.valueLabel==='0')).toBe(true);
+  expect(result.scaleNotice).toContain('K2 Horizon 375B A23B · high (0)');
+  const negatives=series.logOmissions([{...result.points[0],id:'neg',x:-2}],'scatter');
+  expect(negatives[0]).toMatchObject({sign:'negative',valueLabel:'−2'});
+  expect(series.logOmissionHeading(negatives,'Score','reference')).toBe('1 current frontier reference record is not plotted on Log (negative Score)');
+  expect(series.logOmissionHeading([...items,...negatives],'Score')).toContain('zero or negative Score');
+  // The same record never appears twice even if passed twice.
+  expect(series.logOmissions([result.points[0],result.points[0]],'scatter')).toHaveLength(1);
+});
+
+test('selected and reference Log omissions are labelled accurately without duplicates',()=>{
+  const rows:ExplorerModel[]=[
+    {...models[0],id:'k2',name:'K2 Horizon 375B A23B',family:'K2',aaTaskCost:0,intelligence:72},
+    {...models[0],id:'zero-ref',name:'Zero Ref',family:'Z',aaTaskCost:0,intelligence:50},
+    {...models[0],id:'paid',name:'Paid',family:'P',aaTaskCost:2,intelligence:60},
+  ];
+  const build=(ids:string[])=>series.buildCompareSeries({models:rows,observations:[]},{...parseCompareState(new URLSearchParams('chart=task-cost&scale=log'),rows),modelIds:ids,frontier:true});
+  const selected=build(['k2','paid']),reference=build(['k2','zero-ref','paid']);
+  const notice=series.combinedLogOmissions(selected,reference)!;
+  expect(notice.selected.map(item=>item.label)).toEqual(['K2 Horizon 375B A23B']);
+  // K2 is already listed as selected; only the reference-only record is added.
+  expect(notice.reference.map(item=>[item.label,item.sign,item.valueLabel])).toEqual([['Zero Ref','zero','0']]);
+  expect(series.logOmissionHeading(notice.reference,notice.axis,'reference')).toBe('1 current frontier reference record is not plotted on Log (zero USD / AA Index task)');
+  // A negative reference value is called negative, never "zero".
+  const negative={...reference,omittedFromLog:[{...reference.points[0],id:'neg-ref',modelId:'neg-ref',label:'Negative Ref',x:-1}]};
+  const negativeNotice=series.combinedLogOmissions(selected,negative)!;
+  expect(negativeNotice.reference.map(item=>[item.label,item.sign,item.valueLabel])).toEqual([['Negative Ref','negative','−1']]);
+  expect(series.logOmissionHeading(negativeNotice.reference,negativeNotice.axis,'reference')).toContain('(negative USD / AA Index task)');
+  expect(series.combinedLogOmissions({...selected,scale:'linear'},reference)).toBeNull();
 });

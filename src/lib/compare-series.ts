@@ -1,5 +1,6 @@
 import type {CompareState} from './compare-state';
 import {epochConditionKey,type EpochObservation} from './epoch-observations';
+import {formatChartNumber} from './compare-geometry';
 
 export type ExplorerModel = {
   id:string; name:string; slug?:string; family:string; provider?:string; reasoning?:string;
@@ -68,22 +69,39 @@ export function plottableSeriesPoints(series:Pick<CompareSeries,'points'|'kind'|
   const omitted=new Set((series.omittedFromLog??[]).map(point=>point.id));
   return series.points.filter(point=>!omitted.has(point.id)&&seriesLogCoordinate(point,series.kind)>0);
 }
-function logScaleNotice(omitted:SeriesPoint[],kind:'scatter'|'bars',xLabel:string,yLabel:string):string{
-  const n=omitted.length;
-  const axis=kind==='scatter'?xLabel:yLabel;
-  const values=omitted.map(point=>seriesLogCoordinate(point,kind));
-  const zeros=values.filter(value=>value===0).length;
-  const negatives=values.filter(value=>value<0).length;
-  const noun=n===1?'observation':'observations';
-  let detail:string;
-  if(zeros&&!negatives)detail=`${n===1?'a zero':'zero'} ${axis.toLowerCase().includes('usd')||/cost|price|token/i.test(axis)?'cost':'value'}`;
-  else if(negatives&&!zeros)detail=`${n===1?'a negative':'negative'} value`;
-  else detail='a zero or negative value';
-  if(n===1&&zeros&&!negatives){
-    const costish=/cost|price|token|usd/i.test(axis);
-    return `1 selected observation has a zero ${costish?'cost':'value'} and is not plotted on Log. Show all on Linear`;
-  }
-  return `${n} selected ${noun} ${n===1?'has':'have'} ${detail} and ${n===1?'is':'are'} not plotted on Log. Show all on Linear`;
+export type LogOmission={id:string;modelId:string;label:string;value:number;valueLabel:string;sign:'zero'|'negative'};
+const omissionValue=(value:number)=>value===0?'0':value<0?'−'+formatChartNumber(Math.abs(value)):formatChartNumber(value);
+/** Named, de-duplicated identities for records that cannot sit on a log axis. */
+export function logOmissions(points:SeriesPoint[],kind:'scatter'|'bars'):LogOmission[]{
+  const unique=[...new Map(points.filter(point=>!(seriesLogCoordinate(point,kind)>0)).map(point=>[point.id,point])).values()];
+  const baseLabel=(point:SeriesPoint)=>point.label+(point.series==='input'?' · Input tokens':point.series==='output'?' · Output tokens':'');
+  const counts=new Map<string,number>();unique.forEach(point=>counts.set(baseLabel(point),(counts.get(baseLabel(point))??0)+1));
+  return unique.map(point=>{
+    const value=seriesLogCoordinate(point,kind);
+    const label=counts.get(baseLabel(point))!>1?`${baseLabel(point)} · ${point.reasoning!=='unknown'?point.reasoning:point.provider??point.modelId}`:baseLabel(point);
+    return {id:point.id,modelId:point.modelId,label,value,valueLabel:omissionValue(value),sign:value===0?'zero':'negative'};
+  });
+}
+const signWords=(items:LogOmission[])=>items.every(item=>item.sign==='zero')?'zero':items.every(item=>item.sign==='negative')?'negative':'zero or negative';
+/** Heading for an omission list, e.g. "1 selected observation is not plotted on Log (zero USD / AA Index task)". */
+export function logOmissionHeading(items:LogOmission[],axisLabel:string,scope:'selected'|'reference'='selected'):string{
+  const n=items.length;
+  const who=scope==='selected'?`${n} selected ${n===1?'observation is':'observations are'}`:`${n} current frontier reference ${n===1?'record is':'records are'}`;
+  return `${who} not plotted on Log (${signWords(items)} ${axisLabel})`;
+}
+/** Accessible notice text naming each omitted record and its value. */
+export function logOmissionNotice(items:LogOmission[],axisLabel:string,scope:'selected'|'reference'='selected',limit=8):string|null{
+  if(!items.length)return null;
+  const listed=items.slice(0,limit).map(item=>`${item.label} (${item.valueLabel})`).join(', ');
+  return `${logOmissionHeading(items,axisLabel,scope)}: ${listed}${items.length>limit?`, and ${items.length-limit} more`:''}.`;
+}
+/** Selected omissions first, then reference-frontier omissions not already in the selection (never listed twice). */
+export function combinedLogOmissions(series:CompareSeries,reference?:CompareSeries|null){
+  if(series.scale!=='log')return null;
+  const selected=logOmissions(series.omittedFromLog,series.kind);
+  const selectedIds=new Set(series.points.map(point=>point.id));
+  const others=logOmissions((reference?.omittedFromLog??[]).filter(point=>!selectedIds.has(point.id)),series.kind);
+  return selected.length||others.length?{selected,reference:others,axis:series.kind==='scatter'?series.xLabel:series.yLabel}:null;
 }
 export function chartLabelCandidates(points:SeriesPoint[],frontierGroups:Record<string,string[]>,limit=12):string[]{
  const priorities:string[]=[];
@@ -130,6 +148,13 @@ export function paretoFrontiers<T extends {id:string;x:number;y:number;cohortKey
   return Object.fromEntries([...groups].sort(([a],[b])=>a.localeCompare(b)).map(([key,group])=>[key,group.filter(point=>
     !group.some(other=>other.id!==point.id&&(direction==='min'?other.x<=point.x:other.x>=point.x)&&other.y>=point.y&&
       (other.x!==point.x||other.y!==point.y))).sort((a,b)=>a.x-b.x||a.id.localeCompare(b.id)).map(point=>point.id)]));
+}
+/** Split a frontier into drawable runs; never bridge across a member that has no plotted position. */
+export function frontierSegments<T>(ids:string[],positions:Map<string,T>):T[][]{
+  const runs:T[][]=[];let run:T[]=[];
+  for(const id of ids){const position=positions.get(id);if(position)run.push(position);else{if(run.length)runs.push(run);run=[];}}
+  if(run.length)runs.push(run);
+  return runs;
 }
 export const epochScoreKey=(row:Pick<EpochObservation,'metricKey'|'unit'|'benchmarkVersion'>)=>JSON.stringify([row.metricKey??'Unknown metric',row.unit==='fraction'?'percent':row.unit,...(row.benchmarkVersion?[row.benchmarkVersion]:[])]);
 export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState):CompareSeries {
@@ -204,14 +229,14 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
   if(state.scale==='log'){
     const omitted=result.points.filter(point=>!(seriesLogCoordinate(point,result.kind)>0));
     if(omitted.length){
+      // Keep scale='log' so positive measurements stay on a logarithmic axis; omitted
+      // records stay in points for CSV, details and counts.
       result.omittedFromLog=omitted;
-      result.scaleNotice=logScaleNotice(omitted,result.kind,result.xLabel,result.yLabel);
-      // Keep scale='log' so positive measurements stay on a logarithmic axis.
+      result.scaleNotice=logOmissionNotice(logOmissions(omitted,result.kind),result.kind==='scatter'?result.xLabel:result.yLabel);
     }
   }
-  if(state.frontier&&result.kind==='scatter'){
-    const frontierPoints=state.scale==='log'?plottableSeriesPoints(result):result.points;
-    result.frontierGroups=paretoFrontiers(frontierPoints,result.higherXIsBetter?'max':'min');
-  }
+  // Dominance is a property of the measurements, not of the axis: compute it from every
+  // compatible raw point so a zero-cost record still dominates on Log, where it is omitted.
+  if(state.frontier&&result.kind==='scatter')result.frontierGroups=paretoFrontiers(result.points,result.higherXIsBetter?'max':'min');
   return result;
 }

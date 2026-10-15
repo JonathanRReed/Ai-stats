@@ -1,6 +1,7 @@
 import {expect,test} from 'bun:test';
 import {compactCatalog,expandCatalog,measurementBucket,validateMeasurementChunk} from './compare-delivery';
 import type {ExplorerModel} from './compare-series';
+import {BROWSE_RANK_POLICY} from './compare-browse-rank';
 const models:ExplorerModel[]=Array.from({length:200},(_,i)=>({id:'litellm:lab/'+i,source:'litellm',sourceModelId:'lab/'+i,name:'Model '+i,family:'Model '+i,provider:'Lab',reasoning:'unknown',current:true,priceInput:.001,priceOutput:.002,sourceUrl:'https://models.litellm.ai/',observedAt:null,fetchedAt:'2026-10-02'}));
 test('compact catalog keeps all source identities and search facets without measurements',()=>{
  const payload=compactCatalog(models),rows=expandCatalog(payload);
@@ -26,14 +27,16 @@ test('measurement chunks reject mismatched revisions, foreign identities and mal
  for(const malformed of [{family:{}},{observedAt:42},{reasoning:[]},{indexVersion:4.3},{metrics:false},{metrics:0},{metrics:''}])expect(()=>validateMeasurementChunk({...payload,records:[{...rows[0],...malformed},...rows.slice(1)]},'abc',bucket,known)).toThrow();
 });
 
-test('compact catalog carries revision-consistent browse order without restoring measurement fields',()=>{
+test('compact catalog carries revision-consistent browse ranks without restoring measurement fields',()=>{
  const ranked:ExplorerModel[]=[
-  {...models[0],id:'aa:c2',source:'aa',sourceModelId:'c2',name:'Claude 2',family:'Claude 2',intelligence:40,aaTaskCost:1,priceBlended:2},
-  {...models[1],id:'aa:c55',source:'aa',sourceModelId:'c55',name:'Claude 5.5',family:'Claude 5.5',intelligence:99,aaTaskCost:2,priceBlended:4},
+  {...models[0],id:'aa:c2',source:'aa',sourceModelId:'c2',name:'Claude 2',family:'Claude 2',intelligence:40,aaTaskCost:1,priceBlended:2,indexVersion:'4.3'},
+  {...models[1],id:'aa:c55',source:'aa',sourceModelId:'c55',name:'Claude 5.5',family:'Claude 5.5',intelligence:99,aaTaskCost:2,priceBlended:4,indexVersion:'4.3'},
  ];
  const payload=compactCatalog(ranked);
- expect(payload.browseOrder?.familyKeys.some(key=>key.includes('Claude 5.5'))).toBe(true);
- expect(payload.browseOrder?.ranks['task-cost']?.[0]).toBe(payload.browseOrder!.familyKeys.findIndex(key=>key.includes('Claude 5.5')));
+ expect(payload.browseRanks?.policy).toBe(BROWSE_RANK_POLICY);
+ expect(payload.browseRanks?.ranks['task-cost']).toEqual(['4.3','1.0']);
  expect(expandCatalog(payload)[0].intelligence).toBeUndefined();
  expect(JSON.stringify(payload).length).toBeLessThan(JSON.stringify(ranked).length*2);
+ // The rank contract is explicit even when nothing can be ranked.
+ expect(compactCatalog(models).browseRanks).toEqual({policy:BROWSE_RANK_POLICY,ranks:{}});
 });

@@ -11,41 +11,33 @@ export function plotGeometry<T extends PlotPoint>(points:T[],kind:'scatter'|'bar
     const power=10**Math.floor(Math.log10(rough));const ratio=rough/power;
     return (ratio<=1.5?1:ratio<=3?2:ratio<=7?5:10)*power;
   };
-  const domain=(values:number[],log:boolean):[number,number]=>{
-    const usable=values.filter(value=>Number.isFinite(value)&&(!log||value>0));
-    if(!usable.length)return log?[1,10]:[0,1];
-    let min=log?Math.min(...usable):Math.min(0,...usable);
-    let max=log?Math.max(...usable):Math.max(0,...usable);
-    if(log){
-      // Keep powers inside a safe finite band so tick loops and log10 math never overflow to Infinity/NaN.
-      const logMax=1e300;
-      min=Math.min(Math.max(min,1e-300),logMax);
-      max=Math.min(Math.max(max,min),logMax);
-      min=10**Math.floor(Math.log10(min));
-      max=10**Math.ceil(Math.log10(max));
-      if(!Number.isFinite(min)||min<=0)min=1e-300;
-      if(!Number.isFinite(max)||max<=0)max=10;
-      max=Math.min(max,logMax);
-      if(min>=max){min=Math.max(min/10,1e-300);max=Math.min(Math.max(max*10,min*10),logMax);}
-    }else{
-      if(min===max)max=min+1;
-      else {const padded=max+(max-min)*.08;max=Number.isFinite(padded)?padded:max;}
-    }
-    if(!log){const step=niceStep(max-min);min=Math.floor(min/step)*step;max=Math.ceil(max/step)*step;}
-    return [min,max];
+  // Linear axes use value-space domains. Log axes use whole-decade EXPONENT domains, so every
+  // finite positive double (including subnormals and values near Number.MAX_VALUE) maps
+  // exactly, with no epsilon or 1e±300 clamp and no overflow when forming 10**exponent.
+  const linearDomain=(values:number[]):[number,number]=>{
+    const usable=values.filter(value=>Number.isFinite(value));
+    if(!usable.length)return [0,1];
+    const min=Math.min(0,...usable);let max=Math.max(0,...usable);
+    if(min===max)max=min+1;
+    else {const padded=max+(max-min)*.08;max=Number.isFinite(padded)?padded:max;}
+    const step=niceStep(max-min);
+    return [Math.floor(min/step)*step,Math.ceil(max/step)*step];
   };
-  const xDomain=domain(finite.map(point=>point.x),logX);
-  const yDomain=domain(finite.map(point=>point.y),logY);
+  const logDomain=(values:number[]):[number,number]=>{
+    const usable=values.filter(value=>Number.isFinite(value)&&value>0);
+    if(!usable.length)return [0,1];
+    let low=Math.floor(Math.log10(Math.min(...usable))),high=Math.ceil(Math.log10(Math.max(...usable)));
+    if(low===high){low-=1;high+=1;}
+    return [low,high];
+  };
+  const xDomain=logX?logDomain(finite.map(point=>point.x)):linearDomain(finite.map(point=>point.x));
+  const yDomain=logY?logDomain(finite.map(point=>point.y)):linearDomain(finite.map(point=>point.y));
   const fraction=(value:number,[min,max]:[number,number],log:boolean)=>{
-    if(log){
-      if(!(value>0)||!(min>0)||!(max>0)||min===max)return 0;
-      const start=Math.log10(min),end=Math.log10(max),at=Math.log10(Math.min(value,max));
-      if(!Number.isFinite(start)||!Number.isFinite(end)||!Number.isFinite(at)||end===start)return 0;
-      return (at-start)/(end-start);
-    }
+    if(log)return (Math.log10(value)-min)/(max-min);
     const magnitude=Math.max(Math.abs(min),Math.abs(max),1);
     return (value/magnitude-min/magnitude)/(max/magnitude-min/magnitude);
   };
+  const exponentFraction=(exponent:number,[min,max]:[number,number])=>(exponent-min)/(max-min);
   const px=(value:number)=>left+fraction(value,xDomain,logX)*(right-left);
   const py=(value:number)=>bottom-fraction(value,yDomain,logY)*(bottom-top);
   const groups=[...new Set(finite.map(point=>point.x))].sort((a,b)=>a-b);
@@ -57,23 +49,23 @@ export function plotGeometry<T extends PlotPoint>(points:T[],kind:'scatter'|'bar
     return {...point,cx:kind==='scatter'?px(point.x):left+(groups.indexOf(point.x)+.5)*band+
       (peerIndex-(peers.length-1)/2)*barWidth,cy:py(point.y),barWidth,visibleBarWidth:Math.max(barWidth*.55,barWidth-2)};
   });
-  const ticks=(range:[number,number],log:boolean,position:(value:number)=>number)=>{
-    const values:number[]=[];
+  const ticks=(range:[number,number],log:boolean,axis:'x'|'y')=>{
     if(log){
-      const start=Math.ceil(Math.log10(range[0])),end=Math.floor(Math.log10(range[1]));
-      if(Number.isFinite(start)&&Number.isFinite(end)){
-        for(let exponent=start;exponent<=end&&exponent-start<400;exponent++){
-          const value=10**exponent;if(Number.isFinite(value))values.push(value);
-        }
+      const step=Math.max(1,Math.ceil((range[1]-range[0])/10)),result=[];
+      for(let exponent=range[0];exponent<=range[1];exponent+=step){
+        const at=exponentFraction(exponent,range);
+        result.push({value:10**exponent,label:Math.abs(exponent)>300?'1e'+exponent:formatChartNumber(10**exponent),
+          position:axis==='x'?left+at*(right-left):bottom-at*(bottom-top)});
       }
-    }else{
-      const step=niceStep(range[1]-range[0]);const count=Math.min(20,Math.round((range[1]-range[0])/step));
-      for(let index=0;index<=count;index++)values.push(Number((range[0]+index*step).toPrecision(12)));
+      return result;
     }
-    return values.map(value=>({value,label:formatChartNumber(value),position:position(value)}));
+    const values:number[]=[];
+    const step=niceStep(range[1]-range[0]);const count=Math.min(20,Math.round((range[1]-range[0])/step));
+    for(let index=0;index<=count;index++)values.push(Number((range[0]+index*step).toPrecision(12)));
+    return values.map(value=>({value,label:formatChartNumber(value),position:axis==='x'?px(value):py(value)}));
   };
   return {width,height,left,right,top,bottom,points:plotted,
-    xTicks:ticks(xDomain,logX,px),
-    yTicks:ticks(yDomain,logY,py),
-    baseline:py(logY?yDomain[0]:0)};
+    xTicks:ticks(xDomain,logX,'x'),
+    yTicks:ticks(yDomain,logY,'y'),
+    baseline:logY?bottom:py(0)};
 }
