@@ -135,7 +135,7 @@ test("the measurements overview uses an AA cost and Index explorer alongside sou
   expect(readFileSync("src/components/OverviewDataStatus.astro", "utf8")).toContain("Coverage");
   expect(dashboardSource).toContain("<OverviewDataStatus");
   expect(dashboardSource).toContain('href="/compare" class="eco-btn eco-btn-primary">Compare models</a>');
-  expect(overviewExplorerSource).toContain("Show frontier only");
+  expect(overviewExplorerSource).toContain("Show Pareto models only");
   expect(overviewExplorerSource).toContain("Exact chart data");
   expect(overviewExplorerSource).toContain("Unknown version");
   expect(overviewExplorerSource).toContain("Values and receipt dates are from this record's source payload.");

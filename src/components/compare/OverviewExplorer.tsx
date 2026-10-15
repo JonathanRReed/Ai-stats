@@ -71,7 +71,7 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
         <button type="button" aria-pressed={series.scale==='linear'} onClick={()=>setScale('linear')}>Linear</button>
         <button type="button" aria-pressed={series.scale==='log'} onClick={()=>setScale('log')}>Log</button>
       </div>
-      <label className="overview-check"><input type="checkbox" checked={frontierOnly} onChange={event=>setFrontierOnly(event.target.checked)}/>Show frontier only</label>
+      <label className="overview-check"><input type="checkbox" checked={frontierOnly} onChange={event=>setFrontierOnly(event.target.checked)}/>Show Pareto models only</label>
     </div>
     <p className="overview-axis-definition">X: {series.xLabel} · Y: AA Intelligence Index</p>
     {metric==='task-cost'?<details className="overview-methodology"><summary>How AA task cost is measured</summary>

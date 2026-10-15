@@ -67,7 +67,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const failedSelectedIds=unresolvedIds.filter(id=>failedMeasurementIds.includes(id));
   const pendingKey=pendingIds.slice().sort().join('\n');
   const failedReferenceIds=frontierUnresolvedIds.filter(id=>failedMeasurementIds.includes(id));
-  const measurementStatus=pendingIds.length?'Loading comparison measurements…':failedSelectedIds.length?'Some selected measurements could not load. Retry, or reload for the latest data.':failedReferenceIds.length?'The current frontier reference could not be fully loaded.':'';
+  const measurementStatus=pendingIds.length?'Loading comparison measurements…':failedSelectedIds.length?'Some selected measurements could not load. Retry, or reload for the latest data.':failedReferenceIds.length?'The current Pareto line reference could not be fully loaded.':'';
   useEffect(()=>{
     if(!loader||!pendingKey)return;
     let cancelled=false;const ids=pendingKey.split('\n');
@@ -146,9 +146,10 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
           <option value="">All recorded runs</option>{conditions.map(key=><option value={key} key={key}>{key==='unknown'?'Not recorded':JSON.parse(key).map(([name,value]:[string,unknown])=>name+': '+value).join(' · ')}</option>)}</select></label>:null}
         <div className="scale-buttons" role="group" aria-label="Horizontal axis scale"><button type="button" aria-pressed={displayedScale==='linear'} onClick={()=>update({scale:'linear'})}>Linear</button>
           <button type="button" aria-pressed={displayedScale==='log'} onClick={()=>update({scale:'log'})}>Log</button></div>
+        {series.kind==='scatter'?<button type="button" className="pareto-toggle" aria-label="Pareto line" aria-pressed={state.frontier} onClick={()=>update({frontier:!state.frontier})}>Pareto line <span aria-hidden="true">{state.frontier?'On':'Off'}</span></button>:null}
         <details className="chart-options"><summary>Chart options</summary><div className="chart-options-content">
         {series.kind==='scatter'?<label className="toolbar-check"><input type="checkbox" checked={state.labels} onChange={event=>update({labels:event.target.checked})}/>Labels</label>:<span>Full model names shown</span>}
-        {series.kind==='scatter'?<label className="toolbar-check"><input type="checkbox" checked={state.frontier} onChange={event=>update({frontier:event.target.checked})}/>Frontier</label>:null}
+
         </div></details>
         <button type="button" onClick={share}>Share</button>
         <details className="export-menu"><summary>Export</summary><div><button type="button" disabled={!series.points.length||unresolvedIds.length>0} onClick={()=>downloadText(seriesCsv(series.points,{includeX:series.kind==='scatter',xLabel:series.xLabel,yLabel:series.yLabel,metricId:state.chart==='benchmark'?state.metricId:state.chart,metricName,scale:series.scale,omittedIds:series.omittedFromLog.map(point=>point.id)}),'ai-stats-comparison.csv')}>CSV with sources</button>
@@ -164,13 +165,13 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
       {logNotice?<div className="explorer-warning" role="status">
         {logNotice.selected.length?<p>{logOmissionHeading(logNotice.selected,logNotice.axis,'selected')}:</p>:null}
         {logNotice.selected.length?<ul className="omitted-log-list" aria-label="Selected records not plotted on Log">{logNotice.selected.map(item=><li key={item.id}>{item.label}: {item.valueLabel}</li>)}</ul>:null}
-        {logNotice.reference.length?<p>{logOmissionHeading(logNotice.reference,logNotice.axis,'reference')}; positive frontier points stay logarithmic:</p>:null}
-        {logNotice.reference.length?<ul className="omitted-log-list" aria-label="Frontier reference records not plotted on Log">{logNotice.reference.map(item=><li key={item.id}>{item.label}: {item.valueLabel}</li>)}</ul>:null}
+        {logNotice.reference.length?<p>{logOmissionHeading(logNotice.reference,logNotice.axis,'reference')}; positive Pareto points stay logarithmic:</p>:null}
+        {logNotice.reference.length?<ul className="omitted-log-list" aria-label="Pareto reference records not plotted on Log">{logNotice.reference.map(item=><li key={item.id}>{item.label}: {item.valueLabel}</li>)}</ul>:null}
         <button type="button" className="scale-notice-action" onClick={()=>update({scale:'linear'})}>Show all on Linear</button>
       </div>:null}
       {series.mixedConditions?<p className="explorer-warning">These runs used different test settings. Choose conditions for a like-for-like view.</p>:null}
-      {referenceFrontier?.points.length&&!series.points.length?<p className="explorer-warning">No selected records have measurements for this view. The current frontier is shown for reference.</p>:null}
-      {frontierCoverage?.truncated?<p className="explorer-warning">Current frontier reference is limited to {frontierDisplayCount} of {frontierCoverage.total} compatible records by the 100-record selection limit.</p>:null}
+      {referenceFrontier?.points.length&&!series.points.length?<p className="explorer-warning">No selected records have measurements for this view. The current Pareto line is shown for reference.</p>:null}
+      {frontierCoverage?.truncated?<p className="explorer-warning">Current Pareto line reference is limited to {frontierDisplayCount} of {frontierCoverage.total} compatible records by the 100-record selection limit.</p>:null}
       {epochSlug&&!series.points.length&&observations.length?<button className="choose-measured" type="button" onClick={chooseMeasured}>Select measured models</button>:null}
       <ComparisonChart series={series} referenceFrontier={referenceFrontier??undefined} scale={displayedScale} labels={state.labels} endpointLane activeId={active?.id??null} onPreview={setHovered}
         onPin={id=>setPinned(pinned===id?null:id)} svgRef={svg} onShowLinear={()=>update({scale:'linear'})}/>
@@ -184,7 +185,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
     <details className="explorer-methodology"><summary>Sources and calculations</summary>
       <p>Task cost is Artificial Analysis’s weighted average cost across its Intelligence Index evaluation tasks, including measured input, cache, reasoning, and answer-token charges. It is a benchmark methodology measure, not a universal real-world task price. Total evaluation cost is AA’s separately reported complete evaluation spend. Neither is derived from token price.</p>
       <p>Blended prices use three input tokens for each output token. Missing or unsupported values are excluded and shown as exclusions; a recorded zero remains zero.</p>
-      <p>Automatic selections and reference frontiers exclude known free models and zero-cost points. Free models remain available through search and the Free text routes preset. Frontiers compare models using the same AA index version and timing settings. Epoch results retain their benchmark and test settings.</p>
+      <p>Automatic selections and reference Pareto lines exclude known free models and zero-cost points. Free models remain available through search and the Free text routes preset. Pareto lines compare models using the same AA index version and timing settings. Epoch results retain their benchmark and test settings.</p>
       <p>Historical AA results are off by default. Select a point to see its source and date.</p>
     </details>
     <details className="explorer-data"><summary>Exact chart data ({series.points.length} observations)</summary><div className="exact-table-scroll"><table>

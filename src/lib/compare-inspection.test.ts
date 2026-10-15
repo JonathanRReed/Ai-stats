@@ -24,7 +24,7 @@ test('manual selection can render the complete current frontier as a separate ch
  const html=renderToStaticMarkup(createElement(ComparisonChart,{series:selected,referenceFrontier:reference,labels:false,activeId:null,onPreview:()=>{},onPin:()=>{},svgRef:{current:null}}));
  expect(selected.points.map(point=>point.modelId)).toEqual(['a']);
  expect(Object.values(reference.frontierGroups).flat()).toEqual(['a','b']);
- expect(html).toContain('Current frontier');
+ expect(html).toContain('Pareto line');
  expect((html.match(/current-frontier-mark/g)??[]).length).toBe(2);
 });
 test('receipts keep source, current values and exact identity immediate while audit fields are disclosed',()=>{

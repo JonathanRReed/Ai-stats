@@ -31,7 +31,7 @@ test('synthetic frontiers above 100 records report the capped automatic display 
   frontierReferenceIds:[],
  });
  expect(display).toBe(100);
- expect(`Current frontier reference is limited to ${display} of 115 compatible records by the 100-record selection limit.`)
+ expect(`Pareto line reference is limited to ${display} of 115 compatible records by the 100-record selection limit.`)
   .toContain('limited to 100 of 115');
 });
 
@@ -51,6 +51,6 @@ test('manual Frontier control hides the current-frontier reference while preserv
   :null;
  const html=renderToStaticMarkup(createElement(ComparisonChart,{series:selected,referenceFrontier:reference??undefined,labels:true,activeId:null,onPreview:()=>{},onPin:()=>{},svgRef:{current:null}}));
  expect(selected.points.map(point=>point.modelId).sort()).toEqual(selectedIds);
- expect(html).not.toContain('Current frontier');
+ expect(html).not.toContain('Pareto line');
  expect(html).not.toContain('current-frontier-mark');
 });

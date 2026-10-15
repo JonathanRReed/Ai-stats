@@ -268,3 +268,5 @@
 .bar-identity{font-size:12px;fill:var(--ink-0);font-family:var(--font-body, sans-serif)}
 .bar-value{font-size:11px;fill:var(--ink-0);font-variant-numeric:tabular-nums}
 .zero-price-note{font-size:13px;color:var(--ink-1);padding:8px 12px}
+
+.pareto-toggle{display:inline-flex;align-items:center;gap:9px;min-height:36px}.pareto-toggle span{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2)}.pareto-toggle[aria-pressed="true"] span{color:var(--signal-text)}
