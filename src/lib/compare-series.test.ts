@@ -256,3 +256,10 @@ test('bar order follows the ranked or explicitly chosen model order, not catalog
  const state=parseCompareState(new URLSearchParams('chart=benchmark&m=b&m=a'),models);
  expect(series.buildCompareSeries({models,observations:[]},state).points.map(p=>p.modelId)).toEqual(['b','a']);
 });
+test('publisher benchmark bars preserve ranked model order and retain repeated observations',()=>{
+ const models:ExplorerModel[]=['a','b'].map(id=>({id:'epoch:'+id,name:id,family:id,source:'epoch',sourceModelId:id,current:true}));
+ const row:EpochObservation={id:'a1',modelVersion:'a',benchmarkSlug:'b',metricKey:'Score',unit:'native',value:4,conditions:null,evaluationDate:null,sourceUrl:null,fetchedAt:null,snapshotId:null};
+ const observations=[row,{...row,id:'b1',modelVersion:'b',value:8},{...row,id:'b2',modelVersion:'b',value:9}];
+ const state=parseCompareState(new URLSearchParams('chart=benchmark&metric=epoch_b&m=epoch:b&m=epoch:a'),models);
+ expect(series.buildCompareSeries({models,observations},state).points.map(p=>p.modelId)).toEqual(['epoch:b','epoch:b','epoch:a']);
+});

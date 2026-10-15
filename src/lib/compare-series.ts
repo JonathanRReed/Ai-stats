@@ -193,7 +193,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
     }
     const conditions=new Set(rows.map(row=>epochConditionKey(row.conditions)));
     result.mixedConditions=conditions.size>1;
-    rows.sort((a,b)=>a.modelVersion.localeCompare(b.modelVersion)||a.id.localeCompare(b.id)).forEach((row,index)=>{
+    rows.sort((a,b)=>state.modelIds.indexOf(versions.get(a.modelVersion)!.id)-state.modelIds.indexOf(versions.get(b.modelVersion)!.id)||a.id.localeCompare(b.id)).forEach((row,index)=>{
       const model=versions.get(row.modelVersion)!;
       const unit=row.unit==='fraction'||row.unit==='percent'?'percent':row.metricKey??'Source-native score';
       add(model,index,row.value!*(row.unit==='fraction'?100:1),'observation',unit,
