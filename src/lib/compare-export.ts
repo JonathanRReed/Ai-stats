@@ -30,6 +30,9 @@ export function chartExportCaption(points:CsvPoint[],metricName:string,context:{
   const omitted=context.scale==='log'&&context.omitted?.length?' · Not plotted on Log: '+context.omitted.map(item=>item.label+' ('+item.valueLabel+')').join(', '):'';
   return 'AI Stats · '+metricName+scale+' · '+sources.join(' · ')+omitted;
 }
+export function canvasPngBlob(canvas:Pick<HTMLCanvasElement,'toBlob'>):Promise<Blob>{
+ return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Image encoding failed')),'image/png'));
+}
 export async function downloadChartPng(svg:SVGSVGElement,caption:string){
   const clone=svg.cloneNode(true) as SVGSVGElement;
   const original=[svg,...Array.from(svg.querySelectorAll('*'))];
@@ -56,6 +59,8 @@ export async function downloadChartPng(svg:SVGSVGElement,caption:string){
     context.fillRect(0,0,width,height+40+lines.length*18);context.drawImage(image,0,0,width,height);
     context.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--ink-0')||'#f2f1ea';
     context.font='12px sans-serif';lines.forEach((text,index)=>context.fillText(text,20,height+26+index*18));
-    const link=document.createElement('a');link.download='ai-stats-comparison.png';link.href=canvas.toDataURL('image/png');link.click();
+    const pngUrl=URL.createObjectURL(await canvasPngBlob(canvas));
+    const link=document.createElement('a');link.download='ai-stats-comparison.png';link.href=pngUrl;link.click();
+    setTimeout(()=>URL.revokeObjectURL(pngUrl),1000);
   }finally{URL.revokeObjectURL(url);}
 }

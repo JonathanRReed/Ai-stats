@@ -51,3 +51,9 @@ test('CSV and PNG caption state the axis scale and which records Log could not d
  expect(caption).toContain('Not plotted on Log: K2 Horizon 375B A23B (0)');
  expect(exporter.chartExportCaption(points,'Cost per task',{scale:'linear',omitted:[]})).toContain('Linear scale');
 });
+
+test('PNG encoding produces a binary Blob and rejects a failed browser encoder',async()=>{
+ const blob=new Blob(['png-fixture'],{type:'image/png'});
+ expect(await exporter.canvasPngBlob({toBlob:callback=>callback(blob)})).toBe(blob);
+ await expect(exporter.canvasPngBlob({toBlob:callback=>callback(null)})).rejects.toThrow('Image encoding failed');
+});
