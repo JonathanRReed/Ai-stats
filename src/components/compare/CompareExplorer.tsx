@@ -1,3 +1,4 @@
+import {benchmarkConditionOptions} from '../../lib/benchmark-condition-options';
 import {comparisonParams} from '../../lib/compare-navigation';
 import {displayedComparisonPoints} from '../../lib/compare-displayed-points';
 import {validateBenchmarkAsset} from '../../lib/compare-benchmark-asset';
@@ -95,7 +96,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const displayed=useMemo(()=>displayedComparisonPoints(series,referenceFrontier),[series,referenceFrontier]);
   const active=displayed.points.find(point=>point.id===(pinned??hovered))??null;
   const visibleModels=models;
-  const conditions=useMemo(()=>[...new Set(observations.map(row=>epochConditionKey(row.conditions)))].sort(),[observations]);
+  const conditions=useMemo(()=>benchmarkConditionOptions(observations,state.scoreMetricKey),[observations,state.scoreMetricKey]);
   const scoreMetrics=useMemo(()=>[...new Set(observations.map(epochScoreKey))].sort(),[observations]);
   const scoreOptions=scoreMetricOptions(scoreMetrics,state.scoreMetricKey);
   const unverifiedMembership=visibleModels.some(model=>model.source==='aa'&&model.current===null);
@@ -148,8 +149,8 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
           <optgroup label="Benchmark publishers">{benchmarks.map(benchmark=><option key={benchmark.slug} value={'epoch_'+benchmark.slug}>{benchmark.name}</option>)}</optgroup></select></label>:null}
         {epochSlug&&scoreOptions.visible?<label htmlFor="score-metric-selector">Score metric<select id="score-metric-selector" value={state.scoreMetricKey??''} onChange={event=>update(event.target.value?{...changeScoreMetric(event.target.value),...benchmarkStartingSelection(models,observations,event.target.value)}:changeScoreMetric(''),true)}>
           <option value="">Choose a score metric</option>{scoreOptions.missing?<option value={state.scoreMetricKey!}>Unavailable saved metric</option>:null}{scoreMetrics.map(key=><option key={key} value={key}>{JSON.parse(key).join(' · ')}</option>)}</select></label>:null}
-        {epochSlug&&conditions.length?<label htmlFor="condition-selector">Conditions<select id="condition-selector" value={state.conditionKey??''} onChange={event=>{const conditionKey=event.target.value||null;const automatic=!customSelection.current;update({...(automatic?benchmarkStartingSelection(models,observations.filter(row=>!conditionKey||epochConditionKey(row.conditions)===conditionKey),state.scoreMetricKey):{}),conditionKey},automatic);}}>
-          <option value="">All recorded runs</option>{conditions.map(key=><option value={key} key={key}>{key==='unknown'?'Not recorded':JSON.parse(key).map(([name,value]:[string,unknown])=>name+': '+value).join(' · ')}</option>)}</select></label>:null}
+        {epochSlug&&(conditions.length||state.conditionKey)?<label htmlFor="condition-selector">Conditions<select id="condition-selector" value={state.conditionKey??''} onChange={event=>{const conditionKey=event.target.value||null;const automatic=!customSelection.current;update({...(automatic?benchmarkStartingSelection(models,observations.filter(row=>!conditionKey||epochConditionKey(row.conditions)===conditionKey),state.scoreMetricKey):{}),conditionKey},automatic);}}>
+          <option value="">All recorded runs</option>{state.conditionKey&&!conditions.includes(state.conditionKey)?<option value={state.conditionKey}>Unavailable saved conditions</option>:null}{conditions.map(key=><option value={key} key={key}>{key==='unknown'?'Not recorded':JSON.parse(key).map(([name,value]:[string,unknown])=>name+': '+value).join(' · ')}</option>)}</select></label>:null}
         <div className="scale-buttons" role="group" aria-label="Horizontal axis scale"><button type="button" aria-pressed={displayedScale==='linear'} onClick={()=>update({scale:'linear'})}>Linear</button>
           <button type="button" aria-pressed={displayedScale==='log'} onClick={()=>update({scale:'log'})}>Log</button></div>
         {series.kind==='scatter'?<button type="button" className="pareto-toggle" aria-label="Pareto line" aria-pressed={state.frontier} onClick={()=>update({frontier:!state.frontier})}>Pareto line <span aria-hidden="true">{state.frontier?'On':'Off'}</span></button>:null}
