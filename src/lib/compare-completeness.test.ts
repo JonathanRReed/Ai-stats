@@ -97,10 +97,10 @@ test('AA registry slugs represent all exact UUID variants without duplicate inve
  expect(models.map(model=>model.id)).toEqual(['uuid1','uuid2']);
 });
 
-test('uncached Epoch choices become explicit URL selections and chart controls retain them',()=>{
+test('automatic Epoch choices keep automatic navigation while chart controls retain exact state',()=>{
  const source=readFileSync('src/components/compare/CompareExplorer.tsx','utf8');
- expect(source).toContain('pendingBenchmarkChoice.current===epochSlug){pendingBenchmarkChoice.current=null;customSelection.current=true;');
- expect(source).toContain("url.searchParams.delete('auto');window.history.replaceState(null,'',url)");
+ expect(source).toContain('pendingBenchmarkChoice.current===epochSlug){pendingBenchmarkChoice.current=null;customSelection.current=false;');
+ expect(source).toContain("url.search=comparisonParams(next,true).toString();window.history.replaceState(null,'',url)");
  expect(source).toContain("const keepAutomatic=automatic||(!Object.hasOwn(patch,'modelIds')&&!customSelection.current)");
  expect(source).toContain('<label htmlFor="benchmark-selector">Benchmark<select id="benchmark-selector"');
  expect(source).toContain('<label htmlFor="condition-selector">Conditions<select id="condition-selector"');

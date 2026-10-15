@@ -2081,7 +2081,7 @@ function getScoreClass(score: number | null | undefined): string {
 <script>
   // @ts-nocheck
   import {formatPrice as formatCatalogPrice} from "../lib/format-utils";
-  import {validateBrowserPayload,selectBrowserModels} from "../lib/model-browser";
+  import {validateBrowserPayload,selectBrowserModels,browserPage} from "../lib/model-browser";
   import {bindDashboardLifecycle} from "../lib/dashboard-lifecycle";
   import {nextLeaderboardLimit,visibleLeaderboardRows} from "../lib/leaderboard-pagination";
   import {resolveEpochLeaderboardRunNames} from "../lib/epoch-model-display-name";
@@ -2214,6 +2214,7 @@ import {buildBenchmarkCohorts,benchmarkRecordHref,benchmarkRunSettings,leaderboa
       "sort-direction-indicator",
     );
 
+    let browserModels=null;
     let currentVisible = PAGE_SIZE;
     let matchedTotal = 0;
     let currentView = "cards";
@@ -3518,6 +3519,16 @@ ${allBenchmarks.length ? `
     const applySearch = (resetVisible = false) => {
       if (resetVisible) currentVisible = PAGE_SIZE;
       const q = (searchInput?.value || "").toLowerCase().trim();
+      if(browserModels&&grid&&tableBody){
+        const page=browserPage(browserModels,q,sortSelect?.value??'intelligence',sortDirectionSelect?.value??'desc',currentVisible);
+        matchedTotal=page.total;
+        if(totalCountEl)totalCountEl.textContent=String(page.total);
+        grid.innerHTML=page.rows.map(createCardMarkup).join('');
+        tableBody.innerHTML=page.rows.map(createTableRowMarkup).join('');
+        getCards().forEach(card=>{card.dataset.match='true';});
+        bindCardFocus();bindTableRows();updateVisibility();
+        return;
+      }
       matchedTotal = 0;
 
       getCards().forEach((card) => {
@@ -3540,6 +3551,7 @@ ${allBenchmarks.length ? `
 
       // Reflect the active sort direction in the rotating glyph.
       sortDirectionIndicator?.classList.toggle("is-asc", direction === "asc");
+      if(browserModels){applySearch(true);return;}
 
       const cards = getCards();
       cards.sort((a, b) => {
@@ -3629,7 +3641,7 @@ ${allBenchmarks.length ? `
       viewCardsBtn?.setAttribute("aria-pressed", "false");
       viewTableBtn?.classList.add("active");
       viewTableBtn?.setAttribute("aria-pressed", "true");
-      if (loadMoreBtn) loadMoreBtn.style.display = "none";
+      if (loadMoreBtn) loadMoreBtn.style.display = browserModels ? "" : "none";
       applyTableSearch();
     };
 
@@ -3660,11 +3672,8 @@ ${allBenchmarks.length ? `
 
     const renderModels = (models) => {
       if (!grid || !tableBody) return;
+      browserModels=models;
       registerDrawerModels(models);
-      grid.innerHTML = models.map(createCardMarkup).join("");
-      tableBody.innerHTML = models.map(createTableRowMarkup).join("");
-      bindCardFocus();
-      bindTableRows();
       sortCards();
       setView(currentView);
     };
@@ -3723,7 +3732,7 @@ ${allBenchmarks.length ? `
 
     loadMoreBtn?.addEventListener("click", () => {
       currentVisible = Math.min(currentVisible + PAGE_SIZE, matchedTotal);
-      updateVisibility();
+      if(browserModels)applySearch();else updateVisibility();
     });
 
     sortSelect?.addEventListener("change", sortCards);
@@ -3849,7 +3858,7 @@ ${allBenchmarks.length ? `
         if(!response.ok)throw new Error('Model list unavailable');
         const rows=validateBrowserPayload(await response.json());
         if(!isCurrentDashboard())return;
-        renderModels(rows);updateModelCounts(rows);browserLoaded=true;
+        updateModelCounts(rows);renderModels(rows);browserLoaded=true;
         if(browserStatus)browserStatus.hidden=true;
       }catch{
         if(lifecycle.signal.aborted)return;

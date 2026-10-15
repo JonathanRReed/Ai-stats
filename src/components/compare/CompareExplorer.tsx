@@ -1,7 +1,8 @@
+import {comparisonParams} from '../../lib/compare-navigation';
 import {displayedComparisonPoints} from '../../lib/compare-displayed-points';
 import {validateBenchmarkAsset} from '../../lib/compare-benchmark-asset';
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {parseCompareState,serializeCompareState,hasExplicitCompareSelection,usesSuggestedCompareSelection,benchmarkStartingSelection,readBenchmarkCache,AA_METRIC_LABELS,scoreMetricOptions,changeScoreMetric,type CompareState,type CompareChart} from '../../lib/compare-state';
+import {parseCompareState,hasExplicitCompareSelection,usesSuggestedCompareSelection,benchmarkStartingSelection,readBenchmarkCache,AA_METRIC_LABELS,scoreMetricOptions,changeScoreMetric,type CompareState,type CompareChart} from '../../lib/compare-state';
 import {buildCompareSeries,epochScoreKey,combinedLogOmissions,logOmissionHeading,plottableSeriesPoints,type ExplorerModel} from '../../lib/compare-series';
 import {epochConditionKey,type EpochObservation} from '../../lib/epoch-observations';
 import {formatChartNumber} from '../../lib/compare-geometry';
@@ -46,7 +47,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   useEffect(()=>{
     setLoadFailed(false);
     if(!epochSlug){setLoadState('');return;}
-    const selectPending=(verified:typeof observations)=>{if(pendingBenchmarkChoice.current===epochSlug){pendingBenchmarkChoice.current=null;customSelection.current=true;setState(previous=>{if(previous.metricId!=='epoch_'+epochSlug)return previous;const next={...previous,...benchmarkStartingSelection(models,verified),missingModelIds:[]};const url=new URL(window.location.href);url.search=serializeCompareState(next).toString();url.searchParams.delete('auto');window.history.replaceState(null,'',url);return next;});}};
+    const selectPending=(verified:typeof observations)=>{if(pendingBenchmarkChoice.current===epochSlug){pendingBenchmarkChoice.current=null;customSelection.current=false;setState(previous=>{if(previous.metricId!=='epoch_'+epochSlug)return previous;const next={...previous,...benchmarkStartingSelection(models,verified.filter(row=>!previous.conditionKey||epochConditionKey(row.conditions)===previous.conditionKey),previous.scoreMetricKey),missingModelIds:[]};const url=new URL(window.location.href);url.search=comparisonParams(next,true).toString();window.history.replaceState(null,'',url);return next;});}};
     const cached=readBenchmarkCache(benchmarkCache,epochSlug);
     if(cached){setLoadState('');selectPending(cached);return;}
     if(!benchmarks.some(benchmark=>benchmark.slug===epochSlug)){setLoadState('Unknown benchmark in this link.');return;}
@@ -99,7 +100,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const scoreOptions=scoreMetricOptions(scoreMetrics,state.scoreMetricKey);
   const unverifiedMembership=visibleModels.some(model=>model.source==='aa'&&model.current===null);
   const update=(patch:Partial<CompareState>,automatic=false)=>{if(Object.hasOwn(patch,'modelIds'))customSelection.current=!automatic;if(['modelIds','metricId','scoreMetricKey','conditionKey','chart','includeHistory'].some(key=>Object.hasOwn(patch,key)))pendingBenchmarkChoice.current=null;setPresetDescription('');const next={...state,...patch,...(patch.chart&&patch.chart!==state.chart&&['price','benchmark'].includes(patch.chart)&&patch.scale===undefined?{scale:'linear' as const}:{})};setState(next);setPinned(null);setHovered(null);
-    const url=new URL(window.location.href);url.search=serializeCompareState(next).toString();const keepAutomatic=automatic||(!Object.hasOwn(patch,'modelIds')&&!customSelection.current);if(keepAutomatic)url.searchParams.set('auto','1');else url.searchParams.delete('auto');window.history.pushState(null,'',url);};
+    const keepAutomatic=automatic||(!Object.hasOwn(patch,'modelIds')&&!customSelection.current);const url=new URL(window.location.href);url.search=comparisonParams(next,keepAutomatic).toString();window.history.pushState(null,'',url);};
   const toggle=(id:string)=>update({modelIds:state.modelIds.includes(id)?state.modelIds.filter(value=>value!==id):[...state.modelIds,id].slice(0,100)});
   const chooseSuggested=(chart:CompareChart)=>{
     const ids=chart==='benchmark'?(epochSlug?benchmarkStartingSelection(models,observations,state.scoreMetricKey).modelIds:
@@ -126,9 +127,9 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
     onToggleFamily:(ids:string[],checked:boolean)=>update({modelIds:toggleCompareFamilySelection(state.modelIds,ids,checked)}),onToggle:toggle,
     onReasoning:(value:string)=>update({reasoningEfforts:value==='all'?[]:state.reasoningEfforts.includes(value)
       ?state.reasoningEfforts.filter(reason=>reason!==value):[...state.reasoningEfforts,value]})};
-  const chooseMeasured=()=>update(benchmarkStartingSelection(visibleModels,observations.filter(row=>!state.conditionKey||epochConditionKey(row.conditions)===state.conditionKey),state.scoreMetricKey));
-  const chooseBenchmark=(metricId:string)=>{const slug=metricId.startsWith('epoch_')?metricId.slice(6):null;const rows=slug?readBenchmarkCache(benchmarkCache,slug):null;if(!slug){update({metricId,conditionKey:null,scoreMetricKey:null,modelIds:delivery?.aaBenchmarkSelections?.[metricId]?.[state.includeHistory?'historical':'current']??selectAaBenchmarkModels(measuredModels,metricId,8,state.includeHistory),missingModelIds:[]},true);return;}update({metricId,conditionKey:null,scoreMetricKey:null,...(rows?{...benchmarkStartingSelection(models,rows),missingModelIds:[]}: {})});pendingBenchmarkChoice.current=rows?null:slug;};
-  const share=async()=>{try{const url=new URL(window.location.href);url.search=serializeCompareState(state).toString();
+  const chooseMeasured=()=>update(benchmarkStartingSelection(visibleModels,observations.filter(row=>!state.conditionKey||epochConditionKey(row.conditions)===state.conditionKey),state.scoreMetricKey),true);
+  const chooseBenchmark=(metricId:string)=>{const slug=metricId.startsWith('epoch_')?metricId.slice(6):null;const rows=slug?readBenchmarkCache(benchmarkCache,slug):null;if(!slug){update({metricId,conditionKey:null,scoreMetricKey:null,modelIds:delivery?.aaBenchmarkSelections?.[metricId]?.[state.includeHistory?'historical':'current']??selectAaBenchmarkModels(measuredModels,metricId,8,state.includeHistory),missingModelIds:[]},true);return;}update({metricId,conditionKey:null,scoreMetricKey:null,...(rows?{...benchmarkStartingSelection(models,rows),missingModelIds:[]}: {})},true);pendingBenchmarkChoice.current=rows?null:slug;};
+  const share=async()=>{try{const url=new URL(window.location.href);url.search=comparisonParams(state,!customSelection.current).toString();
     await navigator.clipboard.writeText(url.href);setNotice('Comparison link copied.');}catch{setNotice('Copy the address bar to share this comparison.');}};
   const metricName=state.chart==='benchmark'?(epochSlug?benchmarks.find(item=>item.slug===epochSlug)?.name??state.metricId:
     AA_METRIC_LABELS[state.metricId]??state.metricId)+(state.scoreMetricKey?' · '+JSON.parse(state.scoreMetricKey).join(' · '):''):COMPARE_VIEW_LABELS.find(item=>item.id===state.chart)?.label??state.chart;
@@ -145,9 +146,9 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
         {state.chart==='benchmark'?<label htmlFor="benchmark-selector">Benchmark<select id="benchmark-selector" value={epochSlug||aaMetrics.some(([key])=>key===state.metricId)?state.metricId:''} onChange={event=>chooseBenchmark(event.target.value)}>
           {!epochSlug&&!aaMetrics.some(([key])=>key===state.metricId)?<option value="">Choose a benchmark</option>:null}<optgroup label="Artificial Analysis">{aaMetrics.map(([key,label])=><option key={key} value={key}>{label}</option>)}</optgroup>
           <optgroup label="Benchmark publishers">{benchmarks.map(benchmark=><option key={benchmark.slug} value={'epoch_'+benchmark.slug}>{benchmark.name}</option>)}</optgroup></select></label>:null}
-        {epochSlug&&scoreOptions.visible?<label htmlFor="score-metric-selector">Score metric<select id="score-metric-selector" value={state.scoreMetricKey??''} onChange={event=>update(event.target.value?{...changeScoreMetric(event.target.value),...benchmarkStartingSelection(models,observations,event.target.value)}:changeScoreMetric(''))}>
+        {epochSlug&&scoreOptions.visible?<label htmlFor="score-metric-selector">Score metric<select id="score-metric-selector" value={state.scoreMetricKey??''} onChange={event=>update(event.target.value?{...changeScoreMetric(event.target.value),...benchmarkStartingSelection(models,observations,event.target.value)}:changeScoreMetric(''),true)}>
           <option value="">Choose a score metric</option>{scoreOptions.missing?<option value={state.scoreMetricKey!}>Unavailable saved metric</option>:null}{scoreMetrics.map(key=><option key={key} value={key}>{JSON.parse(key).join(' · ')}</option>)}</select></label>:null}
-        {epochSlug&&conditions.length?<label htmlFor="condition-selector">Conditions<select id="condition-selector" value={state.conditionKey??''} onChange={event=>update({conditionKey:event.target.value||null})}>
+        {epochSlug&&conditions.length?<label htmlFor="condition-selector">Conditions<select id="condition-selector" value={state.conditionKey??''} onChange={event=>{const conditionKey=event.target.value||null;const automatic=!customSelection.current;update({...(automatic?benchmarkStartingSelection(models,observations.filter(row=>!conditionKey||epochConditionKey(row.conditions)===conditionKey),state.scoreMetricKey):{}),conditionKey},automatic);}}>
           <option value="">All recorded runs</option>{conditions.map(key=><option value={key} key={key}>{key==='unknown'?'Not recorded':JSON.parse(key).map(([name,value]:[string,unknown])=>name+': '+value).join(' · ')}</option>)}</select></label>:null}
         <div className="scale-buttons" role="group" aria-label="Horizontal axis scale"><button type="button" aria-pressed={displayedScale==='linear'} onClick={()=>update({scale:'linear'})}>Linear</button>
           <button type="button" aria-pressed={displayedScale==='log'} onClick={()=>update({scale:'log'})}>Log</button></div>

@@ -17,3 +17,14 @@ test('opening the browser loads the complete snapshot with a visible failure and
  expect(source).toContain('Only the initial preview is shown.');
  expect(source).toContain('Retry model list');
 });
+test('search and sorting use all records while rendering only the requested page',async()=>{
+ const {browserPage}=await import('./model-browser');
+ const rows=Array.from({length:700},(_,i)=>({id:String(i),name:'Model '+i,aa_intelligence_index:i,price_1m_input_tokens:i===0?null:i===1?0:i}));
+ const first=browserPage(rows,'','intelligence','desc',12);
+ expect(first.total).toBe(700);expect(first.rows).toHaveLength(12);expect(first.rows[0].id).toBe('699');
+ expect(browserPage(rows,'Model 699','intelligence','desc',12).rows[0].id).toBe('699');
+ expect(browserPage(rows,'','inputPrice','asc',12).rows[0].id).toBe('1');
+ expect(browserPage(rows,'','inputPrice','asc',700).rows.at(-1)?.id).toBe('0');
+ expect(browserPage(rows,'','intelligence','desc',24).rows).toHaveLength(24);
+ expect(rows[0].id).toBe('0');
+});
