@@ -262,3 +262,9 @@
 .browse-order-basis{margin:4px 0 8px;font-size:11px;line-height:1.35;color:var(--ink-2)}
 .omitted-log-list{margin:5px 0 5px 18px;padding:0}
 .omitted-log-list li{margin:2px 0}
+
+.comparison-plot.horizontal-bars{height:auto;max-height:680px;overflow:auto;scrollbar-gutter:stable}
+.comparison-plot.horizontal-bars svg{height:auto;overflow:visible}
+.bar-identity{font-size:12px;fill:var(--ink-0);font-family:var(--font-body, sans-serif)}
+.bar-value{font-size:11px;fill:var(--ink-0);font-variant-numeric:tabular-nums}
+.zero-price-note{font-size:13px;color:var(--ink-1);padding:8px 12px}

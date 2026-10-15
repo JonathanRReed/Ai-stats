@@ -1,3 +1,4 @@
+import {AUTOMATIC_SELECTION_POLICY} from './automatic-selection';
 import {readCompareRelease,RELEASE_SCHEMA,type CompareReleaseManifest} from './compare-release';
 import {hasBrowseRankContract} from './compare-browse-rank';
 export type ReleaseCandidate={revision:string;manifest:CompareReleaseManifest};
@@ -10,7 +11,7 @@ export const shouldApplyRelease=(firstCheck:boolean,interacted:boolean)=>firstCh
  * rather than silently dropping ranking metadata the page was rendered with.
  */
 export function isCompatibleLiveRelease(manifest:CompareReleaseManifest,notBefore?:string|null):boolean{
- if(manifest.schemaVersion!==RELEASE_SCHEMA||!hasBrowseRankContract(manifest.delivery.catalog))return false;
+ if(manifest.delivery.automaticSelectionPolicy!==AUTOMATIC_SELECTION_POLICY||manifest.schemaVersion!==RELEASE_SCHEMA||!hasBrowseRankContract(manifest.delivery.catalog))return false;
  if(notBefore&&Number.isFinite(Date.parse(notBefore))&&Date.parse(manifest.generatedAt)<Date.parse(notBefore))return false;
  return true;
 }

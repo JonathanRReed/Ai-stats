@@ -1,7 +1,7 @@
 import {validateBenchmarkAsset} from '../../lib/compare-benchmark-asset';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {parseCompareState,serializeCompareState,hasExplicitCompareSelection,usesSuggestedCompareSelection,benchmarkStartingSelection,readBenchmarkCache,AA_METRIC_LABELS,scoreMetricOptions,changeScoreMetric,type CompareState,type CompareChart} from '../../lib/compare-state';
-import {buildCompareSeries,epochScoreKey,combinedLogOmissions,logOmissionHeading,logOmissions,plottableSeriesPoints,type ExplorerModel} from '../../lib/compare-series';
+import {buildCompareSeries,epochScoreKey,combinedLogOmissions,logOmissionHeading,plottableSeriesPoints,type ExplorerModel} from '../../lib/compare-series';
 import {epochConditionKey,type EpochObservation} from '../../lib/epoch-observations';
 import {formatChartNumber} from '../../lib/compare-geometry';
 import {seriesCsv,downloadText,downloadChartPng,chartExportCaption} from '../../lib/compare-export';
@@ -93,11 +93,16 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const scoreMetrics=useMemo(()=>[...new Set(observations.map(epochScoreKey))].sort(),[observations]);
   const scoreOptions=scoreMetricOptions(scoreMetrics,state.scoreMetricKey);
   const unverifiedMembership=visibleModels.some(model=>model.source==='aa'&&model.current===null);
-  const update=(patch:Partial<CompareState>,automatic=false)=>{if(Object.hasOwn(patch,'modelIds'))customSelection.current=!automatic;if(['modelIds','metricId','scoreMetricKey','conditionKey','chart','includeHistory'].some(key=>Object.hasOwn(patch,key)))pendingBenchmarkChoice.current=null;setPresetDescription('');const next={...state,...patch};setState(next);setPinned(null);setHovered(null);
+  const update=(patch:Partial<CompareState>,automatic=false)=>{if(Object.hasOwn(patch,'modelIds'))customSelection.current=!automatic;if(['modelIds','metricId','scoreMetricKey','conditionKey','chart','includeHistory'].some(key=>Object.hasOwn(patch,key)))pendingBenchmarkChoice.current=null;setPresetDescription('');const next={...state,...patch,...(patch.chart&&patch.chart!==state.chart&&['price','benchmark'].includes(patch.chart)&&patch.scale===undefined?{scale:'linear' as const}:{})};setState(next);setPinned(null);setHovered(null);
     const url=new URL(window.location.href);url.search=serializeCompareState(next).toString();const keepAutomatic=automatic||(!Object.hasOwn(patch,'modelIds')&&!customSelection.current);if(keepAutomatic)url.searchParams.set('auto','1');else url.searchParams.delete('auto');window.history.pushState(null,'',url);};
   const toggle=(id:string)=>update({modelIds:state.modelIds.includes(id)?state.modelIds.filter(value=>value!==id):[...state.modelIds,id].slice(0,100)});
-  const chooseSuggested=(chart:CompareChart)=>{const ids=delivery?.suggestedModelIds?.[chart];if(ids?.length){setPresetDescription('Measured suggestions for this view.');update({chart,modelIds:ids,missingModelIds:[]},true);}};
-  const changeChart=(chart:CompareChart)=>{if(customSelection.current){update({chart});return;}if(chart==='benchmark'){const metric='aa_intelligence_index';const ids=delivery?.aaBenchmarkSelections?.[metric]?.[state.includeHistory?'historical':'current']??selectAaBenchmarkModels(measuredModels,metric,8,state.includeHistory);update({chart,metricId:metric,modelIds:ids,missingModelIds:[]},true);return;}if(delivery?.suggestedModelIds?.[chart]?.length)chooseSuggested(chart);else update({chart});};
+  const chooseSuggested=(chart:CompareChart)=>{
+    const ids=chart==='benchmark'?(epochSlug?benchmarkStartingSelection(models,observations,state.scoreMetricKey).modelIds:
+      delivery?.aaBenchmarkSelections?.[state.metricId]?.[state.includeHistory?'historical':'current']??selectAaBenchmarkModels(measuredModels,state.metricId,8,state.includeHistory)):
+      delivery?.suggestedModelIds?.[chart];
+    if(ids){update({chart,modelIds:ids,missingModelIds:[]},true);setPresetDescription('Automatic selection for this view. Known free models are excluded.');}
+  };
+  const changeChart=(chart:CompareChart)=>{if(customSelection.current){update({chart});return;}if(chart==='benchmark'){const metric='aa_intelligence_index';const ids=delivery?.aaBenchmarkSelections?.[metric]?.[state.includeHistory?'historical':'current']??selectAaBenchmarkModels(measuredModels,metric,8,state.includeHistory);update({chart,metricId:metric,modelIds:ids,missingModelIds:[]},true);return;}if(delivery?.suggestedModelIds?.[chart])chooseSuggested(chart);else update({chart});};
   const [familyQuery,setFamilyQuery]=useState('');
   // One sort choice shared by the desktop rail and the mobile dialog.
   const [browseSort,setBrowseSort]=useState<FamilyBrowseSort>('recommend');
@@ -110,19 +115,19 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
     [models,delivery,state.chart,state.metricId,loadedEpochRows,state.scoreMetricKey,state.conditionKey,epochBenchmarkName]);
   const selectorProps={models:visibleModels,selected:state.modelIds,suggestedIds:delivery?.suggestedModelIds?.[state.chart]??EMPTY_SUGGESTED_IDS,
     browseOrder:browseRanking.keys,browseBasis:browseRanking.basis,browseSort,onBrowseSort:setBrowseSort,includeHistory:state.includeHistory,chart:state.chart,metricId:state.metricId,
-    onHistory:(includeHistory:boolean)=>update({includeHistory}),reasoningEfforts:state.reasoningEfforts,query:familyQuery,onQuery:setFamilyQuery,
+    onHistory:(includeHistory:boolean)=>update({includeHistory,...(!customSelection.current&&state.chart==='benchmark'&&!epochSlug?{modelIds:defaultIdsFor(state.chart,state.metricId,includeHistory)}:{})},!customSelection.current),reasoningEfforts:state.reasoningEfforts,query:familyQuery,onQuery:setFamilyQuery,
     presets,onReset:()=>update({modelIds:[],missingModelIds:[]}),onSuggested:()=>chooseSuggested(state.chart),selectionNotice:presetDescription,
     onPreset:(preset:typeof presets[number])=>{update({modelIds:preset.modelIds,missingModelIds:[],chart:preset.chart,metricId:preset.metricId,includeHistory:false,reasoningEfforts:[],conditionKey:null,scoreMetricKey:null});setPresetDescription(preset.description);},
     onToggleFamily:(ids:string[],checked:boolean)=>update({modelIds:toggleCompareFamilySelection(state.modelIds,ids,checked)}),onToggle:toggle,
     onReasoning:(value:string)=>update({reasoningEfforts:value==='all'?[]:state.reasoningEfforts.includes(value)
       ?state.reasoningEfforts.filter(reason=>reason!==value):[...state.reasoningEfforts,value]})};
   const chooseMeasured=()=>update(benchmarkStartingSelection(visibleModels,observations.filter(row=>!state.conditionKey||epochConditionKey(row.conditions)===state.conditionKey),state.scoreMetricKey));
-  const chooseBenchmark=(metricId:string)=>{const slug=metricId.startsWith('epoch_')?metricId.slice(6):null;const rows=slug?readBenchmarkCache(benchmarkCache,slug):null;if(!slug){update({metricId,conditionKey:null,scoreMetricKey:null,modelIds:delivery?.aaBenchmarkSelections?.[metricId]?.[state.includeHistory?'historical':'current']??selectAaBenchmarkModels(measuredModels,metricId,8,state.includeHistory),missingModelIds:[]});return;}update({metricId,conditionKey:null,scoreMetricKey:null,...(rows?{...benchmarkStartingSelection(models,rows),missingModelIds:[]}: {})});pendingBenchmarkChoice.current=rows?null:slug;};
+  const chooseBenchmark=(metricId:string)=>{const slug=metricId.startsWith('epoch_')?metricId.slice(6):null;const rows=slug?readBenchmarkCache(benchmarkCache,slug):null;if(!slug){update({metricId,conditionKey:null,scoreMetricKey:null,modelIds:delivery?.aaBenchmarkSelections?.[metricId]?.[state.includeHistory?'historical':'current']??selectAaBenchmarkModels(measuredModels,metricId,8,state.includeHistory),missingModelIds:[]},true);return;}update({metricId,conditionKey:null,scoreMetricKey:null,...(rows?{...benchmarkStartingSelection(models,rows),missingModelIds:[]}: {})});pendingBenchmarkChoice.current=rows?null:slug;};
   const share=async()=>{try{const url=new URL(window.location.href);url.search=serializeCompareState(state).toString();
     await navigator.clipboard.writeText(url.href);setNotice('Comparison link copied.');}catch{setNotice('Copy the address bar to share this comparison.');}};
   const metricName=state.chart==='benchmark'?(epochSlug?benchmarks.find(item=>item.slug===epochSlug)?.name??state.metricId:
     AA_METRIC_LABELS[state.metricId]??state.metricId)+(state.scoreMetricKey?' · '+JSON.parse(state.scoreMetricKey).join(' · '):''):COMPARE_VIEW_LABELS.find(item=>item.id===state.chart)?.label??state.chart;
-  const exportPng=async()=>{if(!svg.current)return;try{await downloadChartPng(svg.current,chartExportCaption(series.points,metricName,{scale:series.scale,axisLabel:series.kind==='scatter'?series.xLabel:series.yLabel,omitted:logOmissions(series.omittedFromLog,series.kind)}));}
+  const exportPng=async()=>{if(!svg.current){setNotice('No chart can be exported in this state. Switch to Linear or choose measured models.');return;}try{await downloadChartPng(svg.current,chartExportCaption(series.points,metricName,{scale:series.scale,axisLabel:series.kind==='scatter'?series.xLabel:series.yLabel,omitted:logNotice?[...logNotice.selected,...logNotice.reference]:[]}));}
     catch{setNotice('Image export is unavailable in this browser. CSV export is still available.');}};
   return <section className="compare-explorer" aria-label="Model comparison explorer">
     <div className="explorer-title"><h1>Compare models</h1><button type="button" className="add-models-button" ref={filterButton} onClick={()=>setFiltersOpen(true)}>Models · {state.modelIds.length}</button></div>
@@ -139,10 +144,10 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
           <option value="">Choose a score metric</option>{scoreOptions.missing?<option value={state.scoreMetricKey!}>Unavailable saved metric</option>:null}{scoreMetrics.map(key=><option key={key} value={key}>{JSON.parse(key).join(' · ')}</option>)}</select></label>:null}
         {epochSlug&&conditions.length?<label htmlFor="condition-selector">Conditions<select id="condition-selector" value={state.conditionKey??''} onChange={event=>update({conditionKey:event.target.value||null})}>
           <option value="">All recorded runs</option>{conditions.map(key=><option value={key} key={key}>{key==='unknown'?'Not recorded':JSON.parse(key).map(([name,value]:[string,unknown])=>name+': '+value).join(' · ')}</option>)}</select></label>:null}
-        {series.kind==='scatter'?<div className="scale-buttons" role="group" aria-label="Horizontal axis scale"><button type="button" aria-pressed={displayedScale==='linear'} onClick={()=>update({scale:'linear'})}>Linear</button>
-          <button type="button" aria-pressed={displayedScale==='log'} onClick={()=>update({scale:'log'})}>Log</button></div>:null}
+        <div className="scale-buttons" role="group" aria-label="Horizontal axis scale"><button type="button" aria-pressed={displayedScale==='linear'} onClick={()=>update({scale:'linear'})}>Linear</button>
+          <button type="button" aria-pressed={displayedScale==='log'} onClick={()=>update({scale:'log'})}>Log</button></div>
         <details className="chart-options"><summary>Chart options</summary><div className="chart-options-content">
-        <label className="toolbar-check"><input type="checkbox" checked={state.labels} onChange={event=>update({labels:event.target.checked})}/>Labels</label>
+        {series.kind==='scatter'?<label className="toolbar-check"><input type="checkbox" checked={state.labels} onChange={event=>update({labels:event.target.checked})}/>Labels</label>:<span>Full model names shown</span>}
         {series.kind==='scatter'?<label className="toolbar-check"><input type="checkbox" checked={state.frontier} onChange={event=>update({frontier:event.target.checked})}/>Frontier</label>:null}
         </div></details>
         <button type="button" onClick={share}>Share</button>
@@ -179,7 +184,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
     <details className="explorer-methodology"><summary>Sources and calculations</summary>
       <p>Task cost is Artificial Analysis’s weighted average cost across its Intelligence Index evaluation tasks, including measured input, cache, reasoning, and answer-token charges. It is a benchmark methodology measure, not a universal real-world task price. Total evaluation cost is AA’s separately reported complete evaluation spend. Neither is derived from token price.</p>
       <p>Blended prices use three input tokens for each output token. Missing or unsupported values are excluded and shown as exclusions; a recorded zero remains zero.</p>
-      <p>Frontiers compare models using the same AA index version and timing settings. Epoch results retain their benchmark and test settings.</p>
+      <p>Automatic selections and reference frontiers exclude known free models and zero-cost points. Free models remain available through search and the Free text routes preset. Frontiers compare models using the same AA index version and timing settings. Epoch results retain their benchmark and test settings.</p>
       <p>Historical AA results are off by default. Select a point to see its source and date.</p>
     </details>
     <details className="explorer-data"><summary>Exact chart data ({series.points.length} observations)</summary><div className="exact-table-scroll"><table>

@@ -74,3 +74,9 @@ test('malformed rank metadata is rejected before it can reach the family browser
  expect(()=>readCompareRelease(bad)).toThrow(/browse rank/);
  await expect(fetchNewCompareRelease('old',serve(bad))).rejects.toThrow();
 });
+
+test('a live release with old free-model defaults cannot overwrite non-free automatic selections',async()=>{
+ const old=readCompareRelease(fixture());delete old.delivery.automaticSelectionPolicy;
+ expect(isCompatibleLiveRelease(old)).toBe(false);
+ expect(await fetchNewCompareRelease('old',serve(old))).toBeNull();
+});

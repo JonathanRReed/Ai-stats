@@ -73,7 +73,8 @@ test('benchmark bar categories distinguish same-family reasoning variants withou
  const series=buildCompareSeries({models,observations:[]},parseCompareState(new URLSearchParams('chart=benchmark&metric=aa_intelligence_index&m='+models.map(row=>row.id).join('&m=')),models));
  const coordinates=series.points.map(point=>[point.x,point.y]);
  const html=renderToStaticMarkup(createElement(ComparisonChart,{series,labels:true,activeId:null,onPreview:()=>{},onPin:()=>{},svgRef:{current:null}}));
- for(const effort of ['Max','Xhigh','High','Medium','Low'])expect(html).toContain(`Opus 5.5 · ${effort}`);
+ for(const effort of efforts)expect(html).toContain(`Claude Opus 5.5 (${effort})`);
+ expect(html).toContain('horizontal-bars');
  for(const model of models){
   const full=`${model.name} · Anthropic · Artificial Analysis`;
   expect(html).toContain(`<title>${full}</title>`);expect(html).toContain(`aria-label="${full}"`);

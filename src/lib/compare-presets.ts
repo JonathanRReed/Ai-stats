@@ -1,3 +1,4 @@
+import {isAutomaticCandidate} from './automatic-selection';
 import {AA_METRIC_LABELS,type CompareChart} from './compare-state';
 import type {ExplorerModel} from './compare-series';
 const finite=(value:unknown):value is number=>typeof value==='number'&&Number.isFinite(value);
@@ -62,7 +63,7 @@ export function buildComparePresets(models:ExplorerModel[]):ComparePreset[]{
 
 export function selectAaBenchmarkModels(models:ExplorerModel[],metricId:string,limit=8,includeHistory=false):string[]{
  const value=(model:ExplorerModel)=>metricId==='aa_intelligence_index'?model.intelligence:metricId==='aa_coding_index'?model.coding:model.metrics?.[metricId];
- const eligible=models.filter(model=>model.source==='aa'&&(includeHistory||model.current===true)&&finite(value(model))&&
+ const eligible=models.filter(model=>model.source==='aa'&&(includeHistory||model.current===true)&&isAutomaticCandidate(model)&&finite(value(model))&&
   Boolean(model.indexVersion&&/^\d+(?:\.\d+)*$/.test(model.indexVersion)));
  const latest=eligible.map(model=>model.indexVersion!).sort((a,b)=>{
   const left=a.split('.').map(Number),right=b.split('.').map(Number);
@@ -78,7 +79,7 @@ export function selectAaBenchmarkModels(models:ExplorerModel[],metricId:string,l
 }
 
 export function selectTokenPriceModels(models:ExplorerModel[],limit=8):string[]{
- return models.filter(model=>model.current===true&&nonnegative(model.priceInput)&&nonnegative(model.priceOutput))
+ return models.filter(model=>model.current===true&&isAutomaticCandidate(model)&&nonnegative(model.priceInput)&&nonnegative(model.priceOutput)&&(model.priceInput+model.priceOutput)>0)
   .sort((a,b)=>(a.priceInput!+a.priceOutput!)-(b.priceInput!+b.priceOutput!)||a.id.localeCompare(b.id))
   .slice(0,Math.max(0,limit)).map(model=>model.id);
 }

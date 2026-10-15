@@ -10,8 +10,10 @@ const midpoint=(values:number[],log:boolean)=>{
 export default function ObservationDetails({point,series,pinned,onPin,onClose,floating=false}:Props){
   if(!point)return <p className="inspect-hint">Select a point or bar for details.</p>;
   const receipt=point.receipt;
-  const anchorX=point.x>midpoint(series.points.map(row=>row.x),series.kind==='scatter'&&series.scale==='log')?'left':'right';
-  const anchorY=point.y>midpoint(series.points.map(row=>row.y),series.kind==='bars'&&series.scale==='log')?'bottom':'top';
+  const horizontalValue=series.kind==='bars'?point.y:point.x;
+  const anchorX=horizontalValue>midpoint(series.points.map(row=>series.kind==='bars'?row.y:row.x),series.scale==='log')?'left':'right';
+  const anchorY=series.kind==='bars'?(point.x>midpoint(series.points.map(row=>row.x),false)?'top':'bottom'):
+    point.y>midpoint(series.points.map(row=>row.y),false)?'bottom':'top';
   return <section className={'observation-details'+(floating?' observation-floating':'')} data-anchor-x={anchorX} data-anchor-y={anchorY} aria-label="Observation details">
     <div className="observation-heading"><strong>{point.label}</strong><div>
       <button type="button" onClick={onPin} aria-pressed={pinned}>{pinned?'Unpin':'Pin'}</button>

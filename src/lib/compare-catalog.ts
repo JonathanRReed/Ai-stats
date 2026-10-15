@@ -1,3 +1,4 @@
+import {isAutomaticCandidate} from './automatic-selection';
 import type {ExplorerModel} from './compare-series';
 import {normalizeAaEvidence,AA_EVALUATION_KEYS} from './aa-evidence';
 import type {AaModel} from './supabase';
@@ -84,12 +85,12 @@ export function defaultExplorerSelection(models:ExplorerModel[]):string[] {
     for(let i=0;i<Math.max(a.length,b.length);i++){const d=(a[i]??0)-(b[i]??0);if(d)return d;}
     return left.localeCompare(right);
   };
-  const taskCostEligible=models.filter(model=>model.source==='aa'&&model.current===true&&known(model.indexVersion)&&
+  const taskCostEligible=models.filter(model=>model.source==='aa'&&model.current===true&&isAutomaticCandidate(model)&&known(model.indexVersion)&&
     typeof model.intelligence==='number'&&Number.isFinite(model.intelligence)&&
-    typeof model.aaTaskCost==='number'&&Number.isFinite(model.aaTaskCost)&&model.aaTaskCost>=0);
-  const eligible=taskCostEligible.length?taskCostEligible:models.filter(model=>model.source==='aa'&&model.current===true&&known(model.indexVersion)&&
+    typeof model.aaTaskCost==='number'&&Number.isFinite(model.aaTaskCost)&&model.aaTaskCost>0);
+  const eligible=taskCostEligible.length?taskCostEligible:models.filter(model=>model.source==='aa'&&model.current===true&&isAutomaticCandidate(model)&&known(model.indexVersion)&&
     typeof model.intelligence==='number'&&Number.isFinite(model.intelligence)&&
-    typeof model.priceBlended==='number'&&Number.isFinite(model.priceBlended)&&model.priceBlended>=0);
+    typeof model.priceBlended==='number'&&Number.isFinite(model.priceBlended)&&model.priceBlended>0);
   const latestVersion=eligible.map(model=>model.indexVersion!).sort(versionCompare).at(-1);
   const selected:string[]=[];const providers=new Set<string>();
   for(const model of eligible.filter(row=>row.indexVersion===latestVersion).sort((a,b)=>

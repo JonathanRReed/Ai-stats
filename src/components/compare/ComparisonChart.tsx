@@ -1,3 +1,4 @@
+import HorizontalBars from './HorizontalBars';
 import {useEffect,useRef,useState,type RefObject} from 'react';
 import {plotGeometry,formatChartNumber} from '../../lib/compare-geometry';
 import {barCategoryLabels,compatibleVariantLines,frontierSegments,plottableSeriesPoints,type CompareSeries,type SeriesPoint} from '../../lib/compare-series';
@@ -40,6 +41,10 @@ export default function ComparisonChart({series,referenceFrontier,scale,labels,e
   const familyLabels=showLane&&labels?endpointLabels(endpointCandidates,{top:plot.top+8,bottom:plot.bottom-5,gap:19,activeId}):[];
   const hiddenEndpointLabels=showLane&&labels?Math.max(0,new Set(endpointCandidates.map(point=>point.group)).size-familyLabels.length):0;
   const inspect=(point:SeriesPoint)=>point.label+(point.series==='input'?' · Input tokens':point.series==='output'?' · Output tokens':'')+': '+(series.kind==='scatter'?formatChartNumber(point.x)+' '+series.xLabel+' · ':'')+formatChartNumber(point.y)+' '+point.unit;
+  if(series.kind==='bars'&&series.available&&selectedPlottable.length)return <div className="comparison-plot horizontal-bars" ref={frame}>
+    {selectedPlottable.every(point=>point.y===0)?<p className="zero-price-note">Every selected value is 0. Zero values are shown without a bar.</p>:null}
+    <HorizontalBars series={series} points={selectedPlottable} width={width} scale={chartScale} activeId={activeId} onPreview={onPreview} onPin={onPin} svgRef={svgRef}/>
+  </div>;
   return <div className="comparison-plot" ref={frame}>
     {!series.available?<div className="plot-empty"><h2>Awaiting data access</h2><p>{series.unavailableReason}</p></div>:
     !selectedPlottable.length&&!currentFrontierIds.size?<div className="plot-empty">{series.points.length&&chartScale==='log'?<>

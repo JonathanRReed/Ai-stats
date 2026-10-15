@@ -5,7 +5,7 @@ import {buildBrowseRanks,type BrowseRanks} from './compare-browse-rank';
 const SOURCES:ExplorerModel['source'][]=['aa','epoch','openrouter','huggingface','litellm','catalog','publisher'];
 type CompactRow=[string,string,number,number,boolean|null,string|null,string|null,string|null,string|null,number];
 export type CompactCatalog={providers:string[];rows:CompactRow[];browseRanks?:BrowseRanks};
-export type CompareDelivery={frontierPolicy?:'compatible-cohort-frontier.v1';suggestedModelIds?:Partial<Record<CompareChart,string[]>>;suggestionFrontierCounts?:Partial<Record<CompareChart,{total:number;truncated:boolean}>>;aaBenchmarkSelections?:Record<string,{current:string[];historical:string[]}>;assetBase?:string;benchmarkBase?:string;catalog:CompactCatalog;revision:string;presets:ComparePreset[];charts:Array<{id:CompareChart;label:string}>;aaMetrics:Array<[string,string]>};
+export type CompareDelivery={automaticSelectionPolicy?:string;frontierPolicy?:'compatible-cohort-frontier.v1';suggestedModelIds?:Partial<Record<CompareChart,string[]>>;suggestionFrontierCounts?:Partial<Record<CompareChart,{total:number;truncated:boolean}>>;aaBenchmarkSelections?:Record<string,{current:string[];historical:string[]}>;assetBase?:string;benchmarkBase?:string;catalog:CompactCatalog;revision:string;presets:ComparePreset[];charts:Array<{id:CompareChart;label:string}>;aaMetrics:Array<[string,string]>};
 const finite=(value:unknown):value is number=>typeof value==='number'&&Number.isFinite(value);
 const metricKeys=['intelligence','coding','priceInput','priceOutput','priceBlended','outputSpeed','latency','aaTaskCost','aaEvaluationCost'] as const;
 export function compactCatalog(models:ExplorerModel[]):CompactCatalog{
