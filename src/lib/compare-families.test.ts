@@ -84,3 +84,10 @@ test('without rank metadata the family list is alphabetical and never pretends t
  expect(missing.basis).toContain('alphabetically');
  expect(groupCompareFamilies(rows,[],'',[],{sort:'recommend',browseOrder:missing.keys}).map(group=>group.family)).toEqual(['Alpha','Zed']);
 });
+test('search results stay in the same order when a family is selected or removed',()=>{
+ const rows=[model('a',{family:'GPT A',provider:'OpenAI'}),model('b',{family:'GPT B',provider:'OpenAI'})];
+ const order=(selected:string[])=>groupCompareFamilies(rows,selected,'GPT').map(group=>group.key);
+ expect(order([])).toEqual(order(['b']));
+ expect(order(['b'])).toEqual(order(['a','b']));
+ expect(groupCompareFamilies(rows,['b']).map(group=>group.family)).toEqual(['GPT B','GPT A']);
+});

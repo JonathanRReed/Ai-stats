@@ -54,7 +54,7 @@ export function groupCompareFamilies(models:ExplorerModel[],selectedIds:string[]
   return alpha(a,b);
  };
  return [...groups.values()].filter(group=>!term||[group.family,group.provider,group.source,...group.records.map(model=>model.name+' '+(model.reasoning??'')+' '+model.sourceModelId)].join(' ').toLocaleLowerCase('en-US').includes(term))
-  .sort((a,b)=>Number(b.selectedIds.length>0)-Number(a.selectedIds.length>0)||recommend(a,b));
+  .sort((a,b)=>(term?0:Number(b.selectedIds.length>0)-Number(a.selectedIds.length>0))||recommend(a,b));
 }
 
 export function toggleCompareFamilySelection(selectedIds:string[],familyIds:string[],checked:boolean,limit=100):string[]{
