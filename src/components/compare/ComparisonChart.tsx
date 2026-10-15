@@ -87,7 +87,7 @@ export default function ComparisonChart({series,referenceFrontier,scale,labels,e
          <title>{fullLabel}</title>{text}</text>
        </g>;})}
       {hiddenEndpointLabels?<text className="plot-legend" x={plot.right} y={plot.bottom+42} textAnchor="end">{hiddenEndpointLabels} more: hover or select points</text>:null}
-      {inspectablePoints.map(point=><g key={point.id} role="button" tabIndex={0} aria-label={inspect(point)}
+      {inspectablePoints.map(point=><g key={point.id} role="button" tabIndex={0} aria-label={inspect(point)+(selectedIds.has(point.id)?'':' · Pareto reference model')}
         className={'chart-point'+(activeId===point.id?' is-active':'')}
         onPointerEnter={()=>onPreview(point.id)} onPointerLeave={()=>onPreview(null)} onFocus={()=>onPreview(point.id)}
         onBlur={()=>onPreview(null)} onClick={()=>onPin(point.id)}
@@ -96,7 +96,7 @@ export default function ComparisonChart({series,referenceFrontier,scale,labels,e
             nodes[Math.max(0,Math.min(nodes.length-1,nodes.indexOf(event.currentTarget)+(event.key==='ArrowRight'?1:-1)))]?.focus();}}}>
         <title>{inspect(point)}</title>
         {series.kind==='scatter'?<><circle cx={point.cx} cy={point.cy} r="11" fill="transparent"/><circle className="point-mark" cx={point.cx} cy={point.cy}
-          r={activeId===point.id?6:4.5} fill={selectedIds.has(point.id)?familyColor(point.family):'var(--surface-0)'}/></>:<rect className="point-mark" x={point.cx-point.visibleBarWidth/2}
+          r={activeId===point.id?6:4.5} fill={familyColor(point.family)}/></>:<rect className="point-mark" x={point.cx-point.visibleBarWidth/2}
           y={Math.min(point.cy,plot.baseline)} width={point.visibleBarWidth} height={Math.max(1,Math.abs(plot.baseline-point.cy))}
           fill={familyColor(point.family)} opacity={point.series==='input'?.55:1}/>}
         {labels&&activeId===point.id&&!showLane?<text className="point-label" textAnchor="start"

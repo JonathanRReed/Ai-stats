@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { logOmissions, logOmissionHeading, plottableSeriesPoints, type ExplorerModel } from '../../lib/compare-series';
-import { buildOverviewSeries, defaultOverviewMetric, overviewCohorts, overviewObservationDate, retainAvailableProvider, UNKNOWN_VERSION, type OverviewMetric } from '../../lib/overview-series';
+import { buildOverviewSeries, overviewSuggestions, defaultOverviewMetric, overviewCohorts, overviewObservationDate, retainAvailableProvider, UNKNOWN_VERSION, type OverviewMetric } from '../../lib/overview-series';
 import ComparisonChart, { familyColor } from './ComparisonChart';
 import ObservationDetails from './ObservationDetails';
 
@@ -27,7 +27,7 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
   const [activeId, setActiveId] = useState<string|null>(null);
   const [pinned, setPinned] = useState<string|null>(null);
   const svg = useRef<SVGSVGElement>(null);
-  const suggestionIds=(selectedMetric:OverviewMetric,selectedCohort:string)=>suggestions[`${selectedMetric}:${selectedCohort}`]??[];
+  const suggestionIds=(selectedMetric:OverviewMetric,selectedCohort:string)=>overviewSuggestions(models,selectedMetric,selectedCohort,provider);
 
   const cohortRows = useMemo(() => models.filter(model => model.source === 'aa' && model.current === true &&
     (cohort === UNKNOWN_VERSION ? !model.indexVersion || !/^\d+(?:\.\d+)*$/.test(model.indexVersion) : model.indexVersion === cohort)), [models,cohort]);
@@ -65,7 +65,7 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
         {!cohorts.length?<option value={UNKNOWN_VERSION}>No recorded version</option>:null}
         {cohorts.map(version=><option key={version} value={version}>{version===UNKNOWN_VERSION?'Unknown version':version}</option>)}
       </select></label>
-      <label>Provider<select value={provider} onChange={event=>setProvider(event.target.value)}><option value="">All providers</option>
+      <label>Provider<select value={provider} onChange={event=>{setProvider(event.target.value);if(!customSelection.current)setSelectedIds(overviewSuggestions(models,metric,cohort,event.target.value));setPinned(null);setActiveId(null);}}><option value="">All providers</option>
         {provider&&!providers.includes(provider)?<option value={provider}>Unavailable: {provider}</option>:null}{providers.map(value=><option key={value}>{value}</option>)}</select></label>
       <div className="overview-scale" role="group" aria-label="Horizontal axis scale">
         <button type="button" aria-pressed={series.scale==='linear'} onClick={()=>setScale('linear')}>Linear</button>
@@ -98,7 +98,7 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
       <div className="overview-chart-wrap">
         <ComparisonChart series={visibleSeries} labels={true} endpointLane activeId={active?.id??null} onPreview={setActiveId}
           onPin={id=>setPinned(pinned===id?null:id)} svgRef={svg} onShowLinear={()=>setScale('linear')}/>
-        <p className="overview-inspect-hint">Frontier and selected endpoint names appear when labels fit; focus or select any point for its full details. Use arrow keys to inspect nearby records.</p>
+        <p className="overview-inspect-hint">Select a point for its model, measurements, and source. Arrow keys move between points.</p>
         <ObservationDetails series={series} point={active} pinned={Boolean(pinned)} onPin={()=>setPinned(pinned?null:active?.id??null)} onClose={()=>{setPinned(null);setActiveId(null);}}/>
       </div>
       <aside className="overview-family-key" aria-label="Visible model families">

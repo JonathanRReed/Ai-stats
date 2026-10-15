@@ -4,7 +4,7 @@ import { buildExplorerCatalog } from "../lib/compare-catalog";
 import OverviewExplorer from "./compare/OverviewExplorer";
 import LatestModelsStrip from "./LatestModelsStrip.astro";
 import RecentModelReleases from "./RecentModelReleases.astro";
-import { suggestedModels } from "../lib/suggested-models";
+import { overviewSuggestions } from "../lib/overview-series";
 
 interface Props {
   models: AaModel[];
@@ -15,10 +15,7 @@ const { models, leaders } = Astro.props;
 const explorerModels = buildExplorerCatalog(models, []);
 const versions=[...new Set(explorerModels.filter(model=>model.source==='aa'&&model.current===true&&model.indexVersion&&/^\d+(?:\.\d+)*$/.test(model.indexVersion)).map(model=>model.indexVersion!))];
 const suggestions = Object.fromEntries(versions.flatMap(version=>(['task-cost','cost-intelligence'] as const).map(metric=>{
-  const rows=explorerModels.filter(model=>model.source==='aa'&&model.current===true&&model.indexVersion===version&&typeof model.intelligence==='number'&&Number.isFinite(model.intelligence)&&
-    typeof (metric==='task-cost'?model.aaTaskCost:model.priceBlended)==='number'&&Number.isFinite(metric==='task-cost'?model.aaTaskCost:model.priceBlended));
-  return [`${metric}:${version}`,suggestedModels(rows.map(model=>({id:model.id,modelId:model.id,x:(metric==='task-cost'?model.aaTaskCost:model.priceBlended)!,y:model.intelligence!,provider:model.provider,family:model.family,
-    indexVersion:model.indexVersion!,cohortKey:model.indexVersion+':'+(model.performancePrompt??'unknown')})))];
+  return [`${metric}:${version}`,overviewSuggestions(explorerModels,metric,version)];
 })));
 ---
 

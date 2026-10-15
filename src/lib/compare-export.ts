@@ -6,15 +6,15 @@ const cell=(value:unknown)=>{
   return '"'+text.replaceAll('"','""')+'"';
 };
 /** When `scale` is given, every row states the axis scale and whether it is drawn (Log omits zero/negative values). */
-export function seriesCsv(points:CsvPoint[],options:{includeX?:boolean;xLabel?:string;yLabel?:string;metricId?:string;metricName?:string;scale?:'linear'|'log';omittedIds?:string[]}={}):string{
+export function seriesCsv(points:CsvPoint[],options:{includeX?:boolean;xLabel?:string;yLabel?:string;metricId?:string;metricName?:string;scale?:'linear'|'log';omittedIds?:string[];referenceIds?:string[]}={}):string{
   const includeX=options.includeX!==false;
   const rows:Array<Array<string|number>>=[['Metric','Metric ID','Model','Model ID','Observation ID','Series','Index version','Reasoning',...(includeX?[options.xLabel??'X']:[]),
-    options.yLabel??'Value','Unit','Source','Observed','Retrieved','Conditions','Source URL','Snapshot',...(options.scale?['Axis scale','Plotted on chart']:[])]];
+    options.yLabel??'Value','Unit','Source','Observed','Retrieved','Conditions','Source URL','Snapshot',...(options.scale?['Axis scale','Plotted on chart']:[]),...(options.referenceIds?['Shown as']:[])]];
   const omitted=new Set(options.omittedIds??[]);
   for(const point of points)rows.push([options.metricName??'',options.metricId??'',point.label,point.modelId??'',point.id??'',point.series??'',point.receipt.indexVersion??'',point.reasoning??'unknown',...(includeX?[point.x]:[]),point.y,point.unit,
     point.receipt.source,point.receipt.observedAt??'',point.receipt.fetchedAt??'',
     point.receipt.conditions?JSON.stringify(point.receipt.conditions):'unknown',point.receipt.sourceUrl??'',point.receipt.snapshotId??'',
-    ...(options.scale?[options.scale,options.scale==='log'&&point.id!==undefined&&omitted.has(point.id)?'No: zero or negative value cannot be drawn on Log':'Yes']:[])]);
+    ...(options.scale?[options.scale,options.scale==='log'&&point.id!==undefined&&omitted.has(point.id)?'No: zero or negative value cannot be drawn on Log':'Yes']:[]),...(options.referenceIds?[options.referenceIds.includes(point.id??'')?'Pareto reference':'Selected']:[])]);
   return rows.map(row=>row.map(cell).join(',')).join('\r\n')+'\r\n';
 }
 export function downloadText(text:string,filename:string,type='text/csv;charset=utf-8'){

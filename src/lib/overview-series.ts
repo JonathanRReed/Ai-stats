@@ -1,3 +1,4 @@
+import {automaticFrontier} from './automatic-selection';
 import { buildCompareSeries, type CompareSeries, type ExplorerModel } from './compare-series';
 import { parseCompareState } from './compare-state';
 
@@ -63,3 +64,8 @@ export function overviewObservationDate(models: ExplorerModel[], cohort: string)
   return values[0] ?? null;
 }
 
+
+export function overviewSuggestions(models:ExplorerModel[],metric:OverviewMetric,cohort:string,provider=''):string[]{
+  const rows=models.filter(model=>model.indexVersion===cohort&&(!provider||(model.provider??'Unknown provider')===provider));
+  return automaticFrontier(rows,model=>metric==='task-cost'?model.aaTaskCost:model.priceBlended).modelIds;
+}
