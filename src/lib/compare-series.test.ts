@@ -12,13 +12,63 @@ const models:ExplorerModel[]=[
     intelligence:99,priceInput:1,priceOutput:1,priceBlended:1,outputSpeed:100,indexVersion:'3',performancePrompt:'medium',observedAt:'2025-01-01T00:00:00Z'},
 ];
 const selection=(query='')=>parseCompareState(new URLSearchParams('m=a&m=b&'+query),models);
-test('cost scatter retains free models, excludes missing price, and falls back from log for zero',()=>{
+test('cost scatter retains free models, excludes missing price, and keeps Log while omitting zero',()=>{
   const result=series.buildCompareSeries?.({models,observations:[]},selection('scale=log'));
   expect(result?.points.map((p:{modelId:string})=>p.modelId)).toEqual(['a']);
   expect(result?.points[0]).toMatchObject({x:0,y:80});
-  expect(result?.scale).toBe('linear');
+  expect(result?.scale).toBe('log');
+  expect(result?.omittedFromLog?.map((p:{modelId:string})=>p.modelId)).toEqual(['a']);
   expect(result?.scaleNotice).toContain('zero');
+  expect(result?.scaleNotice).toContain('Show all on Linear');
+  expect(series.plottableSeriesPoints(result!)).toEqual([]);
   expect(result?.excluded).toContainEqual({modelId:'b',reason:'Missing price or intelligence'});
+});
+
+test('log keeps positive points plotted when a selected zero is omitted',()=>{
+  const mixed:ExplorerModel[]=[
+    {...models[0],id:'free',name:'Free',priceBlended:0,aaTaskCost:0},
+    {...models[0],id:'paid',name:'Paid',priceBlended:2,aaTaskCost:1,intelligence:70},
+  ];
+  const state=parseCompareState(new URLSearchParams('chart=cost-intelligence&scale=log&m=free&m=paid'),mixed);
+  const result=series.buildCompareSeries({models:mixed,observations:[]},state);
+  expect(result.scale).toBe('log');
+  expect(result.points).toHaveLength(2);
+  expect(result.omittedFromLog.map(p=>p.modelId)).toEqual(['free']);
+  expect(series.plottableSeriesPoints(result).map(p=>p.modelId)).toEqual(['paid']);
+  expect(result.frontierGroups).toEqual({'4.2:long':['paid']});
+});
+
+test('reference-only zeros omit from log without forcing selected positives linear',()=>{
+  const rows:ExplorerModel[]=[
+    {...models[0],id:'zero-ref',name:'Zero ref',priceBlended:0,aaTaskCost:0,intelligence:90},
+    {...models[0],id:'pos',name:'Pos',priceBlended:3,aaTaskCost:2,intelligence:70},
+  ];
+  const selected=series.buildCompareSeries({models:rows,observations:[]},parseCompareState(new URLSearchParams('chart=cost-intelligence&scale=log&m=pos'),rows));
+  const reference=series.buildCompareSeries({models:rows,observations:[]},parseCompareState(new URLSearchParams('chart=cost-intelligence&scale=log&m=zero-ref&m=pos'),rows));
+  expect(selected.scale).toBe('log');
+  expect(selected.omittedFromLog).toEqual([]);
+  expect(selected.scaleNotice).toBeNull();
+  expect(reference.omittedFromLog.map(p=>p.modelId)).toEqual(['zero-ref']);
+  expect(reference.scale).toBe('log');
+  expect(series.plottableSeriesPoints(reference).map(p=>p.modelId)).toEqual(['pos']);
+});
+
+test('all-zero log selection keeps records for CSV and exposes an empty plottable set',()=>{
+  const zeros:ExplorerModel[]=[{...models[0],id:'z1',priceBlended:0,aaTaskCost:0},{...models[0],id:'z2',name:'Z2',family:'Z2',priceBlended:0,aaTaskCost:0,intelligence:50}];
+  const result=series.buildCompareSeries({models:zeros,observations:[]},parseCompareState(new URLSearchParams('chart=task-cost&scale=log&m=z1&m=z2'),zeros));
+  expect(result.points).toHaveLength(2);
+  expect(result.omittedFromLog).toHaveLength(2);
+  expect(series.plottableSeriesPoints(result)).toEqual([]);
+  expect(result.scaleNotice).toContain('Show all on Linear');
+});
+
+test('negative bar scores are omitted on log without clamping into geometry',()=>{
+  const rows:ExplorerModel[]=[{...models[0],id:'neg',intelligence:-5},{...models[0],id:'pos',name:'Pos',family:'Pos',intelligence:40}];
+  const result=series.buildCompareSeries({models:rows,observations:[]},parseCompareState(new URLSearchParams('chart=benchmark&metric=aa_intelligence_index&scale=log&m=neg&m=pos'),rows));
+  expect(result.kind).toBe('bars');
+  expect(result.scale).toBe('log');
+  expect(result.omittedFromLog.map(p=>p.modelId)).toEqual(['neg']);
+  expect(series.plottableSeriesPoints(result).map(p=>p.modelId)).toEqual(['pos']);
 });
 test('speed comparison admits unpriced models and never infers task token counts',()=>{
   expect(series.buildCompareSeries?.({models,observations:[]},selection('chart=speed-intelligence'))?.points).toHaveLength(2);
@@ -127,4 +177,14 @@ test('BTF-3 chart labels its lower-is-better scale while retaining raw scores',(
  const model:ExplorerModel={id:'epoch:m',source:'epoch',sourceModelId:'m',name:'M',family:'M',current:true};
  const row:EpochObservation={id:'r',modelVersion:'m',benchmarkSlug:'btf3_external',metricKey:'Pooled score',unit:'native',value:.12,conditions:null,evaluationDate:null,sourceUrl:null,fetchedAt:null,snapshotId:null};
  const state=parseCompareState(new URLSearchParams('chart=benchmark&metric=epoch_btf3_external&m=epoch%3Am'),[model]);const result=series.buildCompareSeries({models:[model],observations:[row]},state);expect(result.yLabel).toContain('lower is better');expect(result.points[0].y).toBe(.12);
+});
+
+test('CSV keeps zero rows while plottable log points omit them',async()=>{
+  const {seriesCsv}=await import('./compare-export');
+  const zeros:ExplorerModel[]=[{...models[0],id:'z',priceBlended:0,aaTaskCost:0}];
+  const result=series.buildCompareSeries({models:zeros,observations:[]},parseCompareState(new URLSearchParams('chart=task-cost&scale=log&m=z'),zeros));
+  const csv=seriesCsv(result.points,{includeX:true,xLabel:result.xLabel,yLabel:result.yLabel,metricId:'task-cost'});
+  expect(csv).toContain('"0"');
+  expect(result.points[0].x).toBe(0);
+  expect(series.plottableSeriesPoints(result)).toEqual([]);
 });

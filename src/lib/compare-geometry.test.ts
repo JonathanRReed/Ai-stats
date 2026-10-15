@@ -41,3 +41,16 @@ test('negative-only bar values retain a visible zero baseline inside the plot',(
  expect(plot.baseline).toBeLessThanOrEqual(plot.bottom);
  for(const point of plot.points){expect(point.cy).toBeGreaterThanOrEqual(plot.top);expect(point.cy).toBeLessThanOrEqual(plot.bottom);}
 });
+
+test('log geometry omits nonpositive coordinates instead of clamping to Number.MIN_VALUE',()=>{
+  const plot=geometry.plotGeometry([{id:'zero',x:0,y:10},{id:'neg',x:-5,y:10},{id:'pos',x:10,y:10}],'scatter','log');
+  expect(plot.points.map(point=>point.id)).toEqual(['pos']);
+  expect(plot.points[0].cx).toBeGreaterThan(70);
+  expect(Number.isFinite(plot.points[0].cx)).toBe(true);
+});
+
+test('all-nonpositive log input yields an empty plot with finite empty-domain ticks',()=>{
+  const plot=geometry.plotGeometry([{id:'zero',x:0,y:1},{id:'neg',x:-1,y:2}],'scatter','log');
+  expect(plot.points).toEqual([]);
+  expect(plot.xTicks.every(tick=>Number.isFinite(tick.position))).toBe(true);
+});

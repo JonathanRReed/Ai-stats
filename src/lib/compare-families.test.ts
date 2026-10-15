@@ -1,5 +1,5 @@
 import {expect,test} from 'bun:test';
-import {compareCatalogScope,familySelectionState,groupCompareFamilies,toggleCompareFamilySelection} from './compare-families';
+import {browseOrderKeys,buildBrowseFamilyOrder,compareCatalogScope,compareFamilyKey,familySelectionState,groupCompareFamilies,toggleCompareFamilySelection} from './compare-families';
 import type {ExplorerModel} from './compare-series';
 const model=(id:string,extra:Partial<ExplorerModel>={}):ExplorerModel=>({id,name:id,family:'Opus',provider:'Anthropic',source:'aa',sourceModelId:id,current:true,reasoning:'unknown',...extra});
 
@@ -35,4 +35,41 @@ test('price and Epoch scopes use compact capability flags and preserve publisher
  ];
  expect(compareCatalogScope(rows,'price','aa_intelligence_index',[]).map(row=>row.id)).toEqual(['price-only']);
  expect(compareCatalogScope(rows,'benchmark','epoch_aider',[]).map(row=>row.id)).toEqual(['publisher','epoch']);
+});
+
+test('recommended browse order ranks stronger current families before older alphabetical names',()=>{
+ const rows=[
+  model('claude2',{name:'Claude 2',family:'Claude 2',intelligence:40,aaTaskCost:1,priceBlended:2}),
+  model('claude55',{name:'Claude 5.5',family:'Claude 5.5',intelligence:90,aaTaskCost:2,priceBlended:4}),
+  model('old',{name:'Claude 3',family:'Claude 3',current:false,intelligence:70,aaTaskCost:1,priceBlended:3}),
+  model('unmeasured',{name:'Zeta',family:'Zeta'}),
+ ];
+ const order=buildBrowseFamilyOrder(rows);
+ const keys=browseOrderKeys(order,'task-cost')!;
+ expect(keys[0]).toBe(compareFamilyKey(rows[1]));
+ expect(keys.indexOf(compareFamilyKey(rows[1]))).toBeLessThan(keys.indexOf(compareFamilyKey(rows[0])));
+ const groups=groupCompareFamilies(rows,[],'',[],{sort:'recommend',browseOrder:keys,chart:'task-cost'});
+ expect(groups.map(group=>group.family)).toEqual(['Claude 5.5','Claude 2','Claude 3','Zeta']);
+ const alpha=groupCompareFamilies(rows,[],'',[],{sort:'alpha',browseOrder:keys});
+ expect(alpha.map(group=>group.family)).toEqual(['Claude 2','Claude 3','Claude 5.5','Zeta']);
+});
+
+test('search keeps exact old-model matches findable while broad Claude prefers stronger families',()=>{
+ const rows=[
+  model('c2',{name:'Claude 2',family:'Claude 2',intelligence:30,aaTaskCost:1}),
+  model('c55',{name:'Claude 5.5',family:'Claude 5.5',intelligence:95,aaTaskCost:2}),
+ ];
+ const order=browseOrderKeys(buildBrowseFamilyOrder(rows),'task-cost');
+ const broad=groupCompareFamilies(rows,[],'Claude',[],{browseOrder:order,chart:'task-cost'});
+ expect(broad.map(group=>group.family)).toEqual(['Claude 5.5','Claude 2']);
+ const exact=groupCompareFamilies(rows,[],'Claude 2',[],{browseOrder:order,chart:'task-cost'});
+ expect(exact[0].family).toBe('Claude 2');
+});
+
+test('browse ranking uses server browseOrder and ignores which measurements happen to be loaded',()=>{
+ const full=[model('strong',{family:'Strong',intelligence:99,aaTaskCost:1}),model('weak',{family:'Weak',intelligence:10,aaTaskCost:1})];
+ const order=browseOrderKeys(buildBrowseFamilyOrder(full),'task-cost');
+ const compactOnly=full.map(row=>({...row,intelligence:undefined,aaTaskCost:undefined,detailAvailable:true}));
+ const groups=groupCompareFamilies(compactOnly,[],'',[],{browseOrder:order,chart:'task-cost'});
+ expect(groups.map(group=>group.family)).toEqual(['Strong','Weak']);
 });

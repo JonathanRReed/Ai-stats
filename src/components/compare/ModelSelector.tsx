@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { EXPLORER_SOURCE_LABELS, type ExplorerModel } from '../../lib/compare-series';
-import { compareCatalogScope, familySelectionState, groupCompareFamilies, type CompareFamily } from '../../lib/compare-families';
+import { compareCatalogScope, familySelectionState, groupCompareFamilies, type CompareFamily, type FamilyBrowseSort } from '../../lib/compare-families';
 import { compareFamilyPage } from '../../lib/compare-family-pages';
 import { familyColor } from '../../lib/family-color';
 import type { ComparePreset } from '../../lib/compare-presets';
@@ -24,6 +24,7 @@ type Props = {
   query: string;
   onQuery: (value: string) => void;
   selectionNotice?: string;
+  browseOrder?: readonly string[];
 };
 
 const reasoningLevels = ['none', 'low', 'medium', 'high', 'xhigh', 'minimal', 'max', 'unknown'];
@@ -47,9 +48,11 @@ export default function ModelSelector({
   query,
   onQuery,
   selectionNotice,
+  browseOrder,
 }: Props) {
   const resultsId = useId();
   const [page, setPage] = useState(0);
+  const [browseSort, setBrowseSort] = useState<FamilyBrowseSort>('recommend');
   const resultsRef = useRef<HTMLDivElement>(null);
   const [allCatalog, setAllCatalog] = useState(false);
   const selectedKey = JSON.stringify(selected);
@@ -63,13 +66,17 @@ export default function ModelSelector({
     ),
     [models, chart, metricId, stableSelected, allCatalog, includeHistory, selectedSet],
   );
+  const orderOptions = useMemo(
+    () => ({ sort: browseSort, browseOrder, chart, metricId }),
+    [browseSort, browseOrder, chart, metricId],
+  );
   const groups = useMemo(
-    () => groupCompareFamilies(searchable, stableSelected, query, stableSuggestedIds),
-    [searchable, stableSelected, query, stableSuggestedIds],
+    () => groupCompareFamilies(searchable, stableSelected, query, stableSuggestedIds, orderOptions),
+    [searchable, stableSelected, query, stableSuggestedIds, orderOptions],
   );
   const allGroups = useMemo(
-    () => groupCompareFamilies(searchable, stableSelected, '', stableSuggestedIds),
-    [searchable, stableSelected, stableSuggestedIds],
+    () => groupCompareFamilies(searchable, stableSelected, '', stableSuggestedIds, orderOptions),
+    [searchable, stableSelected, stableSuggestedIds, orderOptions],
   );
   const hasQuery = query.trim().length > 0;
   const chosen = allGroups.filter(group => group.selectedIds.length > 0);
@@ -82,7 +89,7 @@ export default function ModelSelector({
   useEffect(() => {
     setPage(0);
     if (resultsRef.current) resultsRef.current.scrollTop = 0;
-  }, [query, allCatalog, chart, metricId]);
+  }, [query, allCatalog, chart, metricId, browseSort]);
 
   const atLimit = selected.length >= 100;
   const groupRow = (group: CompareFamily) => {
@@ -166,6 +173,17 @@ export default function ModelSelector({
         />
       </label>
       <div className="family-browser-toolbar">
+        <label className="family-search-label" htmlFor={`${resultsId}-sort`}>
+          Browse order
+          <select
+            id={`${resultsId}-sort`}
+            value={browseSort}
+            onChange={event => setBrowseSort(event.target.value as FamilyBrowseSort)}
+          >
+            <option value="recommend">Recommended</option>
+            <option value="alpha">Alphabetical</option>
+          </select>
+        </label>
         <details className="family-filter-options">
           <summary>Filters{reasoningEfforts.length ? ` · ${reasoningEfforts.length}` : ''}</summary>
           <div>

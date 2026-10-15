@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { type ExplorerModel } from '../../lib/compare-series';
+import { plottableSeriesPoints, type ExplorerModel } from '../../lib/compare-series';
 import { buildOverviewSeries, defaultOverviewMetric, overviewCohorts, overviewObservationDate, retainAvailableProvider, UNKNOWN_VERSION, type OverviewMetric } from '../../lib/overview-series';
 import ComparisonChart, { familyColor } from './ComparisonChart';
 import ObservationDetails from './ObservationDetails';
@@ -37,9 +37,9 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
     (!search || (model.name+' '+model.family+' '+model.provider+' '+model.sourceModelId).toLowerCase().includes(search.toLowerCase().trim()))), [cohortRows,provider,search]);
   const plotRows=useMemo(()=>showAllMeasured?cohortRows.filter(model=>!provider||(model.provider??'Unknown provider')===provider):cohortRows.filter(model=>selectedIds.includes(model.id)&&(!provider||(model.provider??'Unknown provider')===provider)),[showAllMeasured,cohortRows,provider,selectedIds]);
   const series = useMemo(() => buildOverviewSeries(plotRows,metric,cohort,scale), [plotRows,metric,cohort,scale]);
-  const visiblePoints = useMemo(() => series.points.filter(point => !frontierOnly ||
+  const visiblePoints = useMemo(() => plottableSeriesPoints(series).filter(point => !frontierOnly ||
     Object.values(series.frontierGroups).some(ids => ids.includes(point.id))), [series,frontierOnly]);
-  const visibleSeries = useMemo(() => ({...series,points:visiblePoints}), [series,visiblePoints]);
+  const visibleSeries = useMemo(() => ({...series,points:visiblePoints,omittedFromLog:series.omittedFromLog}), [series,visiblePoints]);
   const visibleFamilies = useMemo(() => [...new Set(visiblePoints.map(point=>point.family))].sort((a,b)=>a.localeCompare(b)), [visiblePoints]);
   const active = series.points.find(point => point.id === (pinned ?? activeId)) ?? null;
   const costAvailable = cohort !== UNKNOWN_VERSION && buildOverviewSeries(models,'task-cost',cohort).points.length>0;
@@ -76,7 +76,7 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
       <div><dt>Plotted for these axes</dt><dd>{series.points.length.toLocaleString('en-US')}</dd></div>
       <div><dt>Latest source observation</dt><dd>{dateLabel(overviewObservationDate(cohortRows,cohort))}</dd></div>
     </dl>
-    <p className="overview-plot-status" aria-live="polite">{visiblePoints.length} of {series.points.length} plotted points · {cohortRows.length} records in this version. Recorded zeros stay on a linear axis.</p>
+    <p className="overview-plot-status" aria-live="polite">{visiblePoints.length} of {series.points.length} plotted points · {cohortRows.length} records in this version.{series.omittedFromLog.length?` ${series.omittedFromLog.length} zero or negative values omitted on Log.`:''}</p>
     <label className="overview-all-measured"><input type="checkbox" checked={showAllMeasured} onChange={event=>setShowAllMeasured(event.target.checked)}/>Show all measured models</label>
     <details className="overview-model-picker"><summary>Search, add, or remove models ({selectedIds.length} selected)</summary>
       <label>Find a model<input type="search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search full model name"/></label>

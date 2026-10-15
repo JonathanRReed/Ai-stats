@@ -57,9 +57,34 @@ export function barCategoryLabels(points:SeriesPoint[]):BarCategoryLabel[]{
 export type CompareSeries = {
   available:boolean; unavailableReason:string|null; kind:'scatter'|'bars'; points:SeriesPoint[];
   excluded:Array<{modelId:string;reason:string}>; xLabel:string; yLabel:string;
-  scale:'linear'|'log'; scaleNotice:string|null; mixedConditions:boolean;
+  scale:'linear'|'log'; scaleNotice:string|null; omittedFromLog:SeriesPoint[]; mixedConditions:boolean;
   frontierGroups:Record<string,string[]>; higherXIsBetter:boolean;
 };
+/** Axis value used for log eligibility (scatter X, bar Y). */
+export const seriesLogCoordinate=(point:Pick<SeriesPoint,'x'|'y'>,kind:'scatter'|'bars')=>kind==='scatter'?point.x:point.y;
+/** Points that may reach log geometry; nonpositive values stay in series.points for CSV/details. */
+export function plottableSeriesPoints(series:Pick<CompareSeries,'points'|'kind'|'scale'|'omittedFromLog'>):SeriesPoint[]{
+  if(series.scale!=='log')return series.points;
+  const omitted=new Set((series.omittedFromLog??[]).map(point=>point.id));
+  return series.points.filter(point=>!omitted.has(point.id)&&seriesLogCoordinate(point,series.kind)>0);
+}
+function logScaleNotice(omitted:SeriesPoint[],kind:'scatter'|'bars',xLabel:string,yLabel:string):string{
+  const n=omitted.length;
+  const axis=kind==='scatter'?xLabel:yLabel;
+  const values=omitted.map(point=>seriesLogCoordinate(point,kind));
+  const zeros=values.filter(value=>value===0).length;
+  const negatives=values.filter(value=>value<0).length;
+  const noun=n===1?'observation':'observations';
+  let detail:string;
+  if(zeros&&!negatives)detail=`${n===1?'a zero':'zero'} ${axis.toLowerCase().includes('usd')||/cost|price|token/i.test(axis)?'cost':'value'}`;
+  else if(negatives&&!zeros)detail=`${n===1?'a negative':'negative'} value`;
+  else detail='a zero or negative value';
+  if(n===1&&zeros&&!negatives){
+    const costish=/cost|price|token|usd/i.test(axis);
+    return `1 selected observation has a zero ${costish?'cost':'value'} and is not plotted on Log. Show all on Linear`;
+  }
+  return `${n} selected ${noun} ${n===1?'has':'have'} ${detail} and ${n===1?'is':'are'} not plotted on Log. Show all on Linear`;
+}
 export function chartLabelCandidates(points:SeriesPoint[],frontierGroups:Record<string,string[]>,limit=12):string[]{
  const priorities:string[]=[];
  for(const ids of Object.values(frontierGroups))priorities.push(...ids);
@@ -109,7 +134,7 @@ export function paretoFrontiers<T extends {id:string;x:number;y:number;cohortKey
 export const epochScoreKey=(row:Pick<EpochObservation,'metricKey'|'unit'|'benchmarkVersion'>)=>JSON.stringify([row.metricKey??'Unknown metric',row.unit==='fraction'?'percent':row.unit,...(row.benchmarkVersion?[row.benchmarkVersion]:[])]);
 export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState):CompareSeries {
   const result:CompareSeries={available:true,unavailableReason:null,kind:['cost-intelligence','speed-intelligence','task-cost','total-cost'].includes(state.chart)?'scatter':'bars',
-    points:[],excluded:[],xLabel:'Model',yLabel:'Value',scale:state.scale,scaleNotice:null,mixedConditions:false,
+    points:[],excluded:[],xLabel:'Model',yLabel:'Value',scale:state.scale,scaleNotice:null,omittedFromLog:[],mixedConditions:false,
     frontierGroups:{},higherXIsBetter:state.chart==='speed-intelligence'};
   const selected=new Set(state.modelIds);
   const models=evidence.models.filter(model=>{
@@ -176,9 +201,17 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
       }
     });
   }
-  if(state.scale==='log'&&result.points.some(point=>(result.kind==='scatter'?point.x:point.y)<=0)){
-    result.scale='linear';result.scaleNotice='A zero or negative value requires a linear scale.';
+  if(state.scale==='log'){
+    const omitted=result.points.filter(point=>!(seriesLogCoordinate(point,result.kind)>0));
+    if(omitted.length){
+      result.omittedFromLog=omitted;
+      result.scaleNotice=logScaleNotice(omitted,result.kind,result.xLabel,result.yLabel);
+      // Keep scale='log' so positive measurements stay on a logarithmic axis.
+    }
   }
-  if(state.frontier&&result.kind==='scatter')result.frontierGroups=paretoFrontiers(result.points,result.higherXIsBetter?'max':'min');
+  if(state.frontier&&result.kind==='scatter'){
+    const frontierPoints=state.scale==='log'?plottableSeriesPoints(result):result.points;
+    result.frontierGroups=paretoFrontiers(frontierPoints,result.higherXIsBetter?'max':'min');
+  }
   return result;
 }

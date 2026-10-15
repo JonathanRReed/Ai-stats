@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState,type RefObject} from 'react';
 import {plotGeometry,formatChartNumber} from '../../lib/compare-geometry';
-import {barCategoryLabels,compatibleVariantLines,type CompareSeries,type SeriesPoint} from '../../lib/compare-series';
+import {barCategoryLabels,compatibleVariantLines,plottableSeriesPoints,type CompareSeries,type SeriesPoint} from '../../lib/compare-series';
 import {familyColor} from '../../lib/family-color';
 import {EXPLORER_SOURCE_LABELS} from '../../lib/compare-series';
 import {endpointLabels} from '../../lib/endpoint-labels';
@@ -12,8 +12,11 @@ export default function ComparisonChart({series,referenceFrontier,scale,labels,e
   useEffect(()=>{if(!frame.current)return;const observer=new ResizeObserver(([entry])=>setWidth(Math.max(300,entry.contentRect.width)));
     observer.observe(frame.current);return()=>observer.disconnect();},[]);
   const height=width<600?420:520;
-  const tokenPrices=series.points.some(point=>point.series==='input'||point.series==='output');
-  const geometryInput=[...new Map([...series.points,...(referenceFrontier?.points??[])].map(point=>[point.id,point])).values()];
+  const chartScale=scale??series.scale;
+  const selectedPlottable=plottableSeriesPoints({...series,scale:chartScale});
+  const referencePlottable=referenceFrontier?plottableSeriesPoints({...referenceFrontier,scale:chartScale}):[];
+  const tokenPrices=selectedPlottable.some(point=>point.series==='input'||point.series==='output');
+  const geometryInput=[...new Map([...selectedPlottable,...referencePlottable].map(point=>[point.id,point])).values()];
   const displayReference=series.kind==='scatter'?referenceFrontier:null;
   const showLane=endpointLane&&series.kind==='scatter'&&width>=600;
   const groups=[...new Map(series.points.map(point=>[JSON.stringify([point.source,point.provider??point.family,point.family]),point])).values()];
@@ -27,9 +30,9 @@ export default function ComparisonChart({series,referenceFrontier,scale,labels,e
   const plot=plotGeometry(geometryInput,series.kind,scale??series.scale,width,height,topPadding,laneWidth);
   const byId=new Map(plot.points.map(point=>[point.id,point]));
   const barPointByX=new Map(plot.points.map(point=>[point.x,point]));
-  const selectedIds=new Set(series.points.map(point=>point.id));
+  const selectedIds=new Set(selectedPlottable.map(point=>point.id));
   const selectedPlotPoints=plot.points.filter(point=>selectedIds.has(point.id));
-  const linked=compatibleVariantLines(series.points);
+  const linked=compatibleVariantLines(selectedPlottable);
   const barLabels=series.kind==='bars'?barCategoryLabels(selectedPlotPoints):[];
   const endpointCandidates=selectedPlotPoints.map(point=>({id:point.id,group:JSON.stringify([point.source,point.provider??point.family,point.family,point.cohortKey??point.id]),label:point.family,cx:point.cx,cy:point.cy}));
   const familyLabels=showLane&&labels?endpointLabels(endpointCandidates,{top:plot.top+8,bottom:plot.bottom-5,gap:19,activeId}):[];
@@ -37,7 +40,7 @@ export default function ComparisonChart({series,referenceFrontier,scale,labels,e
   const inspect=(point:SeriesPoint)=>point.label+(point.series==='input'?' · Input tokens':point.series==='output'?' · Output tokens':'')+': '+(series.kind==='scatter'?formatChartNumber(point.x)+' '+series.xLabel+' · ':'')+formatChartNumber(point.y)+' '+point.unit;
   return <div className="comparison-plot" ref={frame}>
     {!series.available?<div className="plot-empty"><h2>Awaiting data access</h2><p>{series.unavailableReason}</p></div>:
-    !series.points.length&&!currentFrontierIds.size?<div className="plot-empty"><h2>No comparable measurements selected</h2><p>Choose models with measurements for this view.</p></div>:
+    !selectedPlottable.length&&!currentFrontierIds.size?<div className="plot-empty"><h2>{series.points.length&&chartScale==='log'?'Nothing to plot on Log':'No comparable measurements selected'}</h2><p>{series.points.length&&chartScale==='log'?'Every selected measurement is zero or negative on this axis. Switch to Linear to see them.':'Choose models with measurements for this view.'}</p></div>:
     <svg ref={svgRef} viewBox={`0 0 ${width} ${height}`} role="group" aria-label={series.yLabel+' versus '+series.xLabel}>
       <title>{series.yLabel+' versus '+series.xLabel}</title>
       {tokenPrices?<g aria-label="Token price series"><rect x="70" y="4" width="9" height="9" fill="var(--ink-0)" opacity=".55"/><text className="plot-legend" x="84" y="13">Input tokens</text><rect x="177" y="4" width="9" height="9" fill="var(--ink-0)"/><text className="plot-legend" x="191" y="13">Output tokens</text></g>:null}

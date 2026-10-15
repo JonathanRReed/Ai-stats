@@ -57,7 +57,8 @@ test('overview keeps index values above 100, accepts zero token prices, and excl
   const prices=buildOverviewSeries(models,'cost-intelligence','4.3');
   expect(prices.points.map(point=>point.modelId)).toEqual(['zero','missing-task']);
   expect(prices.points[0].x).toBe(0);
-  expect(prices.scale).toBe('linear');
+  expect(prices.scale).toBe('log');
+  expect(prices.omittedFromLog.map(point=>point.modelId)).toContain('zero');
   expect(prices.scaleNotice).toContain('zero');
 });
 

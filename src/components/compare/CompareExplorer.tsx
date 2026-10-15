@@ -7,7 +7,7 @@ import {formatChartNumber} from '../../lib/compare-geometry';
 import {seriesCsv,downloadText,downloadChartPng,chartExportCaption} from '../../lib/compare-export';
 import {availableCompareCharts,availableAaMetrics,selectAaBenchmarkModels,buildComparePresets,canonicalChartMenu,COMPARE_VIEW_LABELS} from '../../lib/compare-presets';
 import {expandCatalog,createMeasurementLoader,type CompareDelivery} from '../../lib/compare-delivery';
-import {toggleCompareFamilySelection} from '../../lib/compare-families';
+import {browseOrderKeys,toggleCompareFamilySelection} from '../../lib/compare-families';
 import {frontierReferenceDisplayCount,shouldShowFrontierReference} from '../../lib/compare-frontier-reference';
 import ComparisonChart from './ComparisonChart';
 import ModelSelector from './ModelSelector';
@@ -82,7 +82,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const suggestedIdsForChart=delivery?.suggestedModelIds?.[state.chart]??EMPTY_SUGGESTED_IDS;
   const frontierDisplayCount=frontierReferenceDisplayCount({scatterView,customSelection:customSelection.current,suggestedIds:suggestedIdsForChart,frontierReferenceIds});
   const referenceFrontier=useMemo(()=>shouldShowFrontierReference(state.frontier,frontierReferenceIds)?buildCompareSeries({models:measuredModels,observations},{...state,modelIds:frontierReferenceIds,reasoningEfforts:[],frontier:true}):null,[measuredModels,observations,state,frontierReferenceIds]);
-  const displayedScale=referenceFrontier?.scaleNotice?'linear':series.scale;
+  const displayedScale=series.scale;
   const active=series.points.find(point=>point.id===(pinned??hovered))??null;
   const visibleModels=models;
   const conditions=useMemo(()=>[...new Set(observations.map(row=>epochConditionKey(row.conditions)))].sort(),[observations]);
@@ -95,7 +95,8 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
   const chooseSuggested=(chart:CompareChart)=>{const ids=delivery?.suggestedModelIds?.[chart];if(ids?.length){setPresetDescription('Measured suggestions for this view.');update({chart,modelIds:ids,missingModelIds:[]},true);}};
   const changeChart=(chart:CompareChart)=>{if(customSelection.current){update({chart});return;}if(chart==='benchmark'){const metric='aa_intelligence_index';const ids=delivery?.aaBenchmarkSelections?.[metric]?.[state.includeHistory?'historical':'current']??selectAaBenchmarkModels(measuredModels,metric,8,state.includeHistory);update({chart,metricId:metric,modelIds:ids,missingModelIds:[]},true);return;}if(delivery?.suggestedModelIds?.[chart]?.length)chooseSuggested(chart);else update({chart});};
   const [familyQuery,setFamilyQuery]=useState('');
-  const selectorProps={models:visibleModels,selected:state.modelIds,suggestedIds:delivery?.suggestedModelIds?.[state.chart]??EMPTY_SUGGESTED_IDS,includeHistory:state.includeHistory,chart:state.chart,metricId:state.metricId,
+  const browseOrderKey=state.chart==='benchmark'?'benchmark':state.chart;
+  const selectorProps={models:visibleModels,selected:state.modelIds,suggestedIds:delivery?.suggestedModelIds?.[state.chart]??EMPTY_SUGGESTED_IDS,browseOrder:browseOrderKeys(delivery?.catalog?.browseOrder,browseOrderKey),includeHistory:state.includeHistory,chart:state.chart,metricId:state.metricId,
     onHistory:(includeHistory:boolean)=>update({includeHistory}),reasoningEfforts:state.reasoningEfforts,query:familyQuery,onQuery:setFamilyQuery,
     presets,onReset:()=>update({modelIds:[],missingModelIds:[]}),onSuggested:()=>chooseSuggested(state.chart),selectionNotice:presetDescription,
     onPreset:(preset:typeof presets[number])=>{update({modelIds:preset.modelIds,missingModelIds:[],chart:preset.chart,metricId:preset.metricId,includeHistory:false,reasoningEfforts:[],conditionKey:null,scoreMetricKey:null});setPresetDescription(preset.description);},
@@ -142,7 +143,8 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
       {epochSlug&&scoreOptions.missing&&observations.length?<p className="explorer-warning">The saved score metric is no longer available. Choose a recorded score metric above.</p>:null}
       {loadFailed?<button type="button" onClick={()=>setRetryAttempt(value=>value+1)}>Retry benchmark</button>:null}
       {unverifiedMembership?<p className="explorer-warning">Current AA membership could not be verified. Records labelled Membership unverified may include retired models.</p>:null}
-      {series.scaleNotice||referenceFrontier?.scaleNotice?<p className="explorer-warning">{series.scaleNotice??'The current frontier includes zero, so the shared axis uses a linear scale.'}</p>:null}
+      {series.scaleNotice?<p className="explorer-warning" role="status">{series.scaleNotice.replace(/\.?\s*Show all on Linear$/,'')}{state.scale==='log'&&series.omittedFromLog.length?<>{' '}<button type="button" className="scale-notice-action" onClick={()=>update({scale:'linear'})}>Show all on Linear</button></>:null}</p>:null}
+      {!series.scaleNotice&&referenceFrontier?.omittedFromLog?.length&&state.scale==='log'?<p className="explorer-warning" role="status">The current frontier includes {referenceFrontier.omittedFromLog.length===1?'a zero that is':'zeros that are'} omitted on Log; positive frontier points stay logarithmic.</p>:null}
       {series.mixedConditions?<p className="explorer-warning">These runs used different test settings. Choose conditions for a like-for-like view.</p>:null}
       {referenceFrontier?.points.length&&!series.points.length?<p className="explorer-warning">No selected records have measurements for this view. The current frontier is shown for reference.</p>:null}
       {frontierCoverage?.truncated?<p className="explorer-warning">Current frontier reference is limited to {frontierDisplayCount} of {frontierCoverage.total} compatible records by the 100-record selection limit.</p>:null}
@@ -150,7 +152,7 @@ export default function CompareExplorer({models:initialModels,benchmarks,default
       <ComparisonChart series={series} referenceFrontier={referenceFrontier??undefined} scale={displayedScale} labels={state.labels} endpointLane activeId={active?.id??null} onPreview={setHovered}
         onPin={id=>setPinned(pinned===id?null:id)} svgRef={svg}/>
       <ObservationDetails series={series} point={active} pinned={Boolean(pinned)} floating onPin={()=>setPinned(pinned?null:active?.id??null)} onClose={()=>{setPinned(null);setHovered(null);}}/>
-      <div className="source-strip"><span>{visibleModels.filter(model=>state.modelIds.includes(model.id)).length} selected · {series.points.length} plotted observations</span>
+      <div className="source-strip"><span>{visibleModels.filter(model=>state.modelIds.includes(model.id)).length} selected · {(series.scale==='log'?series.points.length-series.omittedFromLog.length:series.points.length)} plotted observations{series.omittedFromLog.length?` · ${series.omittedFromLog.length} omitted on Log`:''}</span>
         <span>{[...new Set(series.points.map(point=>point.receipt.source))].join(' · ')||'No measurements selected'}</span>
         {series.excluded.length?<details><summary>{series.excluded.length} excluded</summary><ul>{series.excluded.map((item,index)=><li key={item.modelId+index}>
           {models.find(model=>model.id===item.modelId)?.name??item.modelId}: {item.reason}</li>)}</ul></details>:null}</div>

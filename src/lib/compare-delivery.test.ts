@@ -25,3 +25,15 @@ test('measurement chunks reject mismatched revisions, foreign identities and mal
  expect(()=>validateMeasurementChunk({...payload,records:[]},'abc',bucket,known)).toThrow();
  for(const malformed of [{family:{}},{observedAt:42},{reasoning:[]},{indexVersion:4.3},{metrics:false},{metrics:0},{metrics:''}])expect(()=>validateMeasurementChunk({...payload,records:[{...rows[0],...malformed},...rows.slice(1)]},'abc',bucket,known)).toThrow();
 });
+
+test('compact catalog carries revision-consistent browse order without restoring measurement fields',()=>{
+ const ranked:ExplorerModel[]=[
+  {...models[0],id:'aa:c2',source:'aa',sourceModelId:'c2',name:'Claude 2',family:'Claude 2',intelligence:40,aaTaskCost:1,priceBlended:2},
+  {...models[1],id:'aa:c55',source:'aa',sourceModelId:'c55',name:'Claude 5.5',family:'Claude 5.5',intelligence:99,aaTaskCost:2,priceBlended:4},
+ ];
+ const payload=compactCatalog(ranked);
+ expect(payload.browseOrder?.familyKeys.some(key=>key.includes('Claude 5.5'))).toBe(true);
+ expect(payload.browseOrder?.ranks['task-cost']?.[0]).toBe(payload.browseOrder!.familyKeys.findIndex(key=>key.includes('Claude 5.5')));
+ expect(expandCatalog(payload)[0].intelligence).toBeUndefined();
+ expect(JSON.stringify(payload).length).toBeLessThan(JSON.stringify(ranked).length*2);
+});

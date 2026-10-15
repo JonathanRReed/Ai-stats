@@ -22,6 +22,7 @@
 .scale-buttons button{border-radius:0;min-width:45px}
 .scale-buttons button:first-child{border-radius:3px 0 0 3px}
 .scale-buttons button:last-child{border-radius:0 3px 3px 0}
+.scale-notice-action{margin-left:.35rem;text-decoration:underline;background:none;border:0;color:inherit;cursor:pointer;font:inherit;padding:0}
 .toolbar-check{display:flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap}
 .compare-explorer input[type="checkbox"]{accent-color:var(--signal);width:15px;height:15px;flex-shrink:0}
 .comparison-plot{height:520px;min-width:0}
