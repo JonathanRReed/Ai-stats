@@ -2,9 +2,10 @@ import {buildInitialEpochLeaderboardData} from './epoch-leaderboard-initial';
 import type {EpochBenchmark,EpochBenchmarkRun} from './supabase';
 
 /**
- * The full ranking is a build artifact keyed by the compare release `datasetRevision`, the
- * fingerprint of the same catalog the page was rendered from. A view only ever adopts rows
- * from its own revision, so a late, cached, or redeployed corpus cannot mix into it.
+ * The full ranking is a build artifact keyed by its own content fingerprint
+ * (`epochRankingRevision`, independent of the compare release `datasetRevision`), computed from
+ * the same source the page was rendered from. A view only ever adopts rows from its own
+ * revision, so a late, cached, or redeployed corpus cannot mix into it.
  */
 export const epochRankingUrl=(revision:string)=>`/api/epoch-ranking/${revision}.json`;
 
