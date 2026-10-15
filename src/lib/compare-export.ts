@@ -37,7 +37,7 @@ export async function downloadChartPng(svg:SVGSVGElement,caption:string){
   const clone=svg.cloneNode(true) as SVGSVGElement;
   const original=[svg,...Array.from(svg.querySelectorAll('*'))];
   const copied=[clone,...Array.from(clone.querySelectorAll('*'))];
-  const properties=['fill','stroke','stroke-width','font-family','font-size','font-weight','opacity'];
+  const properties=['fill','stroke','stroke-width','stroke-dasharray','stroke-linecap','stroke-linejoin','paint-order','font-family','font-size','font-weight','font-style','letter-spacing','text-anchor','dominant-baseline','opacity'];
   original.forEach((node,index)=>{
     const styles=getComputedStyle(node);
     properties.forEach(property=>(copied[index] as SVGElement).style.setProperty(property,styles.getPropertyValue(property)));

@@ -39,7 +39,7 @@ export default function ComparisonChart({series,referenceFrontier,scale,labels,e
   const inspectablePoints=plot.points.filter(point=>selectedIds.has(point.id)||currentFrontierIds.has(point.id));
   const barLabels=series.kind==='bars'?barCategoryLabels(selectedPlotPoints):[];
   const endpointCandidates=inspectablePoints.map(point=>({id:point.id,group:JSON.stringify([point.source,point.provider??point.family,point.family,point.cohortKey??point.id]),label:point.family,cx:point.cx,cy:point.cy}));
-  const familyLabels=showLane&&labels?scatterLabels(endpointCandidates,{left:plot.left+5,right:plot.right-5,top:plot.top+5,bottom:plot.bottom-5},activeId):[];
+  const familyLabels=showLane&&labels?scatterLabels(endpointCandidates,{left:plot.left+5,right:plot.right-5,top:plot.top+5,bottom:plot.bottom-5},activeId,new Set([...currentFrontierIds,...Object.values(series.frontierGroups).flat()])):[];
   const hiddenEndpointLabels=showLane&&labels?Math.max(0,new Set(endpointCandidates.map(point=>point.group)).size-familyLabels.length):0;
   const inspect=(point:SeriesPoint)=>point.label+(point.series==='input'?' · Input tokens':point.series==='output'?' · Output tokens':'')+': '+(series.kind==='scatter'?formatChartNumber(point.x)+' '+series.xLabel+' · ':'')+formatChartNumber(point.y)+' '+point.unit;
   if(series.kind==='bars'&&series.available&&selectedPlottable.length)return <div className="comparison-plot horizontal-bars" ref={frame}>
@@ -80,8 +80,10 @@ export default function ComparisonChart({series,referenceFrontier,scale,labels,e
         const conflict=new Set(familyConflicts.map(row=>{const model=byId.get(row.id);return JSON.stringify([model?.source,model?.provider,model?.receipt.indexVersion,row.group]);})).size>1;
         const fullLabel=conflict?`${point?EXPLORER_SOURCE_LABELS[point.source]:''} · ${point?.provider??''} · ${item.label} · ${point?.receipt.indexVersion??'unversioned'}`:item.label;
         const text=fullLabel.length>25?fullLabel.slice(0,24)+'…':fullLabel;
+        const leaderX=Math.min(Math.max(item.cx,item.labelX-4),item.labelX+item.width+4);
+        const leaderY=item.cy<item.labelY-11?item.labelY-13:item.cy>item.labelY+4?item.labelY+6:item.labelY-3;
         return <g key={item.group} aria-label={fullLabel+' endpoint'}>
-        <polyline className="family-endpoint-leader" stroke={familyColor(point?.family??item.label)} points={`${item.cx},${item.cy} ${item.labelX>item.cx?item.labelX-4:item.labelX+item.width+4},${item.labelY-3}`}/>
+        <polyline className="family-endpoint-leader" stroke={familyColor(point?.family??item.label)} points={`${item.cx},${item.cy} ${leaderX},${leaderY}`}/>
         <circle cx={item.cx} cy={item.cy} r="2.4" fill={familyColor(point?.family??item.label)}/>
         <text className="family-endpoint-label" x={item.labelX} y={item.labelY} fill={familyColor(point?.family??item.label)}>
          <title>{fullLabel}</title>{text}</text>

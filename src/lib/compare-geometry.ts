@@ -28,7 +28,7 @@ export function plotGeometry<T extends PlotPoint>(points:T[],kind:'scatter'|'bar
     if(!usable.length)return [0,1];
     let low=Math.floor(Math.log10(Math.min(...usable))),high=Math.ceil(Math.log10(Math.max(...usable)));
     if(low===high){low-=1;high+=1;}
-    else if(high-low<=12&&Math.min(...usable)!==Math.max(...usable)){
+    else if(high-low<=12&&low>=-300&&high<=300&&Math.min(...usable)!==Math.max(...usable)){
       const min=Math.log10(Math.min(...usable)),max=Math.log10(Math.max(...usable));
       const steps=[0,Math.log10(2),Math.log10(5)];
       const candidates=[];
@@ -63,7 +63,7 @@ export function plotGeometry<T extends PlotPoint>(points:T[],kind:'scatter'|'bar
       const exponents:number[]=[];
       if(range[1]-range[0]<=12){
         for(let exponent=Math.floor(range[0]);exponent<=Math.ceil(range[1]);exponent++){
-          for(const multiplier of (range[1]-range[0]<2?[1,2,5]:[1])){
+          for(const multiplier of (range[1]-range[0]<3&&(range[1]-range[0]<2||range.some(value=>!Number.isInteger(value)))&&range[0]>=-300&&range[1]<=300?[1,2,5]:[1])){
             const value=exponent+Math.log10(multiplier);
             if(value>=range[0]-1e-12&&value<=range[1]+1e-12)exponents.push(value);
           }

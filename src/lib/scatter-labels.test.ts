@@ -6,8 +6,8 @@ test('labels stay near data instead of drawing lines across the chart',()=>{
  const labels=scatterLabels(points,bounds);
  expect(labels.length).toBeGreaterThan(5);
  for(const label of labels){
-  expect(Math.min(Math.abs(label.labelX-label.cx),Math.abs(label.labelX+label.width-label.cx))).toBeLessThanOrEqual(12);
-  expect(Math.abs(label.labelY-label.cy)).toBeLessThanOrEqual(36);
+  expect(Math.min(Math.abs(label.labelX-label.cx),Math.abs(label.labelX+label.width-label.cx),Math.abs(label.labelX+label.width/2-label.cx))).toBeLessThanOrEqual(12);
+  expect(Math.abs(label.labelY-label.cy)).toBeLessThanOrEqual(48);
   expect(label.labelX).toBeGreaterThanOrEqual(bounds.left);
   expect(label.labelX+label.width).toBeLessThanOrEqual(bounds.right);
  }

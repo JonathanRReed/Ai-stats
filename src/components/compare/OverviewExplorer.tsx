@@ -21,6 +21,8 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
   const [provider, setProvider] = useState('');
   const [scale, setScale] = useState<'linear'|'log'>('log');
   const [frontierOnly, setFrontierOnly] = useState(false);
+  const [showPareto,setShowPareto]=useState(true);
+  const [showLabels,setShowLabels]=useState(true);
   const [showAllMeasured,setShowAllMeasured]=useState(false);
   const [selectedIds,setSelectedIds]=useState<string[]>(()=>suggestions[`${defaultOverviewMetric(models)}:${cohorts.find(value=>value!==UNKNOWN_VERSION)??''}`]??[]);
   const customSelection=useRef(false);
@@ -42,7 +44,7 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
   const frontierFiltered = useMemo(() => series.points.filter(point => !frontierOnly ||
     Object.values(series.frontierGroups).some(ids => ids.includes(point.id))), [series,frontierOnly]);
   const visibleSeries = useMemo(() => {const ids=new Set(frontierFiltered.map(point=>point.id));
-    return {...series,points:frontierFiltered,omittedFromLog:series.omittedFromLog.filter(point=>ids.has(point.id))};}, [series,frontierFiltered]);
+    return {...series,frontierGroups:showPareto?series.frontierGroups:{},points:frontierFiltered,omittedFromLog:series.omittedFromLog.filter(point=>ids.has(point.id))};}, [series,frontierFiltered,showPareto]);
   const plottable = useMemo(() => plottableSeriesPoints(series), [series]);
   const visiblePoints = useMemo(() => plottableSeriesPoints(visibleSeries), [visibleSeries]);
   const omitted = useMemo(() => logOmissions(series.omittedFromLog, series.kind), [series]);
@@ -71,6 +73,8 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
         <button type="button" aria-pressed={series.scale==='linear'} onClick={()=>setScale('linear')}>Linear</button>
         <button type="button" aria-pressed={series.scale==='log'} onClick={()=>setScale('log')}>Log</button>
       </div>
+      <button type="button" className="pareto-toggle" aria-label="Pareto line" aria-pressed={showPareto} onClick={()=>setShowPareto(!showPareto)}>Pareto line <span aria-hidden="true">{showPareto?'On':'Off'}</span></button>
+      <button type="button" aria-pressed={showLabels} onClick={()=>setShowLabels(!showLabels)}>Labels</button>
       <label className="overview-check"><input type="checkbox" checked={frontierOnly} onChange={event=>setFrontierOnly(event.target.checked)}/>Show Pareto models only</label>
     </div>
     <p className="overview-axis-definition">X: {series.xLabel} · Y: AA Intelligence Index</p>
@@ -96,7 +100,7 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
       <button type="button" className="scale-notice-action" onClick={()=>setScale('linear')}>Show all on Linear</button></div>:null}
     <div className="overview-chart-layout">
       <div className="overview-chart-wrap">
-        <ComparisonChart series={visibleSeries} labels={true} endpointLane activeId={active?.id??null} onPreview={setActiveId}
+        <ComparisonChart series={visibleSeries} labels={showLabels} endpointLane activeId={active?.id??null} onPreview={setActiveId}
           onPin={id=>setPinned(pinned===id?null:id)} svgRef={svg} onShowLinear={()=>setScale('linear')}/>
         <p className="overview-inspect-hint">Select a point for its model, measurements, and source. Arrow keys move between points.</p>
         <ObservationDetails series={series} point={active} pinned={Boolean(pinned)} onPin={()=>setPinned(pinned?null:active?.id??null)} onClose={()=>{setPinned(null);setActiveId(null);}}/>

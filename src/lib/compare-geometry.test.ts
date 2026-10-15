@@ -96,3 +96,10 @@ test('a lone non-power-of-ten log value retains a finite nonzero domain',()=>{
  expect(plot.points[0].cx).toBeGreaterThan(plot.left);
  expect(plot.points[0].cx).toBeLessThan(plot.right);
 });
+test('extreme narrow log ranges keep readable exponent labels and finite geometry',()=>{
+ for(const values of [[1e308,Number.MAX_VALUE],[1e-310,2e-310]]){
+  const plot=geometry.plotGeometry(values.map((x,i)=>({id:String(i),x,y:i+1})),'scatter','log');
+  expect(plot.points.every(point=>Number.isFinite(point.cx))).toBe(true);
+  expect(plot.xTicks.every(tick=>!tick.label.includes('.')&&tick.label.length<12)).toBe(true);
+ }
+});
