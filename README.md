@@ -23,7 +23,7 @@ Aider Polyglot and Terminal Bench subsets from Epoch retain their documented Apa
 
 ## Develop
 
-The site uses Astro, React, Tailwind CSS, and Bun.
+The site uses Astro, React, Tailwind CSS, and Bun. Use the Node version in `.node-version` and the Bun version pinned by `packageManager` in `package.json`.
 
 ```sh
 brew install oven-sh/bun/bun
@@ -33,7 +33,15 @@ bun run dev
 ```
 
 ```sh
+bun run test
 bun run lint
+bun run typecheck
+bun run audit
+```
+
+For a configured release build and local preview:
+
+```sh
 bun run build
 bun run preview
 ```
@@ -42,7 +50,7 @@ Production is a static Astro build. `/api/intelligence.json` is a build snapshot
 
 The [production migration guide](docs/operations/ai-stats-production-migration.md) covers the normalized intelligence schema and verification. Applying a migration is a separate production operation, not part of a build. A runtime freshness route would require a reviewed Astro server adapter.
 
-`bun run check:epoch` checks the hosted data path and needs real `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` values. Without credentials, run lint and build.
+`bun run check:epoch` checks the hosted data path and needs real `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` values. A release build also needs configured Supabase data: the populated-data guard intentionally rejects empty comparisons rather than publishing an incomplete site. Without credentials, run the tests, lint, typecheck, and dependency audit above; the audit also needs registry access.
 
 ## OpenRouter sync
 
