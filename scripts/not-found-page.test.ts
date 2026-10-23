@@ -1,19 +1,24 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 describe("not-found page", () => {
   let outputDirectory = "";
   let notFoundHtml = "";
 
   beforeAll(async () => {
-    outputDirectory = await mkdtemp(join(tmpdir(), "ai-stats-404-"));
+    // Astro moves assets from .astro with rename(), so the output must share
+    // the project's filesystem even when the system temp directory does not.
+    const temporaryRoot = fileURLToPath(new URL("../.tmp/", import.meta.url));
+    await mkdir(temporaryRoot, { recursive: true });
+    outputDirectory = await mkdtemp(join(temporaryRoot, "ai-stats-404-"));
     const build = Bun.spawn(
       // This fixture checks the recovery page without data credentials. Keep it
       // isolated from the production artifact and its populated-data gate.
       ["bun", "--bun", "run", "astro", "build", "--outDir", outputDirectory],
       {
+        env: { ...process.env, ASTRO_TELEMETRY_DISABLED: "1" },
         stdout: "pipe",
         stderr: "pipe",
       },
