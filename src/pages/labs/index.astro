@@ -1,0 +1,108 @@
+---
+import CohortNotice from "../../components/CohortNotice.astro";
+import { scriptSafeJson } from "../../lib/script-json";
+import Layout from "../../components/Layout.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import ScrollToTop from "../../components/ScrollToTop.astro";
+import { getLabPageData } from "../../lib/lab-pages-data";
+import { providerIcon } from "../../lib/provider-icons";
+import { SITE_ORIGIN } from "../../lib/model-pages";
+import { AUTHOR_REF } from "../../lib/author";
+import { LABS_INDEX_PATH } from "../../lib/site-routes";
+import "../../styles/benchmark-pages.css";
+import "../../styles/lab-pages.css";
+
+export const prerender = true;
+
+const labs = await getLabPageData();
+const modelCount = labs.reduce((sum, lab) => sum + lab.models.length, 0);
+const versions = [...new Set(labs.flatMap((lab) => lab.indexVersions))];
+const lastSeen = labs.map((lab) => lab.lastSeenDate).filter((value): value is string => Boolean(value)).sort();
+const dateModified = lastSeen[lastSeen.length - 1];
+const range = (lab: (typeof labs)[number]) =>
+  !lab.indexRange ? null : lab.indexRange.min === lab.indexRange.max ? lab.indexRange.min.toFixed(1) : `${lab.indexRange.min.toFixed(1)} – ${lab.indexRange.max.toFixed(1)}`;
+
+const title = "AI labs and their models: prices, speed, benchmarks | AI Stats";
+const description = `${labs.length} AI labs with ${modelCount} models in the current Artificial Analysis list. Each lab page shows Index against cost by family, a release timeline, and prices, speed and context with sources.`;
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "ItemList",
+      "@id": `${SITE_ORIGIN}${LABS_INDEX_PATH}#labs`,
+      name: "AI labs on AI Stats",
+      description,
+      creator: AUTHOR_REF,
+      isPartOf: { "@id": `${SITE_ORIGIN}/#website` },
+      numberOfItems: labs.length,
+      itemListElement: labs.map((lab, index) => ({ "@type": "ListItem", position: index + 1, name: lab.provider, url: `${SITE_ORIGIN}${lab.path}` })),
+      ...(dateModified ? { dateModified } : {}),
+    },
+    {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "AI Stats", item: `${SITE_ORIGIN}/` },
+        { "@type": "ListItem", position: 2, name: "Labs", item: `${SITE_ORIGIN}${LABS_INDEX_PATH}` },
+      ],
+    },
+  ],
+});
+---
+
+<Layout title={title} description={description} dateModified={dateModified}>
+  <Fragment slot="head">
+    <script type="application/ld+json" is:inline set:html={scriptSafeJson(jsonLd)} />
+  </Fragment>
+  <Header currentPage="labs" />
+
+  <main id="main-content" class="eco-container data-page lab-index">
+    <CohortNotice />
+    <header class="data-hero">
+      <h1>Labs</h1>
+      <p class="data-summary">
+        {labs.length
+          ? "Every lab with a model in the current Artificial Analysis list, ordered by number of models. The Index range covers models with a recorded AA Intelligence Index."
+          : "Lab data is temporarily unavailable."}
+      </p>
+      {labs.length ? (
+        <dl class="data-readouts">
+          <div><dt>Labs</dt><dd>{labs.length}</dd></div>
+          <div><dt>Models</dt><dd>{modelCount}</dd></div>
+          <div><dt>With an AA Index</dt><dd>{labs.reduce((sum, lab) => sum + lab.models.filter((model) => model.index !== null).length, 0)}</dd></div>
+          {versions.length === 1 ? <div><dt>Index version</dt><dd>v{versions[0]}</dd></div> : null}
+        </dl>
+      ) : null}
+    </header>
+
+    {labs.length ? (
+      <section class="data-section" aria-label="Labs">
+        <div class="lab-index-head" aria-hidden="true"><span></span><span>Lab</span><span>Models</span><span>AA Index range</span><span>Newest release</span></div>
+        <ul class="lab-index-list">
+          {labs.map((lab) => {
+            const mark = providerIcon(lab.provider);
+            const indexRange = range(lab);
+            return (
+              <li>
+                <a href={lab.path}>
+                  {mark
+                    ? <img class:list={["lab-index-mark", { "is-mono": mark.mono }]} src={mark.src} alt="" width="20" height="20" loading="lazy" decoding="async" />
+                    : <span class="lab-index-mark-empty" aria-hidden="true"></span>}
+                  <span class="lab-index-name">{lab.provider}</span>
+                  <span class="lab-index-count">{lab.models.length} {lab.models.length === 1 ? "model" : "models"}</span>
+                  <span class="lab-index-range">{indexRange ? <><span class="sr-only">AA Index </span>{indexRange}</> : <span class="data-missing">No Index recorded</span>}</span>
+                  <span class="lab-index-date">{lab.newestRelease ? <><span class="sr-only">newest release </span>{lab.newestRelease}</> : <span class="data-missing">No date</span>}</span>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    ) : null}
+
+    <p class="data-foot">Lab names are as Artificial Analysis records them. This list describes the data; it does not rank labs. <a href="/models">Every model</a> · <a href="/about">How the data is gathered</a>.</p>
+  </main>
+
+  <Footer />
+  <ScrollToTop />
+</Layout>

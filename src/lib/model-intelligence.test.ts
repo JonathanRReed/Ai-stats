@@ -283,8 +283,9 @@ test("buildParetoFrontier removes only models dominated on quality and price", (
 });
 
 test("Dashboard snapshot replacement uses the same comparable AA leader helper", () => {
+  // The snapshot refresh code moved from Dashboard.astro into the dashboard client module.
   const dashboard = readFileSync(
-    new URL("../components/Dashboard.astro", import.meta.url),
+    new URL("../components/dashboard/client/dashboard-client.ts", import.meta.url),
     "utf8",
   );
   const updateTopStripStart = dashboard.indexOf("const updateTopStrip =");

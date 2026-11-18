@@ -1,0 +1,219 @@
+---
+import CohortNotice from "../../components/CohortNotice.astro";
+import { scriptSafeJson } from "../../lib/script-json";
+import type { GetStaticPaths } from "astro";
+import Layout from "../../components/Layout.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import ScrollToTop from "../../components/ScrollToTop.astro";
+import LabCostChart from "../../components/labs/LabCostChart.astro";
+import { getLabPageData } from "../../lib/lab-pages-data";
+import { buildLabJsonLd, labPageDescription, labPageTitle, type LabModel, type LabPage } from "../../lib/lab-pages";
+import { providerIcon } from "../../lib/provider-icons";
+import { LABS_INDEX_PATH } from "../../lib/site-routes";
+import "../../styles/compare-explorer.css";
+import "../../styles/benchmark-pages.css";
+import "../../styles/lab-pages.css";
+
+export const prerender = true;
+
+export const getStaticPaths = (async () => {
+  const pages = await getLabPageData();
+  return pages.map((page) => ({ params: { slug: page.slug }, props: { page } }));
+}) satisfies GetStaticPaths;
+
+type Props = { page: LabPage };
+const { page } = Astro.props;
+const title = labPageTitle(page.provider);
+const description = labPageDescription(page);
+const jsonLd = JSON.stringify({ "@context": "https://schema.org", "@graph": buildLabJsonLd(page) });
+const mark = providerIcon(page.provider);
+const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
+const money = (value: number | null) => (value === null ? null : `$${value.toFixed(value < 0.01 ? 4 : 2)}`);
+const ctx = (value: number | null) => {
+  if (value === null) return null;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(value % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (value >= 1_000) return `${Math.round(value / 1_000)}K`;
+  return String(value);
+};
+const version = page.indexVersions.length === 1 ? `v${page.indexVersions[0]}` : null;
+const readouts = [
+  { label: "Models", value: String(page.models.length), unit: "" },
+  { label: "Families", value: String(page.families.length), unit: "" },
+  page.indexRange ? { label: "AA Intelligence Index", value: page.indexRange.min === page.indexRange.max ? page.indexRange.min.toFixed(1) : `${page.indexRange.min.toFixed(1)} to ${page.indexRange.max.toFixed(1)}`, unit: version ? `points, ${version}` : "points" } : null,
+  page.newestRelease ? { label: "Newest release", value: page.newestRelease, unit: "" } : null,
+].filter((item): item is { label: string; value: string; unit: string } => item !== null);
+const indexed = page.models.filter((model) => model.index !== null);
+const compareHref = indexed.length
+  ? `/compare?${new URLSearchParams([["chart", "cost-intelligence"], ...indexed.slice(0, 100).map((model) => ["m", model.id])]).toString()}`
+  : null;
+const axisLabel = page.chart?.axis === "task" ? "USD per AA Index task" : "USD per 1M tokens, 3:1 blended";
+const indexTop = Math.max(0, ...indexed.map((model) => model.index ?? 0));
+const reasoningLabel = (model: LabModel) => (model.reasoning === "unknown" ? null : model.reasoning === "none" ? "No reasoning" : model.reasoning.charAt(0).toUpperCase() + model.reasoning.slice(1));
+const plotted = page.chart ? page.chart.lines.reduce((sum, line) => sum + line.points.length, 0) : 0;
+---
+
+<Layout title={title} description={description} dateModified={page.lastSeenDate ?? undefined}>
+  <Fragment slot="head">
+    <script type="application/ld+json" is:inline set:html={scriptSafeJson(jsonLd)} />
+  </Fragment>
+  <Header currentPage="labs" />
+
+  <main id="main-content" class="eco-container data-page lab-page">
+    <nav class="data-crumbs" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/">AI Stats</a></li>
+        <li><a href={LABS_INDEX_PATH}>Labs</a></li>
+        <li aria-current="page">{page.provider}</li>
+      </ol>
+    </nav>
+    <CohortNotice />
+
+    <header class="data-hero">
+      <h1 class="lab-title">
+        {mark ? <img class:list={["lab-mark", { "is-mono": mark.mono }]} src={mark.src} alt="" width="28" height="28" /> : null}
+        <span>{page.provider}</span>
+      </h1>
+      <dl class="data-readouts">
+        {readouts.map((item) => <div><dt>{item.label}</dt><dd>{item.value}{item.unit ? <span> {item.unit}</span> : null}</dd></div>)}
+      </dl>
+      <p class="data-summary">
+        Every {page.provider} model in the current Artificial Analysis list. Index, prices and speed are from Artificial Analysis{version ? ` (Intelligence Index ${version})` : ""}; context length is from OpenRouter; release dates are as Artificial Analysis records them.
+        {indexed.length < page.models.length ? ` ${page.models.length - indexed.length} of ${page.models.length} models have no recorded Index.` : ""}
+      </p>
+      <div class="data-actions">
+        {compareHref ? <a class="eco-btn eco-btn-primary" href={compareHref}>Compare {plural(Math.min(indexed.length, 100), "indexed model")}</a> : null}
+        <a class="eco-btn eco-btn-secondary" href={LABS_INDEX_PATH}>Every lab</a>
+      </div>
+    </header>
+
+    <section class="data-section" aria-labelledby="chart-heading">
+      <header>
+        <h2 id="chart-heading">Index against {page.chart?.axis === "task" ? "cost per task" : "price"}, by family</h2>
+        {page.chart ? (
+          <p>
+            {plural(plotted, "model")} in {plural(page.chart.lines.length, "family", "families")}. Each line joins one family's reasoning levels, lowest effort first.
+            {page.chart.axis === "task" ? " Cost is what Artificial Analysis spent per Intelligence Index task." : " Fewer than half of the indexed models have a cost per task, so the axis is the blended token price instead."}
+            The cost axis is logarithmic.
+          </p>
+        ) : (
+          <p>Not drawn. No {page.provider} model has both a recorded AA Intelligence Index and a recorded cost.</p>
+        )}
+      </header>
+      {page.chart ? (
+        <figure class="lab-figure compare-explorer">
+          <LabCostChart chart={page.chart} width={960} height={420} class="bench-chart-wide" titleId="chart-t" descId="chart-d" axisLabel={axisLabel} />
+          <LabCostChart chart={page.chart} width={360} height={320} class="bench-chart-narrow" titleId="chart-tn" descId="chart-dn" axisLabel={axisLabel} />
+          <figcaption>
+            <ul class="lab-legend" aria-label="Families">
+              {page.chart.lines.map((line, index) => (
+                <li style={`color:var(--compare-family-${index % 9})`}>
+                  <svg width="22" height="10" aria-hidden="true"><line x1="1" x2="21" y1="5" y2="5" stroke="currentColor" stroke-width="2" /><circle cx="11" cy="5" r="3.5" fill="currentColor" /></svg>
+                  <span>{line.family}</span>
+                  <small>{line.points.length === 1 ? "1 point" : `${line.points.length} levels`}</small>
+                </li>
+              ))}
+            </ul>
+            {page.chart.omitted.length ? (
+              <p class="data-foot">Not plotted: {page.chart.omitted.map((row) => `${row.model.name} (${row.reason.toLowerCase()})`).join("; ")}.</p>
+            ) : null}
+          </figcaption>
+        </figure>
+      ) : null}
+    </section>
+
+    <section class="data-section" aria-labelledby="timeline-heading">
+      <header>
+        <h2 id="timeline-heading">Release timeline</h2>
+        <p>Newest first, by the release date Artificial Analysis records. Index bars share one scale from zero.</p>
+      </header>
+      <div class="lab-timeline">
+        {page.timeline.map((year) => (
+          <section class="lab-year" aria-label={`Released in ${year.year}`}>
+            <h3>{year.year} <span>{plural(year.models.length, "model")}</span></h3>
+            <ol class="lab-release-list">
+              {year.models.map((model) => (
+                <li>
+                  <time datetime={model.releaseDate ?? undefined}>{model.releaseDate?.slice(5)}</time>
+                  <a href={model.path}>{model.name}</a>
+                  <span class="lab-release-index">
+                    {model.index === null ? <span class="data-missing">No Index</span> : <>
+                      <span class="lab-index-bar" aria-hidden="true"><span style={`width:${indexTop > 0 ? ((model.index / indexTop) * 100).toFixed(1) : 0}%`}></span></span>
+                      <span class="lab-index-value">{model.index.toFixed(1)}</span>
+                    </>}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ))}
+        {page.undated.length ? (
+          <section class="lab-year lab-undated" aria-label="Release date not recorded">
+            <h3>Date not recorded <span>{plural(page.undated.length, "model")}</span></h3>
+            <ol class="lab-release-list">
+              {page.undated.map((model) => (
+                <li>
+                  <span class="data-missing">—</span>
+                  <a href={model.path}>{model.name}</a>
+                  <span class="lab-release-index">{model.index === null ? <span class="data-missing">No Index</span> : <span class="lab-index-value">{model.index.toFixed(1)}</span>}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ) : null}
+      </div>
+    </section>
+
+    <section class="data-section" aria-labelledby="models-heading">
+      <header>
+        <h2 id="models-heading">Models by family</h2>
+        <p>Families ordered by their highest Index, reasoning levels lowest first. Prices in US dollars per one million tokens. Missing values are not zero.</p>
+      </header>
+      <div class="bench-table-wrap">
+        <table class="bench-table lab-table">
+          <thead>
+            <tr>
+              <th scope="col">Model</th>
+              <th scope="col" class="num">AA Index</th>
+              <th scope="col" class="num">Input $/1M</th>
+              <th scope="col" class="num">Output $/1M</th>
+              <th scope="col" class="num">Tokens/s</th>
+              <th scope="col" class="num">Context</th>
+              <th scope="col">Released</th>
+            </tr>
+          </thead>
+          {page.families.map((family) => (
+            <tbody>
+              {family.models.length > 1 ? (
+                <tr class="lab-family-row"><th scope="rowgroup" colspan="7">{family.family} <span>{plural(family.models.length, "model")}</span></th></tr>
+              ) : null}
+              {family.models.map((model) => (
+                <tr class:list={{ "is-member": family.models.length > 1 }}>
+                  <th scope="row"><a href={model.path}>{family.models.length > 1 && reasoningLabel(model) ? reasoningLabel(model) : model.name}</a></th>
+                  <td class="num">{model.index?.toFixed(1) ?? <span class="data-missing">n/a</span>}</td>
+                  <td class="num">{money(model.inputPrice) ?? <span class="data-missing">n/a</span>}</td>
+                  <td class="num">{money(model.outputPrice) ?? <span class="data-missing">n/a</span>}</td>
+                  <td class="num">{model.speed?.toFixed(0) ?? <span class="data-missing">n/a</span>}</td>
+                  <td class="num">{ctx(model.context) ?? <span class="data-missing">n/a</span>}</td>
+                  <td class="bench-date">{model.releaseDate ?? <span class="data-missing">Not recorded</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          ))}
+        </table>
+      </div>
+    </section>
+
+    <section class="data-section data-sources" aria-labelledby="sources-heading">
+      <header><h2 id="sources-heading">Sources</h2></header>
+      <ul class="data-source-list">
+        <li><a href="https://artificialanalysis.ai/" rel="noopener noreferrer">Artificial Analysis</a><span>Intelligence Index, cost per task, token prices, output speed and release dates.</span></li>
+        <li><a href="https://openrouter.ai/" rel="noopener noreferrer">OpenRouter</a><span>Context length.</span></li>
+      </ul>
+      <p class="data-foot">This page describes recorded values; it does not rank or recommend a model. Contents belong to the named sources. <a href="/about">How the data is gathered</a>.</p>
+    </section>
+  </main>
+
+  <Footer />
+  <ScrollToTop />
+</Layout>

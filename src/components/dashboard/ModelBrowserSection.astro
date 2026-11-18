@@ -1,0 +1,275 @@
+---
+import ModelCard from "../ModelCard.astro";
+import {formatIndex,formatScore,formatPrice} from "../../lib/format-utils";
+import {parseFiniteMetricValue} from "../../lib/metric-values";
+import {formatContextLength,getScoreClass} from "../../lib/dashboard-format";
+import type {AaModel} from "../../lib/supabase";
+
+// "Browse all models": the first page of cards and table rows is rendered
+// here; the client script loads the full list when the disclosure opens.
+interface Props {
+  initialModels: AaModel[];
+  totalModels: number;
+  initialVisibleModels: number;
+}
+const {initialModels, totalModels, initialVisibleModels: INITIAL_VISIBLE_MODELS} = Astro.props;
+---
+
+<section id="model-browser" aria-label="All models" class="space-y-4 fade-in-section">
+  <header
+    class="flex flex-col gap-2 md:flex-row md:items-baseline md:justify-between"
+  >
+    <div>
+      <h2 class="text-lg font-semibold text-text">All models</h2>
+      <p class="text-xs text-subtle">
+        <a href="/models" class="underline underline-offset-4 hover:text-text">Browse model details</a>.
+      </p>
+    </div>
+    <p class="text-xs text-subtle">
+      Showing <span id="visible-model-count">{INITIAL_VISIBLE_MODELS}</span>
+      of
+      <span id="total-models-count">{totalModels}</span> models
+    </p>
+  </header>
+
+  <p id="model-browser-load-status" role="status" class="text-xs text-subtle" hidden></p>
+  <button id="model-browser-retry" type="button" class="brutalist-button secondary" hidden>Retry model list</button>
+  <div id="model-toolbar-sentinel" aria-hidden="true" class="h-px w-full"></div>
+
+  <div
+    id="model-toolbar"
+    class="model-toolbar sticky top-[56px] z-20 border border-highlight-low/70 bg-overlay px-4 py-3 flex flex-col gap-3 md:flex-row md:items-start md:justify-between"
+  >
+    <div class="w-full md:max-w-xs">
+      <label
+        for="model-search"
+        class="block text-xs font-medium text-subtle"
+      >
+        Search models
+      </label>
+      <input
+        id="model-search"
+        type="text"
+        placeholder="Search by name or company..."
+        class="toolbar-control mt-1 w-full px-3 py-2 text-sm text-text placeholder:text-muted placeholder:font-normal"
+      />
+    </div>
+
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
+      <div class="w-full md:max-w-sm">
+        <label
+          for="model-sort"
+          class="block text-xs font-medium text-subtle"
+        >
+          Sort models
+        </label>
+        <div class="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <select
+            id="model-sort"
+            class="toolbar-control w-full px-3 py-2 text-sm text-text"
+          >
+            <option value="intelligence">AA Intelligence Index</option>
+            <option value="mmlu">MMLU Pro</option>
+            <option value="gpqa">GPQA</option>
+            <option value="hle">HLE</option>
+            <option value="aime">AIME</option>
+            <option value="inputPrice">Input price</option>
+            <option value="outputPrice">Output price</option>
+            <option value="tps">Tokens per second</option>
+          </select>
+          <label for="model-sort-direction" class="sr-only"
+            >Sort direction</label
+          >
+          <div class="sort-direction-wrap">
+            <span
+              id="sort-direction-indicator"
+              class="sort-direction-indicator"
+              aria-hidden="true"
+            >
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 3v10M4 9l4 4 4-4"
+                ></path>
+              </svg>
+            </span>
+            <select
+              id="model-sort-direction"
+              class="toolbar-control w-full px-3 py-2 text-sm text-text sm:w-32"
+            >
+              <option value="desc">Highest first</option>
+              <option value="asc">Lowest first</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- View toggle -->
+      <div
+        class="view-toggle flex items-center gap-1 p-1"
+      >
+        <button
+          id="view-cards"
+          type="button"
+          class="view-toggle-btn active px-3 py-1.5 text-xs font-medium"
+          aria-pressed="true"
+          title="Card view"
+        >
+          <svg
+            class="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+            ></path>
+          </svg>
+        </button>
+        <button
+          id="view-table"
+          type="button"
+          class="view-toggle-btn px-3 py-1.5 text-xs font-medium"
+          aria-pressed="false"
+          title="Table view"
+        >
+          <svg
+            class="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+            ></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="empty-state" class="empty-state hidden">
+    <svg
+      class="mx-auto h-12 w-12 text-muted"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.5"
+        d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+      ></path>
+    </svg>
+    <h3 class="mt-2 text-sm font-semibold text-text">No models found</h3>
+    <p class="mt-1 text-xs text-subtle">
+      Try adjusting your search or filters.
+    </p>
+    <button
+      id="empty-state-clear"
+      type="button"
+      class="brutalist-button secondary mt-5"
+    >
+      Clear search
+    </button>
+  </div>
+
+  <div class="grid gap-3 md:grid-cols-2 stagger-container" id="models-grid">
+    {initialModels.map((model: any) => <ModelCard model={model} />)}
+  </div>
+
+  <!-- Table view (hidden by default) -->
+  <div id="models-table-container" class="hidden overflow-x-auto rounded-lg border border-highlight-low bg-surface/70">
+    <table class="w-full min-w-[900px] text-left text-sm">
+      <thead
+        class="border-b border-highlight-med bg-overlay/50 text-xs text-subtle"
+      >
+        <tr>
+          <th scope="col" class="px-4 py-3 font-semibold">Model</th>
+          <th scope="col" class="px-4 py-3 font-semibold">Provider</th>
+          <th scope="col" class="px-4 py-3 font-semibold text-right">AA Index</th>
+          <th scope="col" class="px-4 py-3 font-semibold text-right">Context</th>
+          <th scope="col" class="px-4 py-3 font-semibold text-right">Input</th>
+          <th scope="col" class="px-4 py-3 font-semibold text-right">Output</th>
+          <th scope="col" class="px-4 py-3 font-semibold text-right">MMLU Pro</th>
+          <th scope="col" class="px-4 py-3 font-semibold text-right">GPQA</th>
+          <th scope="col" class="px-4 py-3 font-semibold text-right">TPS</th>
+        </tr>
+      </thead>
+      <tbody
+        class="divide-y divide-highlight-low/50"
+        id="models-table-body"
+      >
+        {
+          initialModels.map((model: any) => (
+            <tr
+              class="cursor-pointer transition-colors hover:bg-highlight-low/50"
+              data-table-row
+              tabindex="0"
+              role="button"
+              aria-label={`Open details for ${model.name ?? "Unknown model"}, ${model.company_name ?? "Unknown provider"}`}
+              data-card-label={`${model.name ?? "Unknown model"}, ${model.company_name ?? "Unknown provider"}`}
+              data-model-id={model.id}
+              data-name={(model.name ?? "").toLowerCase()}
+              data-company={(model.company_name ?? "").toLowerCase()}
+              data-intelligence={parseFiniteMetricValue(model.aa_intelligence_index) ?? ''}
+              data-hle={parseFiniteMetricValue(model.hle) ?? ''}
+              data-aime={parseFiniteMetricValue(model.aime) ?? ''}
+              data-mmlu={parseFiniteMetricValue(model.mmlu_pro) ?? ''}
+              data-gpqa={parseFiniteMetricValue(model.gpqa) ?? ''}
+              data-input-price={parseFiniteMetricValue(model.price_1m_input_tokens) ?? ''}
+              data-output-price={parseFiniteMetricValue(model.price_1m_output_tokens) ?? ''}
+              data-tps={parseFiniteMetricValue(model.median_output_tokens_per_second) ?? ''}
+            >
+              <td class="px-4 py-3 font-medium text-text">{model.name}</td>
+              <td class="px-4 py-3 text-subtle">
+                {model.company_name ?? "-"}
+              </td>
+              <td class="px-4 py-3 text-right font-mono text-text">{formatIndex(model.aa_intelligence_index)}</td>
+              <td class="px-4 py-3 text-right font-mono text-text">
+                {formatContextLength(model.openrouter_context_length)}
+              </td>
+              <td class="px-4 py-3 text-right font-mono text-text">
+                {formatPrice(model.price_1m_input_tokens, 3)}
+              </td>
+              <td class="px-4 py-3 text-right font-mono text-text">
+                {formatPrice(model.price_1m_output_tokens, 3)}
+              </td>
+              <td
+                class={`px-4 py-3 text-right font-semibold ${getScoreClass(model.mmlu_pro)}`}
+              >
+                {formatScore(model.mmlu_pro)}
+              </td>
+              <td
+                class={`px-4 py-3 text-right font-semibold ${getScoreClass(model.gpqa)}`}
+              >
+                {formatScore(model.gpqa)}
+              </td>
+              <td class="px-4 py-3 text-right text-text">
+                {model.median_output_tokens_per_second
+                  ? model.median_output_tokens_per_second.toFixed(1)
+                  : "-"}
+              </td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="mt-4 flex justify-center">
+    <button id="load-more-models" type="button" class="brutalist-button secondary">
+      Load more models
+    </button>
+  </div>
+</section>

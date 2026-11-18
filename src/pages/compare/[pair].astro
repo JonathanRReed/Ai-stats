@@ -1,0 +1,439 @@
+---
+import CohortNotice from "../../components/CohortNotice.astro";
+import { scriptSafeJson } from "../../lib/script-json";
+import type { GetStaticPaths } from "astro";
+import Layout from "../../components/Layout.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import ScrollToTop from "../../components/ScrollToTop.astro";
+import VersusChart from "../../components/versus/VersusChart.astro";
+import { getHeadToHeadData } from "../../lib/head-to-head-data";
+import { getModelPageRecords } from "../../lib/model-pages-data";
+import { providerIcon } from "../../lib/provider-icons";
+import { familyColor } from "../../lib/family-color";
+import { AUTHOR_REF } from "../../lib/author";
+import { SITE_ORIGIN, type ModelPageRecord } from "../../lib/model-pages";
+import { MATCHUPS_INDEX_PATH } from "../../lib/site-routes";
+import { AA_METRIC_LABELS } from "../../lib/compare-state";
+import type { ExplorerModel } from "../../lib/compare-series";
+import {
+  buildH2HChart,
+  compareHrefFor,
+  gapDifference,
+  latestObservation,
+  levelLabel,
+  matchLevels,
+  matchupParam,
+  matchupTitle,
+  matchupsFor,
+  ratioDifference,
+  sharedBenchmarks,
+  strongestRecord,
+  type Difference,
+  type H2HFamily,
+  type Matchup,
+  type UnmatchedRecord,
+} from "../../lib/head-to-head";
+import "../../styles/head-to-head.css";
+
+export const prerender = true;
+
+type PageLink = { id: string; path: string; name: string };
+type PageFacts = { ttft: number | null; context: { value: number; source: string } | null; path: string; name: string };
+
+export const getStaticPaths = (async () => {
+  const [{ matchups, bySlug, families }, pages] = await Promise.all([getHeadToHeadData(), getModelPageRecords()]);
+  const pageById = new Map(pages.map((page) => [page.id, page]));
+  const pageBySlug = new Map(pages.filter((page) => page.aaSlug).map((page) => [page.aaSlug!, page]));
+  const facts = (page: ModelPageRecord | undefined): PageFacts | null => {
+    if (!page) return null;
+    const ttft = page.speed.find((m) => m.key === "median_time_to_first_token_seconds")?.value ?? null;
+    const context = page.context.find((m) => m.key === "openrouter_context_length" && m.value !== null)
+      ?? page.context.find((m) => m.key === "litellm_max_input_tokens" && m.value !== null);
+    return { ttft, context: context?.value != null ? { value: context.value, source: context.source } : null, path: page.path, name: page.name };
+  };
+  const pageFor = (record: ExplorerModel) => pageById.get(record.id) ?? (record.slug ? pageBySlug.get(record.slug) : undefined);
+  return matchups.map((matchup) => {
+    const a = bySlug.get(matchup.a.slug)!;
+    const b = bySlug.get(matchup.b.slug)!;
+    const recordFacts = Object.fromEntries([...a.records, ...b.records].map((record) => [record.id, facts(pageFor(record))]));
+    return {
+      params: { pair: matchupParam(matchup) },
+      props: {
+        matchup, a, b, recordFacts,
+        othersA: matchupsFor(a.slug, matchups, families, matchup.path).slice(0, 8),
+        othersB: matchupsFor(b.slug, matchups, families, matchup.path).slice(0, 8),
+      },
+    };
+  });
+}) satisfies GetStaticPaths;
+
+type Other = { path: string; opponent: { slug: string; name: string; provider: string } };
+type Props = {
+  matchup: Matchup;
+  a: H2HFamily;
+  b: H2HFamily;
+  recordFacts: Record<string, PageFacts | null>;
+  othersA: Other[];
+  othersB: Other[];
+};
+
+const { matchup, a, b, recordFacts, othersA, othersB } = Astro.props as Props;
+const names = { a: a.name, b: b.name };
+const chart = buildH2HChart(a, b);
+const levels = matchLevels(a.records, b.records);
+const topA = strongestRecord(a.records);
+const topB = strongestRecord(b.records);
+const benchmarks = topA && topB ? sharedBenchmarks(topA, topB, names) : [];
+const dataDate = latestObservation([...a.records, ...b.records]);
+const indexVersions = [...new Set([...a.records, ...b.records].filter((r) => r.intelligence != null && r.indexVersion).map((r) => r.indexVersion!))];
+const compareHref = compareHrefFor([...a.records, ...b.records].map((r) => r.id), chart.axis === "task-cost" ? "task-cost" : "cost-intelligence");
+const marks = { a: providerIcon(a.provider, a.name), b: providerIcon(b.provider, b.name) };
+const pageUrl = `${SITE_ORIGIN}${matchup.path}`;
+
+const dateFormatter = new Intl.DateTimeFormat("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
+const formatDate = (value: string | null | undefined) => {
+  if (!value) return "Not recorded";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Not recorded" : dateFormatter.format(date);
+};
+const NA = "Not available";
+const money = (value: number | null | undefined) => (value == null || !Number.isFinite(value) ? NA : `$${value.toFixed(value !== 0 && value < 0.01 ? 4 : 2)}`);
+const points = (value: number | null | undefined) => (value == null ? NA : value.toFixed(1));
+const speed = (value: number | null | undefined) => (value == null ? NA : `${value.toFixed(1)} tokens/s`);
+const seconds = (value: number | null | undefined) => (value == null ? NA : value < 1 ? `${(value * 1000).toFixed(0)} ms` : `${value.toFixed(2)} s`);
+const tokens = (value: number | null | undefined) => (value == null ? NA : `${value.toLocaleString("en-US")} tokens`);
+const diffText = (difference: Difference | null) => difference?.text ?? NA;
+const variantName = (record: ExplorerModel) =>
+  record.name.match(/\(([^)]*)\)\s*$/)?.[1] ?? (record.reasoning && record.reasoning !== "unknown" ? levelLabel(record.reasoning) : "level not recorded");
+const whyText: Record<UnmatchedRecord["why"], string> = {
+  "level-only-here": "Only this family has this level",
+  "extra-variant": "A second variant at a level already compared above",
+  "level-not-recorded": "Reasoning level not recorded by the source",
+};
+
+const ttftA = topA ? recordFacts[topA.id]?.ttft ?? null : null;
+const ttftB = topB ? recordFacts[topB.id]?.ttft ?? null : null;
+const ctxA = topA ? recordFacts[topA.id]?.context ?? null : null;
+const ctxB = topB ? recordFacts[topB.id]?.context ?? null : null;
+// Context limits are compared only when both come from the same catalog.
+const ctxComparable = ctxA && ctxB && ctxA.source === ctxB.source;
+const strongestRows = topA && topB ? [
+  { label: "AA Intelligence Index", unit: "points", a: points(topA.intelligence), b: points(topB.intelligence), diff: gapDifference(topA.intelligence, topB.intelligence, names), source: "Artificial Analysis" },
+  { label: "Input price", unit: "per 1M tokens", a: money(topA.priceInput), b: money(topB.priceInput), diff: ratioDifference(topA.priceInput, topB.priceInput, names, "price"), source: "Artificial Analysis" },
+  { label: "Output price", unit: "per 1M tokens", a: money(topA.priceOutput), b: money(topB.priceOutput), diff: ratioDifference(topA.priceOutput, topB.priceOutput, names, "price"), source: "Artificial Analysis" },
+  { label: "Blended price", unit: "per 1M tokens, 3:1 input to output", a: money(topA.priceBlended), b: money(topB.priceBlended), diff: ratioDifference(topA.priceBlended, topB.priceBlended, names, "price"), source: "Artificial Analysis" },
+  { label: "Cost per AA Index task", unit: "USD", a: money(topA.aaTaskCost), b: money(topB.aaTaskCost), diff: ratioDifference(topA.aaTaskCost, topB.aaTaskCost, names, "cost"), source: "Artificial Analysis" },
+  { label: "Output speed", unit: "median", a: speed(topA.outputSpeed), b: speed(topB.outputSpeed), diff: ratioDifference(topA.outputSpeed, topB.outputSpeed, names, "speed"), source: "Artificial Analysis" },
+  { label: "Time to first token", unit: "median", a: seconds(ttftA), b: seconds(ttftB), diff: ratioDifference(ttftA, ttftB, names, "latency"), source: "Artificial Analysis" },
+  {
+    label: "Context window", unit: "as listed",
+    a: ctxA ? tokens(ctxA.value) : NA, b: ctxB ? tokens(ctxB.value) : NA,
+    diff: ctxComparable ? ratioDifference(ctxA!.value, ctxB!.value, names, "context") : null,
+    note: ctxA && ctxB && !ctxComparable ? "Listed by different catalogs, so not compared" : undefined,
+    source: [...new Set([ctxA?.source, ctxB?.source].filter(Boolean))].join(", ") || "OpenRouter, LiteLLM",
+  },
+].filter((row) => row.label !== "Context window" || Boolean(ctxA || ctxB)) : [];
+
+const indexGapTop = topA && topB ? gapDifference(topA.intelligence, topB.intelligence, names) : null;
+const lead = `Artificial Analysis measurements for every reasoning level of ${a.name} (${a.provider}) and ${b.name} (${b.provider}), compared only where both have a value.`;
+const title = matchupTitle(a.name, b.name);
+const description = [
+  `${a.name} vs ${b.name}: AA Intelligence Index, cost per task, token prices, output speed and latency at each reasoning level, with sources and dates.`,
+  topA && topB ? `Highest Index: ${points(topA.intelligence)} vs ${points(topB.intelligence)}.` : "",
+].filter(Boolean).join(" ");
+
+const modelLinks = (family: H2HFamily): PageLink[] =>
+  family.records.flatMap((record) => {
+    const fact = recordFacts[record.id];
+    return fact ? [{ id: record.id, path: fact.path, name: record.reasoning === "unknown" ? record.name : variantName(record) }] : [];
+  });
+const linksA = modelLinks(a);
+const linksB = modelLinks(b);
+
+const measured = topA && topB ? [
+  ...[[a, topA], [b, topB]].flatMap(([family, record]) => {
+    const f = family as H2HFamily, r = record as ExplorerModel;
+    return [
+      { "@type": "PropertyValue", name: `${f.name} AA Intelligence Index`, propertyID: "aa_intelligence_index", value: r.intelligence, unitText: "points", description: `${r.name}. Source: Artificial Analysis` },
+      ...(r.aaTaskCost != null ? [{ "@type": "PropertyValue", name: `${f.name} cost per AA Index task`, propertyID: "aa_task_cost", value: r.aaTaskCost, unitText: "USD", description: `${r.name}. Source: Artificial Analysis` }] : []),
+      ...(r.priceBlended != null ? [{ "@type": "PropertyValue", name: `${f.name} blended price per 1M tokens`, propertyID: "price_1m_blended_3_to_1", value: r.priceBlended, unitText: "USD", description: `${r.name}. Source: Artificial Analysis` }] : []),
+    ];
+  }),
+] : [];
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Dataset",
+      "@id": `${pageUrl}#dataset`,
+      name: `${a.name} vs ${b.name} measurements on AI Stats`,
+      description,
+      url: pageUrl,
+      creator: AUTHOR_REF,
+      isPartOf: { "@id": `${SITE_ORIGIN}/#website` },
+      isBasedOn: ["https://artificialanalysis.ai/", ...[topA, topB].map((r) => r?.sourceUrl).filter((u): u is string => Boolean(u))],
+      about: [a, b].map((family) => {
+        const link = (family === a ? linksA : linksB)[0];
+        return { "@type": "Thing", name: family.name, ...(link ? { url: `${SITE_ORIGIN}${link.path}` } : {}) };
+      }),
+      ...(dataDate ? { dateModified: dataDate } : {}),
+      variableMeasured: measured,
+      inLanguage: "en-US",
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": `${pageUrl}#breadcrumb`,
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "AI Stats", item: `${SITE_ORIGIN}/` },
+        { "@type": "ListItem", position: 2, name: "Matchups", item: `${SITE_ORIGIN}${MATCHUPS_INDEX_PATH}` },
+        { "@type": "ListItem", position: 3, name: `${a.name} vs ${b.name}`, item: pageUrl },
+      ],
+    },
+  ],
+});
+const sideRows = (row: { level: string; a: ExplorerModel; b: ExplorerModel }) => [
+  { side: "a" as const, family: a, record: row.a },
+  { side: "b" as const, family: b, record: row.b },
+];
+---
+
+<Layout title={title} description={description} dateModified={dataDate ?? undefined}>
+  <Fragment slot="head">
+    <script type="application/ld+json" is:inline set:html={scriptSafeJson(jsonLd)} />
+  </Fragment>
+  <Header currentPage="compare" />
+
+  <main id="main-content" class="eco-container h2h-page compare-explorer" style={`--h2h-a:${familyColor(a.name)};--h2h-b:${familyColor(b.name)}`}>
+    <nav class="h2h-crumbs" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/">AI Stats</a></li>
+        <li><a href={MATCHUPS_INDEX_PATH}>Matchups</a></li>
+        <li aria-current="page">{a.name} vs {b.name}</li>
+      </ol>
+    </nav>
+    <CohortNotice />
+
+    <header class="h2h-hero">
+      <h1>
+        <span class="h2h-name">{marks.a ? <img class:list={["h2h-mark", { "is-mono": marks.a.mono }]} src={marks.a.src} alt="" width="22" height="22" /> : null}{a.name}</span>
+        <span class="h2h-vs">vs</span>
+        <span class="h2h-name">{marks.b ? <img class:list={["h2h-mark", { "is-mono": marks.b.mono }]} src={marks.b.src} alt="" width="22" height="22" /> : null}{b.name}</span>
+      </h1>
+      <p class="h2h-lead">
+        {lead} Data observed <time datetime={dataDate ?? undefined}>{formatDate(dataDate)}</time>{indexVersions.length === 1 ? `, AA Index v${indexVersions[0]}` : ""}.
+      </p>
+      <dl class="h2h-labs">
+        <div><dt>{a.name}</dt><dd>{a.provider} · {a.records.length} {a.records.length === 1 ? "setting" : "settings"} · {a.rank ? `#${a.rank} by highest AA Index` : "No AA Index"}</dd></div>
+        <div><dt>{b.name}</dt><dd>{b.provider} · {b.records.length} {b.records.length === 1 ? "setting" : "settings"} · {b.rank ? `#${b.rank} by highest AA Index` : "No AA Index"}</dd></div>
+      </dl>
+      <div class="h2h-actions">
+        <a class="eco-btn eco-btn-primary" href={compareHref}>Open both in Compare</a>
+        <a class="eco-btn eco-btn-secondary" href={MATCHUPS_INDEX_PATH}>All matchups</a>
+      </div>
+    </header>
+
+    <section class="h2h-section" aria-labelledby="h2h-chart-heading">
+      <header>
+        <h2 id="h2h-chart-heading">Intelligence Index against {chart.axis === "task-cost" ? "cost per task" : "blended price"}</h2>
+        <p>Up and to the left is a higher Index for less money. The plot shows what was measured; it does not pick a model.</p>
+      </header>
+      {chart.points.length ? <VersusChart chart={chart} a={a} b={b} id="h2h-plot" /> : <p class="h2h-empty">Neither family has an Index with a usable cost, so there is nothing to plot.</p>}
+    </section>
+
+    <section class="h2h-section" aria-labelledby="h2h-levels-heading">
+      <header>
+        <h2 id="h2h-levels-heading">At each reasoning level</h2>
+        <p>Rows pair the two families only where both recorded the same reasoning level. Every other setting is listed after the table.</p>
+      </header>
+      {levels.shared.length ? (
+        <div class="h2h-table-wrap">
+          <table class="h2h-table h2h-levels">
+            <thead>
+              <tr>
+                <th scope="col">Level and model</th>
+                <th scope="col" class="num">AA Index</th>
+                <th scope="col" class="num">Cost per task</th>
+                <th scope="col" class="num">Blended $/1M</th>
+                <th scope="col" class="num">Output speed</th>
+              </tr>
+            </thead>
+            {levels.shared.map((row) => (
+              <tbody>
+                <tr class="h2h-level-row"><th scope="colgroup" colspan="5">{levelLabel(row.level)}</th></tr>
+                {sideRows(row).map(({ side, family, record }) => (
+                  <tr data-side={side}>
+                    <th scope="row"><span class="h2h-swatch" data-side={side} aria-hidden="true"></span>{family.name}<span class="h2h-variant">{variantName(record)}</span></th>
+                    <td class="num" data-label="AA Index">{points(record.intelligence)}</td>
+                    <td class="num" data-label="Cost per task">{money(record.aaTaskCost)}</td>
+                    <td class="num" data-label="Blended $/1M">{money(record.priceBlended)}</td>
+                    <td class="num" data-label="Output speed">{speed(record.outputSpeed)}</td>
+                  </tr>
+                ))}
+                <tr class="h2h-diff-row">
+                  <th scope="row">Difference</th>
+                  <td data-label="AA Index">{diffText(gapDifference(row.a.intelligence, row.b.intelligence, names))}</td>
+                  <td data-label="Cost per task">{diffText(ratioDifference(row.a.aaTaskCost, row.b.aaTaskCost, names, "cost"))}</td>
+                  <td data-label="Blended $/1M">{diffText(ratioDifference(row.a.priceBlended, row.b.priceBlended, names, "price"))}</td>
+                  <td data-label="Output speed">{diffText(ratioDifference(row.a.outputSpeed, row.b.outputSpeed, names, "speed"))}</td>
+                </tr>
+              </tbody>
+            ))}
+          </table>
+        </div>
+      ) : (
+        <p class="h2h-empty">These two families share no recorded reasoning level, so no row compares like with like. Their settings are listed below.</p>
+      )}
+      {levels.onlyA.length || levels.onlyB.length ? (
+        <div class="h2h-unmatched">
+          <h3>Not paired by level</h3>
+          <div class="h2h-unmatched-grid">
+            {[{ family: a, rows: levels.onlyA, side: "a" }, { family: b, rows: levels.onlyB, side: "b" }].map(({ family, rows, side }) => (
+              <div>
+                <h4><span class="h2h-swatch" data-side={side} aria-hidden="true"></span>{family.name}</h4>
+                {rows.length ? (
+                  <ul>
+                    {rows.map(({ record, why }) => (
+                      <li>
+                        <span class="h2h-unmatched-name">{record.reasoning === "unknown" ? record.name : variantName(record)}</span>
+                        <span class="num">Index {points(record.intelligence)} · {money(record.aaTaskCost)}/task · {money(record.priceBlended)}/1M</span>
+                        <span class="h2h-why">{whyText[why]}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p>Every setting is paired above.</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </section>
+
+    <section class="h2h-section" aria-labelledby="h2h-top-heading">
+      <header>
+        <h2 id="h2h-top-heading">At their strongest</h2>
+        <p>
+          {topA && topB
+            ? <>Each family at its highest AA Intelligence Index: {a.name} <span class="h2h-inline-variant">{variantName(topA)}</span> and {b.name} <span class="h2h-inline-variant">{variantName(topB)}</span>.{indexGapTop ? ` ${indexGapTop.text}.` : ""} A difference is shown only when both values exist.</>
+            : "At least one family has no AA Intelligence Index, so there is no strongest setting to compare."}
+        </p>
+      </header>
+      {strongestRows.length ? (
+        <div class="h2h-table-wrap">
+          <table class="h2h-table h2h-top">
+            <thead>
+              <tr>
+                <th scope="col">Measure</th>
+                <th scope="col" class="num"><span class="h2h-swatch" data-side="a" aria-hidden="true"></span>{a.name}</th>
+                <th scope="col" class="num"><span class="h2h-swatch" data-side="b" aria-hidden="true"></span>{b.name}</th>
+                <th scope="col">Difference</th>
+              </tr>
+            </thead>
+            <tbody>
+              {strongestRows.map((row) => (
+                <tr>
+                  <th scope="row">{row.label}<span class="h2h-unit">{row.unit} · {row.source}</span></th>
+                  <td class:list={["num", { "is-missing": row.a === NA }]} data-label={a.name} data-side="a">{row.a}</td>
+                  <td class:list={["num", { "is-missing": row.b === NA }]} data-label={b.name} data-side="b">{row.b}</td>
+                  <td class="h2h-diff" data-label="Difference">{"note" in row && row.note ? row.note : diffText(row.diff)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </section>
+
+    {benchmarks.length ? (
+    <section class="h2h-section" aria-labelledby="h2h-bench-heading">
+      <header>
+        <h2 id="h2h-bench-heading">Individual benchmarks</h2>
+        <p>Scores at each family's strongest setting, only where both have one. Each benchmark stays on its own scale.</p>
+      </header>
+      {benchmarks.length ? (
+        <div class="h2h-table-wrap">
+          <table class="h2h-table h2h-bench">
+            <thead>
+              <tr>
+                <th scope="col">Benchmark</th>
+                <th scope="col" class="num">{a.name}</th>
+                <th scope="col" class="num">{b.name}</th>
+                <th scope="col">Difference</th>
+              </tr>
+            </thead>
+            <tbody>
+              {benchmarks.map((row) => (
+                <tr>
+                  <th scope="row">{row.label}<span class="h2h-unit">{row.scale === "points" ? "Index points" : "Percent correct"} · Artificial Analysis</span></th>
+                  <td class="num" data-label={a.name} data-side="a">{row.scale === "points" ? row.a.toFixed(1) : `${(row.a * 100).toFixed(1)}%`}</td>
+                  <td class="num" data-label={b.name} data-side="b">{row.scale === "points" ? row.b.toFixed(1) : `${(row.b * 100).toFixed(1)}%`}</td>
+                  <td class="h2h-diff" data-label="Difference">{row.difference.text}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p class="h2h-empty">
+          No individual benchmark has a score for both strongest settings in the current Artificial Analysis data
+          ({Object.entries(AA_METRIC_LABELS).filter(([key]) => key !== "aa_intelligence_index").map(([, label]) => label).join(", ")}).
+          Missing scores are not zero.
+        </p>
+      )}
+    </section>
+    ) : null}
+
+    <section class="h2h-section h2h-sources" aria-labelledby="h2h-sources-heading">
+      <header>
+        <h2 id="h2h-sources-heading">Sources and dates</h2>
+      </header>
+      <ul class="h2h-source-list">
+        <li>
+          <a href="https://artificialanalysis.ai/" rel="noopener noreferrer">Artificial Analysis</a>
+          <span>AA Intelligence Index{indexVersions.length ? ` (v${indexVersions.join(", v")})` : ""}, benchmark scores, cost per task, token prices, output speed and time to first token. Latest observation <time datetime={dataDate ?? undefined}>{formatDate(dataDate)}</time>.</span>
+        </li>
+        {[a, b].map((family) => {
+          const top = family === a ? topA : topB;
+          return top?.sourceUrl ? (
+            <li>
+              <a href={top.sourceUrl} rel="noopener noreferrer">{family.name} on Artificial Analysis</a>
+              <span>{top.name}, observed <time datetime={top.observedAt ?? undefined}>{formatDate(top.observedAt)}</time>.</span>
+            </li>
+          ) : null;
+        })}
+        {ctxA || ctxB ? (
+          <li>
+            <span class="h2h-source-name">{[...new Set([ctxA?.source, ctxB?.source].filter(Boolean))].join(" and ")}</span>
+            <span>Context window as listed in the catalog, not measured here.</span>
+          </li>
+        ) : null}
+      </ul>
+      <p class="h2h-foot">Cost per task is what Artificial Analysis spent per AA Intelligence Index task at list prices. Blended price weights input and output 3:1. Speed and latency are medians from Artificial Analysis; your own route will differ. <a href="/about">How the data is gathered</a>.</p>
+    </section>
+
+    <nav class="h2h-section h2h-links" aria-labelledby="h2h-links-heading">
+      <h2 id="h2h-links-heading">Model pages and other matchups</h2>
+      <div class="h2h-links-grid">
+        {[{ family: a, links: linksA, others: othersA }, { family: b, links: linksB, others: othersB }].map(({ family, links, others }) => (
+          <div>
+            <h3>{family.name}</h3>
+            {links.length ? (
+              <ul class="h2h-chip-list" aria-label={`${family.name} model pages`}>
+                {links.map((link) => <li><a href={link.path}>{link.name}</a></li>)}
+              </ul>
+            ) : <p class="h2h-foot">No model page for this family.</p>}
+            {others.length ? (
+              <ul class="h2h-other-list" aria-label={`Other matchups for ${family.name}`}>
+                {others.map((other) => <li><a href={other.path}>{family.name} vs {other.opponent.name}</a></li>)}
+              </ul>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      <p class="h2h-foot"><a href={MATCHUPS_INDEX_PATH}>Every matchup</a> · <a href={compareHref}>Open both in Compare</a></p>
+    </nav>
+  </main>
+
+  <Footer />
+  <ScrollToTop />
+</Layout>

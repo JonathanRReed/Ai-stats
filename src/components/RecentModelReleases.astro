@@ -23,19 +23,21 @@ const dateFormat=new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',ti
 <style>
 .recent-releases{min-width:0;display:grid;gap:12px}
 .recent-releases>header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
-.recent-releases h2{font-size:var(--text-lg);margin:0;color:var(--ink-0)}
+.recent-releases h2{font-size:var(--text-lg);font-weight:600;line-height:1.3;margin:0;color:var(--ink-0)}
 .recent-releases>header>span{font-size:var(--text-xs);color:var(--ink-2)}
-.recent-releases ul{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line-1);border:1px solid var(--line-1);padding:0;margin:0;list-style:none}
+.recent-releases ul{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line-0);border-top:1px solid var(--line-0);border-bottom:1px solid var(--line-0);padding:0;margin:0;list-style:none}
 .recent-releases li{min-width:0;background:var(--surface-0)}
-.recent-releases a{display:flex;flex-direction:column;gap:12px;height:100%;padding:16px;color:inherit;text-decoration:none;box-sizing:border-box}
+.recent-releases a{display:flex;flex-direction:column;gap:12px;height:100%;padding:14px 16px;color:inherit;text-decoration:none;box-sizing:border-box}
 .recent-releases a:hover{background:var(--surface-1)}
 .recent-releases a:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
 .release-date{display:flex;justify-content:space-between;gap:10px;font-size:var(--text-xs);color:var(--ink-2)}
-.release-date time{font-family:var(--font-mono);color:var(--signal-text)}
+.release-date time{font-family:var(--font-mono);font-variant-numeric:tabular-nums;color:var(--ink-1)}
 .recent-releases strong{font-size:var(--text-sm);font-weight:600;overflow-wrap:anywhere}
 .release-metric{display:flex;gap:6px;font-size:var(--text-xs);color:var(--ink-2);margin-top:auto}
 .release-metric b{font-family:var(--font-mono);color:var(--ink-0)}
 .release-metric>span:last-child{margin-left:auto}
-@media(max-width:700px){.recent-releases ul{grid-template-columns:repeat(2,minmax(0,1fr))}.recent-releases a{padding:12px}.release-date{flex-wrap:wrap}}
-@media(max-width:380px){.recent-releases ul{grid-template-columns:1fr}}
+/* First-column cells sit flush with the heading; the hairline grid has no outer side borders. */
+.recent-releases li:nth-child(3n+1) a{padding-left:0}
+@media(max-width:700px){.recent-releases ul{grid-template-columns:repeat(2,minmax(0,1fr))}.recent-releases a,.recent-releases li:nth-child(3n+1) a{padding:12px}.recent-releases li:nth-child(2n+1) a{padding-left:0}.release-date{flex-wrap:wrap}}
+@media(max-width:380px){.recent-releases ul{grid-template-columns:1fr}.recent-releases li a{padding-left:0}}
 </style>

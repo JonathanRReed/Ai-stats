@@ -1,0 +1,125 @@
+---
+import type {AaModel} from "../../lib/supabase";
+import {modelDisplayFacets} from "../../lib/compare-catalog";
+import {compareRecordHref} from "../../lib/model-identity";
+import {getModelPageRecords} from "../../lib/model-pages-data";
+import {buildVisitPayload} from "../../lib/last-visit";
+
+// "Since your last visit": rendered hidden and empty. The client script below
+// fills it only for a returning visitor with something new, so a first visit
+// (or blocked storage) never sees it and nothing shifts.
+interface Props {
+  models: AaModel[];
+}
+const {models} = Astro.props;
+const pagePaths = new Map((await getModelPageRecords()).map((record) => [record.id, record.path]));
+const payload = buildVisitPayload(models.map((model) => ({
+  id: model.id,
+  name: model.name,
+  family: model.name ? modelDisplayFacets(model.name).family : model.id,
+  provider: model.company_name ?? model.creator_name ?? "Unknown provider",
+  href: pagePaths.get(model.id) ?? compareRecordHref(model.id, "benchmark", false, "aa_intelligence_index"),
+  releaseDate: model.source_metadata?.release_date ?? null,
+  firstSeen: model.first_seen ?? null,
+})), Date.now());
+// Escape "<" so the JSON can never close its script element.
+const payloadJson = JSON.stringify(payload).replace(/</g, "\\u003c");
+---
+
+<aside class="last-visit" aria-labelledby="last-visit-title" data-last-visit hidden>
+  <p class="last-visit-title" id="last-visit-title">Since your last visit<span class="last-visit-date" data-last-visit-date></span></p>
+  <ul data-last-visit-list></ul>
+  <a class="last-visit-more" href="/models" data-last-visit-more hidden>All models</a>
+</aside>
+<script type="application/json" id="last-visit-data" is:inline set:html={payloadJson} />
+
+<script>
+  import {bindDashboardLifecycle} from "../../lib/dashboard-lifecycle";
+  import {LAST_VISIT_SESSION_KEY,LAST_VISIT_STORAGE_KEY,resolveVisitStorage,updatesSinceLastVisit,type VisitPayload} from "../../lib/last-visit";
+
+  const dayFormat = new Intl.DateTimeFormat("en-US", {month: "short", day: "numeric", timeZone: "UTC"});
+  const visitFormat = new Intl.DateTimeFormat("en-US", {month: "short", day: "numeric", year: "numeric"});
+
+  const read = (storage: () => Storage, key: string): string | null => {
+    try { return storage().getItem(key); } catch { return null; }
+  };
+  const write = (storage: () => Storage, key: string, value: string) => {
+    try { storage().setItem(key, value); } catch { /* Storage full or blocked: the strip simply stays hidden next time. */ }
+  };
+  const storageAvailable = () => {
+    try { return typeof window.localStorage?.getItem === "function"; } catch { return false; }
+  };
+
+  const setup = (root: Element) => {
+    if (!(root instanceof HTMLElement) || !storageAvailable()) return;
+    const now = Date.now();
+    const state = resolveVisitStorage(read(() => localStorage, LAST_VISIT_STORAGE_KEY), read(() => sessionStorage, LAST_VISIT_SESSION_KEY), now);
+    write(() => localStorage, LAST_VISIT_STORAGE_KEY, state.stored);
+    write(() => sessionStorage, LAST_VISIT_SESSION_KEY, state.session);
+    if (state.baseline === null) return;
+
+    let payload: VisitPayload;
+    try {
+      payload = JSON.parse(document.getElementById("last-visit-data")?.textContent ?? "") as VisitPayload;
+    } catch { return; }
+    if (!payload || !Array.isArray(payload.candidates)) return;
+    const {items, total, complete} = updatesSinceLastVisit(payload, state.baseline);
+    if (!items.length) return;
+
+    const list = root.querySelector("[data-last-visit-list]");
+    const dateLabel = root.querySelector("[data-last-visit-date]");
+    const more = root.querySelector<HTMLAnchorElement>("[data-last-visit-more]");
+    if (!list) return;
+    if (dateLabel) dateLabel.textContent = ` on ${visitFormat.format(new Date(state.baseline))}`;
+    list.replaceChildren(...items.map((item) => {
+      const li = document.createElement("li");
+      const link = document.createElement("a");
+      link.href = item.href;
+      const name = document.createElement("span");
+      name.className = "last-visit-name";
+      name.textContent = item.name;
+      const meta = document.createElement("span");
+      meta.className = "last-visit-meta";
+      const time = document.createElement("time");
+      time.dateTime = item.date;
+      time.textContent = dayFormat.format(new Date(item.reason === "released" ? `${item.date}T00:00:00Z` : item.date));
+      meta.append(`${item.provider} · ${item.reason === "released" ? "Released" : "First observed"} `, time);
+      link.append(name, meta);
+      li.append(link);
+      return li;
+    }));
+    const hiddenCount = total - items.length;
+    if (more && (hiddenCount > 0 || !complete)) {
+      more.textContent = complete ? `${hiddenCount} more in all models` : "More in all models";
+      more.hidden = false;
+    }
+    root.hidden = false;
+  };
+
+  bindDashboardLifecycle(document, "[data-last-visit]", (root) => setup(root));
+</script>
+
+<style is:global>
+  /* Global: the list items are created by the script, so scoped attributes would not reach them. */
+  .last-visit{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:baseline;gap:.5rem 1.25rem;padding:.75rem 0;border-bottom:1px solid var(--line-0);margin-top:-1rem}
+  .last-visit[hidden]{display:none}
+  .last-visit-title{margin:0;font-size:var(--text-sm);font-weight:600;color:var(--ink-0);white-space:nowrap}
+  .last-visit-date{font-weight:400;color:var(--ink-2)}
+  .last-visit ul{display:flex;flex-wrap:wrap;gap:.25rem 1.5rem;margin:0;padding:0;list-style:none;min-width:0}
+  .last-visit li{min-width:0}
+  .last-visit ul a{display:inline-flex;align-items:baseline;flex-wrap:wrap;gap:.1rem .5rem;min-height:28px;color:var(--ink-0);text-decoration:none;font-size:var(--text-sm)}
+  .last-visit-name{font-weight:500;overflow-wrap:anywhere}
+  .last-visit ul a:hover .last-visit-name{text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--ink-3)}
+  .last-visit-meta{font-size:var(--text-xs);color:var(--ink-2);white-space:nowrap}
+  .last-visit-meta time{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+  .last-visit a:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:var(--radius-sm)}
+  .last-visit-more{font-size:var(--text-sm);color:var(--ink-1);text-decoration:underline;text-decoration-color:var(--line-1);text-underline-offset:3px;white-space:nowrap}
+  .last-visit-more:hover{color:var(--ink-0);text-decoration-color:currentColor}
+  @media(max-width:900px){
+    .last-visit{grid-template-columns:minmax(0,1fr);margin-top:0}
+    .last-visit ul{flex-direction:column;gap:0}
+    .last-visit ul a,.last-visit-more{min-height:44px;align-items:center}
+    .last-visit-more{display:inline-flex}
+    .last-visit-more[hidden]{display:none}
+  }
+</style>

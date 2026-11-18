@@ -32,23 +32,30 @@ const dateFormatter=new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric'
  </div>
 </section>
 <style>
-.overview-data-status{display:grid;gap:.75rem;border-top:1px solid var(--line-0);padding-top:1rem}
+.overview-data-status{display:grid;gap:.75rem}
 .overview-status-heading{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;margin-bottom:.5rem}
 .overview-status-heading h2{font-size:var(--text-base);font-weight:600;color:var(--ink-0)}
 .overview-status-heading p{font-size:var(--text-xs);color:var(--ink-2)}
-.overview-status-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
-.coverage-panel,.changes-panel{min-width:0;background:var(--surface-1);border:1px solid var(--line-0);padding:1rem;border-radius:var(--radius-md)}
+.overview-status-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line-0);border-top:1px solid var(--line-0);border-bottom:1px solid var(--line-0)}
+/* Flat panels joined by one hairline, not two boxed cards. */
+.coverage-panel,.changes-panel{min-width:0;background:var(--surface-0);border:0;padding:1rem 0;border-radius:0}
+.coverage-panel{padding-right:1.25rem}
+.changes-panel{padding-left:1.25rem}
 .coverage-panel h3,.changes-panel h3{font-size:var(--text-sm);font-weight:600;color:var(--ink-0)}
 .coverage-list{display:grid;gap:.75rem;margin-top:.75rem}
 .coverage-list>div>div{display:flex;justify-content:space-between;gap:.75rem;margin-bottom:.3rem}
 .coverage-list span,.coverage-list b{font-size:var(--text-xs);color:var(--ink-1)}
 .coverage-list b{font-family:var(--font-mono);font-weight:500;text-align:right}
-.coverage-list progress{width:100%;height:.375rem;accent-color:var(--info)}
+.coverage-list progress{display:block;width:100%;height:4px;border:0;border-radius:2px;appearance:none;background:var(--surface-3);color:var(--ink-2);overflow:hidden}
+.coverage-list progress::-webkit-progress-bar{background:var(--surface-3)}
+.coverage-list progress::-webkit-progress-value{background:var(--ink-2)}
+.coverage-list progress::-moz-progress-bar{background:var(--ink-2)}
 .changes-panel ol{list-style:none;padding:0;margin:.5rem 0}
 .changes-panel li{display:grid;grid-template-columns:5rem minmax(0,1fr) auto;gap:.6rem;padding:.5rem 0;border-bottom:1px solid var(--line-0)}
 .changes-panel time,.changes-panel li b{font:var(--text-xs) var(--font-mono);color:var(--ink-2);white-space:nowrap}
 .changes-panel li div{display:grid;gap:.15rem}.changes-panel li strong{font-size:var(--text-xs);font-weight:500;color:var(--ink-0)}
 .changes-panel li span,.changes-empty{font-size:var(--text-xs);color:var(--ink-2);line-height:1.45}
-.changes-panel>a{display:inline-block;min-height:44px;padding-top:.7rem;color:var(--signal);font-size:var(--text-sm);text-underline-offset:4px}
-@media(max-width:700px){.overview-status-heading{align-items:flex-start;flex-direction:column;gap:.25rem}.overview-status-grid{grid-template-columns:1fr}.changes-panel li{grid-template-columns:5rem minmax(0,1fr)}.changes-panel li b{grid-column:2}}
+.changes-panel>a{display:inline-flex;align-items:center;min-height:44px;color:var(--ink-1);font-size:var(--text-sm);text-decoration:underline;text-decoration-color:var(--line-1);text-underline-offset:4px}
+.changes-panel>a:hover{color:var(--ink-0);text-decoration-color:currentColor}
+@media(max-width:700px){.overview-status-heading{align-items:flex-start;flex-direction:column;gap:.25rem}.overview-status-grid{grid-template-columns:1fr}.coverage-panel,.changes-panel{padding-inline:0}.changes-panel li{grid-template-columns:5rem minmax(0,1fr)}.changes-panel li b{grid-column:2}}
 </style>

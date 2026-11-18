@@ -5,6 +5,7 @@ import OverviewExplorer from "./compare/OverviewExplorer";
 import LatestModelsStrip from "./LatestModelsStrip.astro";
 import RecentModelReleases from "./RecentModelReleases.astro";
 import { overviewSuggestions } from "../lib/overview-series";
+import { expandSelectionToFamilies } from "../lib/compare-family-lines";
 
 interface Props {
   models: AaModel[];
@@ -15,23 +16,20 @@ const { models, leaders } = Astro.props;
 const explorerModels = buildExplorerCatalog(models, []);
 const versions=[...new Set(explorerModels.filter(model=>model.source==='aa'&&model.current===true&&model.indexVersion&&/^\d+(?:\.\d+)*$/.test(model.indexVersion)).map(model=>model.indexVersion!))];
 const suggestions = Object.fromEntries(versions.flatMap(version=>(['task-cost','cost-intelligence'] as const).map(metric=>{
-  return [`${metric}:${version}`,overviewSuggestions(explorerModels,metric,version)];
+  return [`${metric}:${version}`,expandSelectionToFamilies(explorerModels,overviewSuggestions(explorerModels,metric,version))];
 })));
 ---
 
 <section class="intelligence-overview" aria-label="Model intelligence and cost overview">
+  <div class="overview-chart-lead">
+    <OverviewExplorer client:load models={explorerModels} suggestions={suggestions} />
+  </div>
   <RecentModelReleases models={models} />
   <LatestModelsStrip models={leaders} />
-  <details class="overview-chart-disclosure">
-    <summary>Explore cost and Intelligence Index</summary>
-    <OverviewExplorer client:load models={explorerModels} suggestions={suggestions} />
-  </details>
 </section>
 
 <style>
-  .intelligence-overview{display:grid;gap:1rem}
-  .overview-chart-disclosure{min-width:0;border:1px solid var(--line-1);border-radius:var(--radius-md);background:var(--surface-1)}
-  .overview-chart-disclosure>summary{min-height:54px;padding:1rem 1.2rem;cursor:pointer;font-size:var(--text-base);font-weight:600;color:var(--ink-0)}
-  .overview-chart-disclosure[open]>summary{border-bottom:1px solid var(--line-1)}
-  .overview-chart-disclosure>astro-island{display:block;padding:clamp(12px,2vw,22px)}
+  .intelligence-overview{display:grid;gap:var(--stats-gap,2.5rem);min-width:0}
+  .overview-chart-lead{min-width:0}
+  .overview-chart-lead>astro-island{display:block;min-width:0}
 </style>

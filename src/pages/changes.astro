@@ -1,0 +1,150 @@
+---
+import { scriptSafeJson } from "../lib/script-json";
+import Layout from "../components/Layout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import ScrollToTop from "../components/ScrollToTop.astro";
+import { getChangeLog, CHANGE_WINDOW_DAYS } from "../lib/change-log-load";
+import { CHANGE_KIND_LABELS, type ChangeKind } from "../lib/change-log";
+import { pageJsonLd } from "../lib/market-data";
+import { SITE_ORIGIN } from "../lib/model-pages";
+import { AUTHOR_REF } from "../lib/author";
+import { CHANGES_PATH } from "../lib/site-routes";
+import "../styles/changes.css";
+
+export const prerender = true;
+
+const log = await getChangeLog();
+const dateFormatter = new Intl.DateTimeFormat("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
+const dayFormatter = new Intl.DateTimeFormat("en-US", { weekday: "short", year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
+const timeFormatter = new Intl.DateTimeFormat("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "UTC" });
+const asDate = (value: string) => new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00Z` : value);
+const formatDate = (value: string | null) => value ? dateFormatter.format(asDate(value)) : "Not recorded";
+const formatTime = (value: string | null | undefined) => value ? `${timeFormatter.format(asDate(value))} UTC` : "Not recorded";
+
+const count = (kind: ChangeKind) => log.entries.filter((entry) => entry.kind === kind);
+const revisedScores = count("score-revised").reduce((sum, entry) => sum + (entry.items?.length ?? 0), 0);
+const readouts = [
+  { label: "Models released", value: count("model-release").length },
+  { label: "Models added", value: count("model-added").length },
+  { label: "Scores revised", value: revisedScores },
+  { label: "New benchmark results", value: log.summaries.reduce((sum, item) => sum + item.firstRecorded, 0) },
+];
+const kinds = (Object.keys(CHANGE_KIND_LABELS) as ChangeKind[]).map((kind) => ({ kind, label: CHANGE_KIND_LABELS[kind], count: count(kind).length }));
+const unavailable = log.summaries.filter((item) => !item.available);
+
+const title = "What changed: new models and revised benchmark scores | AI Stats";
+const description = `AI Stats change log for the last ${CHANGE_WINDOW_DAYS} days, by day: model releases, models first observed, benchmark results first recorded, and stored scores that changed between dated snapshots, each with its source.`;
+const pageUrl = `${SITE_ORIGIN}${CHANGES_PATH}`;
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": pageJsonLd({ url: pageUrl, name: "What changed", datasets: [{
+    id: "log", name: "AI Stats change log", description,
+    isBasedOn: ["https://artificialanalysis.ai/", "https://epoch.ai/benchmarks", ...log.sourceUrls],
+    dateModified: log.updated.slice(0, 10), variables: ["Model release date", "First observation date", "Benchmark score before", "Benchmark score after", "Snapshot retrieval time"],
+  }] }, SITE_ORIGIN, AUTHOR_REF),
+});
+/** Days shown open, and entries shown per day before the rest fold away. */
+const OPEN_DAYS = 7;
+const DAY_LEAD = 10;
+---
+
+<Layout title={title} description={description} dateModified={log.updated.slice(0, 10)}>
+  <Fragment slot="head">
+    <link rel="alternate" type="application/atom+xml" title="AI Stats: what changed" href={`${CHANGES_PATH}.xml`} />
+    <script type="application/ld+json" is:inline set:html={scriptSafeJson(jsonLd)} />
+  </Fragment>
+  <Header currentPage="changes" />
+
+  <main id="main-content" class="eco-container changes-page">
+    <nav class="changes-crumbs" aria-label="Breadcrumb">
+      <ol><li><a href="/">AI Stats</a></li><li aria-current="page">What changed</li></ol>
+    </nav>
+
+    <header class="changes-hero">
+      <h1>What changed</h1>
+      <p class="changes-lede">The last {CHANGE_WINDOW_DAYS} days, {formatDate(log.window.start)} to {formatDate(log.window.end)}, newest first. Every entry comes from a recorded date: a release date, the day AI Stats first observed a model, or two dated snapshots of a benchmark source. Revised scores show both values and both retrieval times.</p>
+      <dl class="changes-readouts">
+        {readouts.map((item) => <div><dt>{item.label}</dt><dd>{item.value}</dd></div>)}
+      </dl>
+      <p class="changes-links"><a href={`${CHANGES_PATH}.xml`}>Atom feed</a><a href="#method">How this log is built</a></p>
+    </header>
+
+    {unavailable.length ? (
+      <p class="changes-warning" role="status">Snapshot history was not available for {unavailable.map((item) => item.name).join(", ")} in this build. {unavailable[0].reason} New results and score revisions from those sources are missing below.</p>
+    ) : null}
+
+    <section class="changes-log" aria-labelledby="log-heading">
+      <h2 id="log-heading">Changes by day</h2>
+      <p class="changes-kinds-note">Entries by type. One entry can cover several scores from the same benchmark and day, so these counts are lower than the totals above.</p>
+      <ul class="changes-kinds" aria-label="Entry types in this window">
+        {kinds.map((item) => <li><span class="changes-kind-label">{item.label}</span> <span class="changes-kind-count">{item.count}</span></li>)}
+      </ul>
+      {log.days.length ? log.days.map((group, dayIndex) => {
+        // A quarter of a year of entries is far too long to read as one page: the latest week is open,
+        // older days open on request, and a busy day shows its first entries with the rest one step away.
+        const entryItem = (entry: (typeof group.entries)[number]) => (
+              <li class={`changes-entry kind-${entry.kind}`}>
+                <span class={`changes-tag kind-${entry.kind}`}>{CHANGE_KIND_LABELS[entry.kind]}</span>
+                <div class="changes-entry-body">
+                  <p class="changes-entry-title">{entry.href ? <a href={entry.href}>{entry.title}</a> : entry.title}</p>
+                  <p class="changes-entry-summary">{entry.summary}</p>
+                  {entry.items?.length ? (
+                    <details class="changes-revisions">
+                      <summary>Before and after ({entry.items.length})</summary>
+                      <div class="changes-table-scroll"><table>
+                        <thead><tr><th scope="col">Model and measurement</th><th scope="col" class="num">Before</th><th scope="col" class="num">After</th><th scope="col">Before retrieved</th><th scope="col">After retrieved</th></tr></thead>
+                        <tbody>{entry.items.map((item) => <tr>
+                          <th scope="row">{item.label}</th><td class="num">{item.before}</td><td class="num">{item.after}</td>
+                          <td>{formatTime(item.beforeDate)}</td><td>{formatTime(item.afterDate)}</td>
+                        </tr>)}</tbody>
+                      </table></div>
+                    </details>
+                  ) : null}
+                  <p class="changes-entry-source">Source: {entry.sourceUrl ? <a href={entry.sourceUrl} rel="noopener noreferrer">{entry.source}</a> : entry.source}</p>
+                </div>
+              </li>
+        );
+        const lead = group.entries.slice(0, DAY_LEAD), rest = group.entries.slice(DAY_LEAD);
+        return (
+        <details class="changes-day" id={`day-${group.date}`} open={dayIndex < OPEN_DAYS}>
+          <summary><h3><time datetime={group.date}>{dayFormatter.format(asDate(group.date))}</time> <span>{group.entries.length} {group.entries.length === 1 ? "entry" : "entries"}</span></h3></summary>
+          <ul class="changes-entries">{lead.map(entryItem)}</ul>
+          {rest.length ? (
+            <details class="changes-more">
+              <summary>{rest.length} more {rest.length === 1 ? "entry" : "entries"} on this day</summary>
+              <ul class="changes-entries">{rest.map(entryItem)}</ul>
+            </details>
+          ) : null}
+        </details>
+        );
+      }      ) : <p class="changes-empty">No recorded change falls inside this window.</p>}
+    </section>
+
+    <section class="changes-method" id="method" aria-labelledby="method-heading">
+      <h2 id="method-heading">How this log is built</h2>
+      <ul class="changes-method-list">
+        <li><strong>Model released.</strong> The release date Artificial Analysis records for a model. Models outside the current Artificial Analysis cohort are listed too, without a link, because AI Stats has no page for them.</li>
+        <li><strong>Model added.</strong> A model released before this window, or with no release date, that AI Stats first observed inside it. AI Stats began observing the Artificial Analysis feed on {formatDate(log.observationStart)}; models first seen that day are not listed as added.</li>
+        <li><strong>New results recorded.</strong> A model with its first result on a benchmark in a committed snapshot, absent from every earlier committed snapshot of that source. The date is when the snapshot was retrieved, not when the evaluation ran.</li>
+        <li><strong>Scores revised.</strong> The stored score changed between two consecutive committed snapshots, for the same benchmark, model, version, metric, unit and conditions. A change of unit or conditions is a different measurement and is not listed as a revision.</li>
+        <li><strong>Result evaluated.</strong> A result whose source records an evaluation date inside the window. {log.evaluatedTotal} results in the current data carry an evaluation date at all.</li>
+        <li><strong>Sources retrieved.</strong> Snapshot retrievals per day, from committed snapshots and from each other source's latest receipt.</li>
+      </ul>
+      <p class="changes-note"><strong>Price changes are not listed.</strong> AI Stats stores only the current price for each model and route, so there is no recorded before and after to compare. Benchmark scores can be compared because the refresh job commits a dated snapshot of each benchmark source.</p>
+      <div class="changes-table-scroll"><table class="changes-history">
+        <caption>Committed snapshot history read for this build</caption>
+        <thead><tr><th scope="col">Source</th><th scope="col" class="num">Versions read</th><th scope="col">Comparison base</th><th scope="col">Latest</th><th scope="col" class="num">Revisions</th><th scope="col" class="num">New results</th></tr></thead>
+        <tbody>{log.summaries.map((item) => <tr>
+          <th scope="row">{item.name}</th>
+          <td class="num">{item.available ? item.versions : "Not available"}</td>
+          <td>{formatTime(item.baseline)}</td><td>{formatTime(item.latest)}</td>
+          <td class="num">{item.revisions}</td><td class="num">{item.firstRecorded}</td>
+        </tr>)}</tbody>
+      </table></div>
+    </section>
+  </main>
+
+  <Footer />
+  <ScrollToTop />
+</Layout>

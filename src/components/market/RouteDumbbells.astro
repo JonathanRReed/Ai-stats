@@ -1,0 +1,67 @@
+---
+/**
+ * Paired-dot chart: OpenRouter list price (ring) against the cheapest recorded route (dot),
+ * one row per model, input and output on separate log axes. Static HTML so it reflows on phones.
+ */
+import { familyColor } from "../../lib/family-color";
+import { logAxis, type PricePair, type RoutePriceRow } from "../../lib/market-data";
+
+type Props = { rows: RoutePriceRow[] };
+const { rows } = Astro.props;
+
+const inputAxis = logAxis(rows.flatMap((row) => [row.input.list, row.input.cheapest]));
+const outputAxis = logAxis(rows.flatMap((row) => [row.output.list, row.output.cheapest]));
+const money = (value: number | null) => value === null ? "Not recorded" : `$${value < 0.01 && value > 0 ? value.toPrecision(2) : value.toFixed(2)}`;
+const tick = (value: number) => value >= 1 ? `$${value.toLocaleString("en-US")}` : `$${value}`;
+const gapText = (pair: PricePair) => pair.gap === null ? "gap not defined" : pair.gap === 0 ? "no gap" : pair.gap > 0 ? `${(pair.gap * 100).toFixed(0)}% below list` : `${(-pair.gap * 100).toFixed(0)}% above list`;
+const panels = [
+  { key: "input", title: "Input price", axis: inputAxis },
+  { key: "output", title: "Output price", axis: outputAxis },
+] as const;
+---
+
+<figure class="route-chart compare-explorer">
+  <div class="route-legend" aria-hidden="true">
+    <span><i class="route-ring"></i>List price</span>
+    <span><i class="route-dot"></i>Cheapest recorded route</span>
+    <span>US dollars per 1M tokens, log scale</span>
+  </div>
+  <div class="route-grid" role="list">
+    <div class="route-row route-axis-row" aria-hidden="true">
+      <span class="route-name"></span>
+      {panels.map((panel) => (
+        <div class="route-track route-axis">
+          <span class="route-axis-title">{panel.title}</span>
+          {panel.axis?.ticks.map((item) => <span class="route-tick" style={`left:${item.position.toFixed(2)}%`}>{tick(item.value)}</span>)}
+        </div>
+      ))}
+    </div>
+    {rows.map((row) => (
+      <div class="route-row" role="listitem">
+        <span class="route-name">
+          {row.path ? <a href={row.path}>{row.name}</a> : <a href={row.openRouterUrl} rel="noopener noreferrer">{row.name}</a>}
+          <small>{row.openRouterId}</small>
+        </span>
+        {panels.map((panel) => {
+          const pair = row[panel.key];
+          const list = panel.axis?.position(pair.list) ?? null;
+          const cheapest = panel.axis?.position(pair.cheapest) ?? null;
+          const low = list !== null && cheapest !== null ? Math.min(list, cheapest) : null;
+          const high = list !== null && cheapest !== null ? Math.max(list, cheapest) : null;
+          const label = `${panel.title}: list ${money(pair.list)}, cheapest route ${money(pair.cheapest)}, ${gapText(pair)}`;
+          return (
+            <div class="route-track" aria-label={label} role="img" style={`--route-color:${familyColor(row.family)}`}>
+              <span class="route-mobile-title" aria-hidden="true">{panel.title}</span>
+              {panel.axis?.ticks.map((item) => <span class="route-gridline" style={`left:${item.position.toFixed(2)}%`}></span>)}
+              {low !== null && high !== null && high > low ? <span class="route-bar" style={`left:${low.toFixed(2)}%;width:${(high - low).toFixed(2)}%`}></span> : null}
+              {list !== null ? <span class="route-ring route-mark" style={`left:${list.toFixed(2)}%`}></span> : null}
+              {cheapest !== null ? <span class="route-dot route-mark" style={`left:${cheapest.toFixed(2)}%`}></span> : null}
+              {list === null && cheapest === null ? <span class="route-missing">{pair.list === 0 || pair.cheapest === 0 ? "$0, not drawn on a log scale" : "Not recorded"}</span> : null}
+              <span class="route-values">{money(pair.list)} → {money(pair.cheapest)}</span>
+            </div>
+          );
+        })}
+      </div>
+    ))}
+  </div>
+</figure>

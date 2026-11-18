@@ -11,11 +11,13 @@ test('browser snapshot validation rejects malformed and duplicated records',()=>
  expect(()=>validateBrowserPayload({models:[]})).toThrow();
 });
 test('opening the browser loads the complete snapshot with a visible failure and retry path',async()=>{
- const source=await Bun.file(new URL('../components/Dashboard.astro',import.meta.url)).text();
+ // The browser loader moved from Dashboard.astro into the dashboard client module; the retry button is in ModelBrowserSection.astro.
+ const source=await Bun.file(new URL('../components/dashboard/client/dashboard-client.ts',import.meta.url)).text();
+ const section=await Bun.file(new URL('../components/dashboard/ModelBrowserSection.astro',import.meta.url)).text();
  expect(source).toContain("fetch('/api/model-browser.json'");
  expect(source).toContain("browserDisclosure?.addEventListener('toggle'");
  expect(source).toContain('Only the initial preview is shown.');
- expect(source).toContain('Retry model list');
+ expect(section).toContain('Retry model list');
 });
 test('search and sorting use all records while rendering only the requested page',async()=>{
  const {browserPage}=await import('./model-browser');

@@ -1,5 +1,11 @@
 ---
+import { POLICY_NAV, PROJECT_NAV, SECTION_NAV, normalizeNavPath } from "../lib/site-nav";
+
 const currentYear = new Date().getFullYear();
+const pathname = normalizeNavPath(Astro.url.pathname);
+const current = (href: string) => (pathname === href ? "page" : undefined);
+const sections = SECTION_NAV;
+const project = [...PROJECT_NAV, ...POLICY_NAV];
 const related = [
   {
     href: "https://ai-news.helloworldfirm.com/",
@@ -30,37 +36,41 @@ const sources = [
   { href: "https://github.com/BerriAI/litellm", name: "LiteLLM", note: "Pricing and capability catalog" },
   { href: "https://polibench.jonathanrreed.com/", name: "PoliBench", note: "Checked political-response snapshot" },
 ];
+const openData = [
+  { href: "/api/models.json", label: "Models JSON" },
+  { href: "/llms-full.txt", label: "Full model listing for assistants" },
+  { href: "/api/compare-initial.json", label: "Compare snapshot JSON" },
+  { href: "/data/epoch-benchmark-snapshot.json", label: "Epoch snapshot" },
+  { href: "/data/polibench-snapshot.json", label: "PoliBench snapshot" },
+];
 ---
 
 <footer class="eco-footer footer">
   <div class="eco-container">
-    <section class="eco-related" aria-labelledby="related-tools-heading">
-      <h2 id="related-tools-heading" class="eco-related-heading">Related tools by the same author</h2>
-      <div class="eco-related-grid">
-        <div class="eco-related-link" aria-current="true">
-          <strong>AI Stats</strong>
-          <span>How these models compare on price, speed, context, and named benchmarks.</span>
-        </div>
-        {related.map((site) => (
-          <a href={site.href} class="eco-related-link" rel="noopener">
-            <strong>{site.name}</strong>
-            <span>{site.purpose}</span>
-          </a>
-        ))}
-      </div>
-    </section>
-
-    <div class="eco-footer-groups">
-      <nav class="eco-footer-group" aria-labelledby="footer-site-heading">
-        <h2 id="footer-site-heading">AI Stats</h2>
+    <div class="footer-groups">
+      <nav class="eco-footer-group footer-explore" aria-labelledby="footer-site-heading">
+        <h2 id="footer-site-heading">Explore AI Stats</h2>
+        <ul class="footer-cols" style={`--rows: ${Math.ceil(sections.length / 2)}`}>
+          {sections.map((link) => (
+            <li><a href={link.href} aria-current={current(link.href)}>{link.label}</a></li>
+          ))}
+        </ul>
+      </nav>
+      <nav class="eco-footer-group" aria-labelledby="footer-project-heading">
+        <h2 id="footer-project-heading">Project</h2>
+        <ul class="footer-cols-mobile" style={`--rows: ${Math.ceil(project.length / 2)}`}>
+          {project.map((link) => (
+            <li><a href={link.href} aria-current={current(link.href)}>{link.label}</a></li>
+          ))}
+        </ul>
+      </nav>
+      <nav class="eco-footer-group" aria-labelledby="footer-data-heading">
+        <h2 id="footer-data-heading">Open data</h2>
         <ul>
-          <li><a href="/">Stats</a></li>
-          <li><a href="/compare">Compare</a></li>
-          <li><a href="/models">Models</a></li>
-          <li><a href="/about">About</a></li>
-          <li><a href="/contact">Contact</a></li>
-          <li><a href="/privacy">Privacy</a></li>
-          <li><a href="/subprocessors">Subprocessors</a></li>
+          {openData.map((item) => (
+            <li><a href={item.href}>{item.label}</a></li>
+          ))}
+          <li><a href="https://github.com/JonathanRReed/Ai-stats" target="_blank" rel="noopener noreferrer">Source on GitHub</a></li>
         </ul>
       </nav>
       <nav class="eco-footer-group footer-sources" aria-labelledby="footer-sources-heading">
@@ -75,18 +85,21 @@ const sources = [
           ))}
         </ul>
       </nav>
-      <nav class="eco-footer-group" aria-labelledby="footer-data-heading">
-        <h2 id="footer-data-heading">Open data</h2>
-        <ul>
-          <li><a href="/api/models.json">Models JSON</a></li>
-          <li><a href="/llms-full.txt">Full model listing for assistants</a></li>
-          <li><a href="/api/compare-initial.json">Compare snapshot JSON</a></li>
-          <li><a href="/data/epoch-benchmark-snapshot.json">Epoch snapshot</a></li>
-          <li><a href="/data/polibench-snapshot.json">PoliBench snapshot</a></li>
-          <li><a href="https://github.com/JonathanRReed/Ai-stats" target="_blank" rel="noopener noreferrer">Source on GitHub</a></li>
-        </ul>
-      </nav>
     </div>
+
+    <section class="footer-related" aria-labelledby="related-tools-heading">
+      <h2 id="related-tools-heading">Related tools by the same author</h2>
+      <ul>
+        {related.map((site) => (
+          <li>
+            <a href={site.href} rel="noopener">
+              <span class="footer-related-name">{site.name}</span>
+              <span class="footer-related-purpose">{site.purpose}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
 
     <div class="eco-footer-meta">
       <p>By <a href="https://jonathanrreed.com/" rel="author">Jonathan R. Reed</a></p>
@@ -96,6 +109,27 @@ const sources = [
 </footer>
 
 <style is:global>
+  .footer-groups {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr));
+    gap: var(--space-5) var(--space-6);
+    padding-block: var(--space-6);
+  }
+
+  /* Two columns that read top to bottom, then across. */
+  .footer-cols {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(var(--rows), auto);
+    grid-auto-flow: column;
+    column-gap: var(--space-5);
+  }
+
+  .eco-footer-group a[aria-current="page"] {
+    color: var(--ink-0);
+    text-decoration: underline;
+    text-decoration-color: var(--signal);
+  }
+
   .footer-sources li a {
     display: grid;
     gap: 0.1rem;
@@ -110,5 +144,98 @@ const sources = [
 
   .footer-sources li a:hover .footer-source-note {
     color: var(--ink-1);
+  }
+
+  /* Sibling sites: one quiet row under a hairline, not a wall of cards. */
+  .footer-related {
+    display: grid;
+    grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr);
+    gap: var(--space-3) var(--space-6);
+    align-items: baseline;
+    padding-block: var(--space-5);
+    border-top: 1px solid var(--line-0);
+  }
+
+  .footer-related h2 {
+    margin: 0;
+    color: var(--ink-2);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: var(--leading-snug);
+  }
+
+  .footer-related ul {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-3) var(--space-5);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .footer-related a {
+    display: grid;
+    gap: 0.15rem;
+    color: var(--ink-1);
+    text-decoration: none;
+  }
+
+  .footer-related-name {
+    font-size: var(--text-sm);
+    font-weight: 500;
+  }
+
+  .footer-related-purpose {
+    color: var(--ink-2);
+    font-size: var(--text-xs);
+    line-height: var(--leading-snug);
+  }
+
+  .footer-related a:hover .footer-related-name {
+    color: var(--ink-0);
+    text-decoration: underline;
+  }
+
+  @media (max-width: 1024px) {
+    .footer-groups {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .footer-related {
+      grid-template-columns: 1fr;
+    }
+    .footer-related ul {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 900px) {
+    .eco-footer-group a {
+      min-height: var(--control-h);
+    }
+    .footer-sources li a {
+      padding-block: var(--space-2);
+    }
+    .footer-related a {
+      min-height: var(--control-h);
+      align-content: center;
+      padding-block: var(--space-1);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .footer-groups {
+      grid-template-columns: 1fr;
+      gap: var(--space-5);
+    }
+    .footer-cols-mobile {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: repeat(var(--rows), auto);
+      grid-auto-flow: column;
+      column-gap: var(--space-5);
+    }
+    .footer-related ul {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

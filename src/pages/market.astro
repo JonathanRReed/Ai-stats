@@ -1,0 +1,207 @@
+---
+import { scriptSafeJson } from "../lib/script-json";
+import Layout from "../components/Layout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import ScrollToTop from "../components/ScrollToTop.astro";
+import MarketScatter, { type MarketPoint } from "../components/market/MarketScatter";
+import RouteDumbbells from "../components/market/RouteDumbbells.astro";
+import { getMarketData } from "../lib/market-load";
+import { pageJsonLd } from "../lib/market-data";
+import { SITE_ORIGIN } from "../lib/model-pages";
+import { AUTHOR_REF } from "../lib/author";
+import { MARKET_PATH, CHANGES_PATH } from "../lib/site-routes";
+import "../styles/compare-explorer.css";
+import "../styles/market.css";
+
+export const prerender = true;
+
+const data = await getMarketData();
+const { usageScore, routes, latency } = data;
+
+const dateFormatter = new Intl.DateTimeFormat("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
+const formatDate = (value: string | null | undefined): string => {
+  if (!value) return "Not recorded";
+  const date = new Date(value.length === 10 ? `${value}T00:00:00Z` : value);
+  return Number.isNaN(date.getTime()) ? "Not recorded" : dateFormatter.format(date);
+};
+const isoDay = (value: string | null | undefined) => value && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString().slice(0, 10) : null;
+const newest = (values: (string | null | undefined)[]) => values.filter((value): value is string => Boolean(value) && Number.isFinite(Date.parse(value as string))).sort().at(-1) ?? null;
+const compact = (value: number) => new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value);
+const seconds = (value: number) => value < 1 ? `${(value * 1000).toFixed(0)} ms` : `${value.toFixed(2)} s`;
+const money = (value: number | null) => value === null ? "Not recorded" : `$${value < 0.01 && value > 0 ? value.toPrecision(2) : value.toFixed(2)}`;
+const percent = (value: number | null) => value === null ? "Not defined" : value === 0 ? "0%" : `${(value * 100).toFixed(1)}%`;
+
+// 1. Usage versus score
+const usagePoints: MarketPoint[] = usageScore.points.map((point) => ({
+  id: point.id, label: point.name, family: point.family, provider: point.provider, x: point.tokens, y: point.intelligenceIndex,
+  path: point.path, sourceUrl: point.sourceUrl, source: "Artificial Analysis",
+  facts: [["OpenRouter tokens", compact(point.tokens)], ["Days in the daily top 50", String(point.daysListed)], ["AA Intelligence Index", point.intelligenceIndex.toFixed(1)], ["OpenRouter id", point.openRouterId]],
+}));
+
+// 2. Route prices
+const routeListDate = newest(routes.rows.map((row) => row.listFetchedAt)) ?? data.listFetchedAt;
+const routeFetchDate = newest(routes.rows.map((row) => row.routeFetchedAt));
+const routesWithGap = routes.rows.filter((row) => (row.input.gap ?? 0) !== 0 || (row.output.gap ?? 0) !== 0).length;
+
+// 3. Latency versus speed
+const latencyPoints: MarketPoint[] = latency.points.map((point) => ({
+  id: point.id, label: point.name, family: point.family, provider: point.provider, x: point.ttft, y: point.speed,
+  path: point.path, sourceUrl: point.sourceUrl, source: "Artificial Analysis",
+  facts: [["Time to first token", seconds(point.ttft)], ["Output speed", `${point.speed.toFixed(1)} tokens/s`], ["Last observed", formatDate(point.observedAt)]],
+}));
+const latencyObserved = newest(latency.points.map((point) => point.observedAt));
+const ttftRange = latency.points.length ? [latency.points[0].ttft, latency.points.at(-1)!.ttft] : null;
+
+const readouts = [
+  { label: "Usage and score, exact match", value: String(usageScore.points.length), unit: `of ${usageScore.scoredModels} scored models` },
+  { label: "Route price pairs", value: String(routes.rows.length), unit: `${routesWithGap} with a gap` },
+  { label: "Latency and speed", value: String(latency.points.length), unit: "models" },
+];
+
+const title = "OpenRouter usage, route prices and latency | AI Stats";
+const description = `Three source-dated views: OpenRouter usage against the AA Intelligence Index (${usageScore.points.length} exact matches), list price against the cheapest OpenRouter route (${routes.rows.length} models), and time to first token against output speed (${latency.points.length} models).`;
+const pageUrl = `${SITE_ORIGIN}${MARKET_PATH}`;
+const dateModified = isoDay(newest([latencyObserved, routeFetchDate, usageScore.window?.asOf]));
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": pageJsonLd({ url: pageUrl, name: "Market signals", datasets: [
+    { id: "usage", name: "OpenRouter usage against AA Intelligence Index", description: "Models with both an OpenRouter daily usage total and an AA Intelligence Index, joined only through reviewed identity bindings.",
+      isBasedOn: ["https://openrouter.ai/rankings", "https://artificialanalysis.ai/"], dateModified: isoDay(usageScore.window?.asOf), variables: ["OpenRouter tokens", "AA Intelligence Index"] },
+    { id: "routes", name: "OpenRouter list price against cheapest route", description: "List price and the cheapest recorded OpenRouter route price per 1M tokens for the same OpenRouter model.",
+      isBasedOn: ["https://openrouter.ai/"], dateModified: isoDay(routeFetchDate), variables: ["List input price", "Cheapest route input price", "List output price", "Cheapest route output price"] },
+    { id: "latency", name: "Time to first token against output speed", description: "Artificial Analysis medians for time to first token and output speed.",
+      isBasedOn: ["https://artificialanalysis.ai/"], dateModified: isoDay(latencyObserved), variables: ["Median time to first token", "Median output speed"] },
+  ] }, SITE_ORIGIN, AUTHOR_REF),
+});
+---
+
+<Layout title={title} description={description} dateModified={dateModified ?? undefined} noindex={true}>
+  <Fragment slot="head">
+    <script type="application/ld+json" is:inline set:html={scriptSafeJson(jsonLd)} />
+  </Fragment>
+  <Header currentPage="market" />
+
+  <main id="main-content" class="eco-container market-page">
+    <nav class="market-crumbs" aria-label="Breadcrumb">
+      <ol><li><a href="/">AI Stats</a></li><li aria-current="page">Market signals</li></ol>
+    </nav>
+
+    <header class="market-hero">
+      <h1>Market signals</h1>
+      <p class="market-lede">Three views built from data AI Stats already records: how much a model is used on OpenRouter against its AA Intelligence Index, how far the cheapest OpenRouter route sits from the list price, and how fast models start and keep answering. Each view says what is plotted and what is left out.</p>
+      <dl class="market-readouts">
+        {readouts.map((item) => <div><dt>{item.label}</dt><dd>{item.value} <span>{item.unit}</span></dd></div>)}
+      </dl>
+      <nav class="market-jump" aria-label="On this page">
+        <a href="#usage">Usage and score</a><a href="#routes">Route prices</a><a href="#latency">Latency and speed</a><a href={CHANGES_PATH}>What changed</a>
+      </nav>
+    </header>
+
+    <section class="market-section" id="usage" aria-labelledby="usage-heading">
+      <header class="market-section-head">
+        <h2 id="usage-heading">Usage and score</h2>
+        <p>Each point is one model: horizontal position is the tokens it processed on OpenRouter across the daily usage window (log scale), vertical position its AA Intelligence Index. A model is plotted only when its AI Stats record carries a reviewed OpenRouter identity and that exact OpenRouter id or permaslug appears in the usage dataset. Usage measures popularity on one router, not quality.</p>
+      </header>
+      {usageScore.points.length ? (
+        <MarketScatter client:visible points={usagePoints} xLabel="OpenRouter tokens in the usage window" yLabel="AA Intelligence Index (points)" logX logY={false} label="OpenRouter usage against AA Intelligence Index" />
+      ) : (
+        <div class="market-empty" role="status">
+          <p><strong>Nothing is plotted yet.</strong> Of the {usageScore.scoredModels} models with an AA Intelligence Index, {usageScore.excluded["no-openrouter-binding"]} have no reviewed OpenRouter identity in the AI Stats model registry, and {usageScore.excluded["not-in-usage-dataset"]} have one but do not appear in the usage dataset. AI Stats does not match models by name, so these stay unjoined until an exact identity is recorded.</p>
+        </div>
+      )}
+      <dl class="market-counts">
+        <div><dt>Plotted</dt><dd>{usageScore.points.length}</dd></div>
+        <div><dt>Left out, no exact OpenRouter identity</dt><dd>{usageScore.excluded["no-openrouter-binding"]}</dd></div>
+        <div><dt>Left out, not in the usage data</dt><dd>{usageScore.excluded["not-in-usage-dataset"]}</dd></div>
+        <div><dt>OpenRouter models in the usage data</dt><dd>{usageScore.usageModels}</dd></div>
+      </dl>
+      <p class="market-sources">
+        Sources: <a href="https://openrouter.ai/rankings" rel="noopener noreferrer">OpenRouter daily rankings dataset</a>
+        {usageScore.window ? <>, UTC days {formatDate(usageScore.window.startDate)} to {formatDate(usageScore.window.endDate)}, as of {formatDate(usageScore.window.asOf)}{usageScore.window.missingDays ? `, ${usageScore.window.missingDays} days missing` : ""}. Each day lists only that day's top 50 models, so totals count days in the top 50. Licensed <a href="https://creativecommons.org/licenses/by/4.0/" rel="noopener noreferrer">CC BY 4.0</a></> : <>, not available in this build</>}.
+        AA Intelligence Index from <a href="https://artificialanalysis.ai/" rel="noopener noreferrer">Artificial Analysis</a>.
+      </p>
+      {usageScore.points.length ? (
+        <details class="market-table" open={usageScore.points.length <= 25}>
+          <summary>Exact data ({usageScore.points.length} models)</summary>
+          <div class="market-table-scroll"><table>
+            <thead><tr><th scope="col">Model</th><th scope="col">Lab</th><th scope="col">OpenRouter permaslug</th><th scope="col" class="num">Tokens</th><th scope="col" class="num">Days listed</th><th scope="col" class="num">AA Index</th></tr></thead>
+            <tbody>{usageScore.points.map((point) => <tr>
+              <th scope="row"><a href={point.path}>{point.name}</a></th><td>{point.provider}</td><td><code>{point.permaslug}</code></td>
+              <td class="num">{point.tokens.toLocaleString("en-US")}</td><td class="num">{point.daysListed}</td><td class="num">{point.intelligenceIndex.toFixed(1)}</td>
+            </tr>)}</tbody>
+          </table></div>
+        </details>
+      ) : null}
+    </section>
+
+    <section class="market-section" id="routes" aria-labelledby="routes-heading">
+      <header class="market-section-head">
+        <h2 id="routes-heading">List price and cheapest route</h2>
+        <p>For each OpenRouter model with both prices recorded, the ring is the list price in OpenRouter's model catalog and the dot is the cheapest price among that model's OpenRouter routes, per 1M input and output tokens on log axes. Both prices describe the same OpenRouter model id, so no cross-source matching is involved. Rows are sorted by the larger relative gap; when the ring and dot coincide the routes do not undercut the list price.</p>
+      </header>
+      {routes.rows.length ? <RouteDumbbells rows={routes.rows} /> : (
+        <div class="market-empty" role="status"><p><strong>Nothing is plotted.</strong> No OpenRouter model in this build has both a list price and a recorded route price.</p></div>
+      )}
+      <dl class="market-counts">
+        <div><dt>Models with route detail</dt><dd>{routes.summaries}</dd></div>
+        <div><dt>Plotted, both prices recorded</dt><dd>{routes.rows.length}</dd></div>
+        <div><dt>Route price below list</dt><dd>{routesWithGap}</dd></div>
+        <div><dt>Left out, a price missing</dt><dd>{routes.withoutPair}</dd></div>
+      </dl>
+      <p class="market-sources">
+        Sources: list prices from the <a href="https://openrouter.ai/models" rel="noopener noreferrer">OpenRouter model catalog</a> snapshot retrieved {formatDate(routeListDate)}; route prices from OpenRouter's public endpoints API, retrieved {formatDate(routeFetchDate)} when this page was built. The two dates differ, so a list price change in between would show as a gap. Route detail is fetched for {routes.summaries} of {data.routeCatalogCount} catalog models per build, so most models are not covered here.
+      </p>
+      {routes.rows.length ? (
+        <details class="market-table" open>
+          <summary>Exact data ({routes.rows.length} models)</summary>
+          <div class="market-table-scroll"><table>
+            <thead><tr><th scope="col">Model</th><th scope="col" class="num">List input</th><th scope="col" class="num">Cheapest input</th><th scope="col" class="num">Input gap</th><th scope="col" class="num">List output</th><th scope="col" class="num">Cheapest output</th><th scope="col" class="num">Output gap</th><th scope="col" class="num">Routes</th></tr></thead>
+            <tbody>{routes.rows.map((row) => <tr>
+              <th scope="row">{row.path ? <a href={row.path}>{row.name}</a> : <a href={row.openRouterUrl} rel="noopener noreferrer">{row.name}</a>}<small>{row.openRouterId}</small></th>
+              <td class="num">{money(row.input.list)}</td><td class="num">{money(row.input.cheapest)}</td><td class="num">{percent(row.input.gap)}</td>
+              <td class="num">{money(row.output.list)}</td><td class="num">{money(row.output.cheapest)}</td><td class="num">{percent(row.output.gap)}</td>
+              <td class="num">{row.providerCount ?? "Not recorded"}</td>
+            </tr>)}</tbody>
+          </table></div>
+          <p class="market-table-note">Gap is (list − cheapest) ÷ list. Model names link to the AI Stats model page when an exact identity exists, otherwise to OpenRouter.</p>
+        </details>
+      ) : null}
+    </section>
+
+    <section class="market-section" id="latency" aria-labelledby="latency-heading">
+      <header class="market-section-head">
+        <h2 id="latency-heading">Time to first token and output speed</h2>
+        <p>Each point is one model record: horizontal position is the median time to its first token in seconds (log scale, lower is sooner), vertical position its median output speed in tokens per second (log scale, higher is faster). Both are Artificial Analysis medians from the same record. A model is plotted only when both medians are recorded.</p>
+      </header>
+      {latency.points.length ? (
+        <MarketScatter client:visible points={latencyPoints} xLabel="Median time to first token (seconds)" yLabel="Median output speed (tokens/s)" logX logY label="Median time to first token against median output speed" />
+      ) : (
+        <div class="market-empty" role="status"><p><strong>Nothing is plotted.</strong> No model record has both medians.</p></div>
+      )}
+      <dl class="market-counts">
+        <div><dt>Plotted</dt><dd>{latency.points.length}</dd></div>
+        <div><dt>Left out, a median missing</dt><dd>{latency.missing}</dd></div>
+        {ttftRange ? <div><dt>First-token range</dt><dd>{seconds(ttftRange[0])} to {seconds(ttftRange[1])}</dd></div> : null}
+      </dl>
+      <p class="market-sources">
+        Source: <a href="https://artificialanalysis.ai/" rel="noopener noreferrer">Artificial Analysis</a>, records last observed {formatDate(latencyObserved)}. Timing conditions: {latency.notes.length ? latency.notes.join(" ") : "not recorded"}
+      </p>
+      {latency.points.length ? (
+        <details class="market-table">
+          <summary>Exact data ({latency.points.length} models)</summary>
+          <div class="market-table-scroll"><table>
+            <thead><tr><th scope="col">Model</th><th scope="col">Lab</th><th scope="col" class="num">Time to first token (s)</th><th scope="col" class="num">Output speed (tokens/s)</th><th scope="col">Last observed</th></tr></thead>
+            <tbody>{latency.points.map((point) => <tr>
+              <th scope="row"><a href={point.path}>{point.name}</a></th><td>{point.provider}</td>
+              <td class="num">{point.ttft}</td><td class="num">{point.speed}</td><td>{formatDate(point.observedAt)}</td>
+            </tr>)}</tbody>
+          </table></div>
+        </details>
+      ) : null}
+    </section>
+  </main>
+
+  <Footer />
+  <ScrollToTop />
+</Layout>

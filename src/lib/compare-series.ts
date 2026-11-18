@@ -10,6 +10,8 @@ export type ExplorerModel = {
   priceBlended?:number|null; outputSpeed?:number|null; latency?:number|null;
   indexVersion?:string|null; performancePrompt?:string|null; observedAt?:string|null; fetchedAt?:string|null; sourceUrl?:string|null;
   metrics?:Record<string,number|null>; hasTokenPrices?:boolean; detailAvailable?:boolean;
+  /** Publisher release date (YYYY-MM-DD) when the source records one. */
+  releaseDate?:string|null;
 };
 export const EXPLORER_SOURCE_LABELS:Record<ExplorerModel['source'],string>={aa:'Artificial Analysis',epoch:'Epoch AI',openrouter:'OpenRouter',huggingface:'Hugging Face',litellm:'LiteLLM',catalog:'Database inventory',publisher:'Original publishers'};
 export function compatibleVariantLines(points:SeriesPoint[]):SeriesPoint[][] {
@@ -29,6 +31,10 @@ export type EvidenceReceipt = {
 export type SeriesPoint = {
   id:string; modelId:string; label:string; family:string; reasoning:string; series:string;
   source:ExplorerModel['source']; provider?:string; x:number; y:number; unit:string; cohortKey:string|null; receipt:EvidenceReceipt;
+  /** Display-only context for overlays; never used to place or rank a point. */
+  releasedAt?:string; outputSpeed?:number;
+  /** Standard error in the same unit as `y`, when the source records one. */
+  stderr?:number;
 };
 export type BarCategoryLabel={x:number;label:string;title:string;ariaLabel:string};
 /** Short, unique category labels for bar charts; point values and positions are untouched. */
@@ -157,7 +163,16 @@ export function frontierSegments<T>(ids:string[],positions:Map<string,T>):T[][]{
   return runs;
 }
 export const epochScoreKey=(row:Pick<EpochObservation,'metricKey'|'unit'|'benchmarkVersion'>)=>JSON.stringify([row.metricKey??'Unknown metric',row.unit==='fraction'?'percent':row.unit,...(row.benchmarkVersion?[row.benchmarkVersion]:[])]);
-export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState):CompareSeries {
+/** A monthly token volume, used to turn list prices into a cost for one workload. */
+export type CompareWorkload={inputTokensPerDay:number;outputTokensPerDay:number};
+/** A visitor-supplied vertical axis: their own weighting or their own scores. Always labelled as theirs. */
+export type CompareCustomAxis={label:string;unit:string;values:Record<string,number>};
+export type CompareSeriesOptions={workload?:CompareWorkload|null;customY?:CompareCustomAxis|null};
+export const workloadMonthlyCost=(model:Pick<ExplorerModel,'priceInput'|'priceOutput'>,workload:CompareWorkload):number|null=>
+  nonnegative(model.priceInput)&&nonnegative(model.priceOutput)?(model.priceInput*workload.inputTokensPerDay+model.priceOutput*workload.outputTokensPerDay)/1e6*30:null;
+export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState,options:CompareSeriesOptions={}):CompareSeries {
+  const workload=state.chart==='cost-intelligence'&&options.workload?options.workload:null;
+  const customY=['cost-intelligence','speed-intelligence','task-cost','total-cost'].includes(state.chart)&&options.customY?options.customY:null;
   const result:CompareSeries={available:true,unavailableReason:null,kind:['cost-intelligence','speed-intelligence','task-cost','total-cost'].includes(state.chart)?'scatter':'bars',
     points:[],excluded:[],xLabel:'Model',yLabel:'Value',scale:state.scale,scaleNotice:null,omittedFromLog:[],mixedConditions:false,
     frontierGroups:{},higherXIsBetter:state.chart==='speed-intelligence'};
@@ -178,7 +193,8 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
     conditions:model.performancePrompt?{performancePrompt:model.performancePrompt}:null,snapshotId:null});
   const add=(model:ExplorerModel,x:number,y:number,series:string,unit:string,receipt=receiptFor(model),id=model.id,cohortKey:string|null=null)=>{
     result.points.push({id,modelId:model.id,label:model.name,family:model.family,reasoning:model.reasoning??'unknown',
-      source:model.source,provider:model.provider??model.family,x,y,series,unit,receipt,cohortKey});
+      source:model.source,provider:model.provider??model.family,x,y,series,unit,receipt,cohortKey,
+      ...(model.releaseDate?{releasedAt:model.releaseDate}:{}),...(finite(model.outputSpeed)&&model.outputSpeed>0?{outputSpeed:model.outputSpeed}:{})});
   };
   if(state.chart==='benchmark'&&state.metricId.startsWith('epoch_')){
     const slug=state.metricId.slice(6);
@@ -200,6 +216,7 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
         {source:row.sourceName??'Epoch AI',sourceUrl:sourceUrl(row.sourceUrl),observedAt:row.evaluationDate,fetchedAt:row.fetchedAt,
           indexVersion:row.benchmarkVersion??null,conditions:row.conditions,snapshotId:row.snapshotId},
         model.id+':'+row.id,row.conditions===null||!row.benchmarkVersion?null:slug+':'+row.benchmarkVersion+':'+epochScoreKey(row)+':'+epochConditionKey(row.conditions));
+      if(finite(row.stderr)&&row.stderr>=0)result.points[result.points.length-1].stderr=row.stderr*(row.unit==='fraction'?100:1);
     });
     result.yLabel=rows[0]?.unit==='fraction'||rows[0]?.unit==='percent'?'Score (%)':rows[0]?.metricKey??'Source-native score';
     if(slug==='btf3_external')result.yLabel+=' (lower is better)';
@@ -207,8 +224,8 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
       result.excluded.push({modelId:model.id,reason:'No matching benchmark observation'});
     }
   } else {
-    result.xLabel=state.chart==='cost-intelligence'?'USD / 1M tokens (3:1 input/output)':state.chart==='speed-intelligence'?'Output tokens / second':state.chart==='task-cost'?'USD / AA Index task':state.chart==='total-cost'?'USD / complete AA evaluation':'Model';
-    result.yLabel=result.kind==='scatter'?'AA Intelligence Index':state.chart==='price'?'USD / 1M tokens':'AA benchmark value';
+    result.xLabel=workload?'USD / month for your workload':state.chart==='cost-intelligence'?'USD / 1M tokens (3:1 input/output)':state.chart==='speed-intelligence'?'Output tokens / second':state.chart==='task-cost'?'USD / AA Index task':state.chart==='total-cost'?'USD / complete AA evaluation':'Model';
+    result.yLabel=result.kind==='scatter'?customY?.label??'AA Intelligence Index':state.chart==='price'?'USD / 1M tokens':'AA benchmark value';
     models.forEach((model,index)=>{
       const cohort=model.source==='aa'&&verifiedIndexVersion(model.indexVersion)&&(state.chart!=='speed-intelligence'||model.performancePrompt)?model.indexVersion+':'+(model.performancePrompt??'unknown'):null;
       if(state.chart==='price'){
@@ -221,9 +238,10 @@ export function buildCompareSeries(evidence:ExplorerEvidence,state:CompareState)
         if(finite(value))add(model,index,value,'benchmark',state.metricId.endsWith('_index')?'Index points':'Source-native score',receiptFor(model),model.id,cohort);
         else result.excluded.push({modelId:model.id,reason:'Missing benchmark measurement'});
       }else{
-        const x=state.chart==='cost-intelligence'?model.priceBlended:state.chart==='task-cost'?model.aaTaskCost:state.chart==='total-cost'?model.aaEvaluationCost:model.outputSpeed;
-        if(nonnegative(x)&&finite(model.intelligence))add(model,x,model.intelligence,'model','AA Index points',receiptFor(model),model.id,cohort);
-        else result.excluded.push({modelId:model.id,reason:state.chart==='cost-intelligence'?'Missing price or intelligence':state.chart==='task-cost'||state.chart==='total-cost'?'Missing evaluation cost or intelligence':'Missing speed or intelligence'});
+        const x=workload?workloadMonthlyCost(model,workload):state.chart==='cost-intelligence'?model.priceBlended:state.chart==='task-cost'?model.aaTaskCost:state.chart==='total-cost'?model.aaEvaluationCost:model.outputSpeed;
+        const y=customY?customY.values[model.id]:model.intelligence;
+        if(nonnegative(x)&&finite(y))add(model,x,y,'model',customY?customY.unit:'AA Index points',receiptFor(model),model.id,cohort);
+        else result.excluded.push({modelId:model.id,reason:customY&&nonnegative(x)?'No value on your axis for this record':workload?'Missing input or output token price':state.chart==='cost-intelligence'?'Missing price or intelligence':state.chart==='task-cost'||state.chart==='total-cost'?'Missing evaluation cost or intelligence':'Missing speed or intelligence'});
       }
     });
   }

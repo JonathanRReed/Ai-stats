@@ -1,16 +1,24 @@
 ---
+import {
+  PRIMARY_NAV,
+  PROJECT_NAV,
+  SECONDARY_NAV,
+  navAriaCurrent,
+  type NavKey,
+} from "../lib/site-nav";
+
 interface Props {
-  currentPage?: string;
+  /** Which nav entry this page belongs to. Pages outside the nav (404) pass nothing or their own key. */
+  currentPage?: NavKey;
 }
 
-const { currentPage = "dashboard" } = Astro.props;
-const links = [
-  { href: "/", label: "Stats", key: "dashboard" },
-  { href: "/compare", label: "Compare", key: "compare" },
-  { href: "/models", label: "Models", key: "models" },
-  { href: "/about", label: "About", key: "about" },
-  { href: "/contact", label: "Contact", key: "contact" },
-];
+const { currentPage } = Astro.props;
+const pathname = Astro.url.pathname;
+const current = (link: (typeof PRIMARY_NAV)[number]) => navAriaCurrent(link, currentPage, pathname);
+const primaryLinks = PRIMARY_NAV;
+const moreLinks = SECONDARY_NAV;
+const projectLinks = PROJECT_NAV;
+const moreIsCurrent = [...moreLinks, ...projectLinks].some((link) => link.key === currentPage);
 ---
 
 <a href="#main-content" class="eco-skip">Skip to content</a>
@@ -27,40 +35,73 @@ const links = [
       <span class="eco-wordmark">AI Stats</span>
     </a>
 
-    <nav class="eco-nav desktop-nav" aria-label="Primary">
-      {links.map((link) => (
-        <a
-          href={link.href}
-          class="eco-nav-link nav-item"
-          aria-current={currentPage === link.key ? "page" : undefined}
+    <div class="desktop-nav">
+      <nav class="eco-nav" aria-label="Primary">
+        <ul class="nav-list">
+          {primaryLinks.map((link) => (
+            <li>
+              <a href={link.href} class="eco-nav-link nav-item" aria-current={current(link)}>
+                {link.label}
+              </a>
+            </li>
+          ))}
+          <li>
+            <details class="nav-more" data-current={moreIsCurrent ? "true" : undefined}>
+              <summary class="eco-nav-link nav-item nav-more-toggle">
+                More
+                <svg class="nav-more-chevron" viewBox="0 0 12 12" aria-hidden="true">
+                  <path d="m3 4.5 3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </summary>
+              <div class="nav-more-panel">
+                <ul>
+                  {moreLinks.map((link) => (
+                    <li><a href={link.href} class="nav-more-link" aria-current={current(link)}>{link.label}</a></li>
+                  ))}
+                </ul>
+                <ul>
+                  {projectLinks.map((link) => (
+                    <li><a href={link.href} class="nav-more-link" aria-current={current(link)}>{link.label}</a></li>
+                  ))}
+                </ul>
+              </div>
+            </details>
+          </li>
+        </ul>
+      </nav>
+      <div class="header-tools">
+        <button
+          id="model-search-open"
+          class="eco-icon-btn model-search-trigger"
+          type="button"
+          data-model-search-open
+          aria-label="Find a model"
+          aria-keyshortcuts="Meta+K Control+K"
+          title="Find a model. Press Command K or Control K"
         >
-          {link.label}
-        </a>
-      ))}
-      <button
-        id="model-search-open"
-        class="eco-icon-btn model-search-trigger"
-        type="button"
-        aria-label="Find a model"
-        title="Find a model. Press Command K or Control K"
-      >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+          </svg>
+          <kbd aria-hidden="true">&#8984;K</kbd>
+        </button>
+        <button id="theme-toggle" class="eco-icon-btn eco-theme-toggle theme-toggle" type="button" aria-label="Toggle light and dark theme" title="Toggle light and dark theme">
+          <svg class="eco-icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
+          </svg>
+          <svg class="eco-icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="mobile-controls">
+      <button id="model-search-open-mobile" class="eco-icon-btn eco-menu-btn" type="button" data-model-search-open aria-label="Find a model">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
         </svg>
-        <kbd aria-hidden="true">&#8984;K</kbd>
       </button>
-      <button id="theme-toggle" class="eco-icon-btn eco-theme-toggle theme-toggle" type="button" aria-label="Toggle light and dark theme" title="Toggle light and dark theme">
-        <svg class="eco-icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
-        </svg>
-        <svg class="eco-icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
-        </svg>
-      </button>
-    </nav>
-
-    <div class="mobile-controls">
-      <button id="theme-toggle-mobile" class="eco-icon-btn eco-theme-toggle theme-toggle" type="button" aria-label="Toggle light and dark theme">
+      <button id="theme-toggle-mobile" class="eco-icon-btn eco-menu-btn eco-theme-toggle theme-toggle" type="button" aria-label="Toggle light and dark theme">
         <svg class="eco-icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
         </svg>
@@ -78,11 +119,21 @@ const links = [
 
   <div id="mobile-nav-overlay" class="mobile-nav-overlay" aria-hidden="true"></div>
   <nav id="mobile-nav" class="mobile-nav" inert aria-label="Mobile navigation">
-    <a href="/" class="mobile-nav-item" aria-current={currentPage === "dashboard" ? "page" : undefined} tabindex="-1">Stats</a>
-    <a href="/compare" class="mobile-nav-item" aria-current={currentPage === "compare" ? "page" : undefined} tabindex="-1">Compare</a>
-    <a href="/models" class="mobile-nav-item" aria-current={currentPage === "models" ? "page" : undefined} tabindex="-1">Models</a>
-    <a href="/about" class="mobile-nav-item" aria-current={currentPage === "about" ? "page" : undefined} tabindex="-1">About</a>
-    <a href="/contact" class="mobile-nav-item" aria-current={currentPage === "contact" ? "page" : undefined} tabindex="-1">Contact</a>
+    <ul class="mobile-nav-primary">
+      {primaryLinks.map((link) => (
+        <li><a href={link.href} class="mobile-nav-item" aria-current={current(link)} tabindex="-1">{link.label}</a></li>
+      ))}
+    </ul>
+    <ul class="mobile-nav-secondary">
+      {moreLinks.map((link) => (
+        <li><a href={link.href} class="mobile-nav-item" aria-current={current(link)} tabindex="-1">{link.label}</a></li>
+      ))}
+    </ul>
+    <ul class="mobile-nav-secondary mobile-nav-project">
+      {projectLinks.map((link) => (
+        <li><a href={link.href} class="mobile-nav-item" aria-current={current(link)} tabindex="-1">{link.label}</a></li>
+      ))}
+    </ul>
   </nav>
 </header>
 
@@ -99,11 +150,148 @@ const links = [
     color: var(--ink-0);
   }
 
-  /* Mobile controls */
+  /* Desktop navigation ---------------------------------------------------- */
+  .desktop-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-width: 0;
+  }
+
+  .nav-list {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .header-tools {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-left: var(--space-3);
+    border-left: 1px solid var(--line-0);
+  }
+
+  /* A section link on a page inside that section (a lab under Labs). */
+  .eco-nav-link[aria-current="true"] {
+    color: var(--ink-0);
+  }
+
+  .eco-nav-link[aria-current="true"]::after,
+  .nav-more[data-current="true"] > .nav-more-toggle::after {
+    content: "";
+    position: absolute;
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: -0.25rem;
+    height: 2px;
+    background: var(--signal);
+    border-radius: 1px;
+  }
+
+  .nav-more {
+    position: relative;
+  }
+
+  .nav-more-toggle {
+    gap: 0.3rem;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+
+  .nav-more-toggle::-webkit-details-marker {
+    display: none;
+  }
+
+  .nav-more[data-current="true"] > .nav-more-toggle,
+  .nav-more[open] > .nav-more-toggle {
+    color: var(--ink-0);
+  }
+
+  .nav-more[open] > .nav-more-toggle {
+    background: var(--surface-2);
+  }
+
+  .nav-more-chevron {
+    width: 12px;
+    height: 12px;
+    transition: transform var(--dur-fast) var(--ease-standard);
+  }
+
+  .nav-more[open] .nav-more-chevron {
+    transform: rotate(180deg);
+  }
+
+  .nav-more-panel {
+    position: absolute;
+    top: calc(100% + 0.6rem);
+    right: 0;
+    z-index: 110;
+    min-width: 12rem;
+    padding: var(--space-1);
+    background: var(--surface-1);
+    border: 1px solid var(--line-1);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-1);
+  }
+
+  .nav-more[open] .nav-more-panel {
+    animation: nav-more-in var(--dur-fast) var(--ease-out);
+  }
+
+  @keyframes nav-more-in {
+    from { opacity: 0; transform: translateY(-4px); }
+  }
+
+  .nav-more-panel ul {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .nav-more-panel ul + ul {
+    margin-top: var(--space-1);
+    padding-top: var(--space-1);
+    border-top: 1px solid var(--line-0);
+  }
+
+  .nav-more-link {
+    display: flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 var(--space-3);
+    color: var(--ink-1);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    transition: color var(--dur-fast) var(--ease-standard), background-color var(--dur-fast) var(--ease-standard);
+  }
+
+  .nav-more-link:hover {
+    color: var(--ink-0);
+    background: var(--surface-2);
+  }
+
+  .nav-more-link:focus-visible {
+    outline-offset: -2px;
+  }
+
+  .nav-more-link[aria-current] {
+    color: var(--ink-0);
+    box-shadow: inset 2px 0 0 var(--signal);
+  }
+
+  /* Mobile controls ------------------------------------------------------- */
   .mobile-controls {
     display: none;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
   }
 
   .hamburger {
@@ -144,13 +332,9 @@ const links = [
     padding: 0.05rem 0.3rem;
   }
 
-  @media (max-width: 900px) {
-    .model-search-trigger kbd { display: none; }
-  }
-
   .mobile-nav-overlay {
     position: fixed;
-    inset: 0;
+    inset: var(--header-h) 0 0;
     z-index: 998;
     background: color-mix(in srgb, var(--surface-0) 70%, transparent);
     opacity: 0;
@@ -170,18 +354,54 @@ const links = [
     left: 0;
     z-index: 999;
     display: none;
-    padding: var(--space-2) var(--gutter) var(--space-4);
+    max-height: calc(100dvh - var(--header-h));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--space-2) var(--gutter) var(--space-5);
     background: var(--surface-0);
     border-bottom: 1px solid var(--line-1);
     box-shadow: var(--shadow-2);
     transform: translateY(-8px);
     opacity: 0;
-    transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-standard);
+    visibility: hidden;
+    transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-standard), visibility var(--dur-base) var(--ease-standard);
   }
 
+  /* Visible at once on open, so focus can move into the menu in the same tick; on close
+     the base rule keeps it visible until the fade ends. */
   .mobile-nav.open {
     transform: none;
     opacity: 1;
+    visibility: visible;
+    transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-standard), visibility 0s;
+  }
+
+  .mobile-nav ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .mobile-nav-primary .mobile-nav-item {
+    border-bottom: 1px solid var(--line-0);
+    font-size: var(--text-base);
+  }
+
+  .mobile-nav .mobile-nav-secondary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+
+  .mobile-nav .mobile-nav-project {
+    margin-top: 0;
+    border-top: 1px solid var(--line-0);
+  }
+
+  .mobile-nav-secondary .mobile-nav-item {
+    color: var(--ink-2);
+    font-size: var(--text-sm);
   }
 
   .mobile-nav-item {
@@ -189,22 +409,38 @@ const links = [
     align-items: center;
     min-height: var(--control-h);
     padding: 0 var(--space-2);
-    border-bottom: 1px solid var(--line-0);
     color: var(--ink-1);
-    font-size: var(--text-base);
     font-weight: 500;
     text-decoration: none;
+    transition: color var(--dur-fast) var(--ease-standard), background-color var(--dur-fast) var(--ease-standard);
   }
 
-  .mobile-nav-item:last-child { border-bottom: 0; }
+  .mobile-nav-item:hover {
+    color: var(--ink-0);
+    background: var(--surface-1);
+  }
 
-  .mobile-nav-item[aria-current="page"] {
+  .mobile-nav-item:focus-visible {
+    outline-offset: -2px;
+  }
+
+  .mobile-nav .mobile-nav-item[aria-current] {
     color: var(--ink-0);
     box-shadow: inset 3px 0 0 var(--signal);
     padding-left: var(--space-3);
   }
 
-  @media (max-width: 640px) {
+  html.menu-open {
+    overflow: hidden;
+  }
+
+  /* The header carries its own name through page transitions, so it holds still
+     while the page under it cross-fades. */
+  .header {
+    view-transition-name: site-header;
+  }
+
+  @media (max-width: 900px) {
     .desktop-nav {
       display: none;
     }
@@ -213,80 +449,21 @@ const links = [
       z-index: 1000;
     }
     .mobile-nav {
-      display: grid;
+      display: block;
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .mobile-nav,
     .mobile-nav-overlay,
-    .hamburger-line {
+    .hamburger-line,
+    .nav-more-chevron {
       transition: none;
+    }
+    .nav-more[open] .nav-more-panel {
+      animation: none;
     }
   }
 </style>
 
 <script is:inline src="/header.js" defer></script>
-<script is:inline>
-  // The palette island listens for this, so the header button works whether or
-  // not that island has hydrated yet.
-  (function () {
-    const bind = () => {
-      const trigger = document.getElementById("model-search-open");
-      if (!trigger || trigger.dataset.bound === "true") return;
-      trigger.dataset.bound = "true";
-      trigger.addEventListener("click", () => {
-        window.dispatchEvent(new Event("ai-stats:open-model-search"));
-      });
-    };
-    bind();
-    document.addEventListener("astro:page-load", bind);
-  })();
-  (() => {
-    const bindAccessibleMobileMenu = () => {
-      const toggle = document.getElementById("mobile-menu-toggle");
-      const nav = document.getElementById("mobile-nav");
-      const overlay = document.getElementById("mobile-nav-overlay");
-      if (!toggle || !nav || toggle.dataset.focusManaged === "true") return;
-      toggle.dataset.focusManaged = "true";
-      let returnFocus = toggle;
-
-      const focusable = () => Array.from(nav.querySelectorAll('a[href]:not([tabindex="-1"])'));
-      const syncFocus = () => {
-        const open = toggle.getAttribute("aria-expanded") === "true";
-        overlay?.setAttribute("aria-hidden", String(!open));
-        toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
-        if (open) focusable()[0]?.focus();
-        else returnFocus?.focus();
-      };
-
-      toggle.addEventListener("click", () => {
-        returnFocus = toggle;
-        window.requestAnimationFrame(syncFocus);
-      });
-      overlay?.addEventListener("click", () => window.requestAnimationFrame(syncFocus));
-      nav.addEventListener("keydown", (event) => {
-        if (event.key !== "Tab") return;
-        const items = focusable();
-        if (!items.length) return;
-        const first = items[0];
-        const last = items[items.length - 1];
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first.focus();
-        }
-      });
-      document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && toggle.getAttribute("aria-expanded") === "true") {
-          window.requestAnimationFrame(syncFocus);
-        }
-      });
-    };
-    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindAccessibleMobileMenu);
-    else bindAccessibleMobileMenu();
-    document.addEventListener("astro:page-load", bindAccessibleMobileMenu);
-  })();
-</script>

@@ -1,0 +1,211 @@
+---
+import { scriptSafeJson } from "../../lib/script-json";
+import type { GetStaticPaths } from "astro";
+import Layout from "../../components/Layout.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import ScrollToTop from "../../components/ScrollToTop.astro";
+import BenchmarkBars from "../../components/benchmarks/BenchmarkBars.astro";
+import BestScoreChart from "../../components/benchmarks/BestScoreChart.astro";
+import BenchmarkRunsTable from "../../components/benchmarks/BenchmarkRunsTable.astro";
+import { getBenchmarkPageData } from "../../lib/benchmark-pages-data";
+import {
+  benchmarkPageDescription,
+  benchmarkPageTitle,
+  buildBenchmarkJsonLd,
+  formatScore,
+  formatTick,
+  unitLabel,
+  type BenchmarkCohort,
+  type BenchmarkPage,
+} from "../../lib/benchmark-pages";
+import { BENCHMARKS_INDEX_PATH } from "../../lib/site-routes";
+import "../../styles/compare-explorer.css";
+import "../../styles/benchmark-pages.css";
+
+export const prerender = true;
+
+export const getStaticPaths = (async () => {
+  const pages = await getBenchmarkPageData();
+  return pages.map((page) => ({ params: { slug: page.pathSlug }, props: { page } }));
+}) satisfies GetStaticPaths;
+
+type Props = { page: BenchmarkPage };
+const { page } = Astro.props;
+const title = benchmarkPageTitle(page);
+const description = benchmarkPageDescription(page);
+const jsonLd = JSON.stringify({ "@context": "https://schema.org", "@graph": buildBenchmarkJsonLd(page) });
+const { attribution } = page;
+const multi = page.cohorts.length > 1;
+const Section = multi ? "h3" : "h2";
+const allRuns = page.cohorts.flatMap((cohort) => cohort.runs);
+const withStderr = allRuns.filter((run) => run.stderr !== null).length;
+const stderrSummary = withStderr === 0 ? "Not recorded" : withStderr === allRuns.length ? "Recorded for every run" : `Recorded for ${withStderr} of ${allRuns.length} runs`;
+const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
+const readouts = [
+  { label: "Runs", value: String(page.runCount), unit: "" },
+  { label: "Models", value: String(page.modelCount), unit: "" },
+  page.firstDate && page.lastDate ? { label: "Date range", value: page.firstDate === page.lastDate ? page.firstDate : `${page.firstDate} to ${page.lastDate}`, unit: "" } : null,
+  { label: "Standard error", value: stderrSummary, unit: "", text: true },
+].filter((item): item is { label: string; value: string; unit: string; text?: boolean } => item !== null);
+const cohortTitle = (cohort: BenchmarkCohort) =>
+  [cohort.metric ?? "Metric not recorded", cohort.version ? (/^v?\d/i.test(cohort.version) ? `version ${cohort.version.replace(/^v/i, "")}` : cohort.version) : multi ? "version not recorded" : null].filter(Boolean).join(" · ");
+const cohortId = (index: number) => `cohort-${index + 1}`;
+const dateBasis = (cohort: BenchmarkCohort) =>
+  cohort.steps.evaluationDated === 0 ? "the model's release date" : cohort.steps.releaseDated === 0 ? "the evaluation date" : "the model's release date, or the evaluation date where no release date is recorded";
+const fetched = page.fetchedAt ? page.fetchedAt.slice(0, 10) : null;
+---
+
+<Layout title={title} description={description} dateModified={fetched ?? undefined}>
+  <Fragment slot="head">
+    <script type="application/ld+json" is:inline set:html={scriptSafeJson(jsonLd)} />
+  </Fragment>
+  <Header currentPage="benchmarks" />
+
+  <main id="main-content" class="eco-container data-page bench-page">
+    <nav class="data-crumbs" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/">AI Stats</a></li>
+        <li><a href={BENCHMARKS_INDEX_PATH}>Benchmarks</a></li>
+        <li aria-current="page">{page.name}</li>
+      </ol>
+    </nav>
+
+    <header class="data-hero">
+      <h1>{page.name}</h1>
+      <p class="data-attribution">
+        {page.source === "artificial-analysis" ? (
+          <>Measured and published by <a href={attribution.sourceUrl} rel="noopener noreferrer">{attribution.sourceName}</a>.</>
+        ) : (
+          <>
+            Source: <a href={attribution.sourceUrl} rel="noopener noreferrer">{attribution.sourceName}</a>{attribution.viaName && attribution.viaUrl && attribution.viaName !== attribution.sourceName ? <>, collected by <a href={attribution.viaUrl} rel="noopener noreferrer">{attribution.viaName}</a></> : null}.{attribution.license ? <> Licence: {attribution.license}.</> : null}
+          </>
+        )}
+      </p>
+      <dl class="data-readouts">
+        {readouts.map((item) => <div class:list={{ "is-text": item.text }}><dt>{item.label}</dt><dd>{item.value}{item.unit ? <span> {item.unit}</span> : null}</dd></div>)}
+      </dl>
+      {page.description ? (
+        <p class="data-summary">{page.description}</p>
+      ) : (
+        <p class="data-summary">
+          Recorded for this benchmark: {page.cohorts.map((cohort) => `${cohort.metric ?? "an unnamed metric"} (${[unitLabel(cohort.unit, null), cohort.version ? `version ${cohort.version.replace(/^Index /, "")}` : null].filter(Boolean).join(", ")})`).join("; ")}; {plural(page.runCount, "run")}{page.firstDate && page.lastDate ? ` dated ${page.firstDate} to ${page.lastDate}` : ", none dated"}.
+        </p>
+      )}
+      {page.facts.length ? (
+        <dl class="data-facts">
+          {page.facts.map((fact) => <div><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}
+          {fetched ? <div><dt>Retrieved</dt><dd>{fetched}</dd></div> : null}
+        </dl>
+      ) : null}
+      <div class="data-actions">
+        <a class="eco-btn eco-btn-primary" href={page.compareHref}>Open in Compare</a>
+        <a class="eco-btn eco-btn-secondary" href={attribution.sourceUrl} rel="noopener noreferrer">Open the source</a>
+      </div>
+    </header>
+
+    {multi ? (
+      <nav class="data-jump" aria-label="Score groups">
+        <p>Recorded with {page.cohorts.length} different metrics or versions. Each group is ranked on its own and never mixed with the others.</p>
+        <ul>
+          {page.cohorts.map((cohort, index) => <li><a href={`#${cohortId(index)}`}>{cohortTitle(cohort)}</a> <span>{plural(cohort.runs.length, "run")}</span></li>)}
+        </ul>
+      </nav>
+    ) : null}
+
+    {page.cohorts.map((cohort, index) => {
+      const id = cohortId(index);
+      const steps = cohort.steps;
+      return (
+        <section class="bench-cohort" id={id} aria-labelledby={`${id}-heading`}>
+          {multi ? <h2 id={`${id}-heading`} class="bench-cohort-title">{cohortTitle(cohort)}</h2> : <h2 id={`${id}-heading`} class="sr-only">{page.name} results</h2>}
+
+          <section class="data-section" aria-labelledby={`${id}-board`}>
+            <header>
+              <Section id={`${id}-board`}>Best recorded run per model</Section>
+              <p>
+                {formatTick(cohort.scaleMin, cohort.unit)} to {formatTick(cohort.scaleMax, cohort.unit)} on the benchmark's own scale ({unitLabel(cohort.unit, cohort.metric)}), {cohort.higherIsBetter ? "higher is better" : "lower is better"}.
+                {cohort.stderrCoverage === "all" ? " Whiskers span ± one recorded standard error." : cohort.stderrCoverage === "some" ? ` Standard error is recorded for ${cohort.runs.filter((run) => run.stderr !== null).length} of ${cohort.runs.length} runs; rows without one have no whisker.` : " No standard error is recorded for these runs, so no error bars are drawn and close scores may not differ."}
+              </p>
+              {cohort.conditionCount > 1 ? (
+                <p class="data-note">
+                  These runs were recorded under {cohort.conditionCount} different conditions. Each row names its own, and this ordering mixes them, so a gap can reflect the conditions as much as the model.
+                </p>
+              ) : null}
+            </header>
+            <BenchmarkBars cohort={cohort} />
+          </section>
+
+          <section class="data-section" aria-labelledby={`${id}-time`}>
+            <header>
+              <Section id={`${id}-time`}>Best score over time</Section>
+              {steps.drawable ? (
+                <p>
+                  Each run is placed at {dateBasis(cohort)}. The line steps up only when a run beats every earlier one, so a flat line means no new best was recorded. Undated runs left out: {steps.undated}.
+                </p>
+              ) : (
+                <p>
+                  Not drawn. A step line needs at least six dated runs across three dates with two record-setting runs; this group has {plural(steps.dated.length, "dated run")} and {plural(steps.undated, "undated run")}.
+                </p>
+              )}
+            </header>
+            {steps.drawable ? (
+              <figure class="bench-figure compare-explorer">
+                <BestScoreChart cohort={cohort} width={960} height={340} class="bench-chart-wide" titleId={`${id}-time-t`} descId={`${id}-time-d`} />
+                <BestScoreChart cohort={cohort} width={360} height={260} class="bench-chart-narrow" titleId={`${id}-time-tn`} descId={`${id}-time-dn`} />
+                <figcaption>
+                  <details class="bench-records">
+                    <summary>{plural(steps.records.length, "record-setting run")}, as a table</summary>
+                    <div class="bench-table-wrap">
+                      <table class="bench-table">
+                        <thead><tr><th scope="col">Date</th><th scope="col">Model</th><th scope="col" class="num">Score</th></tr></thead>
+                        <tbody>
+                          {[...steps.records].reverse().map((point) => (
+                            <tr><td class="bench-date">{point.date} <small>{point.basis === "release" ? "released" : "evaluated"}</small></td><th scope="row">{point.modelName}</th><td class="num">{formatScore(point.value, cohort.unit)}</td></tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                </figcaption>
+              </figure>
+            ) : null}
+          </section>
+
+          <section class="data-section" aria-labelledby={`${id}-runs`}>
+            <header>
+              <Section id={`${id}-runs`}>Every recorded run</Section>
+              <p>{plural(cohort.runs.length, "run")} from {plural(cohort.leaderboard.length, "model")}, best first. Dates are the model's release date unless marked as an evaluation date.</p>
+            </header>
+            <details class="bench-all-runs" open={cohort.runs.length <= 40}>
+              <summary>Table of {plural(cohort.runs.length, "run")}, sortable by column</summary>
+              <BenchmarkRunsTable cohort={cohort} caption={`Every recorded ${page.name} run${multi ? `, ${cohortTitle(cohort)}` : ""}`} showConditions={cohort.conditionCount > 1 || cohort.runs.some((run) => run.conditions !== null)} />
+            </details>
+          </section>
+        </section>
+      );
+    })}
+
+    <section class="data-section data-sources" aria-labelledby="sources-heading">
+      <header>
+        <h2 id="sources-heading">Source and licence</h2>
+      </header>
+      <ul class="data-source-list">
+        <li>
+          <a href={attribution.sourceUrl} rel="noopener noreferrer">{attribution.sourceName}</a>
+          <span>{page.source === "artificial-analysis" ? "Values for the current Artificial Analysis model list." : "Publisher of the benchmark results."}</span>
+        </li>
+        {attribution.viaName && attribution.viaUrl && attribution.viaName !== attribution.sourceName ? (
+          <li>
+            <a href={attribution.viaUrl} rel="noopener noreferrer">{attribution.viaName}</a>
+            <span>Collected the runs listed here{attribution.license ? `. Licence: ${attribution.license}` : ""}.</span>
+          </li>
+        ) : null}
+      </ul>
+      <p class="data-foot">Contents belong to the named sources. Missing values are not zero. Scores from different benchmarks are not on one scale and are not combined here. <a href={BENCHMARKS_INDEX_PATH}>Every benchmark</a> · <a href="/about">How the data is gathered</a>.</p>
+    </section>
+  </main>
+
+  <Footer />
+  <ScrollToTop />
+</Layout>

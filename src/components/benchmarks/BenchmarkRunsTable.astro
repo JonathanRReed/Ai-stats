@@ -1,0 +1,96 @@
+---
+/**
+ * Every scored run in one cohort. Rendered best first; with JavaScript the column headers sort.
+ */
+import { formatScore, formatStderr, type BenchmarkCohort } from "../../lib/benchmark-pages";
+
+interface Props {
+  cohort: BenchmarkCohort;
+  caption: string;
+  showConditions?: boolean;
+}
+
+const { cohort, caption, showConditions = true } = Astro.props;
+const columns: Array<{ key: string; label: string; numeric: boolean; initial?: "ascending" | "descending" }> = [
+  { key: "model", label: "Model", numeric: false },
+  { key: "lab", label: "Lab", numeric: false },
+  { key: "score", label: "Score", numeric: true, initial: cohort.higherIsBetter ? "descending" : "ascending" },
+  { key: "stderr", label: "Std. error", numeric: true },
+  ...(showConditions ? [{ key: "conditions", label: "Conditions", numeric: false }] : []),
+  { key: "date", label: "Date", numeric: false },
+];
+const host = (url: string) => {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
+};
+const sourceLabel = (name: string | null, url: string | null) => name ?? (url ? host(url) : null);
+---
+
+<div class="bench-table-wrap">
+  <table class="bench-table" data-sortable>
+    <caption class="sr-only">{caption}</caption>
+    <thead>
+      <tr>
+        {columns.map((column) => (
+          <th scope="col" class:list={{ num: column.numeric }} aria-sort={column.initial} data-sort-key={column.key} data-numeric={column.numeric ? "1" : undefined}>
+            <span class="bench-sort-label">{column.label}</span>
+          </th>
+        ))}
+        <th scope="col">Source</th>
+      </tr>
+    </thead>
+    <tbody>
+      {cohort.runs.map((run) => {
+        const date = run.releaseDate ? { value: run.releaseDate.slice(0, 10), basis: "released" } : run.evaluationDate ? { value: run.evaluationDate.slice(0, 10), basis: "evaluated" } : null;
+        const source = sourceLabel(run.sourceName, run.sourceUrl);
+        return (
+          <tr>
+            <th scope="row" data-sort-value={run.modelName.toLowerCase()}>{run.modelPath ? <a href={run.modelPath}>{run.modelName}</a> : run.modelName}</th>
+            <td data-sort-value={(run.lab ?? "").toLowerCase()}>{run.lab ?? <span class="bench-missing">Not recorded</span>}</td>
+            <td class="num" data-sort-value={run.value}>{formatScore(run.value, run.unit)}</td>
+            <td class="num" data-sort-value={run.stderr ?? ""}>{run.stderr === null ? <span class="bench-missing">Not recorded</span> : formatStderr(run.stderr, run.unit)}</td>
+            {showConditions ? <td data-sort-value={run.conditionLabel.toLowerCase()} class:list={{ "bench-missing": run.conditions === null }}>{run.conditionLabel}</td> : null}
+            <td class="bench-date" data-sort-value={date?.value ?? ""}>{date ? <span>{date.value} <small>{date.basis}</small></span> : <span class="bench-missing">Not recorded</span>}</td>
+            <td>{run.sourceUrl ? <a href={run.sourceUrl} rel="noopener noreferrer">{source}</a> : source ?? <span class="bench-missing">Not recorded</span>}</td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+</div>
+
+<script>
+  // Progressive enhancement: headers become sort buttons. Empty values always sort last.
+  const enhance = () => {
+    for (const table of document.querySelectorAll<HTMLTableElement>("table[data-sortable]:not([data-sort-ready])")) {
+      table.dataset.sortReady = "1";
+      const headers = Array.from(table.querySelectorAll<HTMLTableCellElement>("thead th[data-sort-key]"));
+      const body = table.tBodies[0];
+      if (!body) continue;
+      headers.forEach((header, columnIndex) => {
+        const label = header.querySelector(".bench-sort-label");
+        if (!label) return;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "bench-sort";
+        button.append(label);
+        header.append(button);
+        button.addEventListener("click", () => {
+          const ascending = header.getAttribute("aria-sort") !== "ascending";
+          headers.forEach((other) => other.removeAttribute("aria-sort"));
+          header.setAttribute("aria-sort", ascending ? "ascending" : "descending");
+          const numeric = header.dataset.numeric === "1";
+          const value = (row: HTMLTableRowElement) => row.cells[columnIndex]?.dataset.sortValue ?? "";
+          const rows = Array.from(body.rows).sort((a, b) => {
+            const va = value(a), vb = value(b);
+            if (!va || !vb) return va === vb ? 0 : va ? -1 : 1;
+            const order = numeric ? Number(va) - Number(vb) : va.localeCompare(vb);
+            return ascending ? order : -order;
+          });
+          body.append(...rows);
+        });
+      });
+    }
+  };
+  enhance();
+  document.addEventListener("astro:page-load", enhance);
+</script>

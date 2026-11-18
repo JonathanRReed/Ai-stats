@@ -1,0 +1,135 @@
+/* Model page: position chart, alternatives, and the joined receipt sheet. */
+
+.model-section-head h2 { margin: 0; font-size: var(--text-lg); font-weight: 600; color: var(--ink-0); }
+.model-section-head p { margin: var(--space-1) 0 0; max-width: 70ch; color: var(--ink-2); font-size: var(--text-sm); line-height: var(--leading-normal); }
+.model-page .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* Where it sits ------------------------------------------------------ */
+.model-position { display: grid; gap: var(--space-4); min-width: 0; padding-top: var(--space-5); border-top: 1px solid var(--line-0); }
+.position-layout { display: grid; gap: var(--space-6); grid-template-columns: minmax(0, 720px) minmax(0, 1fr); align-items: start; }
+.position-figure { margin: 0; display: grid; gap: var(--space-3); min-width: 0; }
+.position-plot { min-width: 0; }
+.position-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.position-svg-narrow { display: none; }
+.position-dot { fill: var(--ink-3); opacity: .75; }
+.position-frontier { stroke-width: 1.5; }
+.position-family .variant-link { stroke-width: 2; opacity: .9; }
+.position-family-dot { fill: var(--family); stroke: var(--surface-0); stroke-width: 1.5; }
+.position-target-ring { fill: none; stroke: var(--signal); stroke-width: 2.25; }
+.position-target-core { fill: var(--family, var(--ink-0)); stroke: var(--surface-0); stroke-width: 1.5; }
+.position-target .point-label { font-size: 12.5px; }
+.position-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); font-size: var(--text-xs); color: var(--ink-1); }
+.position-legend li { display: inline-flex; align-items: center; gap: var(--space-2); }
+.position-legend svg { flex: none; overflow: visible; }
+.position-figure figcaption { font-size: var(--text-xs); color: var(--ink-2); line-height: var(--leading-relaxed); max-width: 80ch; }
+.position-figure figcaption a { color: var(--ink-1); }
+.position-figure figcaption a:hover { color: var(--signal-text); }
+.position-summary { margin: 0; max-width: 70ch; font-size: var(--text-sm); color: var(--ink-1); line-height: var(--leading-normal); }
+
+.position-beats { display: grid; gap: var(--space-3); align-content: start; min-width: 0; }
+.position-beats h2 { margin: 0; font-size: var(--text-lg); font-weight: 600; color: var(--ink-0); }
+.position-beats > p { margin: 0; font-size: var(--text-sm); color: var(--ink-2); line-height: var(--leading-normal); }
+.position-none { margin: 0; font-size: var(--text-sm); color: var(--ink-1); line-height: var(--leading-normal); }
+
+.position-list { list-style: none; margin: 0; padding: 0; display: grid; border-bottom: 1px solid var(--line-0); }
+.position-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--line-0);
+  font-size: var(--text-sm);
+}
+.position-list a, .position-list li > span:first-child { grid-column: 1; color: var(--ink-0); text-decoration: none; font-weight: 500; overflow-wrap: anywhere; }
+.position-list a { display: inline-flex; align-items: center; min-height: 24px; }
+.position-list a:hover { color: var(--signal-text); text-decoration: underline; text-underline-offset: 3px; }
+.position-diff { grid-column: 1; color: var(--ink-2); font-size: var(--text-xs); }
+.position-values { grid-column: 2; grid-row: 1 / span 2; align-self: center; text-align: right; color: var(--ink-1); font-size: var(--text-xs); white-space: nowrap; }
+
+/* Closest alternatives ------------------------------------------------ */
+.model-alternatives { display: grid; gap: var(--space-4); min-width: 0; }
+.alternatives-grid { display: grid; gap: var(--space-4) var(--space-6); grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); }
+.alternatives-grid > section { display: grid; gap: var(--space-2); align-content: start; min-width: 0; }
+.alternatives-grid h3 { margin: 0; font-size: var(--text-base); font-weight: 600; color: var(--ink-0); }
+.alternatives-rule { margin: 0; font-size: var(--text-xs); color: var(--ink-2); line-height: var(--leading-normal); }
+
+/* Receipt sheet: one hairline-divided column instead of equal cards ------ */
+.model-receipts { display: grid; border-bottom: 1px solid var(--line-0); }
+.receipt-row {
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 1fr);
+  gap: var(--space-2) var(--space-6);
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--line-0);
+  min-width: 0;
+}
+.receipt-row > header { display: grid; gap: var(--space-1); align-content: start; }
+.receipt-row > header h2 { margin: 0; font-size: var(--text-base); font-weight: 600; color: var(--ink-0); }
+.receipt-row > header p { margin: 0; font-size: var(--text-xs); color: var(--ink-2); line-height: var(--leading-relaxed); }
+.receipt-row > :not(header) { min-width: 0; }
+.receipt-body { display: grid; gap: var(--space-3); min-width: 0; }
+.model-receipts .receipt { table-layout: fixed; max-width: 56rem; }
+.model-receipts .receipt col.col-measure { width: 50%; }
+.model-receipts .receipt col.col-value { width: 22%; }
+.model-receipts .receipt col.col-source { width: 28%; }
+.model-receipts .receipt th, .model-receipts .receipt td { padding: var(--space-2) var(--space-3) var(--space-2) 0; overflow-wrap: anywhere; }
+.model-receipts .receipt thead th { padding-top: 0; }
+.model-receipts .receipt .num { text-align: left; }
+.model-receipts .receipt-epoch { table-layout: auto; max-width: none; }
+.model-receipts .receipt tbody th a { color: var(--ink-1); text-decoration: underline; text-decoration-color: var(--line-1); text-underline-offset: 3px; }
+.model-receipts .receipt tbody th a:hover { color: var(--signal-text); text-decoration-color: currentColor; }
+
+.receipt-empty-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); font-size: var(--text-sm); color: var(--ink-1); }
+.receipt-empty-list strong { font-weight: 500; color: var(--ink-0); }
+
+.receipt-missing { display: block; }
+.receipt-missing > summary {
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 1fr);
+  gap: var(--space-2) var(--space-6);
+  list-style: none;
+  cursor: pointer;
+  min-height: 44px;
+  align-items: center;
+}
+.receipt-missing > summary::-webkit-details-marker { display: none; }
+.receipt-missing > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
+.receipt-missing > summary h2 { display: inline-flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-base); font-weight: 600; color: var(--ink-0); }
+.receipt-missing > summary h2::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--ink-2);
+  border-bottom: 1.5px solid var(--ink-2);
+  transform: rotate(-45deg);
+  transition: transform var(--dur-fast) var(--ease-standard);
+}
+.receipt-missing[open] > summary h2::before { transform: rotate(45deg) translate(-2px, -2px); }
+.receipt-missing > summary:hover h2 { color: var(--signal-text); }
+.receipt-missing > summary p { margin: 0; font-size: var(--text-xs); color: var(--ink-2); }
+.receipt-missing .missing-groups { margin-left: calc(17rem + var(--space-6)); display: grid; gap: var(--space-4) var(--space-6); grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); margin-top: var(--space-2); }
+.missing-groups h3 { margin: 0 0 var(--space-1); font-size: var(--text-xs); font-weight: 600; color: var(--ink-1); }
+.missing-groups ul { list-style: none; margin: 0; padding: 0; display: grid; }
+.missing-groups li { display: flex; justify-content: space-between; gap: var(--space-3); padding: 6px 0; border-top: 1px solid var(--line-0); font-size: var(--text-xs); color: var(--ink-1); }
+.missing-groups li span { color: var(--ink-2); white-space: nowrap; }
+
+@media (max-width: 900px) {
+  .receipt-row, .receipt-missing > summary { grid-template-columns: 13rem minmax(0, 1fr); }
+  .receipt-missing .missing-groups { margin-left: calc(13rem + var(--space-6)); }
+}
+@media (max-width: 1100px) {
+  .position-layout { grid-template-columns: minmax(0, 1fr); }
+  .position-plot { max-width: 760px; }
+}
+@media (max-width: 640px) {
+  .position-svg-wide { display: none; }
+  .position-svg-narrow { display: block; }
+  .receipt-row, .receipt-missing > summary { grid-template-columns: minmax(0, 1fr); }
+  .receipt-missing .missing-groups { margin-left: 0; }
+}
+@media (max-width: 900px) {
+  .position-list a { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .receipt-missing > summary h2::before { transition: none; }
+}

@@ -1,0 +1,31 @@
+---
+import { getCohortFreshness } from "../lib/cohort-freshness";
+
+const freshness = await getCohortFreshness();
+const day = (value: string | null) =>
+  value ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(value)) : null;
+---
+{freshness.stale ? (
+  <p class="cohort-notice" role="status">
+    <strong>Newer models are not shown yet.</strong>
+    The list of current models was last published on {day(freshness.listedAt)}. Measurements run through {day(freshness.measuredAt)},
+    so models released in between are missing from rankings, charts and comparisons on this page.
+    <a href="/changes">See what has been released since</a>.
+  </p>
+) : null}
+
+<style>
+  .cohort-notice {
+    margin: 0;
+    padding: var(--space-3) var(--space-4);
+    max-width: none;
+    border-radius: var(--radius-md);
+    background: var(--warn-soft);
+    color: var(--ink-0);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+  }
+  .cohort-notice strong { font-weight: 600; margin-right: var(--space-1); }
+  .cohort-notice a { color: var(--ink-0); text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+  .cohort-notice a:hover { color: var(--signal-text); }
+</style>

@@ -14,7 +14,8 @@ test('passport routes fall back to their exact inventory record only when native
  expect(parseCompareState(params,[native,{...native,id:'duplicate'},inventory]).modelIds).toEqual([]);
 });
 test('cheapest token route includes recorded zero but excludes null and video-only rows',()=>{
- const source=readFileSync('src/components/Dashboard.astro','utf8');
+ // The provider board moved from Dashboard.astro into its own client module.
+ const source=readFileSync('src/components/dashboard/client/openrouter-board.ts','utf8');
  const code=source.slice(source.indexOf('const getBestOpenRouterPriceModel ='),source.indexOf('const renderOpenRouterProviderLeaderboard ='));
  const choose=runInNewContext(code+';getBestOpenRouterPriceModel',{parseFiniteMetricValue:(value:unknown)=>value===null||value===undefined?null:typeof value==='number'?value:null});
  const rows=[{id:'unknown',prompt_price_1m:null,output_modalities:['text']},{id:'paid',prompt_price_1m:1,output_modalities:['text']},{id:'video',prompt_price_1m:0,output_modalities:['video']},{id:'free',prompt_price_1m:0,output_modalities:['text']}];

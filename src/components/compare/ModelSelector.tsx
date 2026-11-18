@@ -3,6 +3,8 @@ import { EXPLORER_SOURCE_LABELS, type ExplorerModel } from '../../lib/compare-se
 import { compareCatalogScope, familySelectionState, groupCompareFamilies, type CompareFamily, type FamilyBrowseSort } from '../../lib/compare-families';
 import { compareFamilyPage } from '../../lib/compare-family-pages';
 import { familyColor } from '../../lib/family-color';
+import { providerIcon } from '../../lib/provider-icons';
+import { reasoningLabel } from '../../lib/compare-family-lines';
 import type { ComparePreset } from '../../lib/compare-presets';
 
 type Props = {
@@ -31,7 +33,7 @@ type Props = {
   onBrowseSort?: (value: FamilyBrowseSort) => void;
 };
 
-const reasoningLevels = ['none', 'low', 'medium', 'high', 'xhigh', 'minimal', 'max', 'unknown'];
+const reasoningLevels = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'unknown'];
 
 export default function ModelSelector({
   models,
@@ -110,6 +112,7 @@ export default function ModelSelector({
     const addingCount = group.records.filter(model => !selectedSet.has(model.id)).length;
     const selectionState = familySelectionState(group);
     const wouldExceedLimit = selectionState !== true && selected.length + addingCount > 100;
+    const mark = providerIcon(group.provider, group.family);
     const nameCounts = new Map<string, number>();
     group.records.forEach(model => nameCounts.set(model.name, (nameCounts.get(model.name) ?? 0) + 1));
 
@@ -125,11 +128,9 @@ export default function ModelSelector({
           data-selected={group.selectedIds.length > 0}
           onClick={() => onToggleFamily(group.records.map(model => model.id), selectionState !== true)}
         >
-          <span
-            className="family-color-dot"
-            style={{ '--family-color': familyColor(group.family) } as React.CSSProperties}
-            aria-hidden="true"
-          />
+          {mark
+            ? <img className={`family-mark${mark.mono ? ' is-mono' : ''}`} src={mark.src} alt="" width="16" height="16" loading="lazy" decoding="async" />
+            : <span className="family-mark family-mark-empty" aria-hidden="true" />}
           <span className="family-row-copy">
             <strong>{group.family}</strong>
             <small>{group.provider} · {EXPLORER_SOURCE_LABELS[group.source]}</small>
@@ -137,6 +138,11 @@ export default function ModelSelector({
           {group.selectedIds.length > 0 && group.selectedIds.length < group.records.length
             ? <span className="family-partial">{group.selectedIds.length}/{group.records.length}</span>
             : null}
+          <span
+            className="family-color-dot"
+            style={{ '--family-color': familyColor(group.family) } as React.CSSProperties}
+            aria-hidden="true"
+          />
         </button>
         {group.records.length > 1
           ? <details className="family-variants">
@@ -157,7 +163,7 @@ export default function ModelSelector({
                     {model.name}
                   </span>
                   <small>
-                    {model.reasoning === 'unknown' ? 'Reasoning not recorded' : model.reasoning}
+                    {model.reasoning === 'unknown' || !model.reasoning ? 'Reasoning not recorded' : reasoningLabel(model.reasoning)}
                     {model.current === false ? ' · Historical' : ''}
                   </small>
                 </label>
@@ -186,6 +192,24 @@ export default function ModelSelector({
           aria-controls={resultsId}
         />
       </label>
+      {hasAa
+        ? <fieldset className="reasoning-filters">
+          <legend>Reasoning levels</legend>
+          <button type="button" aria-pressed={!reasoningEfforts.length} onClick={() => onReasoning('all')}>All</button>
+          {reasoningLevels
+            .filter(level => level !== 'unknown' || searchable.some(model => model.source === 'aa' && (model.reasoning ?? 'unknown') === 'unknown'))
+            .map(level => (
+              <button
+                type="button"
+                key={level}
+                aria-pressed={reasoningEfforts.includes(level)}
+                onClick={() => onReasoning(level)}
+              >
+                {level === 'unknown' ? 'Unlabelled' : reasoningLabel(level)}
+              </button>
+            ))}
+        </fieldset>
+        : null}
       <div className="family-browser-toolbar">
         <label className="family-search-label" htmlFor={`${resultsId}-sort`}>
           Browse order
@@ -200,7 +224,7 @@ export default function ModelSelector({
           </select>
         </label>
         <details className="family-filter-options">
-          <summary>Filters{reasoningEfforts.length ? ` · ${reasoningEfforts.length}` : ''}</summary>
+          <summary>Filters{includeHistory || allCatalog ? ' · on' : ''}</summary>
           <div>
             <label className="family-search-label" htmlFor={`${resultsId}-scope`}>
               Browse records
@@ -213,24 +237,6 @@ export default function ModelSelector({
                 <option value="all">All catalog sources</option>
               </select>
             </label>
-            {hasAa
-              ? <fieldset className="reasoning-filters">
-                <legend>Reasoning levels</legend>
-                <button type="button" aria-pressed={!reasoningEfforts.length} onClick={() => onReasoning('all')}>All</button>
-                {reasoningLevels
-                  .filter(level => level !== 'unknown' || searchable.some(model => model.source === 'aa' && (model.reasoning ?? 'unknown') === 'unknown'))
-                  .map(level => (
-                    <button
-                      type="button"
-                      key={level}
-                      aria-pressed={reasoningEfforts.includes(level)}
-                      onClick={() => onReasoning(level)}
-                    >
-                      {level === 'none' ? 'No reasoning' : level}
-                    </button>
-                  ))}
-              </fieldset>
-              : null}
             <label className="history-toggle">
               <input type="checkbox" checked={includeHistory} onChange={event => onHistory(event.target.checked)} />
               Include historical records

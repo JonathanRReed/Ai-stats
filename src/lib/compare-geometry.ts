@@ -1,8 +1,10 @@
 export type PlotPoint={id:string;x:number;y:number};
+/** A visitor-chosen window in value space; either axis may be left to the data. */
+export type PlotZoom={x?:[number,number];y?:[number,number]};
 export const formatChartNumber=(value:number)=>Math.abs(value)>=1e6||(value!==0&&Math.abs(value)<.001)
   ?value.toExponential(1):new Intl.NumberFormat('en-US',Math.abs(value)<1?{maximumSignificantDigits:4}:{maximumFractionDigits:2}).format(value);
-export function plotGeometry<T extends PlotPoint>(points:T[],kind:'scatter'|'bars',scale:'linear'|'log',width=1000,height=520,topPadding=20,rightPadding=24){
-  const left=70,right=Math.max(left+100,width-rightPadding),top=topPadding,bottom=Math.max(top+100,height-66);
+export function plotGeometry<T extends PlotPoint>(points:T[],kind:'scatter'|'bars',scale:'linear'|'log',width=1000,height=520,topPadding=20,rightPadding=24,leftPadding=70,zoom?:PlotZoom|null){
+  const left=leftPadding,right=Math.max(left+100,width-rightPadding),top=topPadding,bottom=Math.max(top+100,height-66);
   // Nonpositive coordinates never enter log geometry (no epsilon / Number.MIN_VALUE clamp).
   const logX=kind==='scatter'&&scale==='log',logY=kind==='bars'&&scale==='log';
   const finite=points.filter(point=>Number.isFinite(point.x)&&Number.isFinite(point.y)&&(!logX||point.x>0)&&(!logY||point.y>0));
@@ -38,8 +40,15 @@ export function plotGeometry<T extends PlotPoint>(points:T[],kind:'scatter'|'bar
     }
     return [low,high];
   };
-  const xDomain=logX?logDomain(finite.map(point=>point.x)):linearDomain(finite.map(point=>point.x));
-  const yDomain=logY?logDomain(finite.map(point=>point.y)):linearDomain(finite.map(point=>point.y));
+  // A zoom window replaces the data-derived domain. Log windows need a positive, finite, non-empty span.
+  const windowFor=(range:[number,number]|undefined,log:boolean):[number,number]|null=>{
+    if(!range||!range.every(Number.isFinite)||range[0]===range[1])return null;
+    const low=Math.min(...range),high=Math.max(...range);
+    if(!log)return [low,high];
+    return low>0?[Math.log10(low),Math.log10(high)]:null;
+  };
+  const xDomain=windowFor(zoom?.x,logX)??(logX?logDomain(finite.map(point=>point.x)):linearDomain(finite.map(point=>point.x)));
+  const yDomain=windowFor(zoom?.y,logY)??(logY?logDomain(finite.map(point=>point.y)):linearDomain(finite.map(point=>point.y)));
   const fraction=(value:number,[min,max]:[number,number],log:boolean)=>{
     if(log)return (Math.log10(value)-min)/(max-min);
     const magnitude=Math.max(Math.abs(min),Math.abs(max),1);
@@ -77,11 +86,24 @@ export function plotGeometry<T extends PlotPoint>(points:T[],kind:'scatter'|'bar
       return result;
     }
     const values:number[]=[];
-    const step=niceStep(range[1]-range[0]);const count=Math.min(20,Math.round((range[1]-range[0])/step));
-    for(let index=0;index<=count;index++)values.push(Number((range[0]+index*step).toPrecision(12)));
+    const step=niceStep(range[1]-range[0]);
+    // Start on a multiple of the step so a zoom window still gets round tick values.
+    const first=Math.ceil(range[0]/step-1e-9)*step;
+    for(let index=0;index<=20;index++){const value=Number((first+index*step).toPrecision(12));if(value>range[1]+step*1e-9)break;values.push(value);}
     return values.map(value=>({value,label:formatChartNumber(value),position:axis==='x'?px(value):py(value)}));
   };
-  return {width,height,left,right,top,bottom,points:plotted,
+  // Pixel to value, for drag interactions. Clamped to the plot so a drag cannot leave the axis.
+  const valueAt=(pixel:number,start:number,end:number,domain:[number,number],log:boolean)=>{
+    const at=Math.min(1,Math.max(0,(pixel-start)/(end-start)));
+    const raw=domain[0]+at*(domain[1]-domain[0]);
+    return log?10**raw:raw;
+  };
+  return {width,height,left,right,top,bottom,points:plotted,logX,logY,
+    xValueAt:(pixel:number)=>valueAt(pixel,left,right,xDomain,logX),
+    yValueAt:(pixel:number)=>valueAt(pixel,bottom,top,yDomain,logY),
+    xPixel:px,yPixel:py,
+    xRange:(logX?[10**xDomain[0],10**xDomain[1]]:xDomain) as [number,number],
+    yRange:(logY?[10**yDomain[0],10**yDomain[1]]:yDomain) as [number,number],
     xTicks:ticks(xDomain,logX,'x'),
     yTicks:ticks(yDomain,logY,'y'),
     baseline:logY?bottom:py(0)};

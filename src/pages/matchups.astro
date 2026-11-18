@@ -1,0 +1,300 @@
+---
+import CohortNotice from "../components/CohortNotice.astro";
+import { scriptSafeJson } from "../lib/script-json";
+import Layout from "../components/Layout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import ScrollToTop from "../components/ScrollToTop.astro";
+import { getHeadToHeadData } from "../lib/head-to-head-data";
+import { MATCHUP_LAB_POOL, MATCHUP_TOP_FAMILIES, latestObservation, type H2HFamily, type Matchup } from "../lib/head-to-head";
+import { providerIcon } from "../lib/provider-icons";
+import { AUTHOR_REF } from "../lib/author";
+import { SITE_ORIGIN } from "../lib/model-pages";
+import { MATCHUPS_INDEX_PATH } from "../lib/site-routes";
+import "../styles/head-to-head.css";
+
+export const prerender = true;
+
+const { families, matchups, bySlug } = await getHeadToHeadData();
+const ranked = families.filter((family) => family.rank !== null);
+const inMatchups = new Set(matchups.flatMap((m) => [m.a.slug, m.b.slug]));
+const dataDate = latestObservation(ranked.flatMap((family) => family.records));
+const dateLabel = dataDate
+  ? new Intl.DateTimeFormat("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(dataDate))
+  : "Not recorded";
+
+const rankOf = (slug: string) => bySlug.get(slug)?.rank ?? Infinity;
+// Each matchup is listed once: same-lab pairs under their lab, the rest under the better-ranked family.
+const sameLab = matchups.filter((m) => m.a.provider === m.b.provider);
+const crossLab = matchups.filter((m) => m.a.provider !== m.b.provider);
+const leadOf = (m: Matchup) => (rankOf(m.a.slug) <= rankOf(m.b.slug) ? m.a : m.b);
+const otherOf = (m: Matchup) => (leadOf(m) === m.a ? m.b : m.a);
+
+type Cluster = { key: string; title: string; provider: string; family?: H2HFamily; items: Array<{ path: string; label: string; prefix?: string; search: string }> };
+const crossClusters = new Map<string, Cluster>();
+for (const m of crossLab) {
+  const lead = leadOf(m), other = otherOf(m);
+  const cluster = crossClusters.get(lead.slug) ?? { key: lead.slug, title: lead.name, provider: lead.provider, family: bySlug.get(lead.slug), items: [] };
+  cluster.items.push({ path: m.path, prefix: "vs", label: other.name, search: `${lead.name} ${lead.provider} ${other.name} ${other.provider}`.toLowerCase() });
+  crossClusters.set(lead.slug, cluster);
+}
+const labClusters = new Map<string, Cluster>();
+for (const m of sameLab) {
+  const lead = leadOf(m), other = otherOf(m);
+  const cluster = labClusters.get(m.a.provider) ?? { key: m.a.provider, title: m.a.provider, provider: m.a.provider, items: [] };
+  cluster.items.push({ path: m.path, label: `${lead.name} vs ${other.name}`, search: `${lead.name} ${other.name} ${m.a.provider}`.toLowerCase() });
+  labClusters.set(m.a.provider, cluster);
+}
+const byRank = (x: Cluster["items"][number], y: Cluster["items"][number]) => x.label.localeCompare(y.label);
+const crossList = [...crossClusters.values()].sort((x, y) => rankOf(x.key) - rankOf(y.key));
+for (const cluster of crossList) cluster.items.sort((x, y) => {
+  const slugX = matchups.find((m) => m.path === x.path)!, slugY = matchups.find((m) => m.path === y.path)!;
+  return rankOf(otherOf(slugX).slug) - rankOf(otherOf(slugY).slug) || byRank(x, y);
+});
+const labList = [...labClusters.values()].sort((x, y) => y.items.length - x.items.length || x.title.localeCompare(y.title));
+for (const cluster of labList) cluster.items.sort((x, y) => {
+  const mx = matchups.find((m) => m.path === x.path)!, my = matchups.find((m) => m.path === y.path)!;
+  return rankOf(leadOf(mx).slug) - rankOf(leadOf(my).slug) || rankOf(otherOf(mx).slug) - rankOf(otherOf(my).slug);
+});
+
+// Pick-two data: every family with an AA Index, grouped by lab, plus the pages that exist.
+const pickFamilies = [...ranked].sort((x, y) => x.provider.localeCompare(y.provider) || x.name.localeCompare(y.name, "en", { numeric: true }));
+const pickGroups = [...new Set(pickFamilies.map((f) => f.provider))].map((provider) => ({ provider, families: pickFamilies.filter((f) => f.provider === provider) }));
+const pickData = JSON.stringify({
+  families: Object.fromEntries(pickFamilies.map((f) => [f.slug, { s: f.slug, n: f.name, p: f.provider, r: f.rank, ids: f.records.map((r) => r.id) }])),
+  pages: Object.fromEntries(matchups.map((m) => [`${m.a.slug}|${m.b.slug}`, m.path])),
+}).replace(/</g, "\\u003c");
+const defaultA = ranked[0]?.slug, defaultB = ranked[1]?.slug;
+
+const title = "AI model matchups: head-to-head price, speed and AA Index | AI Stats";
+const description = `${matchups.length} head-to-head pages comparing AI model families on Artificial Analysis measurements, level by level: AA Intelligence Index, cost per task, token prices, speed and latency, with sources and dates.`;
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "CollectionPage",
+      "@id": `${SITE_ORIGIN}${MATCHUPS_INDEX_PATH}#collection`,
+      name: "AI model matchups",
+      description,
+      url: `${SITE_ORIGIN}${MATCHUPS_INDEX_PATH}`,
+      creator: AUTHOR_REF,
+      isPartOf: { "@id": `${SITE_ORIGIN}/#website` },
+      ...(dataDate ? { dateModified: dataDate } : {}),
+      hasPart: matchups.slice(0, 50).map((m) => ({ "@type": "WebPage", name: `${m.a.name} vs ${m.b.name}`, url: `${SITE_ORIGIN}${m.path}` })),
+      inLanguage: "en-US",
+    },
+    {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "AI Stats", item: `${SITE_ORIGIN}/` },
+        { "@type": "ListItem", position: 2, name: "Matchups", item: `${SITE_ORIGIN}${MATCHUPS_INDEX_PATH}` },
+      ],
+    },
+  ],
+});
+const mark = (provider: string, family?: string) => providerIcon(provider, family);
+---
+
+<Layout title={title} description={description} dateModified={dataDate ?? undefined}>
+  <Fragment slot="head">
+    <script type="application/ld+json" is:inline set:html={scriptSafeJson(jsonLd)} />
+  </Fragment>
+  <Header currentPage="compare" />
+
+  <main id="main-content" class="eco-container matchups-page">
+    <nav class="h2h-crumbs" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/">AI Stats</a></li>
+        <li aria-current="page">Matchups</li>
+      </ol>
+    </nav>
+
+    <CohortNotice />
+    <header class="matchups-hero">
+      <h1>Matchups</h1>
+      <p>
+        Two model families side by side on Artificial Analysis measurements, compared level by level and only where both have a value.
+        There is a page for every pair among the {MATCHUP_TOP_FAMILIES} families with the highest AA Intelligence Index, and for every
+        pair from the same lab among the top {MATCHUP_LAB_POOL}. For any other pair, use Compare.
+      </p>
+      <dl class="matchups-facts">
+        <div><dt>Matchups</dt><dd>{matchups.length}</dd></div>
+        <div><dt>Families</dt><dd>{inMatchups.size}</dd></div>
+        <div><dt>Data observed</dt><dd>{dateLabel}</dd></div>
+        <div><dt>Source</dt><dd>Artificial Analysis</dd></div>
+      </dl>
+    </header>
+
+    {ranked.length >= 2 ? (
+      <section class="matchups-pick" aria-labelledby="matchups-pick-heading" id="matchups-pick" hidden>
+        <h2 id="matchups-pick-heading" class="sr-only">Pick two families</h2>
+        <form class="matchups-pick-form" id="matchups-pick-form">
+          <label class="matchups-field">
+            <span>First family</span>
+            <select name="a" id="matchups-pick-a">
+              {pickGroups.map((group) => (
+                <optgroup label={group.provider}>
+                  {group.families.map((f) => <option value={f.slug} selected={f.slug === defaultA}>{f.name}</option>)}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+          <span class="matchups-pick-vs" aria-hidden="true">vs</span>
+          <label class="matchups-field">
+            <span>Second family</span>
+            <select name="b" id="matchups-pick-b">
+              {pickGroups.map((group) => (
+                <optgroup label={group.provider}>
+                  {group.families.map((f) => <option value={f.slug} selected={f.slug === defaultB}>{f.name}</option>)}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+          <button type="submit" class="eco-btn eco-btn-primary" id="matchups-pick-go">Open matchup</button>
+        </form>
+        <p class="matchups-pick-status" id="matchups-pick-status" role="status" aria-live="polite"></p>
+        <script is:inline type="application/json" id="matchups-pick-data" set:html={pickData} />
+      </section>
+    ) : null}
+
+    {matchups.length ? (
+      <>
+        <div class="matchups-find" id="matchups-find" hidden>
+          <label class="matchups-field">
+            <span>Find a matchup</span>
+            <input type="search" id="matchups-search" placeholder="Model or lab name" autocomplete="off" spellcheck="false" aria-describedby="matchups-search-status" />
+          </label>
+          <p class="matchups-pick-status" id="matchups-search-status" role="status">{matchups.length} matchups.</p>
+        </div>
+
+        <div class="matchups-groups">
+          <section class="matchups-group" aria-labelledby="matchups-cross-heading" data-group>
+            <h2 id="matchups-cross-heading">Across labs</h2>
+            <p>Listed under the family with the higher AA Intelligence Index. The order describes the index, it does not recommend a model.</p>
+            <div>
+              {crossList.map((cluster) => {
+                const m = mark(cluster.provider, cluster.title);
+                return (
+                  <div class="matchups-cluster" data-cluster>
+                    <h3>
+                      {m ? <img class:list={["h2h-mark", { "is-mono": m.mono }]} src={m.src} alt="" width="16" height="16" loading="lazy" /> : null}
+                      {cluster.title}
+                      {cluster.family?.topIndex != null ? <small>{cluster.family.topIndex.toFixed(1)}</small> : null}
+                    </h3>
+                    <ul class="matchups-list">
+                      {cluster.items.map((item) => <li data-search={item.search}><a href={item.path}><span>vs</span>{item.label}</a></li>)}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {labList.length ? (
+            <section class="matchups-group" aria-labelledby="matchups-lab-heading" data-group>
+              <h2 id="matchups-lab-heading">Within a lab</h2>
+              <p>Families from the same lab, such as a larger and a smaller model, or two generations.</p>
+              <div>
+                {labList.map((cluster) => {
+                  const m = mark(cluster.provider);
+                  return (
+                    <div class="matchups-cluster" data-cluster>
+                      <h3>
+                        {m ? <img class:list={["h2h-mark", { "is-mono": m.mono }]} src={m.src} alt="" width="16" height="16" loading="lazy" /> : null}
+                        {cluster.title}
+                        <small>{cluster.items.length}</small>
+                      </h3>
+                      <ul class="matchups-list">
+                        {cluster.items.map((item) => <li data-search={item.search}><a href={item.path}>{item.label}</a></li>)}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+          <p class="matchups-empty" id="matchups-none" hidden>No matchup matches that search. <a href="/compare">Build any comparison in Compare</a>.</p>
+        </div>
+      </>
+    ) : (
+      <p class="h2h-empty">Matchup data is temporarily unavailable. <a href="/compare">Compare</a> still works.</p>
+    )}
+  </main>
+
+  <script>
+    import { compareHrefForFamilies, type PaletteFamily } from "../lib/head-to-head-search";
+
+    // Pick two: open the matchup page when one exists, otherwise Compare with both selected.
+    const pick = document.getElementById("matchups-pick");
+    const form = document.getElementById("matchups-pick-form") as HTMLFormElement | null;
+    const selectA = document.getElementById("matchups-pick-a") as HTMLSelectElement | null;
+    const selectB = document.getElementById("matchups-pick-b") as HTMLSelectElement | null;
+    const go = document.getElementById("matchups-pick-go") as HTMLButtonElement | null;
+    const pickStatus = document.getElementById("matchups-pick-status");
+    const raw = document.getElementById("matchups-pick-data")?.textContent;
+    if (pick && form && selectA && selectB && go && pickStatus && raw) {
+      try {
+        const data = JSON.parse(raw) as { families: Record<string, PaletteFamily>; pages: Record<string, string> };
+        const target = () => {
+          const a = data.families[selectA.value], b = data.families[selectB.value];
+          if (!a || !b || a.s === b.s) return null;
+          const [x, y] = [a.s, b.s].sort((p, q) => p.localeCompare(q));
+          const page = data.pages[`${x}|${y}`];
+          return page ? { url: page, label: "Open matchup", note: `${a.n} vs ${b.n} has its own page.` }
+            : { url: compareHrefForFamilies(a, b), label: "Open in Compare", note: `No page for this pair yet. Compare will open with both families selected.` };
+        };
+        const update = () => {
+          const next = target();
+          go.disabled = !next;
+          go.textContent = next?.label ?? "Open matchup";
+          pickStatus.textContent = next ? next.note : "Pick two different families.";
+        };
+        selectA.addEventListener("change", update);
+        selectB.addEventListener("change", update);
+        form.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const next = target();
+          if (next) window.location.href = next.url;
+        });
+        pick.hidden = false;
+        update();
+      } catch {
+        pick.hidden = true;
+      }
+    }
+
+    // Search: filter matchup links across both groups.
+    const find = document.getElementById("matchups-find");
+    const input = document.getElementById("matchups-search") as HTMLInputElement | null;
+    const status = document.getElementById("matchups-search-status");
+    const none = document.getElementById("matchups-none");
+    const items = Array.from(document.querySelectorAll<HTMLLIElement>(".matchups-list li[data-search]"));
+    const clusters = Array.from(document.querySelectorAll<HTMLElement>("[data-cluster]"));
+    const groups = Array.from(document.querySelectorAll<HTMLElement>("[data-group]"));
+    if (find && input && status && items.length) {
+      find.hidden = false;
+      const total = items.length;
+      let frame = 0;
+      const apply = () => {
+        const terms = input.value.trim().toLowerCase().split(/\s+/).filter((t) => t && t !== "vs" && t !== "versus");
+        let shown = 0;
+        for (const item of items) {
+          const hit = terms.every((term) => (item.dataset.search ?? "").includes(term));
+          item.hidden = !hit;
+          if (hit) shown += 1;
+        }
+        for (const cluster of clusters) cluster.hidden = !cluster.querySelector("li:not([hidden])");
+        for (const group of groups) group.hidden = !group.querySelector("[data-cluster]:not([hidden])");
+        if (none) none.hidden = shown > 0;
+        status.textContent = terms.length ? `${shown} of ${total} matchups.` : `${total} matchups.`;
+      };
+      input.addEventListener("input", () => {
+        window.cancelAnimationFrame(frame);
+        frame = window.requestAnimationFrame(apply);
+      });
+    }
+  </script>
+
+  <Footer />
+  <ScrollToTop />
+</Layout>

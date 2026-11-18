@@ -3,9 +3,11 @@
 import { afterEach, expect, mock, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { fetchLiveSnapshot } from "../src/lib/live-data";
+import { readDashboardSources } from "../src/lib/dashboard-source-files";
 
 const originalFetch = globalThis.fetch;
-const dashboardSource = readFileSync("src/components/Dashboard.astro", "utf8");
+// Every homepage piece (Dashboard.astro and the files split out of it).
+const dashboardSource = readDashboardSources();
 const compareSource = readFileSync("src/pages/compare.astro", "utf8");
 
 afterEach(() => {

@@ -13,6 +13,8 @@ export type EpochObservation = {
   sourceUrl: string | null;
   fetchedAt: string | null;
   snapshotId: string | null;
+  /** Standard error of the score in the score's own unit, when the publisher records one. */
+  stderr?: number | null;
 };
 export type EpochSelection = {
   modelVersion: string;

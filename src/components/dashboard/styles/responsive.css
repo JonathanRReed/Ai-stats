@@ -1,0 +1,61 @@
+/* Narrow-viewport adjustments for the sections above. */
+
+@media (max-width: 980px) {
+  .openrouter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .telemetry-main {
+    gap: 2.75rem;
+  }
+
+  .leaderboard-controls {
+    width: 100%;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .leaderboard-family-controls{grid-template-columns:1fr}
+  .leaderboard-reasoning{grid-column:auto}
+
+  .leaderboard-controls label {
+    margin-top: 0.25rem;
+  }
+
+  .openrouter-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .openrouter-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .openrouter-actions label {
+    align-self: auto;
+  }
+
+  .openrouter-select-wrap {
+    min-width: 0;
+  }
+
+  .openrouter-header .toolbar-control {
+    width: 100%;
+  }
+
+  .openrouter-stats dl {
+    grid-template-columns: 1fr;
+  }
+
+  .openrouter-table {
+    overflow-x: auto;
+  }
+
+  .openrouter-table-head,
+  .openrouter-provider-row {
+    min-width: 38rem;
+  }
+}

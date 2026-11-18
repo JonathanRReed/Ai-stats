@@ -63,3 +63,13 @@ test('PNG export preserves text halos and dashed Pareto lines',async()=>{
  expect(source).toContain("'stroke-dasharray'");
  expect(source).toContain("'stroke-linejoin'");
 });
+
+test('the source line wraps to the chart width and the chart-only link keeps the comparison',async()=>{
+ const {wrapCaption,chartOnlyUrl}=await import('./compare-export');
+ const lines=wrapCaption('AI Stats · Cost per task · Log scale (USD / AA Index task) · Artificial Analysis · observed 2026-11-18',300);
+ expect(lines.length).toBeGreaterThan(1);
+ expect(lines.join(' ')).toBe('AI Stats · Cost per task · Log scale (USD / AA Index task) · Artificial Analysis · observed 2026-11-18');
+ for(const line of lines)expect(line.length).toBeLessThanOrEqual(39);
+ expect(chartOnlyUrl('https://aistats.example/compare?chart=task-cost&m=a%22b#x')).toBe('https://aistats.example/compare?chart=task-cost&m=a%22b&embed=1');
+ expect(chartOnlyUrl('https://aistats.example/compare?embed=1&budget=2')).toBe('https://aistats.example/compare?embed=1&budget=2');
+});
