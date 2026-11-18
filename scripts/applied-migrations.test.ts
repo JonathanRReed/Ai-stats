@@ -29,7 +29,8 @@ const unreceiptedMigrations=[
  '20261003024932_app_release_publication_timeout.sql',
  '20261003173339_publisher_release_protocol_v2.sql',
  '20261014140000_app_release_schema_v3.sql',
- '20261014150000_app_release_schema_v4_frontier.sql'
+ '20261014150000_app_release_schema_v4_frontier.sql',
+ '20261118210551_source_publication_timeout.sql'
 ];
 test('explicitly accounts for migrations without verified production SQL receipts',()=>{
  const receipted=new Set(receipts.map(receipt=>receipt.version+'_'+receipt.name+'.sql'));
