@@ -1,0 +1,180 @@
+/* Polish layer: one heading scale, hairline sections and quieter toolbars. Sits last so it wins over the rules above. */
+.telemetry-main{--stats-gap:2.5rem;gap:var(--stats-gap)}
+.stats-page-heading h1{font-size:clamp(1.75rem,3vw,2.25rem);letter-spacing:-.025em}
+/* Compact heading: the chart should start in the first viewport. */
+.stats-page-heading{padding-top:1rem}
+.stats-page-heading p{margin-top:.25rem;font-size:var(--text-sm)}
+.stats-nav{gap:1.75rem;border-bottom:1px solid var(--line-0);padding-bottom:0;margin-top:calc(var(--stats-gap) * -1 + .5rem)}
+.stats-nav a{min-height:44px;padding:0;border-radius:0;border-bottom:2px solid transparent;margin-bottom:-1px;color:var(--ink-2);font-size:var(--text-sm);font-weight:500;transition:color var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard)}
+.stats-nav a:hover,.stats-nav a:focus-visible{background:none;color:var(--ink-0);border-bottom-color:var(--ink-3)}
+/* One control size for every homepage section: close to the chart controls on desktop, 44px touch targets at <=900px. */
+.telemetry-main{--home-control-h:36px}
+@media(max-width:900px){.telemetry-main{--home-control-h:44px}}
+.telemetry-main .toolbar-control{min-height:var(--home-control-h);padding:0 .75rem;border-radius:var(--radius-md);background-color:var(--surface-1);color:var(--ink-0);font-size:var(--text-sm);font-weight:400;line-height:1.2}
+.telemetry-main select.toolbar-control{padding-right:2.25rem;justify-content:flex-start;background-position:right .7rem center}
+.telemetry-main input.toolbar-control{justify-content:flex-start}
+.telemetry-main input.toolbar-control::placeholder{color:var(--ink-2);font-weight:400}
+.telemetry-main .toolbar-control:hover{border-color:var(--ink-3)}
+.telemetry-main .toolbar-control:focus-visible{outline:2px solid var(--focus);outline-offset:1px;border-color:var(--line-1);box-shadow:none}
+.telemetry-main .toolbar-control:disabled{opacity:.5;cursor:not-allowed;border-color:var(--line-0)}
+
+/* Benchmarks: heading row, one toolbar row, then a joined hairline list. */
+#leaderboard>.brutalist-card{background:none;border:0;border-radius:0;box-shadow:none}
+.leaderboard-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;padding:0 0 .9rem}
+.leaderboard-head h2{margin:0;font-size:var(--text-lg);font-weight:600;line-height:1.3;color:var(--ink-0)}
+.leaderboard-head p{margin:.2rem 0 0;font-size:var(--text-sm);color:var(--ink-2)}
+.leaderboard-compare-link{display:inline-flex;align-items:center;min-height:var(--home-control-h);color:var(--signal-text);font-size:var(--text-sm);font-weight:500;text-decoration:none;white-space:nowrap}
+.leaderboard-compare-link:hover{text-decoration:underline;text-underline-offset:3px}
+.leaderboard-compare-link[aria-disabled="true"]{color:var(--ink-3);pointer-events:none}
+.leaderboard-controls{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.75rem 1rem;padding:.9rem 0;border-top:1px solid var(--line-0)}
+.leaderboard-field{display:grid;gap:.3rem;min-width:0}
+.leaderboard-field-grow{flex:1 1 16rem}
+.leaderboard-filter-label{font-size:var(--text-xs);font-weight:500;color:var(--ink-2);white-space:nowrap}
+#leaderboard-metric{min-width:14rem;max-width:22rem}
+/* The wrapper only groups the AA-only controls for disabling; its children join the toolbar row. */
+.leaderboard-family-controls{display:contents}
+.leaderboard-family-controls[data-disabled]>*{opacity:.55}
+#leaderboard-family-mode{min-width:9rem}
+.leaderboard-reasoning{display:flex;flex-wrap:wrap;align-items:center;gap:.25rem 1rem;flex:1 1 100%;min-height:var(--home-control-h);margin:0;padding:0;border:0;color:var(--ink-1);font-size:var(--text-sm)}
+.leaderboard-reasoning legend{float:left;margin:0 .25rem 0 0;padding:0}
+.leaderboard-reasoning label{display:inline-flex;align-items:center;gap:.4rem;min-height:28px;text-transform:capitalize;cursor:pointer}
+.leaderboard-reasoning input{accent-color:var(--signal);width:15px;height:15px;margin:0}
+.leaderboard-reasoning:disabled label{cursor:not-allowed}
+.leaderboard-attribution{margin:0;padding:.6rem 0;border-top:1px solid var(--line-0);font-size:var(--text-xs);color:var(--ink-2)}
+#leaderboard-attribution a{color:var(--ink-1);text-decoration-color:var(--line-1)}
+#leaderboard-attribution a:hover{color:var(--ink-0);text-decoration-color:currentColor}
+#leaderboard-panels{padding:0}
+#leaderboard-panels>[data-metric]{border:0;border-top:1px solid var(--line-0);overflow:hidden}
+#leaderboard-panels>[data-metric]>ul{border-color:var(--line-0)}
+#leaderboard-panels>[data-metric]>ul>li+li{border-top:1px solid var(--line-0)}
+#leaderboard-panels>[data-metric]>div{padding:.6rem 0;border-top:1px solid var(--line-0);color:var(--ink-2);font-size:var(--text-xs)}
+#leaderboard-panels [data-leaderboard-more],#leaderboard-panels [data-leaderboard-less]{display:inline-flex;align-items:center;min-height:32px;color:var(--ink-1);font-size:var(--text-sm);text-decoration-color:var(--line-1)}
+#leaderboard-panels [data-leaderboard-more]:hover,#leaderboard-panels [data-leaderboard-less]:hover{color:var(--ink-0);text-decoration-color:currentColor}
+#leaderboard .lbi:hover{background:var(--surface-1)}
+#leaderboard .lbr{grid-template-columns:2rem minmax(0,1fr) auto;gap:.75rem;padding:.7rem .25rem .7rem 0}
+#leaderboard .lrn{width:auto;height:auto;border:0;background:none;color:var(--ink-2);font-family:var(--font-mono);font-size:var(--text-sm);font-weight:500;font-variant-numeric:tabular-nums}
+#leaderboard .lrn1{color:var(--ink-0)}
+#leaderboard .lbn{font-size:var(--text-sm);font-weight:500;color:var(--ink-0)}
+#leaderboard .lbc{margin-top:.15rem;font-size:var(--text-xs);color:var(--ink-2)}
+#leaderboard .lbs{font-size:var(--text-base);font-weight:500;color:var(--ink-1)}
+#leaderboard .lbs.score-high{color:var(--ink-0)}
+#leaderboard .lbb{border-left:0;background:var(--surface-1)}
+#leaderboard .lbb1{background:var(--surface-2)}
+#leaderboard .lbi:hover .lbb{filter:none}
+#leaderboard .lr:focus-visible{box-shadow:inset 0 0 0 2px var(--focus)}
+.leaderboard-variants{padding:0 0 .6rem 2.75rem;font-size:var(--text-xs);color:var(--ink-2)}
+.leaderboard-variants summary{display:inline-flex;align-items:center;gap:.35rem;min-height:28px;text-decoration:none;color:var(--ink-2)}
+.leaderboard-variants summary:hover{color:var(--ink-0)}
+.leaderboard-variants a{padding:.2rem 0;color:var(--ink-1);text-decoration:none}
+.leaderboard-variants a:hover{color:var(--ink-0)}
+.leaderboard-variants a span{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+@media(max-width:640px){
+ .leaderboard-head{align-items:flex-start}
+ #leaderboard-metric,.leaderboard-field{width:100%;max-width:none}
+ .leaderboard-field-grow{flex-basis:100%}
+ .leaderboard-variants{padding-left:2.75rem}
+}
+
+.telemetry-main .usage-module{margin:0;padding:var(--stats-gap) 0 0;border-top:1px solid var(--line-0)}
+.telemetry-main .usage-heading h2,.telemetry-main .usage-unavailable h2{font-size:var(--text-lg);font-weight:600;letter-spacing:-.01em}
+.stats-disclosure{border:0;border-top:1px solid var(--line-0);border-radius:0;background:none}
+.stats-disclosure+.stats-disclosure{margin-top:calc(var(--stats-gap) * -1)}
+.stats-disclosure:last-of-type{border-bottom:1px solid var(--line-0)}
+.stats-disclosure>summary{display:flex;align-items:baseline;gap:.25rem 1rem;flex-wrap:wrap;min-height:60px;padding:1.1rem 2rem 1.1rem 0;position:relative;list-style:none;font-size:var(--text-base);font-weight:600}
+.stats-disclosure>summary::-webkit-details-marker{display:none}
+.stats-disclosure>summary small{color:var(--ink-2);font-size:var(--text-sm);font-weight:400}
+.stats-disclosure>summary::after{content:"";position:absolute;right:.35rem;top:50%;width:8px;height:8px;margin-top:-6px;border-right:1.5px solid var(--ink-2);border-bottom:1.5px solid var(--ink-2);transform:rotate(45deg);transition:transform var(--dur-base) var(--ease-standard)}
+.stats-disclosure[open]>summary::after{transform:rotate(-135deg);margin-top:-2px}
+.stats-disclosure>summary:hover::after{border-color:var(--ink-0)}
+.stats-disclosure[open]>summary{border-bottom:0}
+.stats-disclosure-content{padding:.25rem 0 1.75rem}
+@media(max-width:600px){.stats-nav{gap:1.1rem;margin-top:calc(var(--stats-gap) * -1 + .5rem)}.stats-disclosure>summary small{flex-basis:100%}}
+@media(prefers-reduced-motion:reduce){.stats-disclosure>summary::after,.stats-nav a{transition:none}}
+
+/* One quiet disclosure style for every small in-section <summary>: sans, text-sm, a chevron instead of the native triangle. */
+.telemetry-main :is(.usage-settings details,.usage-data,.leaderboard-variants,.latest-models-header details,.dashboard-definition,.catalog-coverage)>summary{display:inline-flex;align-items:center;gap:.5rem;min-height:32px;padding:0;list-style:none;cursor:pointer;font-family:var(--font-sans);font-size:var(--text-sm);font-weight:500;color:var(--ink-1);text-decoration:none}
+.telemetry-main :is(.usage-settings details,.usage-data,.leaderboard-variants,.latest-models-header details,.dashboard-definition,.catalog-coverage)>summary::-webkit-details-marker{display:none}
+.telemetry-main :is(.usage-settings details,.usage-data,.leaderboard-variants,.latest-models-header details,.dashboard-definition,.catalog-coverage)>summary::before{content:"";flex:none;width:6px;height:6px;margin:0 .1rem 0 .15rem;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform var(--dur-fast) var(--ease-standard)}
+.telemetry-main :is(.usage-settings details,.usage-data,.leaderboard-variants,.latest-models-header details,.dashboard-definition,.catalog-coverage)[open]>summary::before{transform:rotate(45deg)}
+.telemetry-main :is(.usage-settings details,.usage-data,.leaderboard-variants,.latest-models-header details,.dashboard-definition,.catalog-coverage)>summary:hover{color:var(--ink-0)}
+.telemetry-main :is(.leaderboard-variants,.latest-models-header details)>summary{font-size:var(--text-xs);color:var(--ink-2)}
+@media(max-width:900px){.telemetry-main :is(.usage-settings details,.usage-data,.leaderboard-variants,.latest-models-header details,.dashboard-definition,.catalog-coverage)>summary{min-height:44px}}
+@media(prefers-reduced-motion:reduce){.telemetry-main details>summary::before{transition:none}}
+.dashboard-definition{margin:0;max-width:70ch;font-size:var(--text-sm);color:var(--ink-1)}
+.dashboard-definition>p{margin:.35rem 0 0;line-height:1.55}
+
+/* Browse all models: hairline toolbar, flat panels inside each card, neutral score text. */
+#model-browser>header h2{font-size:var(--text-lg);font-weight:600}
+#model-browser>header p{font-size:var(--text-sm);color:var(--ink-2)}
+#model-browser>header a{color:var(--ink-1);text-decoration-color:var(--line-1)}
+#model-browser>header a:hover{color:var(--ink-0);text-decoration-color:currentColor}
+#visible-model-count,#total-models-count{font-family:var(--font-mono);font-variant-numeric:tabular-nums;color:var(--ink-1)}
+#model-toolbar{padding:.75rem 0;border:0;border-top:1px solid var(--line-0);border-bottom:1px solid var(--line-0);border-radius:0;background:var(--surface-0)}
+@media(min-width:768px){#model-toolbar{align-items:flex-end}}
+#model-toolbar .view-toggle{align-self:flex-start;width:max-content}
+@media(min-width:640px){#model-toolbar .view-toggle{align-self:flex-end}}
+#model-toolbar.is-stuck{background:var(--surface-0);border-bottom-color:var(--line-1);box-shadow:none}
+#model-toolbar label{font-size:var(--text-xs);font-weight:500;color:var(--ink-2)}
+#model-toolbar .view-toggle{padding:0;gap:0;border:1px solid var(--line-1);border-radius:var(--radius-md);background:var(--surface-1);overflow:hidden}
+#model-toolbar .view-toggle-btn{min-width:var(--home-control-h);min-height:calc(var(--home-control-h) - 2px);border:0;border-radius:0;padding:0}
+#model-toolbar .view-toggle-btn+.view-toggle-btn{border-left:1px solid var(--line-1)}
+#model-toolbar .view-toggle-btn:hover{background:var(--surface-2);color:var(--ink-0)}
+#model-toolbar .view-toggle-btn.active{background:var(--surface-3);color:var(--ink-0)}
+#model-toolbar .view-toggle-btn:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+#model-browser .model-card{border-color:var(--line-0);background:var(--surface-1);border-radius:var(--radius-md)}
+#model-browser .model-card:hover,#model-browser .model-card:focus-visible{border-color:var(--line-1);background:var(--surface-2)}
+#model-browser :is(.mcp,.mcp2,.card-metric-panel){border:0;border-top:1px solid var(--line-0);border-radius:0;background:none;padding:.6rem 0 0}
+#model-browser :is(.score-high,.score-mid,.score-low,.score-poor){color:var(--ink-0)}
+#model-browser .score-none{color:var(--ink-2)}
+#models-table-container{border:0;border-top:1px solid var(--line-0);border-bottom:1px solid var(--line-0);border-radius:0;background:none}
+#models-table-container thead{background:none;border-bottom-color:var(--line-1);color:var(--ink-2)}
+#models-table-container th{font-weight:500}
+#models-table-container td{font-variant-numeric:tabular-nums}
+#models-table-container tbody tr:hover{background:var(--surface-1)}
+#model-browser .empty-state{border:0;border-top:1px solid var(--line-0);border-bottom:1px solid var(--line-0);border-radius:0;background:none;padding:3rem 1rem}
+#model-browser .brutalist-button.secondary{min-height:var(--home-control-h);font-size:var(--text-sm)}
+#model-browser-load-status{color:var(--ink-2)}
+
+/* Sources and coverage: the public catalog panel joins the disclosure's hairline flow instead of a boxed card. */
+#stats-sources .stats-disclosure-content{gap:2rem}
+.openrouter-panel{border:0;border-radius:0;background:none;overflow:visible}
+.openrouter-header{padding:0 0 .9rem;border-bottom:1px solid var(--line-0)}
+.openrouter-header h2{margin:0;font-size:var(--text-base);font-weight:600;line-height:1.3}
+.openrouter-actions{align-items:center;gap:.6rem}
+.openrouter-actions label{font-size:var(--text-xs);font-weight:500;color:var(--ink-2)}
+.openrouter-select-wrap{min-width:min(14rem,42vw)}
+.openrouter-select-wrap::after{width:.4rem;height:.4rem;border-width:0 1.5px 1.5px 0;border-color:var(--ink-2)}
+.openrouter-rank-select{min-height:var(--home-control-h);background:var(--surface-1);font-weight:400}
+.openrouter-grid{background:var(--line-0);border-bottom:1px solid var(--line-0)}
+.openrouter-stats,.openrouter-table,.openrouter-long-context{background:var(--surface-0);padding:1rem 1.25rem}
+.openrouter-stats{padding-left:0}
+.openrouter-long-context{padding-right:0}
+.openrouter-stats dl{background:var(--line-0);border:0;border-top:1px solid var(--line-0);border-bottom:1px solid var(--line-0)}
+.openrouter-stats dl>div{background:var(--surface-0);padding:.7rem .75rem .7rem 0}
+.openrouter-stats dl>div:nth-child(even){padding-left:.75rem}
+.openrouter-stats dl>div:hover{background:var(--surface-0)}
+.openrouter-stats dd{font-size:var(--text-lg);font-variant-numeric:tabular-nums}
+.openrouter-stats p{color:var(--ink-2)}
+.openrouter-table-meta span{font-size:var(--text-sm);font-weight:600;color:var(--ink-0)}
+.openrouter-provider-row{font-size:var(--text-xs);color:var(--ink-1)}
+.openrouter-provider-row:hover,.openrouter-provider-row:focus-visible{background:var(--surface-1);color:var(--ink-0)}
+.openrouter-model{font-weight:500;color:var(--ink-0)}
+.openrouter-score{color:var(--ink-0);font-weight:500;font-variant-numeric:tabular-nums}
+.openrouter-provider-row>span:nth-child(n+4){font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.openrouter-long-context strong{font-size:var(--text-base);font-weight:600;color:var(--ink-0)}
+.openrouter-long-context>span:not(.console-label){color:var(--ink-1);font-size:var(--text-sm);font-weight:500;text-transform:none}
+.openrouter-long-context .console-label{font-size:var(--text-xs);color:var(--ink-2)}
+@media(max-width:980px){.openrouter-stats,.openrouter-table,.openrouter-long-context{padding-inline:0}}
+
+/* AA index readouts inside a card are plain label and value, not a box inside a box; magnitude is not colour-coded. */
+#model-browser .mdl4>div{border:0;background:none;padding:.15rem 0;text-align:left}
+#model-browser .mdl4>div>div:last-child{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-weight:500;color:var(--ink-0)}
+#model-toolbar .sort-direction-wrap>.toolbar-control{padding-left:2.4rem}
+#model-sort{min-width:13.5rem}
+#model-sort-direction{min-width:11.75rem}
+/* Same flattening for the client-rendered cards, whose index grid uses utility classes. */
+#model-browser .card-metric-panel>.grid-cols-3{text-align:left}
+#model-browser .card-metric-panel>.grid-cols-3>div{border:0;background:none;padding:.15rem 0}
+#model-browser .card-metric-panel>.grid-cols-3>div>div:last-child{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-weight:500}
+/* The sort pair needs more than its utility max-width once labels are not truncated. */
+@media(min-width:768px){#model-toolbar .w-full:has(#model-sort){width:auto;max-width:none}}

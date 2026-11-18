@@ -37,6 +37,8 @@ const scoreMetric=(value:string|null):string|null=>{
   if(!value||value.length>1024)return null;
   try{const parsed=JSON.parse(value);return Array.isArray(parsed)&&(parsed.length===2||parsed.length===3)&&parsed.every(item=>typeof item==='string'&&item.length<=512)?JSON.stringify(parsed):null;}catch{return null;}
 };
+/** Cost spans orders of magnitude, so cost axes open on Log; an explicit scale in a link always wins. */
+const LOG_DEFAULT_CHARTS=new Set<string>(['cost-intelligence','task-cost','total-cost']);
 export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogEntry[],defaults:string[]=[],defaultChart:CompareChart='cost-intelligence'):CompareState {
   const metric=params.get('metric')??'aa_intelligence_index';
   const metricId=(Object.hasOwn(AA_METRIC_LABELS,metric)||/^epoch_[a-z0-9_-]+$/.test(metric))?metric:'aa_intelligence_index';
@@ -82,7 +84,7 @@ export function parseCompareState(params:URLSearchParams,catalog:CompareCatalogE
     modelIds:unique([...(unresolvedSource?[]:selected.filter(id=>ids.has(id)&&!stillMissing.includes(id))),...recovered]), missingModelIds:unique([...stillMissing,...(unresolvedSource?selected:selected.filter(id=>!ids.has(id)))]),
     reasoningEfforts:unique(params.getAll('reason').filter(value=>REASONING.has(value))).sort(),
     metricId,scoreMetricKey:scoreMetric(params.get('score_metric')),conditionKey:condition(params.get('condition')),
-    scale:params.has('scale')?(params.get('scale')==='log'?'log':'linear'):(normalizedChart==='cost-intelligence'?'log':'linear'),labels:params.has('labels')?params.get('labels')==='1':true,
+    scale:params.has('scale')?(params.get('scale')==='log'?'log':'linear'):(LOG_DEFAULT_CHARTS.has(normalizedChart)?'log':'linear'),labels:params.has('labels')?params.get('labels')==='1':true,
     frontier:params.get('frontier')!=='0',includeHistory:params.get('history')==='1',
   };
 }

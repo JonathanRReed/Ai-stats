@@ -3,6 +3,7 @@ import { logOmissions, logOmissionHeading, plottableSeriesPoints, type ExplorerM
 import { buildOverviewSeries, overviewSuggestions, defaultOverviewMetric, overviewCohorts, overviewObservationDate, retainAvailableProvider, UNKNOWN_VERSION, type OverviewMetric } from '../../lib/overview-series';
 import ComparisonChart, { familyColor } from './ComparisonChart';
 import ObservationDetails from './ObservationDetails';
+import { expandSelectionToFamilies } from '../../lib/compare-family-lines';
 
 import '../../styles/compare-explorer.css';
 import '../../styles/overview-explorer.css';
@@ -29,7 +30,9 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
   const [activeId, setActiveId] = useState<string|null>(null);
   const [pinned, setPinned] = useState<string|null>(null);
   const svg = useRef<SVGSVGElement>(null);
-  const suggestionIds=(selectedMetric:OverviewMetric,selectedCohort:string)=>overviewSuggestions(models,selectedMetric,selectedCohort,provider);
+  // Same rule as Compare: the Pareto line plus every reasoning level of the families on it.
+  const suggestionsFor=(selectedMetric:OverviewMetric,selectedCohort:string,selectedProvider:string)=>expandSelectionToFamilies(models,overviewSuggestions(models,selectedMetric,selectedCohort,selectedProvider));
+  const suggestionIds=(selectedMetric:OverviewMetric,selectedCohort:string)=>suggestionsFor(selectedMetric,selectedCohort,provider);
 
   const cohortRows = useMemo(() => models.filter(model => model.source === 'aa' && model.current === true &&
     (cohort === UNKNOWN_VERSION ? !model.indexVersion || !/^\d+(?:\.\d+)*$/.test(model.indexVersion) : model.indexVersion === cohort)), [models,cohort]);
@@ -53,31 +56,58 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
   const costAvailable = cohort !== UNKNOWN_VERSION && buildOverviewSeries(models,'task-cost',cohort).points.length>0;
   const comparisonUrl = (id:string) => `/compare?${new URLSearchParams({chart:metric,m:id,metric:'aa_intelligence_index',scale:series.scale}).toString()}`;
 
+  const chooseMetric=(next:OverviewMetric)=>{setMetric(next);if(!customSelection.current)setSelectedIds(suggestionIds(next,cohort));setActiveId(null);setPinned(null);};
   return <section className="overview-explorer compare-explorer" aria-label="AA Intelligence Index cost comparison">
     <header className="overview-chart-heading">
-      <div><h2>Cost and Intelligence Index</h2></div>
+      <div className="chart-heading"><h2>Cost and Intelligence Index</h2>
+        <p className="overview-axis-definition">X: {series.xLabel} · Y: AA Intelligence Index</p></div>
+      <div className="chart-controls" aria-label="Overview chart controls">
+        <fieldset className="overview-metric-switch scale-buttons"><legend>Horizontal axis</legend>
+          <button type="button" aria-pressed={metric==='task-cost'} disabled={!costAvailable} onClick={()=>chooseMetric('task-cost')}>Cost per task</button>
+          <button type="button" aria-pressed={metric==='cost-intelligence'} onClick={()=>chooseMetric('cost-intelligence')}>Token price</button>
+        </fieldset>
+        <div className="overview-scale scale-buttons" role="group" aria-label="Horizontal axis scale">
+          <button type="button" aria-pressed={series.scale==='linear'} onClick={()=>setScale('linear')}>Linear</button>
+          <button type="button" aria-pressed={series.scale==='log'} onClick={()=>setScale('log')}>Log</button>
+        </div>
+        <button type="button" className="toggle-check pareto-toggle" aria-pressed={showPareto} onClick={()=>setShowPareto(!showPareto)}>Pareto line</button>
+        <button type="button" className="toggle-check" aria-pressed={showLabels} onClick={()=>setShowLabels(!showLabels)}>Labels</button>
+      </div>
     </header>
-    <div className="overview-chart-controls" aria-label="Overview chart controls">
-      <fieldset className="overview-metric-switch"><legend>Horizontal axis</legend>
-        <button type="button" aria-pressed={metric==='task-cost'} disabled={!costAvailable} onClick={()=>{setMetric('task-cost');if(!customSelection.current)setSelectedIds(suggestionIds('task-cost',cohort));setActiveId(null);setPinned(null);}}>Cost per task</button>
-        <button type="button" aria-pressed={metric==='cost-intelligence'} onClick={()=>{setMetric('cost-intelligence');if(!customSelection.current)setSelectedIds(suggestionIds('cost-intelligence',cohort));setActiveId(null);setPinned(null);}}>Token price vs Intelligence</button>
-      </fieldset>
-      <button type="button" onClick={()=>{customSelection.current=false;setSelectedIds(suggestionIds(metric,cohort));setShowAllMeasured(false);}}>Suggested models</button>
+    {omitted.length?<div className="explorer-warning" role="status"><p>{logOmissionHeading(omitted,series.xLabel)}:</p>
+      <ul className="omitted-log-list" aria-label="Records not plotted on Log">{omitted.slice(0,12).map(item=><li key={item.id}>{item.label}: {item.valueLabel}</li>)}</ul>
+      {omitted.length>12?<p>{omitted.length-12} more are listed in the exact chart data.</p>:null}
+      <button type="button" className="scale-notice-action" onClick={()=>setScale('linear')}>Show all on Linear</button></div>:null}
+    <div className="overview-chart-wrap">
+      <ComparisonChart series={visibleSeries} labels={showLabels} endpointLane compact activeId={active?.id??null} onPreview={setActiveId}
+        onPin={id=>setPinned(pinned===id?null:id)} svgRef={svg} onShowLinear={()=>setScale('linear')}/>
+      <aside className="overview-family-key" aria-label="Visible model families">
+        {visibleFamilies.map(family=><span key={family} title={family}><i style={{background:familyColor(family)}}/>{family}</span>)}
+        {!visibleFamilies.length?<p>{frontierFiltered.length&&series.scale==='log'?'None of these records can be drawn on Log.':'No points match this cohort and metric.'}</p>:null}
+      </aside>
+      <ObservationDetails series={series} point={active} pinned={Boolean(pinned)} onPin={()=>setPinned(pinned?null:active?.id??null)} onClose={()=>{setPinned(null);setActiveId(null);}}/>
+    </div>
+    <div className="overview-footer">
+      <p className="overview-plot-status" aria-live="polite">{visiblePoints.length} of {plottable.length} plotted points · {cohortRows.length} records in this version.{omitted.length?` ${omitted.length} measured ${omitted.length===1?'record is':'records are'} not plotted on Log.`:''}</p>
+      <a className="overview-open-compare" href={`/compare?${new URLSearchParams({chart:metric}).toString()}`}>Open in Compare</a>
+    </div>
+    <div className="overview-chart-controls" aria-label="Overview chart filters">
       <label>AA Index version<select value={cohort} onChange={event=>{setCohort(event.target.value);if(!customSelection.current)setSelectedIds(suggestionIds(metric,event.target.value));setActiveId(null);setPinned(null);}}>
         {!cohorts.length?<option value={UNKNOWN_VERSION}>No recorded version</option>:null}
         {cohorts.map(version=><option key={version} value={version}>{version===UNKNOWN_VERSION?'Unknown version':version}</option>)}
       </select></label>
-      <label>Provider<select value={provider} onChange={event=>{setProvider(event.target.value);if(!customSelection.current)setSelectedIds(overviewSuggestions(models,metric,cohort,event.target.value));setPinned(null);setActiveId(null);}}><option value="">All providers</option>
+      <label>Provider<select value={provider} onChange={event=>{setProvider(event.target.value);if(!customSelection.current)setSelectedIds(suggestionsFor(metric,cohort,event.target.value));setPinned(null);setActiveId(null);}}><option value="">All providers</option>
         {provider&&!providers.includes(provider)?<option value={provider}>Unavailable: {provider}</option>:null}{providers.map(value=><option key={value}>{value}</option>)}</select></label>
-      <div className="overview-scale" role="group" aria-label="Horizontal axis scale">
-        <button type="button" aria-pressed={series.scale==='linear'} onClick={()=>setScale('linear')}>Linear</button>
-        <button type="button" aria-pressed={series.scale==='log'} onClick={()=>setScale('log')}>Log</button>
-      </div>
-      <button type="button" className="pareto-toggle" aria-label="Pareto line" aria-pressed={showPareto} onClick={()=>setShowPareto(!showPareto)}>Pareto line <span aria-hidden="true">{showPareto?'On':'Off'}</span></button>
-      <button type="button" aria-pressed={showLabels} onClick={()=>setShowLabels(!showLabels)}>Labels</button>
       <label className="overview-check"><input type="checkbox" checked={frontierOnly} onChange={event=>setFrontierOnly(event.target.checked)}/>Show Pareto models only</label>
+      <label className="overview-check"><input type="checkbox" checked={showAllMeasured} onChange={event=>setShowAllMeasured(event.target.checked)}/>Show all measured models</label>
+      <button type="button" onClick={()=>{customSelection.current=false;setSelectedIds(suggestionIds(metric,cohort));setShowAllMeasured(false);}}>Suggested models</button>
     </div>
-    <p className="overview-axis-definition">X: {series.xLabel} · Y: AA Intelligence Index</p>
+    <details className="overview-model-picker"><summary>Search, add, or remove models ({selectedIds.length} selected)</summary>
+      <label>Find a model<input type="search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search full model name"/></label>
+      <ul>{matchingRows.slice(0,40).map(model=><li key={model.id}><label><input type="checkbox" checked={selectedIds.includes(model.id)} onChange={()=>{customSelection.current=true;setSelectedIds(old=>old.includes(model.id)?old.filter(id=>id!==model.id):[...old,model.id]);setShowAllMeasured(false);}}/>{model.name} · {model.provider??'Unknown provider'}</label></li>)}</ul>
+      {!matchingRows.length?<p>No matching models.</p>:null}
+      {matchingRows.length>40?<p>Showing first 40 matches. Narrow the search to find a specific record.</p>:null}
+    </details>
     {metric==='task-cost'?<details className="overview-methodology"><summary>How AA task cost is measured</summary>
       <p>AA reports a weighted average across its Intelligence Index evaluation tasks. Its cost includes the measured input, cache, reasoning, and answer-token charges for those evaluations. This is a benchmark methodology measure, not a prediction of what every real-world prompt will cost.</p>
     </details>:<p className="overview-methodology-note">Token prices use the recorded 3:1 input/output blend. Zero is a measured price when the source reports it.</p>}
@@ -86,32 +116,6 @@ export default function OverviewExplorer({ models,suggestions }: Props) {
       <div><dt>Plotted for these axes</dt><dd>{plottable.length.toLocaleString('en-US')}</dd></div>
       <div><dt>Latest source observation</dt><dd>{dateLabel(overviewObservationDate(cohortRows,cohort))}</dd></div>
     </dl>
-    <p className="overview-plot-status" aria-live="polite">{visiblePoints.length} of {plottable.length} plotted points · {cohortRows.length} records in this version.{omitted.length?` ${omitted.length} measured ${omitted.length===1?'record is':'records are'} not plotted on Log.`:''}</p>
-    <label className="overview-all-measured"><input type="checkbox" checked={showAllMeasured} onChange={event=>setShowAllMeasured(event.target.checked)}/>Show all measured models</label>
-    <details className="overview-model-picker"><summary>Search, add, or remove models ({selectedIds.length} selected)</summary>
-      <label>Find a model<input type="search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search full model name"/></label>
-      <ul>{matchingRows.slice(0,40).map(model=><li key={model.id}><label><input type="checkbox" checked={selectedIds.includes(model.id)} onChange={()=>{customSelection.current=true;setSelectedIds(old=>old.includes(model.id)?old.filter(id=>id!==model.id):[...old,model.id]);setShowAllMeasured(false);}}/>{model.name} · {model.provider??'Unknown provider'}</label></li>)}</ul>
-      {!matchingRows.length?<p>No matching models.</p>:null}
-      {matchingRows.length>40?<p>Showing first 40 matches. Narrow the search to find a specific record.</p>:null}
-    </details>
-    {omitted.length?<div className="explorer-warning" role="status"><p>{logOmissionHeading(omitted,series.xLabel)}:</p>
-      <ul className="omitted-log-list" aria-label="Records not plotted on Log">{omitted.slice(0,12).map(item=><li key={item.id}>{item.label}: {item.valueLabel}</li>)}</ul>
-      {omitted.length>12?<p>{omitted.length-12} more are listed in the exact chart data.</p>:null}
-      <button type="button" className="scale-notice-action" onClick={()=>setScale('linear')}>Show all on Linear</button></div>:null}
-    <div className="overview-chart-layout">
-      <div className="overview-chart-wrap">
-        <ComparisonChart series={visibleSeries} labels={showLabels} endpointLane activeId={active?.id??null} onPreview={setActiveId}
-          onPin={id=>setPinned(pinned===id?null:id)} svgRef={svg} onShowLinear={()=>setScale('linear')}/>
-        <p className="overview-inspect-hint">Select a point for its model, measurements, and source. Arrow keys move between points.</p>
-        <ObservationDetails series={series} point={active} pinned={Boolean(pinned)} onPin={()=>setPinned(pinned?null:active?.id??null)} onClose={()=>{setPinned(null);setActiveId(null);}}/>
-      </div>
-      <aside className="overview-family-key" aria-label="Visible model families">
-        <h3>Families</h3>
-        {visibleFamilies.slice(0,12).map(family=><span key={family} title={family}><i style={{background:familyColor(family)}}/>{family}</span>)}
-        {!visibleFamilies.length?<p>{frontierFiltered.length&&series.scale==='log'?'None of these records can be drawn on Log.':'No points match this cohort and metric.'}</p>:null}
-        {visibleFamilies.length>12?<p>{visibleFamilies.length-12} more appear in the exact data table.</p>:null}
-      </aside>
-    </div>
     {series.excluded.length?<details className="overview-excluded"><summary>{series.excluded.length.toLocaleString('en-US')} cohort records not plotted</summary>
       <ul>{series.excluded.map(item=><li key={item.modelId}>{models.find(model=>model.id===item.modelId)?.name??item.modelId}: {item.reason}</li>)}</ul>
     </details>:null}

@@ -1,0 +1,187 @@
+---
+import {formatIndex,formatScore} from "../../lib/format-utils";
+import {leaderboardBarWidth} from "../../lib/benchmark-leaderboard";
+import {leaderboardComparisonHref,leaderboardRunCatalogRecord} from "../../lib/leaderboard-comparison";
+import {parseFiniteMetricValue} from "../../lib/metric-values";
+import {epochRunHref,epochRunSettings,formatEpochLeaderboardScore,type DashboardLeaderboard} from "../../lib/dashboard-leaderboard";
+import type {ExplorerModel} from "../../lib/compare-series";
+
+// Benchmarks leaderboard: server-rendered first five rows per metric. The
+// client script (client/dashboard-client.ts) rebinds these ids and re-renders
+// panels on metric, family and refresh changes.
+interface Props {
+  leaderboard: DashboardLeaderboard;
+  benchmarkAttributions: Record<string, any>;
+  catalogRecords: ExplorerModel[];
+}
+const {leaderboard, benchmarkAttributions, catalogRecords} = Astro.props;
+const {availableBenchmarkConfigs, defaultBenchmarkKey, topByBenchmark, topBenchmarkTotals, modelFamiliesByBenchmark} = leaderboard;
+---
+
+<section id="leaderboard" aria-label="Models by metric" class="space-y-4 fade-in-section scroll-mt-28">
+  <article class="brutalist-card leaderboard-card">
+    <header class="leaderboard-head">
+      <div>
+        <h2>Benchmarks</h2>
+        <p>Switch metrics to reorder the table.</p>
+      </div>
+      <a id="leaderboard-compare-link" href="/compare" class="leaderboard-compare-link">Open compare</a>
+    </header>
+    <div class="leaderboard-controls" role="group" aria-label="Leaderboard controls">
+      <div class="leaderboard-field">
+        <label for="leaderboard-metric" class="leaderboard-filter-label">Metric</label>
+        <select id="leaderboard-metric" class="toolbar-control">
+          {
+            availableBenchmarkConfigs.map(({ key, label }) => (
+              <option value={key} selected={key === defaultBenchmarkKey}>
+                {label}
+              </option>
+            ))
+          }
+        </select>
+      </div>
+      <div id="leaderboard-family-controls" class="leaderboard-family-controls" data-disabled={defaultBenchmarkKey.startsWith('epoch_') ? '' : undefined}>
+        <div class="leaderboard-field leaderboard-field-grow">
+          <label for="leaderboard-family-search" class="leaderboard-filter-label">Find family</label>
+          <input id="leaderboard-family-search" class="toolbar-control leaderboard-family-search" type="search" placeholder="Search models or providers" autocomplete="off" disabled={defaultBenchmarkKey.startsWith('epoch_')} />
+        </div>
+        <div class="leaderboard-field">
+          <label for="leaderboard-family-mode" class="leaderboard-filter-label">Show</label>
+          <select id="leaderboard-family-mode" class="toolbar-control" disabled={defaultBenchmarkKey.startsWith('epoch_')}>
+            <option value="families" selected>Families</option>
+            <option value="variants">All variants</option>
+          </select>
+        </div>
+        <fieldset class="leaderboard-reasoning" aria-label="Reasoning effort" disabled={defaultBenchmarkKey.startsWith('epoch_')}>
+          <legend class="leaderboard-filter-label">Reasoning</legend>
+          {['low','medium','high','xhigh','max','minimal','none'].map((effort) => <label><input type="checkbox" data-leaderboard-reasoning value={effort} disabled={defaultBenchmarkKey.startsWith('epoch_')} /> {effort === 'none' ? 'None' : effort}</label>)}
+        </fieldset>
+      </div>
+    </div>
+    <p
+      id="leaderboard-attribution"
+      class="leaderboard-attribution"
+    >
+      Source:
+      <a
+        href={benchmarkAttributions[defaultBenchmarkKey]?.sourceUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-text underline decoration-highlight-med/70 underline-offset-4"
+      >
+        {benchmarkAttributions[defaultBenchmarkKey]?.sourceName}
+      </a>
+    </p>
+
+    <div
+      class="relative z-10 space-y-3 px-4 pb-4 pt-3 md:px-6 md:pb-6"
+      id="leaderboard-panels"
+    >
+      {
+        availableBenchmarkConfigs.map(({ key, source }) => {
+          const list = topByBenchmark[key] ?? [];
+          const totalCount = topBenchmarkTotals[key] ?? list.length;
+          if (!list.length) return null;
+          const isEpoch = source === "epoch";
+          // For epoch benchmarks, score is stored in model.score; for AA, it's model[key]
+          const getScore = (m: any) =>
+            parseFiniteMetricValue(isEpoch ? m.score : m[key]) ?? 0;
+
+          return (
+            <div
+              data-metric={key}
+              data-compare-href={leaderboardComparisonHref(list.map(model=>isEpoch?epochRunHref(model,key):'/compare?'+new URLSearchParams({chart:'benchmark',metric:key,m:model.id}).toString()),isEpoch?list.map(leaderboardRunCatalogRecord):catalogRecords)}
+              class="overflow-hidden border border-highlight-low/60"
+              hidden={key !== defaultBenchmarkKey}
+            >
+              <ul class="divide-y divide-highlight-low/40">
+                {list.map((model: any, index: number) => {
+                  const score = getScore(model);
+                  const barWidth = leaderboardBarWidth(score,list.map(getScore),model.higher_is_better!==false);
+                  const rankColors = [
+                    "lbb1",
+                    "lbb2",
+                    "lbb3",
+                    "lbbx",
+                    "lbbx",
+                  ];
+
+                  const family = !isEpoch ? modelFamiliesByBenchmark[key]?.find((item:any)=>item.best.id===model.id) : null;
+                  return (
+                    <li class="lbi">
+                      <button
+                        type="button"
+                        class="lr"
+                        data-lr
+                        data-model-id={isEpoch ? undefined : model.id}
+                        data-compare-href={isEpoch ? epochRunHref(model, key) : undefined}
+                      >
+                        {/* Background bar */}
+                        <div
+                          class={`lbb ${rankColors[index] ?? "lbbx"}`}
+                          style={`--w:${barWidth}%;--row-index:${index}`}
+                        />
+
+                        <div class="lbr">
+                          {/* Rank */}
+                          <div class="lrw">
+                            {index === 0 ? (
+                              <div class="lrn lrn1">
+                                1
+                              </div>
+                            ) : index === 1 ? (
+                              <div class="lrn lrn2">
+                                2
+                              </div>
+                            ) : index === 2 ? (
+                              <div class="lrn lrn3">
+                                3
+                              </div>
+                            ) : (
+                              <div class="lrn lrnx">
+                                {index + 1}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Model info */}
+                          <div class="lbm">
+                            <div class="lbml">
+                              <span
+                                class={`lbn ${index === 0 ? "lbnt" : "lbnx"}`}
+                                title={model.name}
+                              >
+                                {model.name}
+                              </span>
+                            </div>
+                            <div class="lbc">
+                              {isEpoch && epochRunSettings(model) ? epochRunSettings(model) : model.company_name ?? "Unknown provider"}
+                            </div>
+                          </div>
+
+                          {/* Score */}
+                          <div
+                            class={`lbs ${index === 0 ? "score-high" : index < 3 ? "lbsp" : "lbsx"}`}
+                          >
+                            {isEpoch
+                              ? formatEpochLeaderboardScore(score, model.score_unit)
+                              : key.startsWith("aa_") ? formatIndex(model[key]) : formatScore(model[key])}
+                          </div>
+                        </div>
+                      </button>
+                      {family && family.variants.length > 1 && <details class="leaderboard-variants"><summary>{family.variants.length - 1} other measured variants</summary><ul>{family.variants.filter((variant:any)=>variant.id!==model.id).map((variant:any)=><li><a href={'/compare?'+new URLSearchParams({chart:'benchmark',metric:key,m:variant.id}).toString()}>{variant.name} <span>{key.endsWith('_index')?formatIndex(variant[key]):formatScore(variant[key])}</span></a></li>)}</ul></details>}
+                    </li>
+                  );
+                })}
+              </ul>
+              <div class="flex items-center justify-between gap-3 px-3 py-2 text-xs text-muted">
+                <span>Showing {list.length} of {totalCount} ranked results</span>
+                {list.length < totalCount && <button type="button" class="underline underline-offset-2" data-leaderboard-more={key}>Show more</button>}
+              </div>
+            </div>
+          );
+        })
+      }
+    </div>
+  </article>
+</section>

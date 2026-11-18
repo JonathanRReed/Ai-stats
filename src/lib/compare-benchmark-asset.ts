@@ -14,7 +14,8 @@ export function validateBenchmarkAsset(payload:unknown,slug:string):EpochObserva
  !nullableText(row.metricKey)||!['native','percent','fraction'].includes(row.unit as string)||
  !(row.value===null||typeof row.value==='number'&&Number.isFinite(row.value))||
  !(row.conditions===null||plain(row.conditions)&&Object.entries(row.conditions).every(([key,value])=>key.length>0&&(typeof value==='string'||typeof value==='boolean'||typeof value==='number'&&Number.isFinite(value))))||
- !date(row.evaluationDate)||!url(row.sourceUrl)||!date(row.fetchedAt)||row.fetchedAt!==payload.fetchedAt||!nullableText(row.snapshotId))throw new Error('Invalid benchmark observation');
+ !date(row.evaluationDate)||!url(row.sourceUrl)||!date(row.fetchedAt)||row.fetchedAt!==payload.fetchedAt||!nullableText(row.snapshotId)||
+ !(row.stderr===undefined||row.stderr===null||typeof row.stderr==='number'&&Number.isFinite(row.stderr)&&row.stderr>=0))throw new Error('Invalid benchmark observation');
  ids.add(row.id as string);
  }
  return payload.observations as EpochObservation[];

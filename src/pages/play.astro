@@ -1,0 +1,63 @@
+---
+import Layout from "../components/Layout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import PlayGame from "../components/play/PlayGame";
+import { getModelCatalogData } from "../lib/model-catalog-data";
+import { getModelPageRecords } from "../lib/model-pages-data";
+import { SITE_ORIGIN } from "../lib/model-pages";
+import { buildGameData } from "../lib/daily-game-data";
+import { AXIS_LABELS, MAX_GUESSES } from "../lib/daily-game";
+import { PLAY_PATH } from "../lib/site-routes";
+
+export const prerender = true;
+
+const [catalog, pages] = await Promise.all([getModelCatalogData(), getModelPageRecords()]);
+const data = buildGameData(catalog.records, catalog.aaModels, new Map(pages.map((page) => [page.id, page.path])));
+const url = SITE_ORIGIN + PLAY_PATH;
+const dataDate = data.dataDate
+  ? new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(data.dataDate + "T00:00:00Z"))
+  : null;
+const axis = AXIS_LABELS[data.axis];
+---
+
+<Layout
+  title="Name the Dot: a daily AI model guessing game | AI Stats"
+  description="A daily puzzle on the real cost and Intelligence chart: name the mystery model in six guesses, or place a release on the chart."
+  dateModified={data.dataDate ?? undefined}>
+  <Header currentPage="play" />
+  <main id="main-content" class="eco-container play-page">
+    <header class="play-hero">
+      <h1>Name the dot</h1>
+      <p>
+        One copper dot on the real cost and Intelligence chart. Every other model is grey and nameless.
+        You get {MAX_GUESSES} guesses, and each miss buys a clue. A new puzzle starts at 00:00 UTC, the same for everyone.
+        {data.placeable.length ? " Prefer a single shot? Place today's release where you think it landed." : ""}
+      </p>
+    </header>
+
+    {data.candidates.length ? (
+      <PlayGame client:load data={data} url={url} />
+    ) : (
+      <p class="play-empty">No puzzle could be built: no current Artificial Analysis records with an Intelligence Index and a cost were loaded.</p>
+    )}
+    <noscript><p class="play-empty">The game needs JavaScript. The chart data itself is on the <a href="/compare">Compare</a> page.</p></noscript>
+
+    <section class="play-how" aria-labelledby="play-how-heading">
+      <h2 id="play-how-heading">How it works</h2>
+      <ol>
+        <li><strong>Guess the model.</strong> The copper dot is one model family, plotted at its highest-scoring setting. Type a family name and pick it from the list.</li>
+        <li>Each wrong guess appears on the chart with its name, and tells you whether the mystery scores higher or lower, costs more or less, is faster or slower, comes from the same lab, and was released earlier or later. A comparison is left out when either model has no recorded value for it.</li>
+        <li>Each miss also reveals one clue: release quarter, price band, speed band, how many reasoning settings were measured, and finally the lab.</li>
+        {data.placeable.length ? <li><strong>Place the release.</strong> You see the chart as it stood before a model came out, plus its name and {axis.short}. Click where you think it landed on the Index. You score by how many Index points you missed by.</li> : null}
+        <li>Your streak and stats stay in this browser only. Nothing is sent anywhere.</li>
+      </ol>
+      <p class="play-source">
+        The pool is the {data.candidates.length} highest-scoring paid model families on the current Artificial Analysis Intelligence Index{data.indexVersion ? ` (v${data.indexVersion})` : ""}.
+        Every number is an Artificial Analysis measurement{dataDate ? <> as of <time datetime={data.dataDate}>{dataDate}</time></> : null}: AA Intelligence Index, {data.axis === "task-cost" ? "cost per task to run the Index" : "blended 3:1 price per 1M tokens"}, output speed and release date.
+        Answers ship with the page, so yes, a determined player can find them in the source. <a href="/compare">See the full chart with labels</a>.
+      </p>
+    </section>
+  </main>
+  <Footer />
+</Layout>

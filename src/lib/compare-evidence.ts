@@ -112,6 +112,7 @@ export function fromEpochRuns(runs: EpochBenchmarkRun[], fetchedAt: string | nul
     fetchedAt: run.source_fetched_at ?? fetchedAt, snapshotId: null,
     sourceName: run.source_key ? run.source_name ?? run.source_key : 'Epoch AI',
     sourceKey: run.source_key ?? 'epoch-ai',
+    ...(typeof run.stderr === 'number' && Number.isFinite(run.stderr) && run.stderr >= 0 ? { stderr: run.stderr } : {}),
   }));
 }
 

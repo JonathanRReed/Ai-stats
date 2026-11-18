@@ -1,6 +1,6 @@
 ---
+import { scriptSafeJson } from "../lib/script-json";
 // Layout.astro: shared document shell for every page.
-import { ClientRouter } from "astro:transitions";
 import "../styles/tailwind.css";
 import ModelDrawer from "./ModelDrawer";
 import ModelSearchPalette from "./ModelSearchPalette";
@@ -71,7 +71,7 @@ const pageSchema = {
 };
 ---
 
-<html lang="en" transition:animate="none">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -121,9 +121,10 @@ const pageSchema = {
 
     <!-- Structured Data (JSON-LD) -->
     <!-- SoftwareApplication schema intentionally omitted to avoid invalid review/rating rich-result requirements. -->
-    <script type="application/ld+json" is:inline set:html={JSON.stringify(pageSchema)} />
+    <script type="application/ld+json" is:inline set:html={scriptSafeJson(JSON.stringify(pageSchema))} />
 
-    <ClientRouter />
+    <!-- Navigation is full page loads (many inline scripts initialise on load), so page-to-page
+         polish comes from CSS cross-document view transitions and hover prefetch, not a client router. -->
 
     <style is:global>
       /* Evidence colors: score tiers read as state, never as decoration. */
@@ -227,15 +228,49 @@ const pageSchema = {
       html.motion-ready .fade-in-section.is-visible,
       html.motion-ready .stagger-item.is-visible { opacity: 1; transform: none; }
 
-      @media (prefers-reduced-motion: no-preference) {
-        ::view-transition-old(root),
-        ::view-transition-new(root) { animation-duration: 0.2s; }
-      }
       @media (prefers-reduced-motion: reduce) {
-        ::view-transition-old(root),
-        ::view-transition-new(root) { animation: none; }
         .fade-in-section,
         .stagger-item { opacity: 1; transform: none; transition: none; }
+      }
+
+      /* Page-to-page: a short cross-fade between same-origin documents. The header is
+         named in Header.astro so it holds still. Off entirely under reduced motion. */
+      @view-transition { navigation: auto; }
+      ::view-transition-old(root),
+      ::view-transition-new(root) {
+        animation-duration: 160ms;
+        animation-timing-function: var(--ease-standard);
+      }
+      ::view-transition-group(site-header) { animation-duration: 0s; }
+      @media (prefers-reduced-motion: reduce) {
+        @view-transition { navigation: none; }
+      }
+
+      /* Browser-level finish, from tokens. Zero-specificity selectors so any component can
+         still set its own value. */
+      ::selection {
+        background: color-mix(in srgb, var(--signal) 30%, transparent);
+        color: var(--ink-0);
+      }
+      :root {
+        scrollbar-color: color-mix(in srgb, var(--ink-2) 45%, transparent) var(--surface-0);
+        accent-color: var(--signal);
+      }
+      :where(main, aside, dialog, [role="dialog"], [role="region"], pre, .receipt-wrap) {
+        scrollbar-color: var(--line-1) transparent;
+      }
+      :where(input, textarea, [contenteditable="true"]) { caret-color: var(--signal); }
+      :where(a, button, summary, input, select, textarea, [tabindex]):focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+      }
+      :where(a) {
+        text-underline-offset: 0.2em;
+        text-decoration-thickness: 1px;
+        text-decoration-skip-ink: auto;
+      }
+      :where(h1, h2, h3, h4, [id]) {
+        scroll-margin-top: calc(var(--header-h) + var(--space-4));
       }
     </style>
     <slot name="head" />
@@ -245,6 +280,28 @@ const pageSchema = {
     <ModelDrawer client:idle />
     <ModelSearchPalette client:idle />
 
+    <script>
+      // Hover, focus and touch prefetch for internal HTML pages only: never JSON, text, or anything
+      // under /api or /data. The links themselves are left untouched, because islands own their
+      // markup and an attribute added here would not match what React rendered.
+      import { prefetch } from "astro:prefetch";
+      const SKIP = /^\/(api|data|_astro|fonts)\//;
+      const seen = new Set<string>();
+      const consider = (event: Event) => {
+        const target = event.target;
+        const link = target instanceof Element ? target.closest("a[href]") : null;
+        if (!(link instanceof HTMLAnchorElement) || link.hasAttribute("download")) return;
+        if (link.target && link.target !== "_self") return;
+        const url = new URL(link.href, location.href);
+        if (url.origin !== location.origin || url.pathname === location.pathname) return;
+        if (SKIP.test(url.pathname) || /\.[a-z0-9]+$/i.test(url.pathname)) return;
+        // One fetch per document: links that differ only in their query load the same page.
+        if (seen.has(url.pathname)) return;
+        seen.add(url.pathname);
+        prefetch(url.pathname + url.search);
+      };
+      for (const type of ["mouseover", "focusin", "touchstart"]) document.addEventListener(type, consider, { passive: true });
+    </script>
     <script is:inline src="/page-motion.js" defer></script>
   </body>
 </html>

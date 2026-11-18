@@ -37,6 +37,7 @@ export function buildExplorerCatalog(aaRows:unknown[],epochRows:unknown[],catalo
       performancePrompt:text(metadata.performance_prompt),observedAt:text(row.last_seen),
       sourceUrl:row.slug?'https://artificialanalysis.ai/models/'+encodeURIComponent(row.slug):'https://artificialanalysis.ai/',
       metrics:Object.fromEntries(Object.keys(AA_EVALUATION_KEYS).map(key=>[key,number(record(row)[key])])),
+      ...(text(metadata.release_date)?{releaseDate:text(metadata.release_date)!.slice(0,10)}:{}),
     });
   }
   for(const input of epochRows){

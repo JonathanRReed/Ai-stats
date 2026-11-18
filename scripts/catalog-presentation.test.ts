@@ -2,9 +2,13 @@ import {expect,test} from 'bun:test';
 import {readFileSync} from 'node:fs';
 import {formatPrice} from '../src/lib/format-utils';
 import {hasFiniteMetricValue} from '../src/lib/metric-values';
+import {readDashboardSource,readDashboardSources} from '../src/lib/dashboard-source-files';
 
 const card=readFileSync('src/components/ModelCard.astro','utf8');
-const dashboard=readFileSync('src/components/Dashboard.astro','utf8');
+// Browser-rendered catalog code moved from Dashboard.astro into the dashboard client modules.
+const clientFormat=readDashboardSource('clientFormat');
+const clientMarkup=readDashboardSource('clientModelMarkup');
+const allDashboardSource=readDashboardSources();
 const values=[null,undefined,0,1.25,Number.NaN,Infinity,-1];
 const expected=['-','-','$0.000','$1.250','-','-','-'];
 
@@ -18,7 +22,7 @@ test('server catalog price expressions preserve missing values and explicit zero
 });
 
 test('browser catalog price formatter agrees with server formatting',()=>{
- const source=dashboard.slice(dashboard.indexOf('    const formatPrice ='),dashboard.indexOf('    const formatCompactNumber ='));
+ const source=clientFormat.slice(clientFormat.indexOf('const formatPrice ='),clientFormat.indexOf('export const formatCompactNumber ='));
  const format=new Function('formatCatalogPrice',source+';return formatPrice;')(formatPrice);
  values.forEach((value,index)=>expect(format(value,3)).toBe(expected[index]));
 });
@@ -39,14 +43,14 @@ test('catalog index entries hide absent evidence while preserving real zero',()=
 });
 test('catalog renders an honest empty state and labels MMLU Pro consistently',()=>{
  expect(card).toContain('No benchmark measurements available.');
- expect(dashboard).toContain('No benchmark measurements available.');
- expect(dashboard).not.toContain('>MMLU</');
+ expect(clientMarkup).toContain('No benchmark measurements available.');
+ expect(allDashboardSource).not.toContain('>MMLU</');
 });
 
 test('browser catalog entries use the same missing-evidence policy as server cards',()=>{
  const model={mmlu_pro:null,gpqa:undefined,hle:0,aime:Number.NaN,livecodebench:'',scicode:Infinity,math_500:0.8,aa_intelligence_index:0,aa_coding_index:null};
  for(const variable of ['allBenchmarks','aaIndexes']){
-  expect(recordedEntries(variable,model,dashboard)).toEqual(recordedEntries(variable,model));
-  expect(recordedEntries(variable,{},dashboard)).toEqual([]);
+  expect(recordedEntries(variable,model,clientMarkup)).toEqual(recordedEntries(variable,model));
+  expect(recordedEntries(variable,{},clientMarkup)).toEqual([]);
  }
 });

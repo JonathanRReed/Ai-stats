@@ -2,8 +2,17 @@
 
 import { expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
+import { readDashboardSources } from "../src/lib/dashboard-source-files";
 
 const dashboardSource = readFileSync("src/components/Dashboard.astro", "utf8");
+// Dashboard.astro was split: section markup, server data prep, client script and global CSS now live in these files.
+const leaderboardSectionSource = readFileSync("src/components/dashboard/LeaderboardSection.astro", "utf8");
+const leaderboardDataSource = readFileSync("src/lib/dashboard-leaderboard.ts", "utf8");
+const modelBrowserSource = readFileSync("src/components/dashboard/ModelBrowserSection.astro", "utf8");
+const dashboardClientSource = readFileSync("src/components/dashboard/client/dashboard-client.ts", "utf8");
+const dashboardShellStyles = readFileSync("src/components/dashboard/styles/shell.css", "utf8");
+const dashboardResponsiveStyles = readFileSync("src/components/dashboard/styles/responsive.css", "utf8");
+const allDashboardSource = readDashboardSources();
 const readPendingSource = (path: string): string =>
   existsSync(path) ? readFileSync(path, "utf8") : "";
 const workbenchSource = readPendingSource("src/components/TaskWorkbench.astro");
@@ -61,20 +70,20 @@ test("the first-screen overview uses the same curated measured-model cohort", ()
 });
 
 test("large public catalogs and drawer details load only when the user reaches them", () => {
-  expect(dashboardSource).toContain("setupPublicCatalogHydration");
-  expect(dashboardSource).toContain('rootMargin: "400px 0px"');
-  expect(dashboardSource).toContain("catalogObserver.observe");
-  expect(dashboardSource).toContain('fetch(`/api/models/${encodeURIComponent(id)}.json`');
-  expect(dashboardSource).toContain('fetch(`/api/models/${encodeURIComponent(id)}.json`, { signal: lifecycle.signal }');
-  expect(dashboardSource).toContain("registerDrawerModels(model ? [model] : [])");
-  expect(dashboardSource).not.toContain('fetch("/api/models.json", { cache: "force-cache" })');
+  expect(dashboardClientSource).toContain("setupPublicCatalogHydration");
+  expect(dashboardClientSource).toContain('rootMargin: "400px 0px"');
+  expect(dashboardClientSource).toContain("catalogObserver.observe");
+  expect(dashboardClientSource).toContain('fetch(`/api/models/${encodeURIComponent(id)}.json`');
+  expect(dashboardClientSource).toContain('fetch(`/api/models/${encodeURIComponent(id)}.json`, { signal: lifecycle.signal }');
+  expect(dashboardClientSource).toContain("registerDrawerModels(model ? [model] : [])");
+  expect(allDashboardSource).not.toContain('fetch("/api/models.json", { cache: "force-cache" })');
 });
 
 test("below-fold analytical sections defer rendering work and mobile spacing stays compact", () => {
-  expect(dashboardSource).toContain("content-visibility: auto");
-  expect(dashboardSource).toContain("contain-intrinsic-size: auto 720px");
-  expect(dashboardSource).toContain("gap: 2.75rem");
-  expect(dashboardSource).not.toContain("gap: 5rem");
+  expect(dashboardShellStyles).toContain("content-visibility: auto");
+  expect(dashboardShellStyles).toContain("contain-intrinsic-size: auto 720px");
+  expect(dashboardResponsiveStyles).toContain("gap: 2.75rem");
+  expect(allDashboardSource).not.toContain("gap: 5rem");
 });
 
 test("the task comparison keeps transparent controls, measurement columns, and reset affordances in source", () => {
@@ -187,49 +196,50 @@ test("compact model styles do not leave a media block open",()=>{
 });
 
 test("benchmark eligibility is independent of pricing and includes the available Agentic Index",()=>{
- expect(dashboardSource).toContain('rankModelFamilies(currentMeasuredModels, key)');
- expect(dashboardSource).toContain('key: "aa_agentic_index"');
+ expect(leaderboardDataSource).toContain('rankModelFamilies(currentMeasuredModels, key)');
+ expect(leaderboardDataSource).toContain('key: "aa_agentic_index"');
 });
 
 test("homepage variant values use each metric's native formatting",()=>{
- expect(dashboardSource).toContain("key.endsWith('_index')?formatIndex(variant[key]):formatScore(variant[key])");
+ expect(leaderboardSectionSource).toContain("key.endsWith('_index')?formatIndex(variant[key]):formatScore(variant[key])");
 });
 
 test("homepage benchmark families filter measured reasoning variants before top-five and refresh identically",()=>{
- expect(dashboardSource).toContain('id="leaderboard-family-search"');
- expect(dashboardSource).toContain('id="leaderboard-family-mode"');
- expect(dashboardSource).toContain('data-leaderboard-reasoning');
+ expect(leaderboardSectionSource).toContain('id="leaderboard-family-search"');
+ expect(leaderboardSectionSource).toContain('id="leaderboard-family-mode"');
+ expect(leaderboardSectionSource).toContain('data-leaderboard-reasoning');
+ expect(dashboardClientSource).toContain('data-leaderboard-reasoning');
  expect(dashboardSource).toContain('window.__leaderboardInitialModels = initialLeaderboardModels');
- expect(dashboardSource).toContain('rankModelFamilies(models, config.key, {...getLeaderboardFilters()})');
- expect(dashboardSource).toContain('renderLeaderboard((snapshot.aaModels??[]).filter(model=>model.current_source_member!==false)');
- expect(dashboardSource).not.toContain('FAILSAFE_METRIC_SWAP_MS');
- expect(dashboardSource).toContain('bindDashboardLifecycle(document, "#leaderboard-panels", initializeDashboard)');
- expect(dashboardSource).toContain('window.addEventListener("aistats:live-snapshot", async (event) =>');
+ expect(dashboardClientSource).toContain('rankModelFamilies(models, config.key, {...getLeaderboardFilters()})');
+ expect(dashboardClientSource).toContain('renderLeaderboard((snapshot.aaModels??[]).filter(model=>model.current_source_member!==false)');
+ expect(allDashboardSource).not.toContain('FAILSAFE_METRIC_SWAP_MS');
+ expect(dashboardClientSource).toContain('bindDashboardLifecycle(document, "#leaderboard-panels", initializeDashboard)');
+ expect(dashboardClientSource).toContain('window.addEventListener("aistats:live-snapshot", async (event) =>');
 });
 
 test("empty filtered leaderboards disable Open compare and Epoch mode disables AA family controls on initial render and refresh",()=>{
- expect(dashboardSource).toContain('setLeaderboardCompareAction(leaderboardCompareLink,panel?.dataset.compareHref||null)');
- expect(dashboardSource).toContain('compareHref:list.length?`/compare?${params.toString()}`:""');
- expect(dashboardSource).toContain('disabled={defaultBenchmarkKey.startsWith(\'epoch_\')}');
- expect(dashboardSource).toContain('setLeaderboardFamilyControlsDisabled(document.getElementById("leaderboard-family-controls"),metricSelect.value.startsWith("epoch_"))');
- expect(dashboardSource).toContain('setLeaderboardFamilyControlsDisabled(document.getElementById("leaderboard-family-controls"),metric.startsWith("epoch_"))');
- expect(dashboardSource).toContain('const epochCatalog=visibleList.map(leaderboardRunCatalogRecord)');
- expect(dashboardSource).toContain('data-compare-href="${escapeHtml(compareHref)}"');
+ expect(dashboardClientSource).toContain('setLeaderboardCompareAction(leaderboardCompareLink,panel?.dataset.compareHref||null)');
+ expect(dashboardClientSource).toContain('compareHref:list.length?`/compare?${params.toString()}`:""');
+ expect(leaderboardSectionSource).toContain('disabled={defaultBenchmarkKey.startsWith(\'epoch_\')}');
+ expect(dashboardClientSource).toContain('setLeaderboardFamilyControlsDisabled(document.getElementById("leaderboard-family-controls"),metricSelect.value.startsWith("epoch_"))');
+ expect(dashboardClientSource).toContain('setLeaderboardFamilyControlsDisabled(document.getElementById("leaderboard-family-controls"),metric.startsWith("epoch_"))');
+ expect(dashboardClientSource).toContain('const epochCatalog=visibleList.map(leaderboardRunCatalogRecord)');
+ expect(dashboardClientSource).toContain('data-compare-href="${escapeHtml(compareHref)}"');
 });
 
 test("AA and Epoch leaderboards both use the progressive 5/20/50/all row windows",()=>{
- expect(dashboardSource).toContain('visibleLeaderboardRows(allList, leaderboardVisibleCounts.get(config.key) ?? 5)');
- expect(dashboardSource).toContain('const visibleList = visibleLeaderboardRows(allList, leaderboardVisibleCounts.get(config.key) ?? 5)');
- expect(dashboardSource).toContain('nextLeaderboardLimit(leaderboardVisibleCounts.get(key) ?? 5)');
- expect(dashboardSource).toContain('if (key.startsWith("aa_"))');
- expect(dashboardSource).toContain('renderAaLeaderboardPanels(latestLeaderboardModels)');
- expect(dashboardSource).toContain('epochRanking.ensureComplete(lifecycle.signal)');
- expect(dashboardSource).toContain('renderLeaderboard(latestLeaderboardModels, latestEpochBenchmarks, latestEpochRuns)');
+ expect(dashboardClientSource).toContain('visibleLeaderboardRows(allList, leaderboardVisibleCounts.get(config.key) ?? 5)');
+ expect(dashboardClientSource).toContain('const visibleList = visibleLeaderboardRows(allList, leaderboardVisibleCounts.get(config.key) ?? 5)');
+ expect(dashboardClientSource).toContain('nextLeaderboardLimit(leaderboardVisibleCounts.get(key) ?? 5)');
+ expect(dashboardClientSource).toContain('if (key.startsWith("aa_"))');
+ expect(dashboardClientSource).toContain('renderAaLeaderboardPanels(latestLeaderboardModels)');
+ expect(dashboardClientSource).toContain('epochRanking.ensureComplete(lifecycle.signal)');
+ expect(dashboardClientSource).toContain('renderLeaderboard(latestLeaderboardModels, latestEpochBenchmarks, latestEpochRuns)');
  expect(readFileSync('src/lib/leaderboard-pagination.ts','utf8')).toContain('20');
  expect(readFileSync('src/lib/leaderboard-pagination.ts','utf8')).toContain('50');
  expect(readFileSync('src/lib/leaderboard-pagination.ts','utf8')).toContain('Number.POSITIVE_INFINITY');
- expect(dashboardSource).toContain('shown > 5 ? `<button type="button" class="underline underline-offset-2" data-leaderboard-less=');
- expect(dashboardSource).toContain('shown < total ? `<button type="button" class="underline underline-offset-2" data-leaderboard-more=');
+ expect(dashboardClientSource).toContain('shown > 5 ? `<button type="button" class="underline underline-offset-2" data-leaderboard-less=');
+ expect(dashboardClientSource).toContain('shown < total ? `<button type="button" class="underline underline-offset-2" data-leaderboard-more=');
 });
 
 test("model picker puts bounded query results first without losing selected exact records",()=>{
@@ -244,12 +254,12 @@ test("model picker puts bounded query results first without losing selected exac
 });
 
 test('catalog sort names its default and keeps missing measurements distinct from zero',()=>{
- const dashboard=readFileSync('src/components/Dashboard.astro','utf8');
  const card=readFileSync('src/components/ModelCard.astro','utf8');
- expect(dashboard).toContain('<option value="intelligence">AA Intelligence Index</option>');
- expect(dashboard).toContain('compareOptionalMetricValues(a.dataset[attr], b.dataset[attr], direction)');
- expect(dashboard).not.toContain('Number(a.dataset[attr]) || 0');
- for(const source of [dashboard,card]){
+ expect(modelBrowserSource).toContain('<option value="intelligence">AA Intelligence Index</option>');
+ expect(dashboardClientSource).toContain('compareOptionalMetricValues(a.dataset[attr], b.dataset[attr], direction)');
+ expect(allDashboardSource).not.toContain('Number(a.dataset[attr]) || 0');
+ expect(allDashboardSource).not.toContain('Number(model.price_1m_input_tokens) || 0');
+ for(const source of [modelBrowserSource,card]){
   expect(source).toContain('data-intelligence=');
   expect(source).not.toContain('Number(model.price_1m_input_tokens) || 0');
  }

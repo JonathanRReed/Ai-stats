@@ -1,0 +1,280 @@
+/* Public catalog panel in the Sources disclosure (OpenRouter, Hugging Face, LiteLLM). */
+
+.openrouter-panel {
+  border: 1px solid var(--line-0);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  overflow: hidden;
+}
+
+.openrouter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  padding: 1rem 1.25rem;
+}
+
+.openrouter-header h2 {
+  margin-top: 0.3rem;
+  color: var(--ink-0);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.openrouter-actions {
+  display: flex;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.openrouter-actions label {
+  align-self: center;
+  color: var(--subtle);
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.openrouter-select-wrap {
+  position: relative;
+  min-width: min(18rem, 42vw);
+}
+
+.openrouter-select-wrap::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-bottom: 2px solid var(--subtle);
+  border-right: 2px solid var(--subtle);
+  transform: translateY(-65%) rotate(45deg);
+}
+
+.openrouter-rank-select {
+  width: 100%;
+  min-height: var(--control-h);
+  appearance: none;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
+  background: var(--surface-0);
+  color: var(--ink-0);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.1;
+  padding: 0 2.75rem 0 var(--space-3);
+}
+
+.openrouter-rank-select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.openrouter-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  border-block: 1px solid color-mix(in srgb, var(--bad) 40%, transparent);
+  background: var(--bad-soft);
+  padding: var(--space-3) var(--space-4);
+  color: var(--ink-0);
+  font-size: var(--text-xs);
+}
+
+.openrouter-notice span {
+  min-width: 0;
+  flex: 1 1 18rem;
+}
+
+.openrouter-grid {
+  display: grid;
+  grid-template-columns: minmax(15rem, 0.8fr) minmax(0, 1.45fr) minmax(14rem, 0.75fr);
+  gap: 1px;
+  background: var(--border-color);
+}
+
+.openrouter-stats,
+.openrouter-table,
+.openrouter-long-context {
+  min-width: 0;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  padding: 1rem 1.25rem;
+}
+
+.openrouter-long-context {
+  background: var(--surface-1);
+}
+
+.openrouter-stats dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--highlight-low);
+  border: 1px solid var(--highlight-low);
+}
+
+.openrouter-stats dl > div {
+  min-width: 0;
+  background: var(--surface);
+  padding: 0.8rem;
+  transition:
+    background-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.openrouter-stats dl > div:hover {
+  background: var(--surface-2);
+}
+
+.openrouter-stats dt,
+.openrouter-table-head,
+.openrouter-table-meta small,
+.openrouter-long-context small {
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.openrouter-stats dd {
+  margin-top: 0.35rem;
+  color: var(--ink-0);
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.openrouter-stats p {
+  margin-top: 0.9rem;
+  color: var(--subtle);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.openrouter-table-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.7rem;
+}
+
+.openrouter-table-meta span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 850;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.openrouter-table-meta small {
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+.openrouter-table-head,
+.openrouter-provider-row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr) minmax(3.8rem, 0.45fr) minmax(3.6rem, 0.38fr) minmax(4.8rem, 0.44fr);
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.openrouter-table-head {
+  border-bottom: 1px solid var(--highlight-low);
+  padding-bottom: 0.55rem;
+}
+
+.openrouter-table ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.openrouter-table li {
+  border-bottom: 1px solid var(--highlight-low);
+}
+
+.openrouter-table li:last-child {
+  border-bottom: 0;
+}
+
+.openrouter-provider-row {
+  width: 100%;
+  min-height: 2.7rem;
+  border: 0;
+  background: transparent;
+  color: var(--subtle);
+  cursor: pointer;
+  font-size: 0.73rem;
+  padding: 0;
+  text-align: left;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.openrouter-provider-row:hover,
+.openrouter-provider-row:focus-visible {
+  background: var(--highlight-low);
+  color: var(--text);
+}
+
+.openrouter-provider-row:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.openrouter-model {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.openrouter-leader {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.openrouter-score {
+  color: var(--foam);
+  font-family: var(--font-mono);
+  font-weight: 900;
+}
+
+.openrouter-long-context {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+.openrouter-long-context strong {
+  color: var(--text);
+  font-size: 1.05rem;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.openrouter-long-context > span:not(.console-label) {
+  color: var(--foam);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}

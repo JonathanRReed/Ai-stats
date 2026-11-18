@@ -1,0 +1,61 @@
+---
+import type { ModelPosition, ChartSize } from "../../lib/model-position-data";
+
+type Props = { position: ModelPosition; size: ChartSize; color: string; labelId: string };
+const { position, size, color, labelId } = Astro.props;
+const chart = position.charts[size];
+const { width, height, left, right, top, bottom, target } = chart;
+const narrow = size === "narrow";
+
+const tickMoney = (label: string) => `$${label}`;
+const maxLabel = narrow ? 30 : 48;
+const label = position.name.length > maxLabel ? `${position.name.slice(0, maxLabel - 1).trimEnd()}…` : position.name;
+const labelRight = target.cx > (left + right) / 2;
+const labelX = labelRight ? target.cx - 12 : target.cx + 12;
+const labelY = target.cy - 12 < top + 10 ? target.cy + 22 : target.cy - 12;
+---
+<svg
+  class:list={["position-svg", `position-svg-${size}`]}
+  viewBox={`0 0 ${width} ${height}`}
+  width={width}
+  height={height}
+  role="img"
+  aria-labelledby={labelId}
+  data-size={size}
+>
+  {chart.yTicks.map((tick) => (
+    <g>
+      <line class="plot-grid" x1={left} x2={right} y1={tick.position} y2={tick.position}></line>
+      <text class="plot-tick" x={left - 8} y={tick.position + 4} text-anchor="end">{tick.label}</text>
+    </g>
+  ))}
+  {chart.xTicks.map((tick) => (
+    <g>
+      <line class="plot-grid" x1={tick.position} x2={tick.position} y1={top} y2={bottom}></line>
+      <text class="plot-tick" x={tick.position} y={bottom + 18} text-anchor="middle">{tickMoney(tick.label)}</text>
+    </g>
+  ))}
+  <line class="plot-axis" x1={left} x2={right} y1={bottom} y2={bottom}></line>
+  <line class="plot-axis" x1={left} x2={left} y1={top} y2={bottom}></line>
+  <text class="plot-label" x={(left + right) / 2} y={bottom + 44} text-anchor="middle">{narrow ? position.axisLabel.replace(/ \(.*$/, "") + " (USD, log)" : position.axisLabel}</text>
+  <text class="plot-label" transform={`translate(${narrow ? 11 : 14} ${(top + bottom) / 2}) rotate(-90)`} text-anchor="middle">AA Intelligence Index (points)</text>
+
+  <g class="position-dots" aria-hidden="true">
+    {chart.dots.map((dot) => <circle class="position-dot" cx={dot.cx.toFixed(1)} cy={dot.cy.toFixed(1)} r={narrow ? 2.5 : 3}></circle>)}
+  </g>
+  {chart.frontierPath ? <polyline class="frontier-line position-frontier" points={chart.frontierPath}></polyline> : null}
+  {chart.familyPath ? (
+    <g class="position-family" style={`--family:${color}`}>
+      <polyline class="variant-link" points={chart.familyPath} stroke="var(--family)"></polyline>
+      {chart.familyPath.split(" ").map((pair) => {
+        const [cx, cy] = pair.split(",");
+        return <circle class="position-family-dot" cx={cx} cy={cy} r="3.5"></circle>;
+      })}
+    </g>
+  ) : null}
+  <g class="position-target" style={`--family:${color}`}>
+    <circle class="position-target-ring" cx={target.cx.toFixed(1)} cy={target.cy.toFixed(1)} r="8"></circle>
+    <circle class="position-target-core" cx={target.cx.toFixed(1)} cy={target.cy.toFixed(1)} r="4"></circle>
+    <text class="point-label" x={labelX.toFixed(1)} y={labelY.toFixed(1)} text-anchor={labelRight ? "end" : "start"}>{label}</text>
+  </g>
+</svg>

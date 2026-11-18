@@ -41,6 +41,10 @@ test('serialized Epoch picker inputs retain only the initial top rows and requir
  expect(assertInitialEpochLeaderboardBudget(payload)).toBeLessThan(INITIAL_EPOCH_LEADERBOARD_BUDGET_BYTES);
 
  const dashboard=readFileSync('src/components/Dashboard.astro','utf8');
+ // Split out of Dashboard.astro: leaderboard data prep, its markup and the client script.
+ const leaderboardData=readFileSync('src/lib/dashboard-leaderboard.ts','utf8');
+ const leaderboardSection=readFileSync('src/components/dashboard/LeaderboardSection.astro','utf8');
+ const client=readFileSync('src/components/dashboard/client/dashboard-client.ts','utf8');
  expect(dashboard).toContain('const initialEpochLeaderboard = buildInitialEpochLeaderboardData(');
  expect(dashboard).toContain('assertInitialEpochLeaderboardBudget(initialEpochLeaderboard)');
  expect(dashboard).toContain('epochBenchmarksWithRuns,\n  epochRuns,\n  epochBenchmarkNames,');
@@ -49,14 +53,15 @@ test('serialized Epoch picker inputs retain only the initial top rows and requir
  expect(dashboard).toContain('window.__epochInitialRuns = initialEpochLeaderboard.runs');
  expect(dashboard).toContain('window.__epochModelNames = initialEpochLeaderboard.modelNames');
  expect(dashboard).toContain('window.__epochLeaderboardTotals = initialEpochLeaderboard.totals');
- expect(dashboard).toContain('leaderboardRunCatalogRecord');
- expect(dashboard).toContain('createEpochRankingController({\n      revision: window.__epochRankingRevision,');
+ expect(leaderboardSection).toContain('leaderboardRunCatalogRecord');
+ expect(client).toContain('leaderboardRunCatalogRecord');
+ expect(client).toContain('createEpochRankingController({\n    revision: window.__epochRankingRevision,');
  expect(dashboard).toContain('window.__epochRankingRevision = epochRankingRevision');
- expect(dashboard).toContain('resolveEpochLeaderboardRunNames(cohort.runs, benchmarkModelNameRecord)');
- expect(dashboard).toContain('resolveEpochLeaderboardRunNames(cohort.runs, epochModelNames)');
- expect(dashboard).toContain('name: run.name,');
+ expect(leaderboardData).toContain('resolveEpochLeaderboardRunNames(cohort.runs, benchmarkModelNameRecord)');
+ expect(client).toContain('resolveEpochLeaderboardRunNames(cohort.runs, epochModelNames)');
+ expect(client).toContain('name: run.name,');
  // Live snapshot names are mapped by epochLiveSnapshotFrom (covered in epoch-leaderboard-live.test.ts).
- expect(dashboard).toContain('const liveEpoch = epochLiveSnapshotFrom(snapshot);');
+ expect(client).toContain('const liveEpoch = epochLiveSnapshotFrom(snapshot);');
  expect(dashboard).toContain('window.__epochBenchmarkLabels = initialEpochLeaderboard.labels');
 });
 

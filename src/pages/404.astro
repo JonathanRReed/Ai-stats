@@ -3,97 +3,70 @@ import Layout from "../components/Layout.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import ScrollToTop from "../components/ScrollToTop.astro";
+import { SECTION_NAV } from "../lib/site-nav";
+import "../styles/static-pages.css";
 
 const title = "Page not found | AI Stats";
 const description =
   "The requested AI Stats page could not be found. Return to the model dashboard or compare AI models by price and performance.";
+// Stats and Compare are the two buttons above; the list offers every other section.
+const sectionLinks = SECTION_NAV.filter((link) => link.key !== "dashboard" && link.key !== "compare");
 ---
 
 <Layout title={title} description={description} image="/logo.png" noindex={true}>
   <Header currentPage="not-found" />
-  <main id="main-content" class="mx-auto grid min-h-[calc(100vh-7rem)] w-full max-w-6xl items-center gap-10 px-[var(--gutter)] py-12 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.48fr)]">
-    <section>
-      <p class="text-sm font-medium text-subtle">
-        404 / Page not found
-      </p>
-      <p class="error-code mt-5" aria-hidden="true">404</p>
-      <h1 class="mt-4 max-w-4xl text-4xl font-bold leading-tight text-text md:text-5xl">
-        This page is not in the dataset.
-      </h1>
-      <p class="mt-6 max-w-2xl text-lg leading-8 text-subtle">
+  <main id="main-content" class="eco-container static-page">
+    <header class="static-hero">
+      <h1>This page is not in the dataset.</h1>
+      <p class="static-meta">404 &middot; Page not found</p>
+      <p class="static-lede">
         The address may have changed, or the page may never have existed. The model data is still available from the dashboard and comparison workspace.
       </p>
-      <div class="mt-8 flex flex-wrap gap-3">
-        <a class="brutalist-button" href="/">Open model stats</a>
-        <a class="brutalist-button secondary" href="/compare">Compare models</a>
-      </div>
-    </section>
-
-    <aside class="brutalist-card p-6 md:p-8" aria-labelledby="recovery-heading">
-      <p class="text-sm font-medium text-subtle">
-        Keep exploring
+      <p class="static-lede" id="retired-matchup" hidden>
+        This matchup does not have its own page in the current data. <a id="retired-matchup-link" href="/matchups">Browse every matchup</a>.
       </p>
-      <h2 id="recovery-heading" class="mt-4 text-2xl font-bold text-text">
-        Find the right route.
-      </h2>
-      <nav class="mt-6 grid gap-3" aria-label="Page recovery links">
-        <a class="recovery-link" href="/about">
-          <span>About the data</span>
-          
-        </a>
-        <a class="recovery-link" href="/contact">
-          <span>Report a broken link</span>
-          
-        </a>
-      </nav>
-    </aside>
+      <div class="static-actions">
+        <a class="eco-btn eco-btn-primary" href="/">Open model stats</a>
+        <a class="eco-btn eco-btn-secondary" href="/compare">Compare models</a>
+      </div>
+    </header>
+
+    <div class="static-sections">
+      <section class="static-section" aria-labelledby="recovery-heading">
+        <h2 id="recovery-heading">Find the right route.</h2>
+        <nav aria-labelledby="recovery-heading">
+          <ul class="static-link-list">
+            {sectionLinks.map((link) => (
+              <li><a href={link.href}>{link.label}</a></li>
+            ))}
+            <li><a href="/about">About the data</a></li>
+            <li><a href="/contact">Report a broken link</a></li>
+          </ul>
+        </nav>
+      </section>
+    </div>
   </main>
+  <script>
+    // A matchup page exists only while both families are in the current rankings. For an address
+    // that once had a page, point to where the same comparison lives now.
+    import { readMatchupSearchIndex, resolveRetiredMatchup } from "../lib/head-to-head-search";
+    if (/^\/compare\/.+-vs-.+/.test(window.location.pathname)) {
+      fetch("/matchups.json")
+        .then((response) => (response.ok ? response.json() : Promise.reject(new Error("unavailable"))))
+        .then((payload) => {
+          const note = document.getElementById("retired-matchup");
+          const link = document.getElementById("retired-matchup-link");
+          if (!note || !(link instanceof HTMLAnchorElement)) return;
+          const target = resolveRetiredMatchup(window.location.pathname, readMatchupSearchIndex(payload));
+          if (target) {
+            link.href = target.url;
+            link.textContent = target.label;
+          }
+          note.hidden = false;
+        })
+        .catch(() => { /* The page already links to every section. */ });
+    }
+  </script>
   <Footer />
   <ScrollToTop />
 </Layout>
-
-<style>
-  .error-code {
-    color: transparent;
-    font-family: var(--font-mono);
-    font-size: clamp(5.5rem, 18vw, 12rem);
-    font-weight: 900;
-    letter-spacing: -0.09em;
-    line-height: 0.72;
-    -webkit-text-stroke: 2px var(--line-1);
-  }
-
-  .recovery-link {
-    align-items: center;
-    border-bottom: 1px solid var(--border-color);
-    color: var(--subtle);
-    display: flex;
-    font-weight: 700;
-    justify-content: space-between;
-    min-height: 44px;
-    padding: 0.75rem 0;
-    text-decoration: none;
-    transition:
-      border-color var(--dur-fast) var(--ease-smooth),
-      color var(--dur-fast) var(--ease-smooth),
-      transform var(--dur-fast) var(--ease-smooth);
-  }
-
-  .recovery-link:hover {
-    border-color: var(--love);
-    color: var(--text);
-    transform: translateX(0.4rem);
-  }
-
-  .recovery-link:focus-visible {
-    border-radius: var(--radius-s);
-    outline: 2px solid var(--focus);
-    outline-offset: 3px;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .recovery-link {
-      transition: none;
-    }
-  }
-</style>

@@ -1,4 +1,5 @@
 ---
+import { scriptSafeJson } from "../lib/script-json";
 import {
   DEFAULT_TASK_PRESETS,
   rankComparableModels,
@@ -21,7 +22,11 @@ interface Props {
 
 const { models, reasoningHighlights } = Astro.props;
 const defaultBudget = 5;
-const defaultPreset = DEFAULT_TASK_PRESETS[0];
+// Open on the first task the current data can actually answer. A task whose named measurements
+// are not recorded for any current model would greet the visitor with an empty shortlist.
+const defaultPreset =
+  DEFAULT_TASK_PRESETS.find((preset) => rankComparableModels(models, { ...preset, budget: defaultBudget }).length > 0) ??
+  DEFAULT_TASK_PRESETS[0];
 const weightedKeys = Object.keys(defaultPreset.weights).filter(
   (key) => defaultPreset.weights[key] > 0,
 );
@@ -97,7 +102,7 @@ const workbenchPayloadJson = JSON.stringify({
       <span>Task</span>
       <select id="task-preset" name="task">
         {DEFAULT_TASK_PRESETS.map((preset) => (
-          <option value={preset.id}>{preset.label}</option>
+          <option value={preset.id} selected={preset.id === defaultPreset.id}>{preset.label}</option>
         ))}
       </select>
     </label>
@@ -265,7 +270,7 @@ const workbenchPayloadJson = JSON.stringify({
   id="workbench-data"
   type="application/json"
   is:inline
-  set:html={workbenchPayloadJson}
+  set:html={scriptSafeJson(workbenchPayloadJson)}
 ></script>
 
 <script>
@@ -472,10 +477,11 @@ const workbenchPayloadJson = JSON.stringify({
   .reasoning-evidence a { display: inline-block; padding-block: var(--space-2); color: var(--signal); font-weight: 500; text-decoration: underline; text-underline-offset: 0.2em; }
   @media (max-width: 900px) { .reasoning-benchmarks { grid-template-columns: 1fr; } }
 
+  /* Flat inside its disclosure: hairlines between query, shortlist and weights, no outer box. */
   .task-workbench {
-    background: var(--surface-1);
-    border: 1px solid var(--line-0);
-    border-radius: var(--radius-md);
+    background: none;
+    border: 0;
+    border-radius: 0;
   }
 
   .task-query {
@@ -483,15 +489,15 @@ const workbenchPayloadJson = JSON.stringify({
     grid-template-columns: auto minmax(14rem, 1fr) minmax(13rem, 0.72fr) auto;
     align-items: end;
     gap: var(--space-4);
-    padding: var(--space-4);
+    padding: 0 0 var(--space-4);
     border-bottom: 1px solid var(--line-0);
   }
 
   .task-query-label {
     align-self: end;
-    padding-bottom: 0.7rem;
+    padding-bottom: 0.55rem;
     color: var(--ink-0);
-    font-size: var(--text-base);
+    font-size: var(--text-sm);
     font-weight: 600;
   }
 
@@ -510,10 +516,10 @@ const workbenchPayloadJson = JSON.stringify({
   .task-query select,
   .task-reset,
   .shortlist-empty button {
-    min-height: var(--control-h);
+    min-height: var(--home-control-h, var(--control-h));
     border: 1px solid var(--line-1);
     border-radius: var(--radius-md);
-    background: var(--surface-0);
+    background: var(--surface-1);
     color: var(--ink-0);
     font-size: var(--text-sm);
   }
@@ -653,7 +659,7 @@ const workbenchPayloadJson = JSON.stringify({
     inset: 2.75rem 0 0;
     place-content: center;
     text-align: center;
-    background: color-mix(in srgb, var(--surface-1) 96%, transparent);
+    background: color-mix(in srgb, var(--surface-0) 96%, transparent);
   }
 
   .shortlist-loading:not([hidden]),
@@ -753,4 +759,10 @@ const workbenchPayloadJson = JSON.stringify({
   @media (prefers-reduced-motion: reduce) {
     .shortlist-loading span { animation: none; }
   }
+  .shortlist-head span:first-child,
+  .shortlist-row > div:first-child { padding-left: 0; }
+  .weights-disclosure, .reasoning-evidence { padding-inline: 0; }
+  .task-query select:focus-visible, .task-reset:focus-visible, .shortlist-empty button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .reasoning-evidence a { color: var(--ink-0); text-decoration-color: var(--line-1); }
+  .reasoning-evidence a:hover { text-decoration-color: currentColor; }
 </style>

@@ -1,16 +1,19 @@
 import {test,expect} from 'bun:test';
 import {readFileSync} from 'node:fs';
-const dashboard=readFileSync('src/components/Dashboard.astro','utf8');
+import {readDashboardSource,readDashboardSources} from '../src/lib/dashboard-source-files';
+// Leaderboard data prep moved to src/lib/dashboard-leaderboard.ts and its markup to LeaderboardSection.astro.
+const leaderboardData=readDashboardSource('leaderboardData');
+const leaderboardSection=readDashboardSource('leaderboardSection');
 const models=readFileSync('src/pages/models/index.astro','utf8');
 test('every offered server benchmark has a rendered panel with finite scores',()=>{
- expect(dashboard).toContain('const availableBenchmarkConfigs = benchmarkConfigs.filter');
- expect(dashboard).toContain('availableBenchmarkConfigs.map(({ key, label })');
- expect(dashboard).toContain('availableBenchmarkConfigs.map(({ key, source })');
- expect(dashboard).not.toContain('benchmarkConfigs.filter(({ key }) => key === "aa_intelligence_index")');
- expect(dashboard).toContain('buildBenchmarkCohorts(benchmark,epochRuns)');
- expect(dashboard).toContain('const runs = allRuns.slice(0,5)');
- expect(dashboard).toContain('selected={key === defaultBenchmarkKey}');
- expect(dashboard).toContain('hidden={key !== defaultBenchmarkKey}');
+ expect(leaderboardData).toContain('const availableBenchmarkConfigs = benchmarkConfigs.filter');
+ expect(leaderboardSection).toContain('availableBenchmarkConfigs.map(({ key, label })');
+ expect(leaderboardSection).toContain('availableBenchmarkConfigs.map(({ key, source })');
+ expect(readDashboardSources()).not.toContain('benchmarkConfigs.filter(({ key }) => key === "aa_intelligence_index")');
+ expect(leaderboardData).toContain('buildBenchmarkCohorts(benchmark,epochRuns)');
+ expect(leaderboardData).toContain('const runs = allRuns.slice(0,5)');
+ expect(leaderboardSection).toContain('selected={key === defaultBenchmarkKey}');
+ expect(leaderboardSection).toContain('hidden={key !== defaultBenchmarkKey}');
 });
 test('provider disclosure reserves an inset chevron column and wraps metadata on mobile',()=>{
  expect(models).toContain('grid-template-columns: minmax(0, 1fr) auto 1rem');

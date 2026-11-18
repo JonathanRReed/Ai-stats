@@ -33,5 +33,8 @@
     },
   };
   apply(read());
-  document.addEventListener("astro:after-swap", function () { apply(read()); });
+  // Another tab may change the stored choice; follow it so the two tabs agree.
+  if (typeof window.addEventListener === "function") {
+    window.addEventListener("storage", function (event) { if (event.key === KEY) apply(read()); });
+  }
 })();

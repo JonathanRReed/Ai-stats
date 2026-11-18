@@ -9,6 +9,7 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { readModelSearchIndex, type ModelSearchEntry } from '@/lib/model-search-index';
+import { readMatchupSearchIndex, resolveVersusQuery, type MatchupSearchIndex } from '@/lib/head-to-head-search';
 
 const MAX_RESULTS = 40;
 
@@ -25,6 +26,9 @@ export default function ModelSearchPalette() {
   const [query, setQuery] = useState('');
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const requested = useRef(false);
+  // "x vs y" lookups use a second, optional index; the palette works without it.
+  const [matchups, setMatchups] = useState<MatchupSearchIndex | null>(null);
+  const matchupsRequested = useRef(false);
   const isOpen = useRef(false);
   const opener = useRef<HTMLElement | null>(null);
   const changeOpen = useCallback((next: boolean) => {
@@ -51,6 +55,18 @@ export default function ModelSearchPalette() {
     }
   }, []);
 
+  const loadMatchups = useCallback(async () => {
+    if (matchupsRequested.current) return;
+    matchupsRequested.current = true;
+    try {
+      const response = await fetch('/matchups.json');
+      if (!response.ok) throw new Error(String(response.status));
+      setMatchups(readMatchupSearchIndex(await response.json()));
+    } catch {
+      matchupsRequested.current = false;
+    }
+  }, []);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -68,8 +84,13 @@ export default function ModelSearchPalette() {
   }, [changeOpen]);
 
   useEffect(() => {
-    if (open) void load();
-  }, [open, load]);
+    if (open) {
+      void load();
+      void loadMatchups();
+    }
+  }, [open, load, loadMatchups]);
+
+  const versus = useMemo(() => resolveVersusQuery(query, matchups), [query, matchups]);
 
   const results = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -105,7 +126,27 @@ export default function ModelSearchPalette() {
       <CommandList>
         {state === 'loading' && <CommandEmpty>Loading the model list.</CommandEmpty>}
         {state === 'error' && <CommandEmpty>The model list could not be loaded. <button type="button" onClick={() => void load()}>Try again</button></CommandEmpty>}
-        {state === 'ready' && results.length === 0 && <CommandEmpty>No model or provider matches that search.</CommandEmpty>}
+        {versus && (
+          <CommandGroup heading={versus.kind === 'matchup' ? 'Matchup' : 'Compare'}>
+            <CommandItem
+              key={versus.url}
+              value={`versus ${versus.url}`}
+              onSelect={() => {
+                window.location.href = versus.url;
+              }}
+            >
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate">{versus.label}</span>
+                <span className="text-muted-foreground truncate text-xs">
+                  {versus.kind === 'matchup'
+                    ? `${versus.a.p} · ${versus.b.p} · head-to-head page`
+                    : 'No matchup page for this pair. Opens Compare with both selected.'}
+                </span>
+              </span>
+            </CommandItem>
+          </CommandGroup>
+        )}
+        {state === 'ready' && results.length === 0 && !versus && <CommandEmpty>No model or provider matches that search.</CommandEmpty>}
         {results.length > 0 && (
           <CommandGroup heading={query.trim() ? `${results.length} shown` : `${entries.length} catalog entries`}>
             {results.map((entry) => (

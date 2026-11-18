@@ -41,7 +41,7 @@ export function validateMeasurementChunk(payload:unknown,revision:string,bucket:
  const row=value as ExplorerModel,known=expected.get(row.id);
  if(!known||seen.has(row.id)||row.source!==known.source||row.sourceModelId!==known.sourceModelId||row.current!==known.current||row.name!==known.name)throw new Error('Measurement identity mismatch');
  if(row.family!==known.family||(row.provider??'Unknown')!==known.provider||(row.reasoning??'unknown')!==known.reasoning||row.slug!==known.slug)throw new Error('Measurement display mismatch');
- if(['indexVersion','performancePrompt','observedAt','fetchedAt','sourceUrl'].some(key=>{
+ if(['indexVersion','performancePrompt','observedAt','fetchedAt','sourceUrl','releaseDate'].some(key=>{
  const value=(row as unknown as Record<string,unknown>)[key];return value!==null&&value!==undefined&&typeof value!=='string';
  }))throw new Error('Invalid measurement metadata');
  if(['inputModalities','outputModalities'].some(key=>{const value=(row as unknown as Record<string,unknown>)[key];

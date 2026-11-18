@@ -1,0 +1,38 @@
+---
+/**
+ * Best recorded run per model as a horizontal bar list on the benchmark's own scale.
+ * A whisker spans ± one recorded standard error; rows without one say so in text.
+ */
+import BenchmarkBarRow from "./BenchmarkBarRow.astro";
+import { formatTick, type BenchmarkCohort } from "../../lib/benchmark-pages";
+
+interface Props {
+  cohort: BenchmarkCohort;
+  visible?: number;
+}
+
+const { cohort, visible = 25 } = Astro.props;
+const { scaleMin: min, scaleMax: max, unit } = cohort;
+const showConditions = cohort.conditionCount > 1;
+const head = cohort.leaderboard.slice(0, visible);
+const rest = cohort.leaderboard.slice(visible);
+---
+
+<div class="bench-bars-frame">
+  <ol class="bench-bars">
+    {head.map((row, index) => <BenchmarkBarRow row={row} rank={index + 1} unit={unit} min={min} max={max} showConditions={showConditions} />)}
+  </ol>
+  {rest.length ? (
+    <details class="bench-bars-more">
+      <summary>Show the other {rest.length} {rest.length === 1 ? "model" : "models"}</summary>
+      <ol class="bench-bars" start={visible + 1}>
+        {rest.map((row, index) => <BenchmarkBarRow row={row} rank={visible + index + 1} unit={unit} min={min} max={max} showConditions={showConditions} />)}
+      </ol>
+    </details>
+  ) : null}
+  <div class="bench-bar-axis" aria-hidden="true">
+    <span></span><span></span>
+    <span class="bench-bar-axis-scale"><span>{formatTick(min, unit)}</span><span>{formatTick(max, unit)}</span></span>
+    <span></span>
+  </div>
+</div>

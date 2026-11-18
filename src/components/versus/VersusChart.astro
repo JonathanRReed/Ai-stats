@@ -1,0 +1,138 @@
+---
+/**
+ * Static head-to-head plot: AA Intelligence Index against cost on a log x-axis, one line per
+ * family joining its reasoning levels from lowest effort up. Two renderings share the data:
+ * a wide one with labels at the right edge, and a narrow one with a key above the plot.
+ * Family A uses circles and a solid line, family B squares and a dashed line, so the two
+ * never rely on colour alone (two families from one lab share a hue by design).
+ */
+import {plotGeometry} from "../../lib/compare-geometry";
+import {reasoningRank} from "../../lib/compare-family-lines";
+import {familyColor} from "../../lib/family-color";
+import {providerIcon} from "../../lib/provider-icons";
+import {levelLabel,type H2HChart} from "../../lib/head-to-head";
+import "../../styles/compare-explorer.css";
+
+type Side = {name: string; provider: string};
+type Props = {chart: H2HChart; a: Side; b: Side; id: string};
+const {chart, a, b, id} = Astro.props;
+
+const sides = {a, b} as const;
+const color = {a: familyColor(a.name), b: familyColor(b.name)};
+const marks = {a: providerIcon(a.provider, a.name), b: providerIcon(b.provider, b.name)};
+const money = (value: number) => `$${value >= 100 ? value.toFixed(0) : value >= 1 ? Number(value.toFixed(2)).toString() : Number(value.toPrecision(2)).toString()}`;
+
+const render = (width: number, height: number, rightPadding: number) => {
+  const geometry = plotGeometry(chart.points, "scatter", "log", width, height, 18, rightPadding, 48);
+  const lines = (["a", "b"] as const).map((side) => {
+    const points = geometry.points
+      .filter((point) => point.side === side)
+      .sort((p, q) => reasoningRank(p.level) - reasoningRank(q.level) || p.x - q.x);
+    return {side, points, path: points.map((point, index) => `${index ? "L" : "M"}${point.cx.toFixed(1)},${point.cy.toFixed(1)}`).join("")};
+  });
+  // Labels sit at the right edge at their family's last (highest-effort) point; nudge apart when close.
+  const labels = lines.filter((line) => line.points.length).map((line) => ({side: line.side, y: line.points.at(-1)!.cy, x: line.points.at(-1)!.cx}));
+  if (labels.length === 2 && Math.abs(labels[0].y - labels[1].y) < 30) {
+    const [upper, lower] = labels[0].y <= labels[1].y ? [labels[0], labels[1]] : [labels[1], labels[0]];
+    const mid = (upper.y + lower.y) / 2;
+    upper.y = Math.max(geometry.top + 6, mid - 15);
+    lower.y = Math.min(geometry.bottom - 6, mid + 15);
+  }
+  // Level names above (or below) each point; a name that would overlap another is left to the tables.
+  const boxes: Array<{l: number; r: number; t: number; b: number}> = [
+    ...labels.map((label) => ({l: geometry.right + 8, r: geometry.width, t: label.y - 9, b: label.y + 9})),
+    ...geometry.points.map((point) => ({l: point.cx - 6, r: point.cx + 6, t: point.cy - 6, b: point.cy + 6})),
+  ];
+  const levelTags = new Map<string, {x: number; y: number}>();
+  for (const point of [...geometry.points].filter((point) => point.level !== "unknown").sort((p, q) => q.y - p.y || p.cx - q.cx)) {
+    const text = levelLabel(point.level), half = text.length * 3.1 + 2;
+    for (const dy of [-11, 19]) {
+      const box = {l: point.cx - half, r: point.cx + half, t: point.cy + dy - 10, b: point.cy + dy + 2};
+      if (box.l < geometry.left || box.r > geometry.right + 4 || box.t < 0 || box.b > geometry.bottom - 2) continue;
+      if (boxes.some((o) => box.l < o.r && box.r > o.l && box.t < o.b && box.b > o.t)) continue;
+      boxes.push(box);
+      levelTags.set(point.id, {x: point.cx, y: point.cy + dy});
+      break;
+    }
+  }
+  return {geometry, lines, labels, levelTags};
+};
+const wide = render(1120, 440, 220);
+const narrow = render(360, 300, 14);
+const summary = `${chart.yLabel} against ${chart.xLabel}. ${a.name}: ${chart.points.filter((p) => p.side === "a").length} plotted levels. ${b.name}: ${chart.points.filter((p) => p.side === "b").length} plotted levels. Every value is listed in the tables below.`;
+const pointTitle = (point: H2HChart["points"][number]) =>
+  `${point.name}: ${point.y.toFixed(1)} points, ${money(point.x)} ${chart.axis === "task-cost" ? "per task" : "per 1M tokens"}`;
+---
+
+<figure class="h2h-chart compare-explorer" aria-labelledby={`${id}-caption`}>
+  <ul class="h2h-chart-key" aria-hidden="true">
+    {(["a", "b"] as const).map((side) => (
+      <li>
+        <svg width="28" height="12" viewBox="0 0 28 12">
+          <line x1="1" y1="6" x2="27" y2="6" stroke={color[side]} stroke-width="2" stroke-dasharray={side === "b" ? "5 3" : undefined} />
+          {side === "a" ? <circle cx="14" cy="6" r="4" fill={color[side]} /> : <rect x="10" y="2" width="8" height="8" fill={color[side]} />}
+        </svg>
+        {marks[side] ? <img class:list={["h2h-mark", {"is-mono": marks[side]!.mono}]} src={marks[side]!.src} alt="" width="14" height="14" /> : null}
+        <span>{sides[side].name}</span>
+      </li>
+    ))}
+  </ul>
+  {[{view: wide, kind: "wide"}, {view: narrow, kind: "narrow"}].map(({view, kind}) => {
+    const g = view.geometry;
+    return (
+      <svg class={`h2h-plot h2h-plot-${kind}`} viewBox={`0 0 ${g.width} ${g.height}`} role="img" aria-labelledby={`${id}-${kind}-title ${id}-${kind}-desc`}>
+        <title id={`${id}-${kind}-title`}>{a.name} vs {b.name}: {chart.yLabel} by {chart.axis === "task-cost" ? "cost per task" : "blended price"}</title>
+        <desc id={`${id}-${kind}-desc`}>{summary}</desc>
+        {g.yTicks.map((tick) => (
+          <g>
+            <line class="plot-grid" x1={g.left} x2={g.right} y1={tick.position} y2={tick.position} />
+            <text class="plot-tick" x={g.left - 8} y={tick.position + 4} text-anchor="end">{tick.label}</text>
+          </g>
+        ))}
+        <line class="plot-axis" x1={g.left} x2={g.right} y1={g.bottom} y2={g.bottom} />
+        {g.xTicks.map((tick) => (
+          <g>
+            <line class="plot-tick-mark" x1={tick.position} x2={tick.position} y1={g.bottom} y2={g.bottom + 5} />
+            <text class="plot-tick" x={tick.position} y={g.bottom + 19} text-anchor="middle">${tick.label}</text>
+          </g>
+        ))}
+        <text class="plot-label h2h-axis-label" x={(g.left + g.right) / 2} y={g.height - 14} text-anchor="middle">
+          {kind === "narrow" ? (chart.axis === "task-cost" ? "Cost per task (USD, log)" : "Blended $/1M tokens (log)") : chart.xLabel}
+        </text>
+        <text class="plot-label h2h-axis-label" transform={`translate(13 ${(g.top + g.bottom) / 2}) rotate(-90)`} text-anchor="middle">
+          {kind === "narrow" ? "AA Index (points)" : chart.yLabel}
+        </text>
+        {view.lines.map((line) => line.points.length > 1 ? (
+          <path class="variant-link" d={line.path} stroke={color[line.side]} stroke-dasharray={line.side === "b" ? "6 4" : undefined} />
+        ) : null)}
+        {kind === "wide" ? view.labels.map((label) => (
+          <g class="h2h-direct-label">
+            <line class="h2h-leader" x1={label.x + 7} y1={view.lines.find((l) => l.side === label.side)!.points.at(-1)!.cy} x2={g.right + 8} y2={label.y} />
+            {marks[label.side] ? <image class:list={["h2h-mark", {"is-mono": marks[label.side]!.mono}]} href={marks[label.side]!.src} x={g.right + 12} y={label.y - 7} width="14" height="14" /> : null}
+            <text class="plot-label" x={g.right + (marks[label.side] ? 34 : 12)} y={label.y + 4}>{sides[label.side].name}</text>
+          </g>
+        )) : null}
+        {view.lines.flatMap((line) => line.points.map((point) => (
+          <g class="chart-point">
+            <title>{pointTitle(point)}</title>
+            {line.side === "a"
+              ? <circle class="point-mark" cx={point.cx} cy={point.cy} r={kind === "wide" ? 5.5 : 4.5} fill={color.a} />
+              : <rect class="point-mark" x={point.cx - (kind === "wide" ? 5 : 4)} y={point.cy - (kind === "wide" ? 5 : 4)} width={kind === "wide" ? 10 : 8} height={kind === "wide" ? 10 : 8} fill={color.b} />}
+            {kind === "wide" && view.levelTags.has(point.id) ? <text class="h2h-point-level" x={view.levelTags.get(point.id)!.x} y={view.levelTags.get(point.id)!.y} text-anchor="middle">{levelLabel(point.level)}</text> : null}
+          </g>
+        )))}
+      </svg>
+    );
+  })}
+  <figcaption id={`${id}-caption`}>
+    {chart.axis === "task-cost"
+      ? "Each point is one reasoning level. Cost per task is what Artificial Analysis spent per AA Intelligence Index task."
+      : "Each point is one reasoning level. Cost per task is missing for at least one of these families, so both use blended token price instead."}
+    {" "}Lines join levels from lowest effort up. The x-axis is logarithmic.
+    {chart.unplotted.length ? (
+      <span class="h2h-unplotted">
+        Not plotted: {chart.unplotted.map((item, index) => <>{index ? "; " : ""}{item.name} ({item.reason})</>)}.
+      </span>
+    ) : null}
+  </figcaption>
+</figure>

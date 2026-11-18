@@ -1,0 +1,157 @@
+---
+import { scriptSafeJson } from "../../lib/script-json";
+import Layout from "../../components/Layout.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import ScrollToTop from "../../components/ScrollToTop.astro";
+import { getBenchmarkPageData } from "../../lib/benchmark-pages-data";
+import { EPOCH_BENCHMARK_ATTRIBUTION } from "../../lib/benchmark-catalog";
+import { BENCHMARK_SOURCE_LABELS, type BenchmarkPage, type BenchmarkSource } from "../../lib/benchmark-pages";
+import { SITE_ORIGIN } from "../../lib/model-pages";
+import { AUTHOR_REF } from "../../lib/author";
+import { BENCHMARKS_INDEX_PATH } from "../../lib/site-routes";
+import "../../styles/benchmark-pages.css";
+
+export const prerender = true;
+
+const pages = await getBenchmarkPageData();
+const ORDER: BenchmarkSource[] = ["artificial-analysis", "epoch-ai", "publisher"];
+const NOTES: Record<BenchmarkSource, string> = {
+  "artificial-analysis": "Metrics with a value for at least one model in the current Artificial Analysis list.",
+  "epoch-ai": "Runs collected by the Epoch AI Benchmarking Hub, each credited to its original publisher. Pages marked Epoch archive have a newer copy taken straight from the publisher.",
+  publisher: "Snapshots taken straight from the benchmark publisher, one version per page.",
+};
+const groups = ORDER.map((source) => ({
+  source,
+  label: BENCHMARK_SOURCE_LABELS[source],
+  pages: pages.filter((page) => page.source === source).sort((a, b) => b.runCount - a.runCount || a.name.localeCompare(b.name)),
+})).filter((group) => group.pages.length);
+const totalRuns = pages.reduce((sum, page) => sum + page.runCount, 0);
+const fetched = pages.map((page) => page.fetchedAt).filter((value): value is string => Boolean(value)).sort();
+const dateModified = fetched.length ? fetched[fetched.length - 1].slice(0, 10) : undefined;
+const range = (page: BenchmarkPage) => (page.firstDate && page.lastDate ? (page.firstDate === page.lastDate ? page.firstDate : `${page.firstDate} – ${page.lastDate}`) : "Dates not recorded");
+const credit = (page: BenchmarkPage) =>
+  page.source === "artificial-analysis" ? "Artificial Analysis" : page.attribution.sourceName;
+
+const title = "AI benchmark results by model, with sources | AI Stats";
+const description = `${pages.length} benchmarks with ${totalRuns.toLocaleString("en-US")} recorded runs from Artificial Analysis, Epoch AI and original publishers. Each page keeps the source's own scale, version, conditions and standard error.`;
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Dataset",
+      "@id": `${SITE_ORIGIN}${BENCHMARKS_INDEX_PATH}#dataset`,
+      name: "AI Stats benchmark results",
+      description,
+      url: `${SITE_ORIGIN}${BENCHMARKS_INDEX_PATH}`,
+      creator: AUTHOR_REF,
+      isPartOf: { "@id": `${SITE_ORIGIN}/#website` },
+      ...(dateModified ? { dateModified } : {}),
+      isBasedOn: ["https://artificialanalysis.ai/", "https://epoch.ai/benchmarks"],
+      hasPart: pages.slice(0, 60).map((page) => ({ "@id": `${SITE_ORIGIN}${page.path}#dataset` })),
+      inLanguage: "en-US",
+    },
+    {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "AI Stats", item: `${SITE_ORIGIN}/` },
+        { "@type": "ListItem", position: 2, name: "Benchmarks", item: `${SITE_ORIGIN}${BENCHMARKS_INDEX_PATH}` },
+      ],
+    },
+  ],
+});
+---
+
+<Layout title={title} description={description} dateModified={dateModified}>
+  <Fragment slot="head">
+    <script type="application/ld+json" is:inline set:html={scriptSafeJson(jsonLd)} />
+  </Fragment>
+  <Header currentPage="benchmarks" />
+
+  <main id="main-content" class="eco-container data-page bench-index">
+    <header class="data-hero">
+      <h1>Benchmarks</h1>
+      <p class="data-summary">
+        Every benchmark with recorded results, on its own scale. Scores from different benchmarks are never combined.
+      </p>
+      <dl class="data-readouts">
+        <div><dt>Benchmarks</dt><dd>{pages.length}</dd></div>
+        <div><dt>Recorded runs</dt><dd>{totalRuns.toLocaleString("en-US")}</dd></div>
+        {groups.map((group) => <div><dt>{group.label}</dt><dd>{group.pages.length}</dd></div>)}
+      </dl>
+      <div class="data-find" id="bench-find" hidden>
+        <label>
+          <span class="eco-label">Find a benchmark</span>
+          <input type="search" id="bench-search" placeholder="Benchmark or publisher name" autocomplete="off" spellcheck="false" aria-describedby="bench-search-status" />
+        </label>
+        <p id="bench-search-status" role="status">{pages.length} benchmarks.</p>
+      </div>
+    </header>
+
+    {!pages.length ? <p class="data-summary">Benchmark data is temporarily unavailable.</p> : null}
+
+    {groups.map((group) => (
+      <section class="bench-index-group" aria-labelledby={`group-${group.source}`} data-group>
+        <header>
+          <h2 id={`group-${group.source}`}>{group.label} <span data-group-count>{group.pages.length}</span></h2>
+          <p>{NOTES[group.source]}</p>
+        </header>
+        <div class="bench-index-head" aria-hidden="true"><span>Benchmark</span><span>Source</span><span>Runs</span><span>Model dates</span></div>
+        <ul class="bench-index-list">
+          {group.pages.map((page) => (
+            <li data-search={`${page.name} ${credit(page)} ${page.slug}`.toLowerCase()}>
+              <a href={page.path}>
+                <span class="bench-index-name">{page.name}</span>
+                <span class="bench-index-source">{credit(page)}</span>
+                <span class="bench-index-runs">{page.runCount} {page.runCount === 1 ? "run" : "runs"}</span>
+                <span class="bench-index-dates">{range(page)}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+
+    <p class="data-foot">
+      Benchmark results belong to the named sources. Epoch AI Benchmarking Hub licence: {EPOCH_BENCHMARK_ATTRIBUTION.license}. Missing values are not zero. <a href="/about">How the data is gathered</a>.
+    </p>
+  </main>
+
+  <script>
+    const enhance = () => {
+      const find = document.getElementById("bench-find");
+      const input = document.getElementById("bench-search") as HTMLInputElement | null;
+      const status = document.getElementById("bench-search-status");
+      if (!find || !input || !status || find.dataset.ready) return;
+      find.dataset.ready = "1";
+      find.hidden = false;
+      const groups = Array.from(document.querySelectorAll<HTMLElement>("[data-group]")).map((group) => ({
+        group,
+        count: group.querySelector<HTMLElement>("[data-group-count]"),
+        items: Array.from(group.querySelectorAll<HTMLLIElement>("li[data-search]")),
+      }));
+      const total = groups.reduce((sum, entry) => sum + entry.items.length, 0);
+      input.addEventListener("input", () => {
+        const terms = input.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+        let shown = 0;
+        for (const entry of groups) {
+          let visible = 0;
+          for (const item of entry.items) {
+            const hit = terms.every((term) => (item.dataset.search ?? "").includes(term));
+            item.hidden = !hit;
+            if (hit) visible += 1;
+          }
+          entry.group.hidden = visible === 0;
+          if (entry.count) entry.count.textContent = terms.length ? `${visible} of ${entry.items.length}` : String(entry.items.length);
+          shown += visible;
+        }
+        status.textContent = !terms.length ? `${total} benchmarks.` : shown ? `${shown} of ${total} benchmarks match.` : "No benchmark matches that search.";
+      });
+    };
+    enhance();
+    document.addEventListener("astro:page-load", enhance);
+  </script>
+
+  <Footer />
+  <ScrollToTop />
+</Layout>

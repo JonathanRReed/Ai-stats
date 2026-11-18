@@ -1,0 +1,55 @@
+---
+import "../../styles/model-page.css";
+import { describeDifference, type Comparison } from "../../lib/model-position";
+import { costWindowText, indexWindowText } from "../../lib/model-alternatives";
+import type { ModelPosition } from "../../lib/model-position-data";
+
+type Props = { position: ModelPosition };
+const { position } = Astro.props;
+const money = (value: number): string => `$${value.toFixed(value < 0.01 ? 4 : value < 1 ? 3 : 2)}`;
+const costName = position.measure === "task" ? "cost per task" : "blended token price";
+const lists: { id: string; title: string; rule: string; empty: string; items: Comparison[] }[] = [
+  {
+    id: "alternatives-cheaper",
+    title: "Similar score for less",
+    rule: `Index ${indexWindowText()}, lower ${costName}. Cheapest first.`,
+    empty: "No other current record in this window costs less.",
+    items: position.cheaperSimilar,
+  },
+  {
+    id: "alternatives-higher",
+    title: "Higher score at a similar price",
+    rule: `${costName.charAt(0).toUpperCase()}${costName.slice(1)} ${costWindowText()}, higher Index. Highest first.`,
+    empty: "No other current record in this window scores higher.",
+    items: position.higherSimilar,
+  },
+];
+---
+<section class="model-alternatives" aria-labelledby="alternatives-heading">
+  <header class="model-section-head">
+    <h2 id="alternatives-heading">Closest alternatives</h2>
+    <p>From recorded values only, on the same two measures as the chart.{position.familyCount > 1 ? ` Other reasoning levels of ${position.family} are in the table below, so they are left out here.` : ""}</p>
+  </header>
+  <div class="alternatives-grid">
+    {lists.map((list) => (
+      <section aria-labelledby={list.id}>
+        <h3 id={list.id}>{list.title}</h3>
+        <p class="alternatives-rule">{list.rule}</p>
+        {list.items.length ? (
+          <ol class="position-list">
+            {list.items.map((item) => {
+              const href = position.pathById.get(item.point.id);
+              return (
+                <li>
+                  {href ? <a href={href}>{item.point.record.name}</a> : <span>{item.point.record.name}</span>}
+                  <span class="position-diff">{describeDifference(item)}</span>
+                  <span class="position-values mono">{item.point.y.toFixed(1)} · {money(item.point.x)}</span>
+                </li>
+              );
+            })}
+          </ol>
+        ) : <p class="position-none">{list.empty}</p>}
+      </section>
+    ))}
+  </div>
+</section>

@@ -1,0 +1,75 @@
+---
+import "../../styles/compare-explorer.css";
+import "../../styles/model-page.css";
+import ModelPositionChart from "./ModelPositionChart.astro";
+import { familyColor } from "../../lib/family-color";
+import { describeDifference } from "../../lib/model-position";
+import type { ModelPosition } from "../../lib/model-position-data";
+
+type Props = { position: ModelPosition };
+const { position } = Astro.props;
+
+const color = familyColor(position.family);
+const money = (value: number): string => `$${value.toFixed(value < 0.01 ? 4 : value < 1 ? 3 : 2)}`;
+const dateFormatter = new Intl.DateTimeFormat("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
+const dataDate = position.dataDate ? dateFormatter.format(new Date(`${position.dataDate}T00:00:00Z`)) : null;
+const isTask = position.measure === "task";
+const others = position.cohortSize - 1;
+---
+<section class="model-position compare-explorer" aria-labelledby="position-heading">
+  <header class="model-section-head">
+    <h2 id="position-heading">Where it sits</h2>
+    <p>
+      AA Intelligence Index against {isTask ? "cost per task" : "blended token price"}.
+      {isTask
+        ? "Cost per task is Artificial Analysis’s weighted average cost across its Intelligence Index evaluation tasks. It is not derived from token price."
+        : "Artificial Analysis has not recorded a cost per task for this record, so the cost here is the blended token price (3:1 input/output)."}
+    </p>
+  </header>
+
+  <div class="position-layout">
+    <figure class="position-figure">
+      <div class="position-plot">
+        <ModelPositionChart position={position} size="wide" color={color} labelId="position-summary" />
+        <ModelPositionChart position={position} size="narrow" color={color} labelId="position-summary" />
+      </div>
+      <ul class="position-legend" aria-label="Chart key">
+        <li><svg width="22" height="10" aria-hidden="true"><circle class="position-target-ring" cx="11" cy="5" r="4" style={`--family:${color}`}></circle></svg>This record: <span class="mono">{position.index.toFixed(1)}</span> points at <span class="mono">{money(position.cost)}</span> {position.unit}</li>
+        {position.familyCount > 1 ? <li><svg width="22" height="10" aria-hidden="true"><line x1="1" x2="21" y1="5" y2="5" stroke={color} stroke-width="2"></line></svg>{position.family} at each reasoning level ({position.familyCount})</li> : null}
+        <li><svg width="22" height="10" aria-hidden="true"><line class="frontier-key" x1="1" x2="21" y1="5" y2="5"></line></svg>Pareto line: records no other record matches or beats on both measures</li>
+        <li><svg width="22" height="10" aria-hidden="true"><circle class="position-dot" cx="11" cy="5" r="3"></circle></svg>Other current records ({others})</li>
+      </ul>
+      <figcaption>
+        Source: <a href="https://artificialanalysis.ai/" rel="noopener noreferrer">Artificial Analysis</a>, current records on Intelligence Index version {position.indexVersion ?? "not recorded"}{dataDate ? <>, observed through <time datetime={position.dataDate ?? undefined}>{dataDate}</time></> : null}.
+        Cost axis is logarithmic. Records with no recorded cost, or a cost of zero, are not drawn or compared.
+      </figcaption>
+      <p class="position-summary" id="position-summary">{position.summary}</p>
+    </figure>
+
+    <section class="position-beats" aria-labelledby="beats-heading">
+      <h2 id="beats-heading">What beats this</h2>
+      {position.dominators.total ? (
+        <>
+          <p>
+            {position.dominators.total === 1 ? "One record scores" : `${position.dominators.total} records score`} at least as high on the Index for no more {isTask ? "cost per task" : "blended price"}, and better on at least one.
+            {position.dominators.total > position.dominators.items.length ? ` The ${position.dominators.items.length} nearest on the chart:` : " Nearest on the chart first:"}
+          </p>
+          <ol class="position-list">
+            {position.dominators.items.map((item) => {
+              const href = position.pathById.get(item.point.id);
+              return (
+                <li>
+                  {href ? <a href={href}>{item.point.record.name}</a> : <span>{item.point.record.name}</span>}
+                  <span class="position-diff">{describeDifference(item)}</span>
+                  <span class="position-values mono">{item.point.y.toFixed(1)} · {money(item.point.x)}</span>
+                </li>
+              );
+            })}
+          </ol>
+        </>
+      ) : (
+        <p class="position-none">No current record scores at least as high for no more. {position.name} is on the Pareto line for these two measures.</p>
+      )}
+    </section>
+  </div>
+</section>

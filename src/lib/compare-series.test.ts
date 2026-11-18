@@ -263,3 +263,12 @@ test('publisher benchmark bars preserve ranked model order and retain repeated o
  const state=parseCompareState(new URLSearchParams('chart=benchmark&metric=epoch_b&m=epoch:b&m=epoch:a'),models);
  expect(series.buildCompareSeries({models,observations},state).points.map(p=>p.modelId)).toEqual(['epoch:b','epoch:b','epoch:a']);
 });
+
+test('a recorded standard error travels with the benchmark point in the score unit',async()=>{
+ const {buildCompareSeries}=await import('./compare-series');
+ const {parseCompareState}=await import('./compare-state');
+ const models=[{id:'epoch:v1',name:'V1',family:'V1',source:'epoch' as const,sourceModelId:'v1',current:true},{id:'epoch:v2',name:'V2',family:'V2',source:'epoch' as const,sourceModelId:'v2',current:true}];
+ const row=(id:string,modelVersion:string,stderr?:number|null)=>({id,modelVersion,benchmarkSlug:'gpqa',metricKey:'accuracy',unit:'fraction' as const,value:.5,conditions:null,evaluationDate:null,sourceUrl:null,fetchedAt:null,snapshotId:null,...(stderr===undefined?{}:{stderr})});
+ const series=buildCompareSeries({models,observations:[row('r1','v1',.02),row('r2','v2',null)]},parseCompareState(new URLSearchParams('chart=benchmark&metric=epoch_gpqa&m=epoch:v1&m=epoch:v2'),models));
+ expect(series.points.map(point=>[point.modelId,point.y,point.stderr])).toEqual([['epoch:v1',50,2],['epoch:v2',50,undefined]]);
+});

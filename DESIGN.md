@@ -202,8 +202,14 @@ Corners are small and functional. Controls and buttons use the smallest radius, 
 
 ### Charts and Evidence Tables
 
-- **Plot:** Blue-gray carries the comparison field, copper marks a disclosed Pareto frontier, and the hairline grid stays visible but quiet.
-- **Labels:** Mono text with explicit axes and units. Never encode an important distinction by color alone.
+- **Plot:** Each lab has one hue, shared by every model family from that lab. A line joins the reasoning levels of one model, lowest effort first, so the cost of extra reasoning reads as a slope. The Pareto line is a dashed stroke in the primary ink color, never a lab hue, and its points carry an ink ring. The hairline grid stays visible but quiet, with horizontal rules only.
+- **Emphasis:** One rule covers lines, points, and labels. An inspected family is drawn in full and the rest recede. With nothing inspected and the Pareto line on, families that touch it lead.
+- **Labels:** Families are named directly at the right edge of the plot with the lab mark, joined to their last point by a faint leader. Narrow plots fall back to a key above the plot. Axis ticks and values use mono text with explicit units. Never encode an important distinction by color alone.
+- **Automatic selection:** Scatter views open on the Pareto line plus every measured reasoning level of the families on it. Cost axes open on a log scale.
+- **Layers:** Optional layers explain the measurements and never move a point: a draggable budget line that rings the best record under it, lines of equal score per dollar, point size for output speed, a shaded region showing what beats the inspected record, a dotted ring for releases in the last 30 days, and fading for records not observed recently. Each active layer states what it shows in one line above the plot. Copper appears only on the budget line and on a ringed answer.
+- **Timeline:** The timeline replays one index version month by month, keeps the axes fixed, and keeps today's Pareto line in view as a faint reference.
+- **The visitor's own numbers:** A workload, a custom weighting, or uploaded scores may replace an axis. The axis title then says so, the weights or file name stay visible, and the result is never described as an AI Stats score.
+- **Views:** Every chart can also be read as ranked bars or a sortable table of the same records. Benchmark bars carry a whisker of one standard error where the publisher records it.
 - **Fallback:** Provide a table, receipt, or textual interpretation for the same claim.
 
 ### Source Health

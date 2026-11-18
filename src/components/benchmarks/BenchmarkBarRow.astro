@@ -1,0 +1,41 @@
+---
+import { formatScore, formatStderr, type BenchmarkRun, type LeaderRow } from "../../lib/benchmark-pages";
+
+interface Props {
+  row: LeaderRow;
+  rank: number;
+  unit: BenchmarkRun["unit"];
+  min: number;
+  max: number;
+  showConditions: boolean;
+}
+
+const { row, rank, unit, min, max, showConditions } = Astro.props;
+const at = (value: number) => Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
+const zero = at(Math.max(min, 0));
+const end = at(row.value);
+const barLeft = Math.min(zero, end);
+const barWidth = Math.max(0.4, Math.abs(end - zero));
+const whisker = row.stderr === null ? null : { left: at(row.value - row.stderr), right: at(row.value + row.stderr) };
+const detail = [row.lab, showConditions ? row.conditionLabel : null, row.runsForModel > 1 ? `best of ${row.runsForModel} runs` : null]
+  .filter(Boolean)
+  .join(" · ");
+---
+
+<li class="bench-bar-row">
+  <span class="bench-bar-rank" aria-hidden="true">{rank}</span>
+  <span class="bench-bar-name">
+    {row.modelPath ? <a href={row.modelPath}>{row.modelName}</a> : <span>{row.modelName}</span>}
+    {detail ? <small>{detail}</small> : null}
+  </span>
+  <span class="bench-bar-track" aria-hidden="true">
+    <span class="bench-bar-fill" style={`left:${barLeft.toFixed(2)}%;width:${barWidth.toFixed(2)}%`}></span>
+    {whisker ? <span class="bench-bar-whisker" style={`left:${whisker.left.toFixed(2)}%;width:${Math.max(0.2, whisker.right - whisker.left).toFixed(2)}%`}></span> : null}
+  </span>
+  <span class="bench-bar-value">
+    {formatScore(row.value, unit)}
+    {row.stderr === null
+      ? <small class="is-missing"><span aria-hidden="true">no s.e.</span><span class="sr-only">, standard error not recorded</span></small>
+      : <small><span class="sr-only">, standard error </span>{formatStderr(row.stderr, unit)}</small>}
+  </span>
+</li>
