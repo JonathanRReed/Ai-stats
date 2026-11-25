@@ -38,5 +38,10 @@
     "version": "20261002213840",
     "name": "index_source_snapshot_cache_reference",
     "sqlDigest": "426a54b0d35021a373bc3cc658fc120e"
+  },
+  {
+    "version": "20261121154759",
+    "name": "create_backup_manifest",
+    "sqlDigest": "981733468f9ce17069110d4538129419"
   }
 ]
