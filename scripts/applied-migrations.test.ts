@@ -30,10 +30,7 @@ const unreceiptedMigrations=[
  '20261003173339_publisher_release_protocol_v2.sql',
  '20261014140000_app_release_schema_v3.sql',
  '20261014150000_app_release_schema_v4_frontier.sql',
- '20261118210551_source_publication_timeout.sql',
- '20261125160000_drop_unused_benchmark_observation_indexes.sql',
- '20261125160100_archive_aa_fetch_payloads.sql',
- '20261125160200_store_unchanged_aa_observations_once.sql'
+ '20261118210551_source_publication_timeout.sql'
 ];
 test('explicitly accounts for migrations without verified production SQL receipts',()=>{
  const receipted=new Set(receipts.map(receipt=>receipt.version+'_'+receipt.name+'.sql'));

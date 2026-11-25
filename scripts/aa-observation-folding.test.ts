@@ -4,7 +4,7 @@ import {PGlite} from '@electric-sql/pglite';
 
 // Folding Artificial Analysis observations into runs must keep every row recoverable.
 // A control table receives the same upserts without the trigger; the history view must match it.
-const migration=readFileSync('supabase/migrations/20261125160200_store_unchanged_aa_observations_once.sql','utf8');
+const migration=readFileSync('supabase/migrations/20261125173057_store_unchanged_aa_observations_once.sql','utf8');
 const base=`
 create schema if not exists private;
 create role anon; create role authenticated; create role service_role bypassrls;

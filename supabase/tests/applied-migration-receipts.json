@@ -43,5 +43,20 @@
     "version": "20261121154759",
     "name": "create_backup_manifest",
     "sqlDigest": "981733468f9ce17069110d4538129419"
+  },
+  {
+    "version": "20261125172100",
+    "name": "drop_unused_benchmark_observation_indexes",
+    "sqlDigest": "6c434e80ab18b3d1fc407ed42b97104a"
+  },
+  {
+    "version": "20261125173057",
+    "name": "store_unchanged_aa_observations_once",
+    "sqlDigest": "c0f2b8cc8c416db3d5b027b6f0f45696"
+  },
+  {
+    "version": "20261125174959",
+    "name": "archive_aa_fetch_payloads",
+    "sqlDigest": "5a6bdb7b2b50fe8f70d77c1c3ac56642"
   }
 ]

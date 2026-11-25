@@ -1,6 +1,6 @@
 # Ai-dex database storage
 
-The Ai-dex project runs on the Supabase free plan, which caps each project database at 500 MB. These changes keep it under that cap without dropping any value. Migration `20261125160000_drop_unused_benchmark_observation_indexes` also drops three `benchmark_observations` indexes that no query uses (about 200 MB).
+The Ai-dex project runs on the Supabase free plan, which caps each project database at 500 MB. These changes keep it under that cap without dropping any value. Migration `20261125172100_drop_unused_benchmark_observation_indexes` also drops three `benchmark_observations` indexes that no query uses (about 200 MB).
 
 ## Benchmark observations
 
@@ -14,7 +14,7 @@ A `before insert` trigger on `benchmark_observations` folds new standard rows in
 
 Read every observation from `benchmark_observation_history_v1`. `latest_benchmark_observations_v1` reads both tables and returns the same rows as before.
 
-Migration `20261125160200_store_unchanged_aa_observations_once` folds the existing rows. It checks that every folded row rebuilds exactly before it deletes the plain copy, and a failed check rolls the whole fold back. Run it outside the benchmark sync (37 minutes past 1, 7, 13 and 19 UTC). Postgres only returns the freed space to the plan after a rewrite, so run this afterwards, on its own:
+Migration `20261125173057_store_unchanged_aa_observations_once` folds the existing rows. It checks that every folded row rebuilds exactly before it deletes the plain copy, and a failed check rolls the whole fold back. Run it outside the benchmark sync (37 minutes past 1, 7, 13 and 19 UTC). Postgres only returns the freed space to the plan after a rewrite, so run this afterwards, on its own:
 
 ```sql
 vacuum full public.benchmark_observations;
