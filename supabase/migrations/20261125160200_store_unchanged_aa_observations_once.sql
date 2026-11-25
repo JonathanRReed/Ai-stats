@@ -3,6 +3,10 @@
 -- Every original row (id, key, value, timestamps, metadata) can be rebuilt exactly
 -- from public.benchmark_observation_history_v1.
 
+-- The fold below reads and rewrites every Artificial Analysis row; the default 2 minute limit is too short.
+set local statement_timeout = '20min';
+set local work_mem = '64MB';
+
 create table if not exists public.benchmark_observation_series (
   id integer generated always as identity primary key,
   intelligence_source_id bigint not null references public.intelligence_sources(id) on delete cascade,
